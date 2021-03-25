@@ -34,4 +34,3 @@ class MAROONX(Gemini):
 
         # this needs to be updated at appropriate. 
         return len(ad) in [1]
-
