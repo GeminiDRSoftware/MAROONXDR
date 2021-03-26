@@ -18,7 +18,7 @@ def makeProcessedDark(p):
         A primitive set matching the recipe_tags.
     """
 
-    p.somestuff()
+    p.someStuff()
     return
 
 _default = makeProcessedDark

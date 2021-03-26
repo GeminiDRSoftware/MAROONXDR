@@ -21,7 +21,7 @@ class MAROONXEchelle(MAROONX, Spect):
     data.
     """
 
-    tagset = set(['GEMINI', 'MAROONX', 'ECHELLE'])
+    tagset = {'GEMINI', 'MAROONX', 'ECHELLE', 'SPECT'}
 
     def __init__(self, adinputs, **kwargs):
         super(MAROONXEchelle, self).__init__(adinputs, **kwargs)

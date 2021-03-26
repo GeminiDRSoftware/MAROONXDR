@@ -26,6 +26,14 @@ class AstroDataMAROONX(AstroDataGemini):
     def _tag_instrument(self):
         return TagSet(['MAROONX'])
 
+    @astro_data_tag
+    def _tag_spect(self):
+        return TagSet(['SPECT'])
+
+    @astro_data_tag
+    def _tag_echelle(self):
+        return TagSet(['ECHELLE'])
+
     @astro_data_tag  # tag or static method? (never mix blue and red, basically two different instruments)
     def _tag_arm(self):
         if re.findall(r"_\w_\d{4}", self.filename)[0][1] == 'b':
@@ -38,8 +46,9 @@ class AstroDataMAROONX(AstroDataGemini):
     @astro_data_tag
     def _tag_dark(self):
         if self.phu.get('HIERARCH FIBER1') == self.phu.get('HIERARCH FIBER2') == 'Dark'\
-                and self.phu.get('HIERARCH FIBER5') == 'Etalon':  # only dark when all fibers are dark
-            return TagSet(['DARK'], 'CAL') #blocks=['IMAGE', 'SPECT'])
+                and self.phu.get('HIERARCH FIBER5') == 'Etalon'\
+                and self.phu.get('EXPTIME') >= 600.:  # only dark when all fibers are dark
+            return TagSet(['DARK', 'CAL'], blocks=['SPECT', 'ECHELLE'])
 
     @astro_data_tag
     def _tag_flat(self):
@@ -50,8 +59,9 @@ class AstroDataMAROONX(AstroDataGemini):
 
     @astro_data_tag
     def _tag_etalon(self):
-        if self.phu.get('HIERARCH FIBER1') == 'Etalon' or self.phu.get('HIERARCH FIBER2') == 'Etalon' \
-                or self.phu.get('HIERARCH FIBER5') == 'Etalon':
+        if (self.phu.get('HIERARCH FIBER1') == 'Etalon' or self.phu.get('HIERARCH FIBER2') == 'Etalon' \
+                or self.phu.get('HIERARCH FIBER5') == 'Etalon')\
+                and self.phu.get('EXPTIME') < 600.:
             return TagSet(['ETALON', 'CAL'])
 
     @astro_data_tag
@@ -77,6 +87,20 @@ class AstroDataMAROONX(AstroDataGemini):
     # ----------------------
     # Descriptor definitions
     # ----------------------
+
+    @astro_data_descriptor
+    def instrument(self, generic=False):
+        """
+        Remove the "-" in the name so that it matches the directories in
+        maroonxdr.
+
+        Returns
+        -------
+        str
+
+        """
+        return super().instrument().replace('-', '')
+
 
     @astro_data_descriptor
     def fiber_setup(self):
