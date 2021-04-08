@@ -1,12 +1,13 @@
 from astrodata import astro_data_tag, astro_data_descriptor, returns_list, TagSet
 from gemini_instruments import gmu
-from gemini_instruments.common import Section
+from gemini_instruments.common import Section, section_to_tuple
 from . import lookup
 from gemini_instruments.gemini import AstroDataGemini
 
 import re
+# gemini_keyword_names = dict(overscan_section = 'BIASSEC')
 
-class AstroDataMAROONX(AstroDataGemini):
+class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms are combined to one MEF
 
     # single keyword mapping.  add only the ones that are different
     # from what's already defined in AstroDataGemini.
@@ -15,7 +16,7 @@ class AstroDataMAROONX(AstroDataGemini):
 
     @staticmethod
     def _matches_data(source):
-        return source[0].header.get('INSTRUME', '').upper() == 'MAROON-X'  # can we change lookup?
+        return source[0].header.get('INSTRUME', '').upper() == 'MAROON-X'  # !add to all data
     # def _matches_data(source):
     #     if 'HIERARCH MAROONX PUPILCAMERA STATUS' in source[0].header:
     #         return True
@@ -34,7 +35,7 @@ class AstroDataMAROONX(AstroDataGemini):
     def _tag_echelle(self):
         return TagSet(['ECHELLE'])
 
-    @astro_data_tag  # tag or static method? (never mix blue and red, basically two different instruments)
+    @astro_data_tag  # !add to headers
     def _tag_arm(self):
         if re.findall(r"_\w_\d{4}", self.filename)[0][1] == 'b':
             return TagSet(['BLUE'])
@@ -65,7 +66,7 @@ class AstroDataMAROONX(AstroDataGemini):
             return TagSet(['ETALON', 'CAL'])
 
     @astro_data_tag
-    def _tag_thar(self):
+    def _tag_thar(self): # !combine with iodine as ARC class?
         if self.phu.get('HIERARCH FIBER1') == 'ThAr' or self.phu.get('HIERARCH FIBER2') == 'ThAr' \
                 or self.phu.get('HIERARCH FIBER5') == 'ThAr':
             return TagSet(['THAR', 'CAL'])
@@ -76,7 +77,7 @@ class AstroDataMAROONX(AstroDataGemini):
     #         return TagSet(['BIAS', 'CAL', 'CCD'], blocks=['IMAGE', 'SPECT'])
 
     @astro_data_tag
-    def _tag_iodine(self):
+    def _tag_iodine(self):  # !combine with thar as ARC class?
         if self.phu.get('HIERARCH FIBER5') == 'Iodine':  # just simcal
             return TagSet(['IODINE', 'CAL'])
 
@@ -101,6 +102,22 @@ class AstroDataMAROONX(AstroDataGemini):
         """
         return super().instrument().replace('-', '')
 
+    @astro_data_descriptor
+    def array_name(self):  # ! add info to headers and change here to reflect direct access?
+        """
+        Returns a list of the names of the arrays of the extensions, or
+        a string if called on a single-extension slice
+        Returns
+        -------
+        list/str
+            names of the arrays
+        """
+        if 'BLUE' in self.tags:
+            return lookup.array_name_b
+        elif 'RED' in self.tags:
+            return lookup.array_name_r
+
+
 
     @astro_data_descriptor
     def fiber_setup(self):
@@ -116,48 +133,64 @@ class AstroDataMAROONX(AstroDataGemini):
                 self.phu.get('HIERARCH FIBER4'),self.phu.get('HIERARCH FIBER5')]
 
     @astro_data_descriptor
-    def overscan_section(self):
+    def overscan_section(self, pretty=False):  # ! add info to headers and change here to reflect direct access?
         """
         Returns the overscan (or bias) section.
 
         Returns
         -------
-        tuple of integers or list of tuples
-            Position of the overscan section using Python slice values.
-        string or list of strings
-            Position of the overscan section using an IRAF section
-            format (1-based).
+        list of stings
+            Position of the overscan sections using 0-based coordinates.
         """
-        sections = lookup.bias_section
-        return [sections[quad] for quad in sections]
+        #return self._parse_section(self._keyword_for('overscan_section'), pretty)
+        if pretty:
+            return [lookup.bias_section[amp] for amp in self.array_name()]
+        else:
+            return [section_to_tuple(lookup.bias_section[amp]) for amp in self.array_name()]
 
     @astro_data_descriptor
-    def ccd_section(self):
+    def data_section(self, pretty=False):  # ! add info to headers and change here to reflect direct access?
         """
-        Returns the entire ccd section.  If pretty is False, a
-        tuple of 0-based coordinates is returned with format  .
-        If pretty is True, a keyword value is returned without parsing as a
-        string.  In this format, the coordinates are generally 1-based.
-        One tuple or string is return per extension/array.  If more than one
-        array, the tuples/strings are return in a list.  Otherwise, the
-        section is returned as a tuple or a string.
-
-        Parameters
-        ----------
-        pretty : bool
-         If True, return the formatted string found in the header.
+        Returns the sky-exposable data pixels (or bias) section.
 
         Returns
         -------
-        tuple of integers or list of tuples
-            Position of the ccd sections using Python slice values.
-        string or list of strings
-            Position of the ccd sections using an IRAF section
-            format (1-based).
+        list of stings
+            Position of the sky-exposable sections using 0-based coordinates.
         """
-        sections = lookup.ccd_section
-        return [sections[quad] for quad in sections]
+        if pretty:
+            return [lookup.data_section[amp] for amp in self.array_name()]
+        else:
+            return [section_to_tuple(lookup.data_section[amp]) for amp in self.array_name()]
 
+    @astro_data_descriptor
+    def array_section(self, pretty):  # ! add info to headers and change here to reflect direct access?
+        """
+        Returns the array (full amplifier including overscan) sections.  A
+        list of strings of 0-based coordinates is returned.
+
+        Returns
+        -------
+            list of stings
+            Position of the array sections using 0-based coordinates.
+        """
+        if pretty:
+            return [lookup.array_section[amp] for amp in self.array_name()]
+        else:
+            return [section_to_tuple(lookup.array_section[amp]) for amp in self.array_name()]
+
+    @astro_data_descriptor
+    def read_noise(self):
+        return lookup.read_noise
+
+    @astro_data_descriptor
+    def gain(self):
+        return lookup.gain
+
+    @astro_data_descriptor
+    def nd(self):  # reuse filter name? this needs to be checked for all analysis utilizing fifth fiber data
+                    # i.e. dark creation (some value > 0), flat creation (always 0), science extractions (same as dark)
+        return '{:.1f}'.format(self.phu.get("HIERARCH MAROONX ND POSITION"))
 
     # For a list of expected descriptors, see the appendix in the Astrodata
     # User Manual.
