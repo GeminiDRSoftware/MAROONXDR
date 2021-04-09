@@ -42,7 +42,7 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
         elif re.findall(r"_\w_\d{4}", self.filename)[0][1] == 'r':
             return TagSet(['RED'])
         else:
-            return TagSet([''])
+            return TagSet(['UNDEFINED'])
 
     @astro_data_tag
     def _tag_dark(self):

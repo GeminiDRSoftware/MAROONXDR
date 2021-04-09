@@ -19,6 +19,7 @@ def makeProcessedDark(p):
     """
     #p.somestuff()
 
+    p.checkArm()
     p.checkND()
     p.prepare()
     # p.addDQ(add_illum_mask=False)  # need to get MX BPM

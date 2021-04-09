@@ -55,9 +55,34 @@ class MAROONX(Gemini, CCD, NearIR):
 
         return adinputs
 
+    def checkArm(self, adinputs=None, **params):
+        """
+        Check that the the camera arm is consistent through all input files, first file sets
+
+        Parameters
+        ----------
+        adinputs
+
+        Returns
+        -------
+        adinputs that pass test
+
+        """
+        log = self.log
+        arm_set = ['BLUE' if 'BLUE' in adinputs[0].tags else 'RED' if 'RED' in adinputs[0].tags else 'UNDEFINED']
+        adoutputs = []
+        for ad in adinputs:
+            if arm_set not in ad.Tagset:
+                log.warning("Not all frames taken with the same camera arm, restricting set to first arm used in list")
+                log.warning('Not analyzing frame: '+ad.filename)
+            else:
+                ad.update_filename(suffix=params['suffix'], strip=True)
+                adoutputs.append(ad)
+        return adoutputs
+
     def checkND(self, adinputs=None, **params):
         """
-        Check that the ND filter on the sim cal fiber is consistent through all input files
+        Check that the ND filter on the sim cal fiber is consistent through all input files, first file sets
 
         Parameters
         ----------

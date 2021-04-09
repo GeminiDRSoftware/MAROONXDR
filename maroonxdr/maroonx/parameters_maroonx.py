@@ -4,6 +4,9 @@
 from gempy.library import config
 from geminidr.core import parameters_ccd, parameters_nearIR, parameters_preprocess
 
+class checkArmConfig(config.Config):
+    suffix = config.Field("Filename suffix", str, "")
+
 class checkNDConfig(config.Config):
     suffix = config.Field("Filename suffix", str, "")
 
