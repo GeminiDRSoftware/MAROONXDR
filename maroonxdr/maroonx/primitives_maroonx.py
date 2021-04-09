@@ -69,10 +69,10 @@ class MAROONX(Gemini, CCD, NearIR):
 
         """
         log = self.log
-        arm_set = ['BLUE' if 'BLUE' in adinputs[0].tags else 'RED' if 'RED' in adinputs[0].tags else 'UNDEFINED']
+        arm_set = 'BLUE' if 'BLUE' in adinputs[0].tags else 'RED' if 'RED' in adinputs[0].tags else 'UNDEFINED'
         adoutputs = []
         for ad in adinputs:
-            if arm_set not in ad.Tagset:
+            if arm_set not in ad.tags:
                 log.warning("Not all frames taken with the same camera arm, restricting set to first arm used in list")
                 log.warning('Not analyzing frame: '+ad.filename)
             else:
