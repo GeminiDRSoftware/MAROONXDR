@@ -48,21 +48,21 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
     def _tag_dark(self):
         if self.phu.get('HIERARCH FIBER1') == self.phu.get('HIERARCH FIBER2') == 'Dark'\
                 and self.phu.get('HIERARCH FIBER5') == 'Etalon'\
-                and self.phu.get('EXPTIME') >= 600.:  # only dark when all fibers are dark
+                and self.phu.get('EXPTIME') >= 60.:  # part of dark correction is for etalon light leak into fiber 4
             return TagSet(['DARK', 'CAL'], blocks=['SPECT', 'ECHELLE'])
 
     @astro_data_tag
     def _tag_flat(self):
         if self.phu.get('HIERARCH FIBER1') == 'Flat' or self.phu.get('HIERARCH FIBER2') == 'Flat' \
                 or self.phu.get('HIERARCH FIBER5') == 'Flat':
-            # 2 types in descriptors (science flat and cal fiber flat)
-            return TagSet(['FLAT', 'CAL'])
+            # 2 types based on fiber_setup (science flat and cal fibers flat)
+            return TagSet(['FLAT', 'CAL'], blocks=['SPECT', 'ECHELLE'])
 
     @astro_data_tag
     def _tag_etalon(self):
         if (self.phu.get('HIERARCH FIBER1') == 'Etalon' or self.phu.get('HIERARCH FIBER2') == 'Etalon' \
                 or self.phu.get('HIERARCH FIBER5') == 'Etalon')\
-                and self.phu.get('EXPTIME') < 600.:
+                and self.phu.get('EXPTIME') < 60.:  # only different than darks by shorter exposure time
             return TagSet(['ETALON', 'CAL'])
 
     @astro_data_tag
