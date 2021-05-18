@@ -63,13 +63,13 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
         if (self.phu.get('HIERARCH FIBER1') == 'Etalon' or self.phu.get('HIERARCH FIBER2') == 'Etalon' \
                 or self.phu.get('HIERARCH FIBER5') == 'Etalon')\
                 and self.phu.get('EXPTIME') < 60.:  # only different than darks by shorter exposure time
-            return TagSet(['ETALON', 'CAL'])
+            return TagSet(['ARC', 'CAL'])
 
     @astro_data_tag
     def _tag_thar(self): # !combine with iodine as ARC class?
         if self.phu.get('HIERARCH FIBER1') == 'ThAr' or self.phu.get('HIERARCH FIBER2') == 'ThAr' \
                 or self.phu.get('HIERARCH FIBER5') == 'ThAr':
-            return TagSet(['THAR', 'CAL'])
+            return TagSet(['ARC', 'CAL'])
 
     # @astro_data_tag  # no bias frames
     # def _tag_bias(self):
@@ -79,7 +79,7 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
     @astro_data_tag
     def _tag_iodine(self):  # !combine with thar as ARC class?
         if self.phu.get('HIERARCH FIBER5') == 'Iodine':  # just simcal
-            return TagSet(['IODINE', 'CAL'])
+            return TagSet(['ARC', 'CAL'])
 
     # The tags above are examples (except the "instrument" tag).  
     # Adapt as required.
@@ -191,6 +191,11 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
     def nd(self):  # reuse filter name? this needs to be checked for all analysis utilizing fifth fiber data
                     # i.e. dark creation (some value > 0), flat creation (always 0), science extractions (same as dark)
         return '{:.1f}'.format(self.phu.get("HIERARCH MAROONX ND POSITION"))
+
+    @astro_data_descriptor
+    def image_orientation(self):  # need to find appropriate descriptor
+        return [self.phu.get("HIERARCH MAROONX IMAGE ORIENTATION HORIZONTAL FLIP"),
+                self.phu.get("HIERARCH MAROONX IMAGE ORIENTATION VERTICAL FLIP")]   # flip left-right, flip up-down
 
     # For a list of expected descriptors, see the appendix in the Astrodata
     # User Manual.

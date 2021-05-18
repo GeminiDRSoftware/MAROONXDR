@@ -36,9 +36,11 @@ def reduce(p):
     p.biasCorrect()
     p.ADUToElectrons()
     p.addVAR(poisson_noise=True)
-    #.... if flat removeOverscan, correct_image_orientation, find_stripes, identify_stripes, (box) extract_flat_stripes
+    #.... if flat removeOverscan,
+    # correct_image_orientation, find_stripes, identify_stripes, (box) extract_flat_stripes
+
     #.... for science (and flat if flat itself is being extracted) fits.getdata, overscanCorrect, removeOverscan,
-    #           correct_image_orentation, told illuminated fibers, (box) extract_stripes,
+    #           correct_image_orientation, told illuminated fibers, (box) extract_stripes,
     #           optimal_extraction(science_stripes, flat_stripes)
     return
 

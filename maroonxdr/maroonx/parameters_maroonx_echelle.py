@@ -9,3 +9,8 @@ class myNewPrimitive(config.Config):
     param1 = config.Field("Param1", str, "default")
     param2 = config.Field("do param2?", bool, False)
 
+class correctImageOrientation(config.Config):
+    suffix = config.Field("Filename suffix", str, "")
+
+class findStripes(config.Config):
+    suffix = config.Field("Filename suffix", str, "")  # ?

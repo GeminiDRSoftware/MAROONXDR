@@ -6,7 +6,6 @@
 read_noise = [1.1]
 gain = [2.7]
 
-
 array_name_b = [
     'Q1', 'Q2', 'Q3', 'Q4'
 ]  # put this in headers
