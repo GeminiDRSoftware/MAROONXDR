@@ -28,9 +28,9 @@ def makeProcessedFlat(p):
     # p.overscanCorrect() # I think this almost works but we have horizontal sections for the overscan
     #     # (e.g. rawdata[:2200,2050:2200] is an overscan region being applied to rawdata[:2040,:2040])
 
-    # p.separateFlats()  # need to do analysis of DFFFD and FDDDF frames in parallel (as possible for either arm)
+    p.separateFlats()  # need to do analysis of DFFFD and FDDDF frames in parallel (as possible for either arm)
     p.stackFlats()
-
+    p.stackFlats(stream='DFFFD_flats')
     # correct_image_orientation, find_stripes, identify_stripes,
     # need to implement illuminated fiber order tracing here (to mask them for background fitting)
 
@@ -39,7 +39,7 @@ def makeProcessedFlat(p):
     # need to combine DFFFD and FDDDF frames (i.e. just make with np.max([DFFFD_b,FDDDF_b],axis=0)) = masterflat image
 
     # run the 5-illuminated-fiber frame through extraction to create a reduced masterflat
-    p.storeProcessedFlat()
+    # p.storeProcessedFlat()
     return
 
 _default = makeProcessedFlat

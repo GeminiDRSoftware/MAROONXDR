@@ -4,13 +4,8 @@
 from gempy.library import config
 #from gemini.core import parameters_spect  # import core pkgs as needed.
 
-class myNewPrimitive(config.Config):
-    suffix = config.Field("Filename suffix", str, "_suffix")
-    param1 = config.Field("Param1", str, "default")
-    param2 = config.Field("do param2?", bool, False)
-
-class correctImageOrientation(config.Config):
+class correctImageOrientationConfig(config.Config):
     suffix = config.Field("Filename suffix", str, "")
 
-class findStripes(config.Config):
+class findStripesConfig(config.Config):
     suffix = config.Field("Filename suffix", str, "")  # ?

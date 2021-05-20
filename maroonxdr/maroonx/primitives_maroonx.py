@@ -106,39 +106,6 @@ class MAROONX(Gemini, CCD, NearIR):
             raise IOError("Less than two frames found with first frame simcal ND filter setting")
         return adoutputs
 
-    def separateFlats(self, adinputs=None, **params):
-        """
-        This primitive produces two streams, one containing DFFFD flats, and one
-        containing FDDDF flats. Other files remain in the main stream
-        """
-        log = self.log
-        log.debug(gt.log_message("primitive", self.myself(), "starting"))
-
-        # Initialize lists of AstroData objects to be added to the streams
-        flat_FDDDF_list = []
-        flat_DFFFD_list = []
-        adoutputs = []
-        for ad in adinputs:
-            tags = ad.tags
-            if "FLAT" in tags and ad.fiber_setup() == ['Flat', 'Dark', 'Dark', 'Dark', 'Flat']:
-                flat_FDDDF_list.append(ad)
-                log.fullinfo("FDDDF Flat: {}, {}".format(ad.data_label(), ad.filename))
-            elif "FLAT" in tags and ad.fiber_setup() == ['Dark', 'Flat', 'Flat', 'Flat', 'Dark']:
-                flat_DFFFD_list.append(ad)
-                log.fullinfo("DFFFD Flat: {}, {}".format(ad.data_label(), ad.filename))
-            else:
-                adoutputs.append(ad)
-                log.warning("Not Flat: {} {}".format(ad.data_label(),
-                                                          ad.filename))
-        if not flat_FDDDF_list:
-            log.warning("No FDDDF Flats in input list")
-        if not flat_DFFFD_list:
-            log.warning("No DFFFD Flats in input list")
-
-        self.streams.update({"DFFFD_flats": flat_FDDDF_list})
-        self.streams.update({"FDDDF_flats": flat_DFFFD_list})
-        return adoutputs
-
     def subtractOverscan(self, adinputs=None, **params):
         """
         This primitive subtracts the overscan level from the image. The
@@ -192,6 +159,37 @@ class MAROONX(Gemini, CCD, NearIR):
         adinputs = super().subtractOverscan(adinputs, **params)
         return adinputs
 
+    def separateFlats(self, adinputs=None, **params):
+        """
+        This primitive splits the flat data into two streams, the 'DFFFD_flats' stream containing DFFFD flats, and main
+        containing FDDDF flats. It also warns if non-flats somehow made it into the primitive
+        """
+        log = self.log
+        log.debug(gt.log_message("primitive", self.myself(), "starting"))
+
+        # Initialize lists of AstroData objects to be added to the streams
+        flat_FDDDF_list = []
+        flat_DFFFD_list = []
+        mislabeled = []
+        for ad in adinputs:
+            tags = ad.tags
+            if "FLAT" in tags and ad.fiber_setup() == ['Flat', 'Dark', 'Dark', 'Dark', 'Flat']:
+                flat_FDDDF_list.append(ad)
+                log.fullinfo("FDDDF Flat: {}, {}".format(ad.data_label(), ad.filename))
+            elif "FLAT" in tags and ad.fiber_setup() == ['Dark', 'Flat', 'Flat', 'Flat', 'Dark']:
+                flat_DFFFD_list.append(ad)
+                log.fullinfo("DFFFD Flat: {}, {}".format(ad.data_label(), ad.filename))
+            else:
+                mislabeled.append(ad)
+                log.warning("Not Flat: {} {}".format(ad.data_label(),
+                                                     ad.filename))
+        if not flat_FDDDF_list:
+            log.warning("No FDDDF Flats in input list")
+        if not flat_DFFFD_list:
+            log.warning("No DFFFD Flats in input list")
+
+        self.streams["DFFFD_flats"] = flat_DFFFD_list
+        return flat_FDDDF_list
 
 
     @staticmethod

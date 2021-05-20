@@ -30,53 +30,6 @@ class MAROONXEchelle(MAROONX, Spect):
         self.inst_lookups = 'maroonxdr.maroonx.lookups'
         self._param_update(parameters_maroonx_echelle)
 
-    def myNewPrimitive(self, adinputs=None, **params):
-        """
-        Description...
-        
-        Parameters
-        ----------
-        suffix: str
-            suffix to be added to output files
-        param2: blah
-            blah, blah
-
-        Returns
-        -------
-        """
-
-        log = self.log
-        log.debug(gt.log_message("primitive", self.myself(), "starting"))
-        timestamp_key = self.timestamp_keys[self.myself()]
-
-        # Get params out
-        param2 = params['param2']
-
-        # Initialize the list of output AstroData objects
-        # It is also possible to modify adinputs in place.
-        adoutputs = []
-
-        for ad in adinputs:
-
-            # Do whatever checks on the input are necessary, for example:
-            # Check whether this primitive as been run already.
-            if ad.phu.get(timestamp_key):
-                log.warning("No changes will be made to {}, since it has"
-                            "already been processed by myNewPrimitive".
-                            format(ad.filename))
-                continue
-
-            # -----------------------
-            # DR algorithm goes here
-            # -----------------------
-
-            # Timestamp
-            gt.mark_history(ad, primname=self.myself(), keyword=timestamp_key)
-
-            adoutputs.append(ad_out)
-
-        return adoutputs
-
     def correctImageOrientation(self, adinputs=None, debug_level=0):
         """
         Correct image orientation to proper echelle format.
@@ -116,7 +69,6 @@ class MAROONXEchelle(MAROONX, Spect):
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
 
         return adinputs
-
 
     def findStripes(self, adinput=None, badpixelmap=None, deg_polynomial=5, median_filter=1, gauss_filter_sigma=3., min_peak=0.25,
                      debug_level=0):
