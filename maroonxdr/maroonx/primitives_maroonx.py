@@ -94,10 +94,10 @@ class MAROONX(Gemini, CCD, NearIR):
 
         """
         log = self.log
-        check_val = adinputs[0].nd()
+        check_val = adinputs[0].filter_orientation()['ND']
         adoutputs = []
         for ad in adinputs:
-            if check_val != ad.nd():
+            if check_val != ad.filter_orientation()['ND']:
                 log.warning("Not all frames have the same simcal ND filter setting, restricting set to first seen")
             else:
                 ad.update_filename(suffix=params['suffix'], strip=True)

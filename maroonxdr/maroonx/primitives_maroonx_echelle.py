@@ -101,9 +101,9 @@ class MAROONXEchelle(MAROONX, Spect):
                 plt.title('Original Image')
                 plt.imshow(ad.data[0], origin='lower')
 
-            if ad.image_orientation()[0]:  # flip up-down
+            if ad.image_orientation()['vertical orientation']:  # flip up-down
                 ad.data[0] = np.flipud(ad.data[0])
-            if ad.image_orientation()[1]:  # flip left-right (dispersion direction)
+            if ad.image_orientation()['horizontal orientation']:  # flip left-right (dispersion direction)
                 ad.data[0] = np.fliplr(ad.data[0])
 
             if debug_level > 0:

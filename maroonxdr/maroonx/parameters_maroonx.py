@@ -34,3 +34,5 @@ class overscanCorrectConfig(subtractOverscanConfig, parameters_ccd.trimOverscanC
 class stackDarks(parameters_nearIR.stackDarksConfig):
     def setDefaults(self):
         self.reject_method = "sigclip"
+        self.hsigma = 2.
+        self.lsigma = 2.
