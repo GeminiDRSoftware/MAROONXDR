@@ -1,6 +1,5 @@
-from astrodata import astro_data_tag, astro_data_descriptor, returns_list, TagSet
+from astrodata import astro_data_tag, astro_data_descriptor, returns_list, TagSet, Section
 from gemini_instruments import gmu
-from gemini_instruments.common import Section, section_to_tuple
 from . import lookup
 from gemini_instruments.gemini import AstroDataGemini
 
@@ -146,7 +145,7 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
         if pretty:
             return [lookup.bias_section[amp] for amp in self.array_name()]
         else:
-            return [section_to_tuple(lookup.bias_section[amp]) for amp in self.array_name()]
+            return [Section.from_string(lookup.bias_section[amp]) for amp in self.array_name()]
 
     @astro_data_descriptor
     def data_section(self, pretty=False):  # ! add info to headers and change here to reflect direct access?
@@ -161,10 +160,10 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
         if pretty:
             return [lookup.data_section[amp] for amp in self.array_name()]
         else:
-            return [section_to_tuple(lookup.data_section[amp]) for amp in self.array_name()]
+            return [Section.from_string(lookup.data_section[amp]) for amp in self.array_name()]
 
     @astro_data_descriptor
-    def array_section(self, pretty):  # ! add info to headers and change here to reflect direct access?
+    def array_section(self, pretty=False):  # ! add info to headers and change here to reflect direct access?
         """
         Returns the array (full amplifier including overscan) sections.  A
         list of strings of 0-based coordinates is returned.
@@ -177,7 +176,7 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
         if pretty:
             return [lookup.array_section[amp] for amp in self.array_name()]
         else:
-            return [section_to_tuple(lookup.array_section[amp]) for amp in self.array_name()]
+            return [Section.from_string(lookup.array_section[amp]) for amp in self.array_name()]
 
     @astro_data_descriptor
     def read_noise(self):
