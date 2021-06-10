@@ -10,18 +10,18 @@ class checkArmConfig(config.Config):
 class checkNDConfig(config.Config):
     suffix = config.Field("Filename suffix", str, "")
 
-class subtractOverscanConfig(parameters_ccd.subtractOverscanConfig):
-    def setDefaults(self):
-        self.function = "none"
+# class subtractOverscanConfig(parameters_ccd.subtractOverscanConfig):
+#     def setDefaults(self):
+#         self.function = "none"
+#
+#     def validate(self):
+#         config.Config.validate(self)
+#         if self.function == "spline" and self.order == 0:
+#             raise ValueError("Must specify a positive spline order, or None")
 
-    def validate(self):
-        config.Config.validate(self)
-        if self.function == "spline" and self.order == 0:
-            raise ValueError("Must specify a positive spline order, or None")
-
-class overscanCorrectConfig(subtractOverscanConfig, parameters_ccd.trimOverscanConfig):
-    def setDefaults(self):
-        self.suffix = "_overscanCorrected"
+# class overscanCorrectConfig(subtractOverscanConfig, parameters_ccd.trimOverscanConfig):
+#     def setDefaults(self):
+#         self.suffix = "_overscanCorrected"
 
 class stackDarksConfig(parameters_nearIR.stackDarksConfig):
     def setDefaults(self):

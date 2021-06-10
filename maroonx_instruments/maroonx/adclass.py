@@ -143,9 +143,12 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
         """
         #return self._parse_section(self._keyword_for('overscan_section'), pretty)
         if pretty:
-            return [lookup.bias_section[amp] for amp in self.array_name()]
+            return [[lookup.bias_section[amp] for amp in self.array_name()]]
         else:
-            return [Section.from_string(lookup.bias_section[amp]) for amp in self.array_name()]
+            if self.is_single:
+                return [Section.from_string(lookup.bias_section[amp]) for amp in self.array_name()]
+            else:
+                return [[Section.from_string(lookup.bias_section[amp]) for amp in self.array_name()]]
 
     @astro_data_descriptor
     def data_section(self, pretty=False):  # ! add info to headers and change here to reflect direct access?
@@ -158,9 +161,12 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
             Position of the sky-exposable sections using 0-based coordinates.
         """
         if pretty:
-            return [lookup.data_section[amp] for amp in self.array_name()]
+            return [[lookup.data_section[amp] for amp in self.array_name()]]
         else:
-            return [Section.from_string(lookup.data_section[amp]) for amp in self.array_name()]
+            if self.is_single:
+                return [Section.from_string(lookup.data_section[amp]) for amp in self.array_name()]
+            else:
+                return [[Section.from_string(lookup.data_section[amp]) for amp in self.array_name()]]
 
     @astro_data_descriptor
     def array_section(self, pretty=False):  # ! add info to headers and change here to reflect direct access?
@@ -174,9 +180,12 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
             Position of the array sections using 0-based coordinates.
         """
         if pretty:
-            return [lookup.array_section[amp] for amp in self.array_name()]
+            return [[lookup.array_section[amp] for amp in self.array_name()]]
         else:
-            return [Section.from_string(lookup.array_section[amp]) for amp in self.array_name()]
+            if self.is_single:
+                return [Section.from_string(lookup.array_section[amp]) for amp in self.array_name()]
+            else:
+                return [[Section.from_string(lookup.array_section[amp]) for amp in self.array_name()]]
 
     @astro_data_descriptor
     def read_noise(self):
