@@ -30,46 +30,6 @@ class MAROONXEchelle(MAROONX, Spect):
         self.inst_lookups = 'maroonxdr.maroonx.lookups'
         self._param_update(parameters_maroonx_echelle)
 
-    def correctImageOrientation(self, adinputs=None, debug_level=0):
-        """
-        Correct image orientation to proper echelle format.
-
-        flips image so that left lower corner is bluest wavelength, upper right corner is reddest wavelength.
-        Echelle orders go from left to right.
-
-        Args:
-            adinputs --- previously --- img (np.ndarray): input 2d echelle spectrum
-            debug_level (int): debug level
-        Returns:
-            np.ndarray: image with correct orientation
-        """
-        log = self.log
-        log.debug(gt.log_message("primitive", self.myself(), "starting"))
-        timestamp_key = self.timestamp_keys[self.myself()]
-
-        for ad in adinputs:
-
-            if debug_level > 0:
-                plt.figure()
-                plt.title('Original Image')
-                plt.imshow(ad.data[0], origin='lower')
-
-            if ad.image_orientation()['vertical orientation']:  # flip up-down
-                ad.data[0] = np.flipud(ad.data[0])
-            if ad.image_orientation()['horizontal orientation']:  # flip left-right (dispersion direction)
-                ad.data[0] = np.fliplr(ad.data[0])
-
-            if debug_level > 0:
-                plt.figure()
-                plt.title('Orientation Corrected image')
-                plt.imshow(ad.data[0], origin='lower')
-                plt.show()
-
-        # return imgs
-        gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
-
-        return adinputs
-
     def findStripes(self, adinput=None, badpixelmap=None, deg_polynomial=5, median_filter=1, gauss_filter_sigma=3., min_peak=0.25,
                      debug_level=0):
         """

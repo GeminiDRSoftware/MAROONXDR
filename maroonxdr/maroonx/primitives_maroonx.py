@@ -5,7 +5,8 @@
 # ------------------------------------------------------------------------------
 
 from gempy.gemini import gemini_tools as gt
-
+import numpy as np
+import copy
 from geminidr.gemini.primitives_gemini import Gemini
 from geminidr.core import CCD, NearIR, primitives_preprocess
 
@@ -31,30 +32,6 @@ class MAROONX(Gemini, CCD, NearIR):
         # Add MAROON-X specific timestamp keywords
         self.timestamp_keys.update(maroonx_stamps.timestamp_keys)
 
-    def someStuff(self, adinputs=None, **params):
-        """
-        Write message to screen.  Test primitive.
-
-        Parameters
-        ----------
-        adinputs
-        params
-
-        Returns
-        -------
-
-        """
-        log = self.log
-        log.debug(gt.log_message("primitive", self.myself(), "starting"))
-
-        for ad in adinputs:
-            log.status('I see '+ad.filename)
-
-            gt.mark_history(ad, primname=self.myself(), keyword="TEST")
-            ad.update_filename(suffix=params['suffix'], strip=True)
-
-        return adinputs
-
     def checkArm(self, adinputs=None, **params):
         """
         Check that the the camera arm is consistent through all input files, first file sets
@@ -79,6 +56,46 @@ class MAROONX(Gemini, CCD, NearIR):
                 ad.update_filename(suffix=params['suffix'], strip=True)
                 adoutputs.append(ad)
         return adoutputs
+
+    def correctImageOrientation(self, adinputs=None, debug_level=0):
+        """
+        Correct image orientation to proper echelle format.
+
+        flips image so that left lower corner is bluest wavelength, upper right corner is reddest wavelength.
+        Echelle orders go from left to right.
+
+        Args:
+            adinputs --- previously --- img (np.ndarray): input 2d echelle spectrum
+            debug_level (int): debug level
+        Returns:
+            np.ndarray: image with correct orientation
+        """
+        log = self.log
+        log.debug(gt.log_message("primitive", self.myself(), "starting"))
+        timestamp_key = self.timestamp_keys[self.myself()]
+
+        for ad in adinputs:
+
+            if debug_level > 0:
+                plt.figure()
+                plt.title('Original Image')
+                plt.imshow(ad.data[0], origin='lower')
+
+            if ad.image_orientation()['vertical orientation flip']:  # flip up-down
+                ad.data[0] = np.flipud(ad.data[0])
+            if ad.image_orientation()['horizontal orientation flip']:  # flip left-right (dispersion direction)
+                ad.data[0] = np.fliplr(ad.data[0])
+
+            if debug_level > 0:
+                plt.figure()
+                plt.title('Orientation Corrected image')
+                plt.imshow(ad.data[0], origin='lower')
+                plt.show()
+
+        # return imgs
+        gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
+
+        return adinputs
 
     def checkND(self, adinputs=None, **params):
         """
@@ -107,7 +124,7 @@ class MAROONX(Gemini, CCD, NearIR):
         return adoutputs
 
 
-    def separateFlats(self, adinputs=None, **params):
+    def separateFlatStreams(self, adinputs=None, **params):
         """
         This primitive splits the flat data into two streams, the 'DFFFD_flats' stream containing DFFFD flats, and main
         containing FDDDF flats. It also warns if non-flats somehow made it into the primitive
@@ -138,6 +155,47 @@ class MAROONX(Gemini, CCD, NearIR):
 
         self.streams["DFFFD_flats"] = flat_DFFFD_list
         return flat_FDDDF_list
+
+    def combineFlatStreams(self, adinputs=None, source=None, **params):
+        """
+        This primitive recombines the flat data into one master frame, combining the main stream pre-master
+        and the 'source' stream pre-master with a simple max comparison at each pix
+        """
+        log = self.log
+        log.debug(gt.log_message("primitive", self.myself(), "starting"))
+
+        if source not in self.streams.keys():
+            log.info("Stream {} does not exist so nothing to transfer".format(source))
+            return adinputs
+
+        source_length = len(self.streams[source])
+        adinputs_length = len(adinputs)
+        if not (adinputs_length == source_length == 1):
+            log.warning("Unexpected stream lengths: {} and {}".
+                        format(adinputs_length, source_length))
+            return adinputs
+
+        adout = copy.deepcopy(adinputs[0])
+        # add header updates (all fibers set to 'Flat', etc)
+        # adout[0] *= 0  # this is probably not how to do this    356
+        # adout[0] += np.max([adinputs[0].data[0], self.streams[source][0].data[0]], axis=0)
+        adout[0].data = np.max([adinputs[0].data[0], self.streams[source][0].data[0]], axis=0)
+
+        fromad2 = np.where(adout[0].data == self.streams[source][0].data[0])
+
+        fromad = np.where(adout[0].data == adinputs[0].data[0])
+
+        listcoo2 = list(zip(fromad2[0], fromad2[1]))
+
+        listcoo = list(zip(fromad[0], fromad[1]))
+
+        for coo in listcoo2:
+            adout[0].variance[coo[0], coo[1]] = self.streams[source][0].variance[coo[0], coo[1]]
+
+        for coo in listcoo:
+            adout[0].variance[coo[0], coo[1]] = adinputs[0].variance[coo[0], coo[1]]
+
+        return adout
 
 
     @staticmethod

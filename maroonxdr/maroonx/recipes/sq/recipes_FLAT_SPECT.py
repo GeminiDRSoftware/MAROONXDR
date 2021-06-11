@@ -20,26 +20,29 @@ def makeProcessedFlat(p):
     p : PrimitivesCORE object
         A primitive set matching the recipe_tags.
     """
+    p.prepare()
     p.checkArm()
     p.checkND()
-    p.prepare()
+    # p.correctImageOrientation()
     # p.addDQ()
     p.addVAR(read_noise=True)
-    # p.overscanCorrect() # I think this almost works but we have horizontal sections for the overscan
+    # p.overscanCorrect()  # I think this almost works but we have horizontal sections for the overscan
     #     # (e.g. rawdata[:2200,2050:2200] is an overscan region being applied to rawdata[:2040,:2040])
 
-    p.separateFlats()  # need to do analysis of DFFFD and FDDDF frames in parallel (as possible for either arm)
-    p.stackFlats()
+    p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
     p.stackFlats(stream='DFFFD_flats')
+    p.stackFlats()
+
     # correct_image_orientation, find_stripes, identify_stripes,
     # need to implement illuminated fiber order tracing here (to mask them for background fitting)
 
     # need to do diffuse background subtraction here, based on 2D fit of masked frame
 
-    # need to combine DFFFD and FDDDF frames (i.e. just make with np.max([DFFFD_b,FDDDF_b],axis=0)) = masterflat image
-
+    # need to combine DFFFD and FDDDF frames (i.e. just make with masterflat image = np.max([DFFFD_b,FDDDF_b],axis=0)
+    p.combineFlatStreams(stream='main', source='DFFFD_flats')
+    p.clearStream(stream='DFFFD_flats')
     # run the 5-illuminated-fiber frame through extraction to create a reduced masterflat
-    # p.storeProcessedFlat()
+    p.storeProcessedFlat()
     return
 
 _default = makeProcessedFlat

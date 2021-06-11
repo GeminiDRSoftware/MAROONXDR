@@ -26,14 +26,15 @@ def makeProcessedDark(p):
     p : PrimitivesCORE object
         A primitive set matching the recipe_tags.
     """
-    #p.somestuff()
 
+
+    p.prepare()
     p.checkArm()
     p.checkND()
-    p.prepare()
+    # p.correctImageOrientation()
     # p.addDQ(add_illum_mask=False)  # need to get MX BPM
     p.addVAR(read_noise=True)
-    # p.overscanCorrect()  # I think this almost works but we have horizontal sections for the overscan
+    p.overscanCorrect()  # I think this almost works but we have horizontal sections for the overscan
     # (e.g. rawdata[:2200,2050:2200] is an overscan region being applied to rawdata[:2040,:2040])
     p.ADUToElectrons()
     p.addVAR(poisson_noise=True)

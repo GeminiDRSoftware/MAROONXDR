@@ -196,14 +196,14 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
         return lookup.gain
 
     @astro_data_descriptor
-    def filter_orientation(self):  # reuse filter name? this needs to be checked for all analysis utilizing fifth fiber data
+    def filter_orientation(self):  # this needs to be checked for all analysis utilizing fifth fiber data
                     # i.e. dark creation (some value > 0), flat creation (always 0), science extractions (same as dark)
         return {'ND':'{:.1f}'.format(self.phu.get("HIERARCH MAROONX ND POSITION"))}
 
     @astro_data_descriptor
     def image_orientation(self):  # dictionary descriptor
-        return {'horizontal orientation': self.phu.get("HIERARCH MAROONX IMAGE ORIENTATION HORIZONTAL FLIP"),
-                'vertical orientation': self.phu.get("HIERARCH MAROONX IMAGE ORIENTATION VERTICAL FLIP")}   # flip left-right, flip up-down
+        return {'horizontal orientation flip': self.phu.get("HIERARCH MAROONX IMAGE ORIENTATION HORIZONTAL FLIP"),
+                'vertical orientation flip': self.phu.get("HIERARCH MAROONX IMAGE ORIENTATION VERTICAL FLIP")}
 
     # For a list of expected descriptors, see the appendix in the Astrodata
     # User Manual.

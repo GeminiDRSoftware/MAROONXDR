@@ -31,6 +31,7 @@ def reduce(p):
 
     p.prepare()
     p.addDQ()
+    p.correctImageOrientation()
     p.addVAR(read_noise=True)
     p.overscanCorrect()
     p.biasCorrect()
