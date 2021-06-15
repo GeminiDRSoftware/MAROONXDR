@@ -17,7 +17,12 @@ class subtractOverscanConfig(parameters_ccd.subtractOverscanConfig):
     def setDefaults(self):
         self.function = "none"
 
-class stackDarksConfig(parameters_nearIR.stackDarksConfig):
+class StackFramesConfig(parameters_stack.stackFramesConfig):
+    suffix = config.Field("Filename suffix", str, "")  # ?
+    def setDefaults(self):
+        self.separate_ext = False
+
+class stackDarksConfig(parameters_nearIR.stackDarksConfig,StackFramesConfig):
     def setDefaults(self):
         self.reject_method = "sigclip"
         self.operation = "median"
@@ -28,7 +33,7 @@ class stackDarksConfig(parameters_nearIR.stackDarksConfig):
 class separateFlatStreamsConfig(config.Config):
     suffix = config.Field("Filename suffix", str, "")  # ?
 
-class stackFlatsConfig(parameters_stack.stackFlatsConfig):
+class stackFlatsConfig(parameters_stack.stackFlatsConfig,StackFramesConfig):
     suffix = config.Field("Filename suffix", str, "")  # ?
     def setDefaults(self):
         self.reject_method = "sigclip"
@@ -40,3 +45,4 @@ class stackFlatsConfig(parameters_stack.stackFlatsConfig):
 class combineFlatStreamsConfig(config.Config):
     suffix = config.Field("Filename suffix", str, "")  # ?
     source = config.Field("Stream to transfer from", str, None)
+

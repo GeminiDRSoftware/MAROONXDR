@@ -33,7 +33,7 @@ def reduce(p):
     p.addDQ()
     p.correctImageOrientation()
     p.addVAR(read_noise=True)
-    p.overscanCorrect()
+    # p.overscanCorrect()
     p.biasCorrect()
     p.ADUToElectrons()
     p.addVAR(poisson_noise=True)

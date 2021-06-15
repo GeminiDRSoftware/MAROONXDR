@@ -140,20 +140,20 @@ class MAROONX(Gemini, CCD, NearIR):
             tags = ad.tags
             if "FLAT" in tags and ad.fiber_setup() == ['Flat', 'Dark', 'Dark', 'Dark', 'Flat']:
                 flat_FDDDF_list.append(ad)
-                log.fullinfo("FDDDF Flat: {}, {}".format(ad.data_label(), ad.filename))
+                log.fullinfo("FDDDF Flat: {}".format(ad.filename))
             elif "FLAT" in tags and ad.fiber_setup() == ['Dark', 'Flat', 'Flat', 'Flat', 'Dark']:
                 flat_DFFFD_list.append(ad)
-                log.fullinfo("DFFFD Flat: {}, {}".format(ad.data_label(), ad.filename))
+                log.fullinfo("DFFFD Flat: {}".format(ad.filename))
             else:
                 mislabeled.append(ad)
-                log.warning("Not Flat: {} {}".format(ad.data_label(),
-                                                     ad.filename))
+                log.warning("Not registered as Flat: {}".format(ad.filename))
         if not flat_FDDDF_list:
             log.warning("No FDDDF Flats in input list")
         if not flat_DFFFD_list:
             log.warning("No DFFFD Flats in input list")
 
         self.streams["DFFFD_flats"] = flat_DFFFD_list
+
         return flat_FDDDF_list
 
     def combineFlatStreams(self, adinputs=None, source=None, **params):
@@ -179,21 +179,21 @@ class MAROONX(Gemini, CCD, NearIR):
         # add header updates (all fibers set to 'Flat', etc)
         # adout[0] *= 0  # this is probably not how to do this    356
         # adout[0] += np.max([adinputs[0].data[0], self.streams[source][0].data[0]], axis=0)
-        adout[0].data = np.max([adinputs[0].data[0], self.streams[source][0].data[0]], axis=0)
+        adout[0].data = np.max([adinputs[0].data, self.streams[source][0].data], axis=0)
 
-        fromad2 = np.where(adout[0].data == self.streams[source][0].data[0])
-
-        fromad = np.where(adout[0].data == adinputs[0].data[0])
-
-        listcoo2 = list(zip(fromad2[0], fromad2[1]))
-
-        listcoo = list(zip(fromad[0], fromad[1]))
-
-        for coo in listcoo2:
-            adout[0].variance[coo[0], coo[1]] = self.streams[source][0].variance[coo[0], coo[1]]
-
-        for coo in listcoo:
-            adout[0].variance[coo[0], coo[1]] = adinputs[0].variance[coo[0], coo[1]]
+        # fromad2 = np.where(adout[0].data == self.streams[source][0].data[0])
+        #
+        # fromad = np.where(adout[0].data == adinputs[0].data[0])
+        #
+        # listcoo2 = list(zip(fromad2[0], fromad2[1]))
+        #
+        # listcoo = list(zip(fromad[0], fromad[1]))
+        #
+        # for coo in listcoo2:
+        #     adout[0].variance[coo[0], coo[1]] = self.streams[source][0].variance[coo[0], coo[1]]
+        #
+        # for coo in listcoo:
+        #     adout[0].variance[coo[0], coo[1]] = adinputs[0].variance[coo[0], coo[1]]
 
         return adout
 

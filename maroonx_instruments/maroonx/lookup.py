@@ -3,8 +3,20 @@
 # redefine them here in filter_wavelengths.
 
 # all entries here are static -- !should these stay here or be in headers?
-read_noise = 1.1
-gain = 2.7
+read_noise = {'Q1': 1.1,
+    'Q2': 1.1,
+    'Q3': 1.1,
+    'Q4': 1.1,
+    'R1': 1.1,
+    'R2': 1.1
+}
+gain = {'Q1': 2.7,
+    'Q2': 2.7,
+    'Q3': 2.7,
+    'Q4': 2.7,
+    'R1': 2.7,
+    'R2': 2.7
+}  # not correct as written just hacking for now
 
 array_name_b = [
     'Q1', 'Q2', 'Q3', 'Q4'

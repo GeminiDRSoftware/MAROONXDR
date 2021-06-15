@@ -189,11 +189,19 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
 
     @astro_data_descriptor
     def read_noise(self):
-        return lookup.read_noise
+        ampname = self.array_name()
+        if self.is_single:
+            return lookup.read_noise[ampname]
+        else:
+            return [lookup.read_noise[amp] for amp in ampname]
 
     @astro_data_descriptor
     def gain(self):
-        return lookup.gain
+        ampname = self.array_name()
+        if self.is_single:
+            return lookup.gain[ampname]
+        else:
+            return [lookup.gain[amp] for amp in ampname]
 
     @astro_data_descriptor
     def filter_orientation(self):  # this needs to be checked for all analysis utilizing fifth fiber data
