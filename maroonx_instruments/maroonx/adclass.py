@@ -112,9 +112,14 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
             names of the arrays
         """
         if 'BLUE' in self.tags:
-            return lookup.array_name_b
+            arrays = lookup.array_name_b
         elif 'RED' in self.tags:
-            return lookup.array_name_r
+            arrays = lookup.array_name_r
+
+        if self.is_single:
+            return arrays
+        else:
+            return [arrays]
 
 
 
@@ -141,14 +146,24 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
         list of stings
             Position of the overscan sections using 0-based coordinates.
         """
-        #return self._parse_section(self._keyword_for('overscan_section'), pretty)
+        ampname = self.array_name()
+
         if pretty:
-            return [[lookup.bias_section[amp] for amp in self.array_name()]]
+            if self.is_single:
+                return [lookup.bias_section[amp] for amp in ampname]
+            else:
+                allext = []
+                for extampname in ampname:
+                    allext.append([lookup.bias_section[amp] for amp in extampname])
+                return allext
         else:
             if self.is_single:
-                return [Section.from_string(lookup.bias_section[amp]) for amp in self.array_name()]
+                return [Section.from_string(lookup.bias_section[amp]) for amp in ampname]
             else:
-                return [[Section.from_string(lookup.bias_section[amp]) for amp in self.array_name()]]
+                allext = []
+                for extampname in ampname:
+                    allext.append([Section.from_string(lookup.bias_section[amp]) for amp in extampname])
+                return allext
 
     @astro_data_descriptor
     def data_section(self, pretty=False):  # ! add info to headers and change here to reflect direct access?
@@ -160,13 +175,24 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
         list of stings
             Position of the sky-exposable sections using 0-based coordinates.
         """
+        ampname = self.array_name()
+
         if pretty:
-            return [[lookup.data_section[amp] for amp in self.array_name()]]
+            if self.is_single:
+                return [lookup.data_section[amp] for amp in ampname]
+            else:
+                allext = []
+                for extampname in ampname:
+                    allext.append([lookup.data_section[amp] for amp in extampname])
+                return allext
         else:
             if self.is_single:
-                return [Section.from_string(lookup.data_section[amp]) for amp in self.array_name()]
+                return [Section.from_string(lookup.data_section[amp]) for amp in ampname]
             else:
-                return [[Section.from_string(lookup.data_section[amp]) for amp in self.array_name()]]
+                allext = []
+                for extampname in ampname:
+                    allext.append([Section.from_string(lookup.data_section[amp]) for amp in extampname])
+                return allext
 
     @astro_data_descriptor
     def array_section(self, pretty=False):  # ! add info to headers and change here to reflect direct access?
@@ -179,29 +205,46 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
             list of stings
             Position of the array sections using 0-based coordinates.
         """
+        ampname = self.array_name()
+
         if pretty:
-            return [[lookup.array_section[amp] for amp in self.array_name()]]
+            if self.is_single:
+                return [lookup.array_section[amp] for amp in ampname]
+            else:
+                allext = []
+                for extampname in ampname:
+                    allext.append([lookup.array_section[amp] for amp in extampname])
+                return allext
         else:
             if self.is_single:
-                return [Section.from_string(lookup.array_section[amp]) for amp in self.array_name()]
+                return [Section.from_string(lookup.array_section[amp]) for amp in ampname]
             else:
-                return [[Section.from_string(lookup.array_section[amp]) for amp in self.array_name()]]
+                allext = []
+                for extampname in ampname:
+                    allext.append([Section.from_string(lookup.array_section[amp]) for amp in extampname])
+                return allext
 
     @astro_data_descriptor
     def read_noise(self):
         ampname = self.array_name()
         if self.is_single:
-            return lookup.read_noise[ampname]
-        else:
             return [lookup.read_noise[amp] for amp in ampname]
+        else:
+            allext = []
+            for extampname in ampname:
+                allext.append([lookup.read_noise[amp] for amp in extampname])
+            return allext
 
     @astro_data_descriptor
     def gain(self):
         ampname = self.array_name()
         if self.is_single:
-            return lookup.gain[ampname]
-        else:
             return [lookup.gain[amp] for amp in ampname]
+        else:
+            allext = []
+            for extampname in ampname:
+                allext.append([lookup.gain[amp] for amp in extampname])
+            return allext
 
     @astro_data_descriptor
     def filter_orientation(self):  # this needs to be checked for all analysis utilizing fifth fiber data
