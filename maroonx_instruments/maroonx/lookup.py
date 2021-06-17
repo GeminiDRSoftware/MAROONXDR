@@ -36,12 +36,12 @@ data_section = {  # section of original frame with real pixels
 
 
 array_section = {
-    'Q1': '[1:2048,1:2048]',  # where real data will go after overscan removal
-    'Q2': '[1:2048,2049:4096]',
-    'Q3': '[2049:4096,1:2048]',
-    'Q4': '[2049:4096,2049:4096]',
-    'R1': '[1:2048,1:4096]',
-    'R2': '[2049:4096,1:4096]'
+    'Q1': '[1:2040,1:2040]',  # where real data will go after overscan removal
+    'Q2': '[1:2040,2041:4080]',
+    'Q3': '[2041:4080,1:2040]',
+    'Q4': '[2041:4080,2041:4080]',
+    'R1': '[1:2040,1:4080]',
+    'R2': '[2041:4080,1:4080]'
 }  # put this in headers
 
 bias_section = {
