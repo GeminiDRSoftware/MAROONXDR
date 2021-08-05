@@ -36,7 +36,7 @@ def makeProcessedDark(p):
     p.addVAR(read_noise=True)
     # p.overscanCorrect()  # I think this almost works but we have horizontal sections for the overscan
     # (e.g. rawdata[:2200,2050:2200] is an overscan region being applied to rawdata[:2040,:2040])
-    p.ADUToElectrons()
+    # p.ADUToElectrons()
     p.addVAR(poisson_noise=True)
     p.stackDarks()
     # want to do (each pixel) 2 sigma clipped mean between frames

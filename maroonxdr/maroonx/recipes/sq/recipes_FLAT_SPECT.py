@@ -25,14 +25,13 @@ def makeProcessedFlat(p):
     p.checkND()
     # p.correctImageOrientation()
     # p.addDQ()
-    # p.addVAR(read_noise=False)
-    # p.overscanCorrect()  # I think this almost works but we have horizontal sections for the overscan
-    #     # (e.g. rawdata[:2200,2050:2200] is an overscan region being applied to rawdata[:2040,:2040])
+    p.addVAR(read_noise=True)
+    # p.overscanCorrect()
 
     p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
 
-    p.stackFlats()
-    p.stackFlats(stream='DFFFD_flats')
+    p.stackFlats(suffix='FDDDF')
+    p.stackFlats(stream='DFFFD_flats',suffix='DFFFD')
 
     # correct_image_orientation, find_stripes, identify_stripes,
     # need to implement illuminated fiber order tracing here (to mask them for background fitting)
