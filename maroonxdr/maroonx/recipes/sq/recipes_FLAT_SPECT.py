@@ -23,23 +23,23 @@ def makeProcessedFlat(p):
     p.prepare()
     p.checkArm()
     p.checkND()
-    # p.correctImageOrientation()
-    # p.addDQ()
-    p.addVAR(read_noise=True)
-    # p.overscanCorrect()
-
+    # p.addDQ()  # need to get bpm frame read in correctly
+    p.overscanCorrect()
+    p.correctImageOrientation()
+    p.addVAR(read_noise=True,poisson_noise=True)
     p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
-
-    p.stackFlats(suffix='FDDDF')
+    p.stackFlats(suffix='FDDDF_flats')
     p.stackFlats(stream='DFFFD_flats',suffix='DFFFD')
-
-    # correct_image_orientation, find_stripes, identify_stripes,
-    # need to implement illuminated fiber order tracing here (to mask them for background fitting)
-
-    # need to do diffuse background subtraction here, based on 2D fit of masked frame
-
-    # need to combine DFFFD and FDDDF frames (i.e. just make with masterflat image = np.max([DFFFD_b,FDDDF_b],axis=0)
+    p.findStripes()
+    p.findStripes(stream='DFFFD_flats')
+    p.identifyStripes(selected_fibers='1,0,0,0,5')
+    p.identifyStripes(stream='DFFFD_flats',selected_fibers='0,2,3,4,0')
+    p.defineFlatStripes()
+    p.defineFlatStripes(stream='DFFFD_flats')
+    p.removeStrayLight()
+    p.removeStrayLight(stream='DFFFD_flats')
     p.combineFlatStreams(stream='main', source='DFFFD_flats')
+
     p.clearStream(stream='DFFFD_flats')
     # run the 5-illuminated-fiber frame through extraction to create a reduced masterflat
     p.storeProcessedFlat()

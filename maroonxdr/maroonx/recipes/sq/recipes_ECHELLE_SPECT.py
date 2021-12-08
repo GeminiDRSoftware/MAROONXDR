@@ -30,18 +30,14 @@ def reduce(p):
     """
 
     p.prepare()
-    p.addDQ()
+    p.checkArm()
+    p.checkND()
+    # p.addDQ()
+    p.overscanCorrect()
     p.correctImageOrientation()
-    p.addVAR(read_noise=True)
-    # p.overscanCorrect()
-    p.biasCorrect()
-    p.ADUToElectrons()
-    p.addVAR(poisson_noise=True)
-    #.... if flat removeOverscan,
-    # correct_image_orientation, find_stripes, identify_stripes, (box) extract_flat_stripes
+    p.addVAR(read_noise=True,poisson_noise=True)
 
-    #.... for science (and flat if flat itself is being extracted) fits.getdata, overscanCorrect, removeOverscan,
-    #           correct_image_orientation, told illuminated fibers, (box) extract_stripes,
-    #           optimal_extraction(science_stripes, flat_stripes)
+
+
     return
 

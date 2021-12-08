@@ -46,3 +46,18 @@ class combineFlatStreamsConfig(config.Config):
     suffix = config.Field("Filename suffix", str, "")  # ?
     source = config.Field("Stream to transfer from", str, None)
 
+class findStripesConfig(config.Config):
+    suffix = config.Field("Filename suffix", str, "")
+
+class identifyStripesConfig(config.Config):
+    suffix = config.Field("Filename suffix", str, "")
+    selected_fibers = config.Field("Fiber selection",str, None)
+
+class defineFlatStripesConfig(config.Config):
+    suffix = config.Field("Filename suffix", str, "")
+    slit_height = config.Field("Pixel illumination in cross-dispersion",int, 10)
+
+class removeStrayLightConfig(config.Config):
+    suffix = config.Field("Filename suffix", str, "")
+    box_size = config.Field("Photutils box size",int,20)
+    filter_size = config.Field("Photutilz filter size",int,20)

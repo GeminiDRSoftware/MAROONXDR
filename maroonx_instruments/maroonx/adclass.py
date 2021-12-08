@@ -256,6 +256,13 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
         return {'horizontal orientation flip': self.phu.get("HIERARCH MAROONX IMAGE ORIENTATION HORIZONTAL FLIP"),
                 'vertical orientation flip': self.phu.get("HIERARCH MAROONX IMAGE ORIENTATION VERTICAL FLIP")}
 
+    @astro_data_descriptor
+    def detector_x_bin(self):
+        return 1
+
+    @astro_data_descriptor
+    def detector_y_bin(self):
+        return 1
     # For a list of expected descriptors, see the appendix in the Astrodata
     # User Manual.
 
