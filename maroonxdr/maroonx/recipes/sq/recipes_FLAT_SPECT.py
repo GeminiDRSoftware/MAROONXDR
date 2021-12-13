@@ -26,11 +26,11 @@ def makeProcessedFlat(p):
     # p.addDQ()  # need to get bpm frame read in correctly
     p.overscanCorrect()
     p.correctImageOrientation()
-    p.addVAR(read_noise=True,poisson_noise=True)
+    # p.addVAR(read_noise=True,poisson_noise=True)
     p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
     p.stackFlats(suffix='FDDDF_flats')
     p.stackFlats(stream='DFFFD_flats',suffix='DFFFD')
-    p.findStripes()
+    p.findStripes()  # first work to separately define streams stripe info to remove stray light in each stream
     p.findStripes(stream='DFFFD_flats')
     p.identifyStripes(selected_fibers='1,0,0,0,5')
     p.identifyStripes(stream='DFFFD_flats',selected_fibers='0,2,3,4,0')
@@ -39,8 +39,10 @@ def makeProcessedFlat(p):
     p.removeStrayLight()
     p.removeStrayLight(stream='DFFFD_flats')
     p.combineFlatStreams(stream='main', source='DFFFD_flats')
-
     p.clearStream(stream='DFFFD_flats')
+    p.findStripes()  # now define true stripe info
+    p.identifyStripes(selected_fibers='1,2,3,4,5')
+    p.defineFlatStripes(extract=True)
     # run the 5-illuminated-fiber frame through extraction to create a reduced masterflat
     p.storeProcessedFlat()
     return

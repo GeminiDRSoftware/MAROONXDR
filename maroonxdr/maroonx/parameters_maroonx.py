@@ -51,13 +51,14 @@ class findStripesConfig(config.Config):
 
 class identifyStripesConfig(config.Config):
     suffix = config.Field("Filename suffix", str, "")
-    selected_fibers = config.Field("Fiber selection",str, None)
+    selected_fibers = config.Field("Fiber selection", str, None)
 
 class defineFlatStripesConfig(config.Config):
     suffix = config.Field("Filename suffix", str, "")
-    slit_height = config.Field("Pixel illumination in cross-dispersion",int, 10)
+    slit_height = config.Field("Pixel illumination in cross-dispersion", int, 10)
+    extract = config.Field("Save extracted Stripes?", bool, False)
 
 class removeStrayLightConfig(config.Config):
     suffix = config.Field("Filename suffix", str, "")
-    box_size = config.Field("Photutils box size",int,20)
-    filter_size = config.Field("Photutilz filter size",int,20)
+    box_size = config.Field("Photutils box size", int, 20)
+    filter_size = config.Field("Photutilz filter size", int, 20)

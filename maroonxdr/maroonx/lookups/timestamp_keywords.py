@@ -7,5 +7,7 @@ timestamp_keys = {
     "findStripes": "STRIPES_FOUND",
     "identifyStripes": "STRIPES_IDENTIFIED",
     "defineFlatStripes": "FLATSTRIPES_DEFINED",
-    "removeStrayLight": "STRAYLIGHT_REMOVED"
+    "removeStrayLight": "STRAYLIGHT_REMOVED",
+    "extractStripes": "SCIENCE_STRIPES_PULLED",
+    "optimalExtraction": "SCIENCE_STRIPES_EXTRACTED"
 }

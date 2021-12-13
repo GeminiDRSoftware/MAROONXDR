@@ -11,6 +11,7 @@ import copy
 from scipy import ndimage
 from scipy.ndimage import median_filter
 from astropy.table import Table
+import scipy.sparse as sparse
 from geminidr.gemini.primitives_gemini import Gemini
 from geminidr.core import CCD, NearIR, primitives_preprocess
 from astropy.io import fits
@@ -266,12 +267,12 @@ class MAROONX(Gemini, CCD, NearIR):
                 plt.ylim((0, ny))
                 plt.xlim((0, nx))
                 plt.show()
-            ad.nddata[0].meta['STRIPES_LOC'] = polynomials
+            ad[0].STRIPES_LOC = polynomials
             gt.mark_history(ad, primname=self.myself(), keyword=timestamp_key)
             ad.update_filename(suffix=params["suffix"], strip=False)
-            return adinputs
+        return adinputs
 
-    def identifyStripes(self, adinputs=None, position_dir=None, selected_fibers=None, debug_level=1,**params):
+    def identifyStripes(self, adinputs=None, position_dir=None, selected_fibers=None, debug_level=0,**params):
         """
         Identifies the stripes and assigns the proper order and fiber number.
 
@@ -326,7 +327,7 @@ class MAROONX(Gemini, CCD, NearIR):
             used = np.zeros_like(y_positions)
 
             observed_y = []
-            for i, p in enumerate(ad.nddata[0].meta['STRIPES_LOC']):
+            for i, p in enumerate(ad[0].STRIPES_LOC):
                 observed_y.append(np.poly1d(p)(nx / 2))
 
             shifts = np.linspace(-200, 200, 2000)
@@ -352,7 +353,7 @@ class MAROONX(Gemini, CCD, NearIR):
                 plt.show()
             shift_calculated = shifts[np.argmin(total_distances)]
 
-            for i, p in enumerate(ad.nddata[0].meta['STRIPES_LOC']):
+            for i, p in enumerate(ad[0].STRIPES_LOC):
                 observed_y = np.poly1d(p)(nx / 2)
                 closest_stripe_idx = np.argmin(np.abs(y_positions + shift_calculated - observed_y))
                 if np.abs(y_positions[closest_stripe_idx] + shift_calculated - observed_y) < 7:
@@ -396,12 +397,12 @@ class MAROONX(Gemini, CCD, NearIR):
                                  bbox={'facecolor': 'white', 'alpha': 0.5, 'pad': 2})
                 plt.tight_layout()
                 plt.show()
-            ad.nddata[0].meta['STRIPES_ID'] = p_id
+            ad[0].STRIPES_ID = p_id
             gt.mark_history(ad, primname=self.myself(), keyword=timestamp_key)
             ad.update_filename(suffix=params["suffix"], strip=False)
             return adinputs
 
-    def defineFlatStripes(self,adinputs=None, slit_height=10, debug_level=0,**params):
+    def defineFlatStripes(self,adinputs=None, slit_height=10, extract=False, debug_level=0,**params):
         """
             Extracts and saves flat field profiles.
 
@@ -412,7 +413,7 @@ class MAROONX(Gemini, CCD, NearIR):
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
         timestamp_key = self.timestamp_keys[self.myself()]
         for ad in adinputs:
-            p_id = ad.nddata[0].meta['STRIPES_ID']
+            p_id = ad[0].STRIPES_ID
             img = ad[0].data
             ny, nx = img.shape
             xx = np.arange(nx)
@@ -443,13 +444,15 @@ class MAROONX(Gemini, CCD, NearIR):
                 ax[1].imshow(index_order, origin='lower')
                 ax[2].imshow(cleaned_image, origin='lower')
                 plt.show()
-            ad.nddata[0].meta['INDEX_FIBER'] = index_fiber
-            ad.nddata[0].meta['INDEX_ORDER'] = index_order
+            ad[0].INDEX_FIBER = index_fiber.astype(int)
+            ad[0].INDEX_ORDER = index_order.astype(int)
+            if extract:
+                ad[0].STRIPES = self._extract_flat_stripes(img, p_id, slit_height, debug_level)
             ad.update_filename(suffix=params['suffix'], strip=True)
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
 
-    def removeStrayLight(self, adinputs=None,box_size=20, filter_size=20, debug_level=1, **params):
+    def removeStrayLight(self, adinputs=None,box_size=20, filter_size=20, debug_level=0, **params):
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
         timestamp_key = self.timestamp_keys[self.myself()]
@@ -458,8 +461,8 @@ class MAROONX(Gemini, CCD, NearIR):
             adint = copy.deepcopy(ad)
             adint2 = copy.deepcopy(ad)
             adout = copy.deepcopy(ad)
-            stripes = ad.nddata[0].meta['INDEX_FIBER']
-            orders = ad.nddata[0].meta['INDEX_ORDER']
+            stripes = ad[0].INDEX_FIBER
+            orders = ad[0].INDEX_ORDER
             if 'BLUE' in ad.tags:
                 log.fullinfo('correcting straylight on blue chip')
                 #adint[0].data[bpm == 0] = np.nan
@@ -634,9 +637,8 @@ class MAROONX(Gemini, CCD, NearIR):
             return adinputs
         adoutputs = []
         adout = copy.deepcopy(adinputs[0])
-        adout[0].data = np.max([adinputs[0].data, self.streams[source][0].data], axis=0)
+        adout[0].data = np.max([adinputs[0].data[0], self.streams[source][0].data[0]], axis=0)
         adoutputs.append(adout)
-
         return adoutputs
 
     @staticmethod
@@ -667,3 +669,73 @@ class MAROONX(Gemini, CCD, NearIR):
 
         # Prepend standard path if the filename doesn't start with '/'
         return bpm if bpm.startswith(os.path.sep) else os.path.join(bpm_dir, bpm)
+
+    def _extract_flat_stripes(self, img=None, p_id=None, slit_height=10, debug_level=0):
+        """
+        Extracts the flat stripes from the original 2D spectrum to a sparse array, containing only relevant pixels.
+
+        This function marks all relevant pixels for extraction. Using the provided dictionary P_id it iterates over all
+        stripes in the image and saves a sparse matrix for each stripe.
+
+        Args:
+            img (np.ndarray): 2d echelle spectrum
+            p_id (Union[dict, str]): dictionary as returned by :func:`~identify_stripes` or path to file
+            slit_height (int): total slit height in px
+            debug_level (int): debug level
+
+        Returns:
+            dict: dictionary of the form {fiber_number:{order: scipy.sparse_matrix}}
+
+        """
+        stripes = {}
+        for f in p_id.keys():
+            for o, p in p_id[f].items():
+                stripe = self._extract_single_flat_stripe(img, p, slit_height, debug_level)
+                if f in stripes:
+                    stripes[f].update({o: stripe})
+                else:
+                    stripes[f] = {o: stripe}
+        return stripes
+
+    @staticmethod
+    def _extract_single_flat_stripe(img=None, polynomials=None, slit_height=10, debug_level=0):
+        """
+        Extracts single stripe from 2d image.
+
+        This function returns a sparse matrix containing all relevant pixel for a single stripe for a given polynomial p
+        and a given slit height.
+
+        Args:
+            polynomials (np.ndarray): polynomial coefficients
+            img (np.ndarray): 2d echelle spectrum
+            slit_height (int): total slit height in pixel to be extracted
+            debug_level (int): debug level
+
+        Returns:
+            scipy.sparse.csc_matrix: extracted spectrum
+
+        """
+        ny, nx = img.shape
+        if isinstance(slit_height, np.ndarray):
+            slit_height = int(slit_height[0])
+
+        xx = np.arange(nx)
+        y = np.poly1d(polynomials)(xx)
+
+        slit_indices_y = np.arange(-slit_height, slit_height).repeat(nx).reshape((2 * slit_height, nx))
+        slit_indices_x = np.tile(np.arange(nx), 2 * slit_height).reshape((2 * slit_height, nx))
+
+        indices = np.rint(slit_indices_y + y).astype(int)
+        valid_indices = np.logical_and(indices < ny, indices > 0)
+
+        if debug_level > 3:
+            plt.figure()
+            plt.imshow(img, origin='lower')
+            ind_img = np.zeros_like(img)
+            ind_img[indices[valid_indices], slit_indices_x[valid_indices]] = 1
+            plt.imshow(ind_img, alpha=0.5, origin='lower')
+            plt.show()
+
+        mat = sparse.coo_matrix((img[indices[valid_indices], slit_indices_x[valid_indices]],
+                                 (indices[valid_indices], slit_indices_x[valid_indices])), shape=(ny, nx))
+        return mat.tocsc()
