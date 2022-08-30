@@ -466,9 +466,9 @@ class MAROONX(Gemini, CCD, NearIR):
             ad[0].INDEX_FIBER = index_fiber.astype(int)
             ad[0].INDEX_ORDER = index_order.astype(int)
             if extract:
-                pass
                 # saving full info in DRAGONS, sparse matrix realizations no longer utilized
                 # ad[0].STRIPES = self._extract_flat_stripes(img, p_id, slit_height, debug_level)
+                del ad[0].STRIPES_LOC  # delete existing list
             ad.update_filename(suffix=params['suffix'], strip=True)
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
