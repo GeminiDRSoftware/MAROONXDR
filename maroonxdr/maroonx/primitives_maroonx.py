@@ -126,14 +126,17 @@ class MAROONX(Gemini, CCD, NearIR):
         log = self.log
         check_val = adinputs[0].filter_orientation()['ND']
         adoutputs = []
-        for ad in adinputs:
-            if check_val != ad.filter_orientation()['ND']:
-                log.warning("Not all frames have the same simcal ND filter setting, restricting set to first seen")
-            else:
-                ad.update_filename(suffix=params['suffix'], strip=True)
-                adoutputs.append(ad)
-        if len(adoutputs) == 1:
-            raise IOError("Less than two frames found with first frame simcal ND filter setting")
+        if len(adinputs) > 1:
+            for ad in adinputs:
+                if check_val != ad.filter_orientation()['ND']:
+                    log.warning("Not all frames have the same simcal ND filter setting, restricting set to first seen")
+                else:
+                    ad.update_filename(suffix=params['suffix'], strip=True)
+                    adoutputs.append(ad)
+            if len(adoutputs) == 1:
+                raise IOError("Less than two frames found with first frame simcal ND filter setting")
+        else:
+            return adinputs
         return adoutputs
 
     def _get_sid_filename(self,ad):
@@ -691,72 +694,72 @@ class MAROONX(Gemini, CCD, NearIR):
         # Prepend standard path if the filename doesn't start with '/'
         return bpm if bpm.startswith(os.path.sep) else os.path.join(bpm_dir, bpm)
 
-    def _extract_flat_stripes(self, img=None, p_id=None, slit_height=10, debug_level=0):
-        """
-        Extracts the flat stripes from the original 2D spectrum to a sparse array, containing only relevant pixels.
+    # def _extract_flat_stripes(self, img=None, p_id=None, slit_height=10, debug_level=0):
+    #     """
+    #     Extracts the flat stripes from the original 2D spectrum to a sparse array, containing only relevant pixels.
+    #
+    #     This function marks all relevant pixels for extraction. Using the provided dictionary P_id it iterates over all
+    #     stripes in the image and saves a sparse matrix for each stripe.
+    #
+    #     Args:
+    #         img (np.ndarray): 2d echelle spectrum
+    #         p_id (Union[dict, str]): dictionary as returned by :func:`~identify_stripes` or path to file
+    #         slit_height (int): total slit height in px
+    #         debug_level (int): debug level
+    #
+    #     Returns:
+    #         dict: dictionary of the form {fiber_number:{order: scipy.sparse_matrix}}
+    #
+    #     """
+    #     stripes = {}
+    #     for f in p_id.keys():
+    #         for o, p in p_id[f].items():
+    #             stripe = self._extract_single_flat_stripe(img, p, slit_height, debug_level)
+    #             if f in stripes:
+    #                 stripes[f].update({o: stripe})
+    #             else:
+    #                 stripes[f] = {o: stripe}
+    #     return stripes
 
-        This function marks all relevant pixels for extraction. Using the provided dictionary P_id it iterates over all
-        stripes in the image and saves a sparse matrix for each stripe.
-
-        Args:
-            img (np.ndarray): 2d echelle spectrum
-            p_id (Union[dict, str]): dictionary as returned by :func:`~identify_stripes` or path to file
-            slit_height (int): total slit height in px
-            debug_level (int): debug level
-
-        Returns:
-            dict: dictionary of the form {fiber_number:{order: scipy.sparse_matrix}}
-
-        """
-        stripes = {}
-        for f in p_id.keys():
-            for o, p in p_id[f].items():
-                stripe = self._extract_single_flat_stripe(img, p, slit_height, debug_level)
-                if f in stripes:
-                    stripes[f].update({o: stripe})
-                else:
-                    stripes[f] = {o: stripe}
-        return stripes
-
-    @staticmethod
-    def _extract_single_flat_stripe(img=None, polynomials=None, slit_height=10, debug_level=0):
-        """
-        Extracts single stripe from 2d image.
-
-        This function returns a sparse matrix containing all relevant pixel for a single stripe for a given polynomial p
-        and a given slit height.
-
-        Args:
-            polynomials (np.ndarray): polynomial coefficients
-            img (np.ndarray): 2d echelle spectrum
-            slit_height (int): total slit height in pixel to be extracted
-            debug_level (int): debug level
-
-        Returns:
-            scipy.sparse.csc_matrix: extracted spectrum
-
-        """
-        ny, nx = img.shape
-        if isinstance(slit_height, np.ndarray):
-            slit_height = int(slit_height[0])
-
-        xx = np.arange(nx)
-        y = np.poly1d(polynomials)(xx)
-
-        slit_indices_y = np.arange(-slit_height, slit_height).repeat(nx).reshape((2 * slit_height, nx))
-        slit_indices_x = np.tile(np.arange(nx), 2 * slit_height).reshape((2 * slit_height, nx))
-
-        indices = np.rint(slit_indices_y + y).astype(int)
-        valid_indices = np.logical_and(indices < ny, indices > 0)
-
-        if debug_level > 3:
-            plt.figure()
-            plt.imshow(img, origin='lower')
-            ind_img = np.zeros_like(img)
-            ind_img[indices[valid_indices], slit_indices_x[valid_indices]] = 1
-            plt.imshow(ind_img, alpha=0.5, origin='lower')
-            plt.show()
-
-        mat = sparse.coo_matrix((img[indices[valid_indices], slit_indices_x[valid_indices]],
-                                 (indices[valid_indices], slit_indices_x[valid_indices])), shape=(ny, nx))
-        return mat.tocsc()
+    # @staticmethod
+    # def _extract_single_flat_stripe(img=None, polynomials=None, slit_height=10, debug_level=0):
+    #     """
+    #     Extracts single stripe from 2d image.
+    #
+    #     This function returns a sparse matrix containing all relevant pixel for a single stripe for a given polynomial p
+    #     and a given slit height.
+    #
+    #     Args:
+    #         polynomials (np.ndarray): polynomial coefficients
+    #         img (np.ndarray): 2d echelle spectrum
+    #         slit_height (int): total slit height in pixel to be extracted
+    #         debug_level (int): debug level
+    #
+    #     Returns:
+    #         scipy.sparse.csc_matrix: extracted spectrum
+    #
+    #     """
+    #     ny, nx = img.shape
+    #     if isinstance(slit_height, np.ndarray):
+    #         slit_height = int(slit_height[0])
+    #
+    #     xx = np.arange(nx)
+    #     y = np.poly1d(polynomials)(xx)
+    #
+    #     slit_indices_y = np.arange(-slit_height, slit_height).repeat(nx).reshape((2 * slit_height, nx))
+    #     slit_indices_x = np.tile(np.arange(nx), 2 * slit_height).reshape((2 * slit_height, nx))
+    #
+    #     indices = np.rint(slit_indices_y + y).astype(int)
+    #     valid_indices = np.logical_and(indices < ny, indices > 0)
+    #
+    #     if debug_level > 3:
+    #         plt.figure()
+    #         plt.imshow(img, origin='lower')
+    #         ind_img = np.zeros_like(img)
+    #         ind_img[indices[valid_indices], slit_indices_x[valid_indices]] = 1
+    #         plt.imshow(ind_img, alpha=0.5, origin='lower')
+    #         plt.show()
+    #
+    #     mat = sparse.coo_matrix((img[indices[valid_indices], slit_indices_x[valid_indices]],
+    #                              (indices[valid_indices], slit_indices_x[valid_indices])), shape=(ny, nx))
+    #     return mat.tocsc()

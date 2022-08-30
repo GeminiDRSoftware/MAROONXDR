@@ -58,23 +58,36 @@ class MAROONXEchelle(MAROONX, Spect):
 
         for ad in adinputs:
             if flat is None:  # fix so self.caldb.get_processed_flat(ad) call works
-                if 'BLUE' in ad.tags:
-                    flat = astrodata.open('calibrations/processed_flat/20200911T220106Z_FDDDF_b_0002_flat.fits')
-                else:
-                    flat = astrodata.open('calibrations/processed_flat/20200911T220106Z_FDDDF_r_0000_flat.fits')
+                flat = astrodata.open('calibrations/processed_flat/20200911T220106Z_FDDDF_b_0002_flat.fits')
+                # self.caldb.get_calibrations(ad,caltype='processed_flat')
             else:
                 log.warning("No changes will be made to {}, since no "
                             "flat was found or specified".format(ad.filename))
-                continue
+                quit
 
             if dark is None:
-                dark = self.caldb.get_processed_dark(ad)
+                dark = astrodata.open('calibrations/processed_dark/20201120T165414Z_DDDDE_b_0900_dark.fits')
+                # self.caldb.get_calibrations(ad,caltype='processed_dark')
             else:
                 log.warning("No dark subtraction will be made to {} prior to stripe extraction, since no "
                             "dark was found or specified".format(ad.filename))
 
             stripes = {}
             p_id = flat[0].STRIPES_ID
+            #repackage p_id as dict
+            if len(p_id) == 12:  # can do this smarter if access to fiber key identity is kept at end of identifyStripes
+                p_id = {'fiber_1': dict((colname, p_id[0:6][colname].data) for colname in p_id.colnames),
+                 'fiber_5': dict((colname, p_id[6:][colname].data) for colname in p_id.colnames)}
+            elif len(p_id) == 18:
+                p_id = {'fiber_2': dict((colname, p_id[0:6][colname].data) for colname in p_id.colnames),
+                        'fiber_3': dict((colname, p_id[6:12][colname].data) for colname in p_id.colnames),
+                        'fiber_4': dict((colname, p_id[12:][colname].data) for colname in p_id.colnames)}
+            elif len(p_id) == 30:
+                p_id = {'fiber_1': dict((colname, p_id[0:6][colname].data) for colname in p_id.colnames),
+                        'fiber_2': dict((colname, p_id[6:12][colname].data) for colname in p_id.colnames),
+                        'fiber_3': dict((colname, p_id[12:18][colname].data) for colname in p_id.colnames),
+                        'fiber_4': dict((colname, p_id[18:24][colname].data) for colname in p_id.colnames),
+                        'fiber_5': dict((colname, p_id[24:][colname].data) for colname in p_id.colnames)}
 
             for f in p_id.keys():
                 adint = copy.deepcopy(ad)
