@@ -30,17 +30,17 @@ def makeProcessedFlat(p):
     p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
     p.stackFlats(suffix='FDDDF_flats')
     p.stackFlats(stream='DFFFD_flats',suffix='DFFFD')
-    p.findStripes()  # first work to separately define streams stripe info to remove stray light in each stream
+    p.findStripes()  # define stripe info to ultimately remove stray light in each stream
     p.findStripes(stream='DFFFD_flats')
-    p.identifyStripes(selected_fibers='1,0,0,0,5')
+    p.identifyStripes(selected_fibers='1,0,0,0,5') # identify stripes based on MX architecture files
     p.identifyStripes(stream='DFFFD_flats',selected_fibers='0,2,3,4,0')
-    p.defineFlatStripes()
+    p.defineFlatStripes()  # defines pixel inclusion for each flat region based on stripe ids
     p.defineFlatStripes(stream='DFFFD_flats')
-    p.removeStrayLight()
+    p.removeStrayLight()  # remove straylight from frame (this is why 2 partial illumination flat sets are necessary)
     p.removeStrayLight(stream='DFFFD_flats')
-    p.combineFlatStreams(stream='main', source='DFFFD_flats')
-    p.clearStream(stream='DFFFD_flats')
-    p.findStripes()  # now define true stripe info
+    p.combineFlatStreams(stream='main', source='DFFFD_flats')  # combine straylight-removed images
+    p.clearStream(stream='DFFFD_flats') # remove second stream
+    p.findStripes()  # re-run find/identify/define routine on combined frame
     p.identifyStripes(selected_fibers='1,2,3,4,5')
     p.defineFlatStripes(extract=True)
     # run the 5-illuminated-fiber frame through extraction to create a reduced masterflat

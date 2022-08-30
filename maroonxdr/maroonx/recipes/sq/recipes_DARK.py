@@ -18,7 +18,7 @@ def makeProcessedDark(p):
     into one of the science fibers with a few 10 counts. To remove these wings
     and any broad diffuse (illumination independent) background, DDDDE frames
     are taken in daytime to construct a DDDDE master dark. These darks are specific
-    for different exposure times (or ND filter settings) and should be taken
+    for different exposure times (i.e. ND filter settings) and should be taken
     close in time (within a day or two) to the science frame as the etalon
     source brightness can be time variable.
     Parameters

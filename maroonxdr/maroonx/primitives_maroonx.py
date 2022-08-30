@@ -5,12 +5,13 @@
 # ------------------------------------------------------------------------------
 import os
 
+import pandas as pd
 from gempy.gemini import gemini_tools as gt
 import numpy as np
 import copy
 from scipy import ndimage
 from scipy.ndimage import median_filter
-from astropy.table import Table
+from astropy.table import Table, vstack
 import scipy.sparse as sparse
 from geminidr.gemini.primitives_gemini import Gemini
 from geminidr.core import CCD, NearIR, primitives_preprocess
@@ -21,7 +22,7 @@ from photutils import Background2D, MedianBackground
 from .lookups import timestamp_keywords as maroonx_stamps
 from .lookups import siddb as maroonx_siddb
 from .lookups import maskdb as maroonx_maskdb
-
+#from gempy.library import astromodels
 from recipe_system.utils.decorators import parameter_override
 
 
@@ -397,7 +398,10 @@ class MAROONX(Gemini, CCD, NearIR):
                                  bbox={'facecolor': 'white', 'alpha': 0.5, 'pad': 2})
                 plt.tight_layout()
                 plt.show()
-            ad[0].STRIPES_ID = p_id
+            fiber_tables = []
+            for ifib in p_id.keys():
+                fiber_tables.append(Table.from_pandas(pd.DataFrame(p_id[ifib])))  # accidentally lose fiber key identity
+            ad[0].STRIPES_ID = vstack(fiber_tables, metadata_conflicts="silent")
             gt.mark_history(ad, primname=self.myself(), keyword=timestamp_key)
             ad.update_filename(suffix=params["suffix"], strip=False)
             return adinputs
@@ -406,7 +410,7 @@ class MAROONX(Gemini, CCD, NearIR):
         """
             Extracts and saves flat field profiles.
 
-            For a given slit_heigt, this function extracts the flat field stripes, calculates a box extracted spectrum and
+            For a given slit_height, this function extracts the flat field stripes, calculates a box extracted spectrum and
             normalizes the flat field to generate a 2D profile that is used in the optimal extraction process.
         """
         log = self.log
@@ -414,6 +418,21 @@ class MAROONX(Gemini, CCD, NearIR):
         timestamp_key = self.timestamp_keys[self.myself()]
         for ad in adinputs:
             p_id = ad[0].STRIPES_ID
+            #repackage p_id as dict
+            if len(p_id) == 12:  # can do this smarter if access to fiber key identity is kept at end of identifyStripes
+                p_id = {'fiber_1': dict((colname, p_id[0:6][colname].data) for colname in p_id.colnames),
+                 'fiber_5': dict((colname, p_id[6:][colname].data) for colname in p_id.colnames)}
+            elif len(p_id) == 18:
+                p_id = {'fiber_2': dict((colname, p_id[0:6][colname].data) for colname in p_id.colnames),
+                        'fiber_3': dict((colname, p_id[6:12][colname].data) for colname in p_id.colnames),
+                        'fiber_4': dict((colname, p_id[12:][colname].data) for colname in p_id.colnames)}
+            elif len(p_id) == 30:
+                p_id = {'fiber_1': dict((colname, p_id[0:6][colname].data) for colname in p_id.colnames),
+                        'fiber_2': dict((colname, p_id[6:12][colname].data) for colname in p_id.colnames),
+                        'fiber_3': dict((colname, p_id[12:18][colname].data) for colname in p_id.colnames),
+                        'fiber_4': dict((colname, p_id[18:24][colname].data) for colname in p_id.colnames),
+                        'fiber_5': dict((colname, p_id[24:][colname].data) for colname in p_id.colnames)}
+
             img = ad[0].data
             ny, nx = img.shape
             xx = np.arange(nx)
@@ -447,7 +466,9 @@ class MAROONX(Gemini, CCD, NearIR):
             ad[0].INDEX_FIBER = index_fiber.astype(int)
             ad[0].INDEX_ORDER = index_order.astype(int)
             if extract:
-                ad[0].STRIPES = self._extract_flat_stripes(img, p_id, slit_height, debug_level)
+                pass
+                # saving full info in DRAGONS, sparse matrix realizations no longer utilized
+                # ad[0].STRIPES = self._extract_flat_stripes(img, p_id, slit_height, debug_level)
             ad.update_filename(suffix=params['suffix'], strip=True)
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
@@ -638,7 +659,7 @@ class MAROONX(Gemini, CCD, NearIR):
         adoutputs = []
         adout = copy.deepcopy(adinputs[0])
         adout[0].data = np.max([adinputs[0].data[0], self.streams[source][0].data[0]], axis=0)
-        adoutputs.append(adout)
+        adoutputs.append(adout) # don't need to copy meta-fiber info here, will rerun id'ing on combined image frame
         return adoutputs
 
     @staticmethod
