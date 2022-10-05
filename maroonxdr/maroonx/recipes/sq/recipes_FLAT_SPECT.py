@@ -44,7 +44,7 @@ def makeProcessedFlat(p):
     p.identifyStripes(selected_fibers='1,2,3,4,5')
     p.defineFlatStripes(extract=True)
     # run the 5-illuminated-fiber frame through extraction to create a reduced masterflat
-    p.storeProcessedFlat()
+    p.storeProcessedFlat(suffix='_FFFFF_flat')
     return
 
 _default = makeProcessedFlat

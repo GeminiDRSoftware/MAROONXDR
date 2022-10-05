@@ -69,6 +69,17 @@ class MAROONX(Gemini, CCD, NearIR):
                 adoutputs.append(ad)
         return adoutputs
 
+    def validateData(self, adinputs=None, suffix=None):
+        """
+        MAROONXDR-specific version of validateData to ignore the invalid WCS
+        exception.
+        """
+        try:
+            super().validateData(adinputs, suffix=suffix)
+        except ValueError as e:
+            if 'valid WCS' not in str(e):
+                raise
+        return adinputs
     def correctImageOrientation(self, adinputs=None, debug_level=0, **params):
         """
         Correct image orientation to proper echelle format.
@@ -401,10 +412,7 @@ class MAROONX(Gemini, CCD, NearIR):
                                  bbox={'facecolor': 'white', 'alpha': 0.5, 'pad': 2})
                 plt.tight_layout()
                 plt.show()
-            fiber_tables = []
-            for ifib in p_id.keys():
-                fiber_tables.append(Table.from_pandas(pd.DataFrame(p_id[ifib])))  # accidentally lose fiber key identity
-            ad[0].STRIPES_ID = vstack(fiber_tables, metadata_conflicts="silent")
+            ad[0].STRIPES_ID = p_id
             gt.mark_history(ad, primname=self.myself(), keyword=timestamp_key)
             ad.update_filename(suffix=params["suffix"], strip=False)
             return adinputs
@@ -421,20 +429,20 @@ class MAROONX(Gemini, CCD, NearIR):
         timestamp_key = self.timestamp_keys[self.myself()]
         for ad in adinputs:
             p_id = ad[0].STRIPES_ID
-            #repackage p_id as dict
-            if len(p_id) == 12:  # can do this smarter if access to fiber key identity is kept at end of identifyStripes
-                p_id = {'fiber_1': dict((colname, p_id[0:6][colname].data) for colname in p_id.colnames),
-                 'fiber_5': dict((colname, p_id[6:][colname].data) for colname in p_id.colnames)}
-            elif len(p_id) == 18:
-                p_id = {'fiber_2': dict((colname, p_id[0:6][colname].data) for colname in p_id.colnames),
-                        'fiber_3': dict((colname, p_id[6:12][colname].data) for colname in p_id.colnames),
-                        'fiber_4': dict((colname, p_id[12:][colname].data) for colname in p_id.colnames)}
-            elif len(p_id) == 30:
-                p_id = {'fiber_1': dict((colname, p_id[0:6][colname].data) for colname in p_id.colnames),
-                        'fiber_2': dict((colname, p_id[6:12][colname].data) for colname in p_id.colnames),
-                        'fiber_3': dict((colname, p_id[12:18][colname].data) for colname in p_id.colnames),
-                        'fiber_4': dict((colname, p_id[18:24][colname].data) for colname in p_id.colnames),
-                        'fiber_5': dict((colname, p_id[24:][colname].data) for colname in p_id.colnames)}
+            # # repackage p_id as dict
+            # if len(p_id) == 12:  # can do this smarter if access to fiber key identity is kept at end of identifyStripes
+            #     p_id = {'fiber_1': dict((colname, p_id[0:6][colname].data) for colname in p_id.colnames),
+            #      'fiber_5': dict((colname, p_id[6:][colname].data) for colname in p_id.colnames)}
+            # elif len(p_id) == 18:
+            #     p_id = {'fiber_2': dict((colname, p_id[0:6][colname].data) for colname in p_id.colnames),
+            #             'fiber_3': dict((colname, p_id[6:12][colname].data) for colname in p_id.colnames),
+            #             'fiber_4': dict((colname, p_id[12:][colname].data) for colname in p_id.colnames)}
+            # elif len(p_id) == 30:
+            #     p_id = {'fiber_1': dict((colname, p_id[0:6][colname].data) for colname in p_id.colnames),
+            #             'fiber_2': dict((colname, p_id[6:12][colname].data) for colname in p_id.colnames),
+            #             'fiber_3': dict((colname, p_id[12:18][colname].data) for colname in p_id.colnames),
+            #             'fiber_4': dict((colname, p_id[18:24][colname].data) for colname in p_id.colnames),
+            #             'fiber_5': dict((colname, p_id[24:][colname].data) for colname in p_id.colnames)}
 
             img = ad[0].data
             ny, nx = img.shape
@@ -468,10 +476,18 @@ class MAROONX(Gemini, CCD, NearIR):
                 plt.show()
             ad[0].INDEX_FIBER = index_fiber.astype(int)
             ad[0].INDEX_ORDER = index_order.astype(int)
+            del ad[0].STRIPES_ID # delete interum information
+            del ad[0].STRIPES_LOC  # delete interum information
             if extract:
-                # saving full info in DRAGONS, sparse matrix realizations no longer utilized
-                # ad[0].STRIPES = self._extract_flat_stripes(img, p_id, slit_height, debug_level)
-                del ad[0].STRIPES_LOC  # delete existing list
+                fiber_tables = []
+
+                for ifib in sorted(p_id.keys(), key=lambda x:x.lower()):
+                    # need to sort the keys alphanumerically to ensure proper downstream management of fibers
+                    fiber_tables.append(Table.from_pandas(pd.DataFrame(p_id[ifib])))  # loses fiber key identity
+                ad[0].STRIPES_ID = vstack(fiber_tables, metadata_conflicts="silent")
+            #     # saving full info in DRAGONS, sparse matrix realizations no longer utilized
+            #     # ad[0].STRIPES = self._extract_flat_stripes(img, p_id, slit_height, debug_level)
+            #
             ad.update_filename(suffix=params['suffix'], strip=True)
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
@@ -693,73 +709,3 @@ class MAROONX(Gemini, CCD, NearIR):
 
         # Prepend standard path if the filename doesn't start with '/'
         return bpm if bpm.startswith(os.path.sep) else os.path.join(bpm_dir, bpm)
-
-    # def _extract_flat_stripes(self, img=None, p_id=None, slit_height=10, debug_level=0):
-    #     """
-    #     Extracts the flat stripes from the original 2D spectrum to a sparse array, containing only relevant pixels.
-    #
-    #     This function marks all relevant pixels for extraction. Using the provided dictionary P_id it iterates over all
-    #     stripes in the image and saves a sparse matrix for each stripe.
-    #
-    #     Args:
-    #         img (np.ndarray): 2d echelle spectrum
-    #         p_id (Union[dict, str]): dictionary as returned by :func:`~identify_stripes` or path to file
-    #         slit_height (int): total slit height in px
-    #         debug_level (int): debug level
-    #
-    #     Returns:
-    #         dict: dictionary of the form {fiber_number:{order: scipy.sparse_matrix}}
-    #
-    #     """
-    #     stripes = {}
-    #     for f in p_id.keys():
-    #         for o, p in p_id[f].items():
-    #             stripe = self._extract_single_flat_stripe(img, p, slit_height, debug_level)
-    #             if f in stripes:
-    #                 stripes[f].update({o: stripe})
-    #             else:
-    #                 stripes[f] = {o: stripe}
-    #     return stripes
-
-    # @staticmethod
-    # def _extract_single_flat_stripe(img=None, polynomials=None, slit_height=10, debug_level=0):
-    #     """
-    #     Extracts single stripe from 2d image.
-    #
-    #     This function returns a sparse matrix containing all relevant pixel for a single stripe for a given polynomial p
-    #     and a given slit height.
-    #
-    #     Args:
-    #         polynomials (np.ndarray): polynomial coefficients
-    #         img (np.ndarray): 2d echelle spectrum
-    #         slit_height (int): total slit height in pixel to be extracted
-    #         debug_level (int): debug level
-    #
-    #     Returns:
-    #         scipy.sparse.csc_matrix: extracted spectrum
-    #
-    #     """
-    #     ny, nx = img.shape
-    #     if isinstance(slit_height, np.ndarray):
-    #         slit_height = int(slit_height[0])
-    #
-    #     xx = np.arange(nx)
-    #     y = np.poly1d(polynomials)(xx)
-    #
-    #     slit_indices_y = np.arange(-slit_height, slit_height).repeat(nx).reshape((2 * slit_height, nx))
-    #     slit_indices_x = np.tile(np.arange(nx), 2 * slit_height).reshape((2 * slit_height, nx))
-    #
-    #     indices = np.rint(slit_indices_y + y).astype(int)
-    #     valid_indices = np.logical_and(indices < ny, indices > 0)
-    #
-    #     if debug_level > 3:
-    #         plt.figure()
-    #         plt.imshow(img, origin='lower')
-    #         ind_img = np.zeros_like(img)
-    #         ind_img[indices[valid_indices], slit_indices_x[valid_indices]] = 1
-    #         plt.imshow(ind_img, alpha=0.5, origin='lower')
-    #         plt.show()
-    #
-    #     mat = sparse.coo_matrix((img[indices[valid_indices], slit_indices_x[valid_indices]],
-    #                              (indices[valid_indices], slit_indices_x[valid_indices])), shape=(ny, nx))
-    #     return mat.tocsc()

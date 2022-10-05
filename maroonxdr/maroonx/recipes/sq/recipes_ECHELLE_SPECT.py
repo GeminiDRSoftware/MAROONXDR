@@ -31,7 +31,7 @@ def reduce(p):
 
     p.prepare()
     p.checkArm()
-    p.checkND()
+    # p.checkND()
     # p.addDQ()
     p.overscanCorrect()
     p.correctImageOrientation()
@@ -39,7 +39,7 @@ def reduce(p):
     # get and save wavelength solution (either static reference or frame's unique sim cal solved)
     p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
     p.optimalExtraction()  # does 2D to 1D conversion of cut out spectra
-    p.storeProcessedScience()
+    p.storeProcessedScience(suffix='_reduced')
     return
 
 _default = reduce

@@ -2,8 +2,10 @@
 # define in the primitives_maroonx.py file
 
 from gempy.library import config
-from geminidr.core import parameters_ccd, parameters_nearIR, parameters_stack
+from geminidr.core import parameters_ccd, parameters_stack, parameters_standardize
 
+class  validateData(parameters_standardize.validateDataConfig):
+    suffix = config.Field("Filename suffix", str, "")
 class checkArmConfig(config.Config):
     suffix = config.Field("Filename suffix", str, "")
 
@@ -13,7 +15,7 @@ class checkNDConfig(config.Config):
 class correctImageOrientationConfig(config.Config):
     suffix = config.Field("Filename suffix", str, "")
 
-class subtractOverscanConfig(parameters_ccd.subtractOverscanConfig):
+class overscanCorrectConfig(parameters_ccd.overscanCorrectConfig):
     def setDefaults(self):
         self.function = "none"
 
@@ -22,7 +24,7 @@ class StackFramesConfig(parameters_stack.stackFramesConfig):
     def setDefaults(self):
         self.separate_ext = False
 
-class stackDarksConfig(parameters_nearIR.stackDarksConfig,StackFramesConfig):
+class stackDarksConfig(parameters_stack.stackDarksConfig):
     def setDefaults(self):
         self.reject_method = "sigclip"
         self.operation = "median"

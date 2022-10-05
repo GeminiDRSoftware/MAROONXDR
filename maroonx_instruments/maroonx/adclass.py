@@ -51,6 +51,12 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
             return TagSet(['DARK', 'CAL'], blocks=['SPECT', 'ECHELLE'])
 
     @astro_data_tag
+    def _tag_science(self):
+        if self.phu.get('HIERARCH FIBER1') == 'Sky' and self.phu.get('HIERARCH FIBER2') == \
+            self.phu.get('HIERARCH FIBER3') == self.phu.get('HIERARCH FIBER4') == 'OBJECT'\
+                and self.phu.get('HIERARCH FIBER5') == 'Etalon':
+            return TagSet(['SCI'])
+    @astro_data_tag
     def _tag_flat(self):
         if self.phu.get('HIERARCH FIBER1') == 'Flat' or self.phu.get('HIERARCH FIBER2') == 'Flat' \
                 or self.phu.get('HIERARCH FIBER5') == 'Flat':
@@ -135,6 +141,25 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
         """
         return [self.phu.get('HIERARCH FIBER1'),self.phu.get('HIERARCH FIBER2'),self.phu.get('HIERARCH FIBER3'),
                 self.phu.get('HIERARCH FIBER4'),self.phu.get('HIERARCH FIBER5')]
+    @astro_data_descriptor
+    def data_label(self):
+        """
+        Returns the target name as recorded by telops
+        Returns
+        -------
+        str name
+        """
+        return self.phu.get('HIERARCH MAROONX TELESCOPE TARGETNAME')
+
+    @astro_data_descriptor
+    def observation_id(self):
+        """
+        Returns the observations program ID as recorded by telops
+        Returns
+        -------
+        str pid
+        """
+        return self.phu.get('HIERARCH MAROONX TELESCOPE PROGRAMID')
 
     @astro_data_descriptor
     def overscan_section(self, pretty=False):  # ! add info to headers and change here to reflect direct access?
