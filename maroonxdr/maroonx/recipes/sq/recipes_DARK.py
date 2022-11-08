@@ -31,11 +31,11 @@ def makeProcessedDark(p):
     p.prepare()
     p.checkArm()
     p.checkND()
-    # p.addDQ() #  need to get bpm frame read in correctly, 9/8 check
+    p.addDQ()
     p.overscanCorrect()
     p.correctImageOrientation()
     # p.addVAR(read_noise=True,poisson_noise=True) # 9/8 check
-    p.stackDarks()  # see parameters file for sig-clip choices
+    p.stackDarks()  # see parameters file for sig-clip choices and overwrites
     p.storeProcessedDark()
 
     return

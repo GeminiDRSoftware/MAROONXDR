@@ -23,7 +23,7 @@ def makeProcessedFlat(p):
     p.prepare()
     p.checkArm()
     p.checkND()
-    # p.addDQ()  # need to get bpm frame read in correctly
+    p.addDQ()
     p.overscanCorrect()
     p.correctImageOrientation()
     # p.addVAR(read_noise=True,poisson_noise=True)

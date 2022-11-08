@@ -31,8 +31,7 @@ def reduce(p):
 
     p.prepare()
     p.checkArm()
-    # p.checkND()
-    # p.addDQ()
+    p.addDQ()  # just placeholder until MX is in caldb
     p.overscanCorrect()
     p.correctImageOrientation()
     # p.addVAR(read_noise=True,poisson_noise=True)

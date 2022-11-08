@@ -76,6 +76,11 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
                 or self.phu.get('HIERARCH FIBER5') == 'ThAr':
             return TagSet(['ARC', 'CAL'])
 
+    @astro_data_tag
+    def _tag_bpm(self):
+        if self.phu.get('OBSTYPE') == 'BPM':
+            return TagSet(['BPM'])
+
     # @astro_data_tag  # no bias frames
     # def _tag_bias(self):
     #     if self.phu.get('OBSTYPE') == 'BIAS':
@@ -248,6 +253,28 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
                 for extampname in ampname:
                     allext.append([Section.from_string(lookup.array_section[amp]) for amp in extampname])
                 return allext
+
+    @astro_data_descriptor
+    def detector_section(self, pretty=False):  # only used in BPM ext call as of 10-28-22
+        """
+        Returns the full frame covered by the detector(s) (all amplifier including overscans).  A
+        list of strings of 0-based coordinates is returned.
+
+        Returns
+        -------
+            list of stings
+            Position of the array sections using 0-based coordinates.
+        """
+        if pretty:
+            if self.is_single:
+                return lookup.detector_section['RB']
+            else:
+                return [lookup.detector_section['RB']]
+        else:
+            if self.is_single:
+                return Section.from_string(lookup.detector_section['RB'])
+            else:
+                return [Section.from_string(lookup.detector_section['RB'])]
 
     @astro_data_descriptor
     def read_noise(self):

@@ -73,20 +73,24 @@ class MAROONXEchelle(MAROONX, Spect):
         for ad in adinputs:
             if flat is None:  # fix so self.caldb.get_processed_flat(ad) call works
                 if 'BLUE' in ad.tags:
-                    flat_ad = astrodata.open('calibrations/processed_flat/20200911T220106Z_FDDDF_b_0002_FFFFF_flat.fits')
+                    flat_ad = astrodata.open('calibrations/processed_flat/20220725T164012Z_FDDDF_b_0007_FFFFF_flat.fits')
+                                             # '20200911T220106Z_FDDDF_b_0002_FFFFF_flat.fits')
                 elif 'RED' in ad.tags:
-                    flat_ad = astrodata.open('calibrations/processed_flat/20200911T220106Z_FDDDF_r_0000_FFFFF_flat.fits')
+                    flat_ad = astrodata.open('calibrations/processed_flat/20220725T164012Z_FDDDF_r_0001_FFFFF_flat.fits')
+                                             # '20200911T220106Z_FDDDF_r_0000_FFFFF_flat.fits')
                 # flat_ad = self.caldb.get_calibrations(ad,caltype='processed_flat')
-                # flat_ad = astrodata.open(flat)
+                # flat_ad = astrodata.open(flat_ad)
                 else:
                     log.warning("No extraction will be made on {}, since no "
                                 "flat was found or specified".format(ad.filename))
 
             if dark is None:
                 if 'BLUE' in ad.tags:
-                    dark_ad = astrodata.open('calibrations/processed_dark/20201120T165414Z_DDDDE_b_0900_dark.fits')
+                    dark_ad = astrodata.open('calibrations/processed_dark/20220808T163524Z_DDDDE_b_0300_dark.fits')
+                        # 'calibrations/processed_dark/20201120T165414Z_DDDDE_b_0900_dark.fits')
                 elif 'RED' in ad.tags:
-                    dark_ad = astrodata.open('calibrations/processed_dark/20201120T165414Z_DDDDE_r_0900_dark.fits')
+                    dark_ad = astrodata.open('calibrations/processed_dark/20220808T163524Z_DDDDE_r_0300_dark.fits')
+                        # 'calibrations/processed_dark/20201120T165414Z_DDDDE_r_0900_dark.fits')
                 # dark_ad = self.caldb.get_calibrations(ad,caltype='processed_dark')
                 # dark_ad = astrodata.open(flat)
                 else:
@@ -95,6 +99,7 @@ class MAROONXEchelle(MAROONX, Spect):
 
             stripes = {}
             f_stripes = {}
+            stripes_masks = {}
             p_id = flat_ad[0].STRIPES_ID
             if len(p_id) != 30:
                 log.warning("No extraction will be made on {}, since "
@@ -117,17 +122,22 @@ class MAROONXEchelle(MAROONX, Spect):
                 else:
                     adint.data[0] = ad.data[0] - dark_ad.data[0]
                 for o, p in p_id[f].items():
-                    stripe = self._extract_single_stripe(adint, p, slit_height, debug_level)
-                    f_stripe = self._extract_single_stripe(flatint, p, slit_height, debug_level)
+                    stripe = self._extract_single_stripe(adint.data[0], p, slit_height, debug_level)
+                    f_stripe = self._extract_single_stripe(flatint.data[0], p, slit_height, debug_level)
+                    s_mask = self._extract_single_stripe(np.logical_not(adint.mask[0]).astype(int),
+                                                         p, slit_height, debug_level)  # prepped before sparse matrix
                     if f in stripes:
                         stripes[f].update({o: stripe})
                         f_stripes[f].update({o: f_stripe})
+                        stripes_masks[f].update({o: s_mask})
                     else:
                         stripes[f] = {o: stripe}
                         f_stripes[f] = {o: f_stripe}
+                        stripes_masks[f] = {o: s_mask}
 
             ad[0].STRIPES = stripes
             ad[0].F_STRIPES = f_stripes  # could find a way to make the flat info retrieve more efficient
+            ad[0].STRIPES_MASKS = stripes_masks  # here mask no longer conforms to BPM, (STRIPES_MASKS == 1 is good)
             ad.update_filename(suffix=params['suffix'], strip=True)
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
@@ -167,31 +177,37 @@ class MAROONXEchelle(MAROONX, Spect):
         box_reduced_stripes = {}
         optimal_reduced_err = {}
         optimal_reduced_2d_arrays = {}
+        extracted_bpms = {}
         for ad in adinputs:
             ad[0].REDUCED_ORDERS_FIBER_1 = np.zeros(shape=[1,1])
             ad[0].OPTIMAL_REDUCED_FIBER_1 = np.zeros(shape=[1,1])
             ad[0].OPTIMAL_REDUCED_ERR_1 = np.zeros(shape=[1,1])
             ad[0].BOX_REDUCED_FIBER_1 = np.zeros(shape=[1,1])
+            ad[0].BPM_FIBER_1 = np.zeros(shape=[1,1])
             ad[0].REDUCED_ORDERS_FIBER_2 = np.zeros(shape=[1,1])
             ad[0].OPTIMAL_REDUCED_FIBER_2 = np.zeros(shape=[1,1])
             ad[0].OPTIMAL_REDUCED_ERR_2 = np.zeros(shape=[1,1])
             ad[0].BOX_REDUCED_FIBER_2 = np.zeros(shape=[1,1])
+            ad[0].BPM_FIBER_2 = np.zeros(shape=[1,1])
             ad[0].REDUCED_ORDERS_FIBER_3 = np.zeros(shape=[1,1])
             ad[0].OPTIMAL_REDUCED_FIBER_3 = np.zeros(shape=[1,1])
             ad[0].OPTIMAL_REDUCED_ERR_3 = np.zeros(shape=[1,1])
             ad[0].BOX_REDUCED_FIBER_3 = np.zeros(shape=[1,1])
+            ad[0].BPM_FIBER_3 = np.zeros(shape=[1,1])
             ad[0].REDUCED_ORDERS_FIBER_4 = np.zeros(shape=[1,1])
             ad[0].OPTIMAL_REDUCED_FIBER_4 = np.zeros(shape=[1,1])
             ad[0].OPTIMAL_REDUCED_ERR_4 = np.zeros(shape=[1,1])
             ad[0].BOX_REDUCED_FIBER_4 = np.zeros(shape=[1,1])
+            ad[0].BPM_FIBER_4 = np.zeros(shape=[1,1])
             ad[0].REDUCED_ORDERS_FIBER_5 = np.zeros(shape=[1,1])
             ad[0].OPTIMAL_REDUCED_FIBER_5 = np.zeros(shape=[1,1])
             ad[0].OPTIMAL_REDUCED_ERR_5 = np.zeros(shape=[1,1])
             ad[0].BOX_REDUCED_FIBER_5 = np.zeros(shape=[1,1])
+            ad[0].BPM_FIBER_5 = np.zeros(shape=[1,1])
             stripes = ad[0].STRIPES
-            gain = ad.gain()[0][0] # fix
+            gain = ad.gain()[0][0]  # fix
             read_noise = ad.read_noise()[0][0] # fix
-            mask = None  # get bpm
+            mask = ad[0].STRIPES_MASKS  # get bpm
             flat_stripes = ad[0].F_STRIPES
             for f in stripes.keys():
                 if int(f[-1]) in opt_extraction:
@@ -201,7 +217,7 @@ class MAROONXEchelle(MAROONX, Spect):
                                                                                      gain=gain,
                                                                                      read_noise=read_noise,
                                                                                      back_var=back_var,
-                                                                                     mask=mask,
+                                                                                     mask=mask[f][o],
                                                                                      s_clip=s_clip,
                                                                                      penalty=penalty,
                                                                                      debug_level=debug_level,
@@ -212,77 +228,93 @@ class MAROONXEchelle(MAROONX, Spect):
                             optimal_reduced_err[f].update({o: var})
                             optimal_reduced_2d_arrays[f].update({o: fo})
                             box_reduced_stripes[f].update({o: stand_spec})
+                            extracted_bpms[f].update({o: np.array(np.sum(mask[f][o], axis=0).T).flatten()})
                         else:
                             optimal_reduced_stripes[f] = {o: flux}
                             optimal_reduced_err[f] = {o: var}
                             optimal_reduced_2d_arrays[f] = {o: fo}
                             box_reduced_stripes[f] = {o: stand_spec}
+                            extracted_bpms[f] = {o: np.array(np.sum(mask[f][o], axis=0).T).flatten()}
                 else:
                     for o, stripe in stripes[f].items():
                         log.fullinfo(f'Only box extraction in {f}, order {o}')
-                        stand_spec = self._box_extract_single_stripe(stripe, mask)
-
+                        stand_spec = self._box_extract_single_stripe(stripe, mask[f][o])
                         if f in box_reduced_stripes:
                             box_reduced_stripes[f].update({o: stand_spec})
+                            extracted_bpms[f].update({o: np.array(np.sum(mask[f][o], axis=0).T).flatten()})
                         else:
                             box_reduced_stripes[f] = {o: stand_spec}
+                            extracted_bpms[f] = {o: np.array(np.sum(mask[f][o], axis=0).T).flatten()}
             for f in stripes.keys():
                 if f in optimal_reduced_stripes.keys():
-                    optimal_reduced_single_fiber = np.array(list(optimal_reduced_stripes[f].values()),dtype=int)
+                    optimal_reduced_single_fiber = np.array(list(optimal_reduced_stripes[f].values()),dtype=float)
                     optimal_reduced_single_fiber_order_key = np.array(list(optimal_reduced_stripes[f].keys()),dtype=float)
                     optimal_reduced_single_fiber_err = np.array(list(optimal_reduced_err[f].values()),dtype=float)
                     box_reduced_stripes_single_fiber = np.array(list(box_reduced_stripes[f].values()),dtype=float)
+                    bpm_single_fiber = np.array(list(extracted_bpms[f].values()), dtype=int)
                     if f == 'fiber_1':
                         ad[0].REDUCED_ORDERS_FIBER_1 = optimal_reduced_single_fiber_order_key
                         ad[0].OPTIMAL_REDUCED_FIBER_1 = optimal_reduced_single_fiber
                         ad[0].OPTIMAL_REDUCED_ERR_1 = optimal_reduced_single_fiber_err
                         ad[0].BOX_REDUCED_FIBER_1 = box_reduced_stripes_single_fiber
+                        ad[0].BPM_FIBER_1 = bpm_single_fiber
                     if f == 'fiber_2':
                         ad[0].REDUCED_ORDERS_FIBER_2 = optimal_reduced_single_fiber_order_key
                         ad[0].OPTIMAL_REDUCED_FIBER_2 = optimal_reduced_single_fiber
                         ad[0].OPTIMAL_REDUCED_ERR_2 = optimal_reduced_single_fiber_err
                         ad[0].BOX_REDUCED_FIBER_2 = box_reduced_stripes_single_fiber
+                        ad[0].BPM_FIBER_2 = bpm_single_fiber
                     if f == 'fiber_3':
                         ad[0].REDUCED_ORDERS_FIBER_3 = optimal_reduced_single_fiber_order_key
                         ad[0].OPTIMAL_REDUCED_FIBER_3 = optimal_reduced_single_fiber
                         ad[0].OPTIMAL_REDUCED_ERR_3 = optimal_reduced_single_fiber_err
                         ad[0].BOX_REDUCED_FIBER_3 = box_reduced_stripes_single_fiber
+                        ad[0].BPM_FIBER_3 = bpm_single_fiber
                     if f == 'fiber_4':
                         ad[0].REDUCED_ORDERS_FIBER_4 = optimal_reduced_single_fiber_order_key
                         ad[0].OPTIMAL_REDUCED_FIBER_4 = optimal_reduced_single_fiber
                         ad[0].OPTIMAL_REDUCED_ERR_4 = optimal_reduced_single_fiber_err
                         ad[0].BOX_REDUCED_FIBER_4 = box_reduced_stripes_single_fiber
+                        ad[0].BPM_FIBER_4 = bpm_single_fiber
                     if f == 'fiber_5':
                         ad[0].REDUCED_ORDERS_FIBER_5 = optimal_reduced_single_fiber_order_key
                         ad[0].OPTIMAL_REDUCED_FIBER_5 = optimal_reduced_single_fiber
                         ad[0].OPTIMAL_REDUCED_ERR_5 = optimal_reduced_single_fiber_err
                         ad[0].BOX_REDUCED_FIBER_5 = box_reduced_stripes_single_fiber
+                        ad[0].BPM_FIBER_5 = bpm_single_fiber
                 else:
-                    box_reduced_single_fiber_order_key = np.array(list(box_reduced_stripes[f].keys()),dtype=float)
+                    box_reduced_single_fiber_order_key = np.array(list(box_reduced_stripes[f].keys()), dtype=float)
                     box_reduced_stripes_single_fiber = np.array(list(box_reduced_stripes[f].values()), dtype=float)
+                    bpm_single_fiber = np.array(list(extracted_bpms[f].values()), dtype=int)
                     if f == 'fiber_1':
                         ad[0].REDUCED_ORDERS_FIBER_1 = box_reduced_single_fiber_order_key
                         ad[0].BOX_REDUCED_FIBER_1 = box_reduced_stripes_single_fiber
+                        ad[0].BPM_FIBER_1 = bpm_single_fiber
                     if f == 'fiber_2':
                         ad[0].REDUCED_ORDERS_FIBER_2 = box_reduced_single_fiber_order_key
                         ad[0].BOX_REDUCED_FIBER_2 = box_reduced_stripes_single_fiber
+                        ad[0].BPM_FIBER_2 = bpm_single_fiber
                     if f == 'fiber_3':
                         ad[0].REDUCED_ORDERS_FIBER_3 = box_reduced_single_fiber_order_key
                         ad[0].BOX_REDUCED_FIBER_3 = box_reduced_stripes_single_fiber
+                        ad[0].BPM_FIBER_3 = bpm_single_fiber
                     if f == 'fiber_4':
                         ad[0].REDUCED_ORDERS_FIBER_4 = box_reduced_single_fiber_order_key
                         ad[0].BOX_REDUCED_FIBER_4 = box_reduced_stripes_single_fiber
+                        ad[0].BPM_FIBER_4 = bpm_single_fiber
                     if f == 'fiber_5':
                         ad[0].REDUCED_ORDERS_FIBER_5 = box_reduced_single_fiber_order_key
                         ad[0].BOX_REDUCED_FIBER_5 = box_reduced_stripes_single_fiber
+                        ad[0].BPM_FIBER_5 = bpm_single_fiber
             del ad[0].STRIPES  # do not want to save the sparse matricies
             del ad[0].F_STRIPES
+            del ad[0].STRIPES_MASKS
             gt.mark_history(ad, primname=self.myself(), keyword=timestamp_key)
             ad.update_filename(suffix=params["suffix"], strip=False)
         return adinputs
 
     @staticmethod
-    def _extract_single_stripe(ad=None, polynomials=None, slit_height=10, debug_level=0):
+    def _extract_single_stripe(data=None, polynomials=None, slit_height=10, debug_level=0):
         """
         Extracts single stripe from 2d image.
 
@@ -299,7 +331,7 @@ class MAROONXEchelle(MAROONX, Spect):
             scipy.sparse.csc_matrix: extracted spectrum
 
         """
-        ny, nx = ad.data[0].shape
+        ny, nx = data.shape
         if isinstance(slit_height, np.ndarray):
             slit_height = int(slit_height[0])
 
@@ -314,13 +346,13 @@ class MAROONXEchelle(MAROONX, Spect):
 
         if debug_level > 3:
             plt.figure()
-            plt.imshow(ad.data[0], origin='lower')
+            plt.imshow(data, origin='lower')
             ind_img = np.zeros_like(ad.data[0])
             ind_img[indices[valid_indices], slit_indices_x[valid_indices]] = 1
             plt.imshow(ind_img, alpha=0.5, origin='lower')
             plt.show()
 
-        mat = sparse.coo_matrix((ad.data[0][indices[valid_indices], slit_indices_x[valid_indices]],
+        mat = sparse.coo_matrix((data[indices[valid_indices], slit_indices_x[valid_indices]],
                                  (indices[valid_indices], slit_indices_x[valid_indices])), shape=(ny, nx))
         return mat.tocsc()
 
@@ -358,7 +390,8 @@ class MAROONXEchelle(MAROONX, Spect):
         else:
             # copy mask, because it will be modified
             mask = mask.copy()
-            back_var = back_var.copy()
+            back_var = stripe.copy()
+            back_var[:, :] = 0  # back_var.copy()
 
         # box extracted spectrum
         stand_spec0 = self._box_extract_single_stripe(stripe, mask)  # direct box extraction,
@@ -506,8 +539,7 @@ class MAROONXEchelle(MAROONX, Spect):
         # return all intermediate results for debugging/testing
         if full_output:
             return flux, var, stand_spec0, {'noise': var, 'acceptancemask': mask, "stripe": stripe,
-                                            "initial_sigma": diff_save}  # {'noise': var, 'profile': profile, 'rejectionmask': sparse.csr_matrix(mask),
-            # 'expected': expected, 'actual': actual}
+                                            "initial_sigma": diff_save}
         else:
             return flux, var, stand_spec0, {'noise': var}
 

@@ -4,7 +4,9 @@
 from gempy.library import config
 from geminidr.core import parameters_ccd, parameters_stack, parameters_standardize
 
-class  validateData(parameters_standardize.validateDataConfig):
+class addDQMXConfig(parameters_standardize.addDQConfig):
+    suffix = config.Field("Filename suffix", str, "")
+class validateDataConfig(parameters_standardize.validateDataConfig):
     suffix = config.Field("Filename suffix", str, "")
 class checkArmConfig(config.Config):
     suffix = config.Field("Filename suffix", str, "")
@@ -19,30 +21,34 @@ class overscanCorrectConfig(parameters_ccd.overscanCorrectConfig):
     def setDefaults(self):
         self.function = "none"
 
-class StackFramesConfig(parameters_stack.stackFramesConfig):
-    suffix = config.Field("Filename suffix", str, "")  # ?
+class stackFramesMXCalConfig(parameters_stack.stackFramesConfig):
+    suffix = config.Field("Filename suffix", str, "_stack")
     def setDefaults(self):
-        self.separate_ext = False
+        self.scale = True
+        self.zero = False
+        self.separate_ext = True
 
-class stackDarksConfig(parameters_stack.stackDarksConfig):
+class stackDarksConfig(parameters_stack.stackDarksConfig, stackFramesMXCalConfig):
     def setDefaults(self):
         self.reject_method = "sigclip"
-        self.operation = "median"
-        self.hsigma = 2.
+        self.operation = "mean"
+        self.hsigma = 2.  # dark stack is 2 sig, flat stack is 3 sig
         self.lsigma = 2.
         self.max_iters = 5
+        self.scale = True
 
 class separateFlatStreamsConfig(config.Config):
     suffix = config.Field("Filename suffix", str, "")  # ?
 
-class stackFlatsConfig(parameters_stack.stackFlatsConfig,StackFramesConfig):
+class stackFlatsConfig(parameters_stack.stackFlatsConfig,stackFramesMXCalConfig):
     suffix = config.Field("Filename suffix", str, "")  # ?
     def setDefaults(self):
         self.reject_method = "sigclip"
-        self.operation = "median"
+        self.operation = "mean"
         self.hsigma = 3.
         self.lsigma = 3.
         self.max_iters = 5
+        self.scale = True
 
 class combineFlatStreamsConfig(config.Config):
     suffix = config.Field("Filename suffix", str, "")  # ?
