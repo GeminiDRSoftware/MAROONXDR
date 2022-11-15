@@ -3,7 +3,8 @@
 
 from gempy.library import config
 from geminidr.core import parameters_stack, parameters_standardize
-from geminidr.core import parameters_ccd, parameters_calibdb  # import core pkgs as needed.
+from geminidr.core import parameters_ccd
+from geminidr.core import parameters_calibdb  # import core pkgs as needed.
 
 
 class extractStripesConfig(config.Config):

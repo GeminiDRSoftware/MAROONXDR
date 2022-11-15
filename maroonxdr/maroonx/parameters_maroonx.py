@@ -1,12 +1,11 @@
-# This parameter file contains the paramters related to the primitives
-# define in the primitives_maroonx.py file
+# This parameter file contains the parameters related to the primitives
+# defined in the primitives_maroonx.py file, in alphabetical order
 
 from gempy.library import config
-from geminidr.core import parameters_ccd, parameters_stack, parameters_standardize
+from geminidr.core import parameters_ccd
+from geminidr.core import parameters_stack, parameters_standardize
 
 class addDQMXConfig(parameters_standardize.addDQConfig):
-    suffix = config.Field("Filename suffix", str, "")
-class validateDataConfig(parameters_standardize.validateDataConfig):
     suffix = config.Field("Filename suffix", str, "")
 class checkArmConfig(config.Config):
     suffix = config.Field("Filename suffix", str, "")
@@ -14,12 +13,35 @@ class checkArmConfig(config.Config):
 class checkNDConfig(config.Config):
     suffix = config.Field("Filename suffix", str, "")
 
+class combineFlatStreamsConfig(config.Config):
+    suffix = config.Field("Filename suffix", str, "")  # ?
+    source = config.Field("Stream to transfer from", str, None)
+
 class correctImageOrientationConfig(config.Config):
     suffix = config.Field("Filename suffix", str, "")
+class defineFlatStripesConfig(config.Config):
+    suffix = config.Field("Filename suffix", str, "")
+    slit_height = config.Field("Pixel illumination in cross-dispersion",
+                               int, 10)
+    extract = config.Field("Save extracted Stripes?", bool, False)
+
+class findStripesConfig(config.Config):
+    suffix = config.Field("Filename suffix", str, "")
+
+class identifyStripesConfig(config.Config):
+    suffix = config.Field("Filename suffix", str, "")
+    selected_fibers = config.Field("Fiber selection", str, None)
 
 class overscanCorrectConfig(parameters_ccd.overscanCorrectConfig):
     def setDefaults(self):
         self.function = "none"
+
+class removeStrayLightConfig(config.Config):
+    suffix = config.Field("Filename suffix", str, "")
+    box_size = config.Field("Photutils box size", int, 20)
+    filter_size = config.Field("Photutilz filter size", int, 20)
+class separateFlatStreamsConfig(config.Config):
+    suffix = config.Field("Filename suffix", str, "")  # ?
 
 class stackFramesMXCalConfig(parameters_stack.stackFramesConfig):
     suffix = config.Field("Filename suffix", str, "_stack")
@@ -37,9 +59,6 @@ class stackDarksConfig(parameters_stack.stackDarksConfig, stackFramesMXCalConfig
         self.max_iters = 5
         self.scale = True
 
-class separateFlatStreamsConfig(config.Config):
-    suffix = config.Field("Filename suffix", str, "")  # ?
-
 class stackFlatsConfig(parameters_stack.stackFlatsConfig,stackFramesMXCalConfig):
     suffix = config.Field("Filename suffix", str, "")  # ?
     def setDefaults(self):
@@ -50,23 +69,5 @@ class stackFlatsConfig(parameters_stack.stackFlatsConfig,stackFramesMXCalConfig)
         self.max_iters = 5
         self.scale = True
 
-class combineFlatStreamsConfig(config.Config):
-    suffix = config.Field("Filename suffix", str, "")  # ?
-    source = config.Field("Stream to transfer from", str, None)
-
-class findStripesConfig(config.Config):
+class validateDataConfig(parameters_standardize.validateDataConfig):
     suffix = config.Field("Filename suffix", str, "")
-
-class identifyStripesConfig(config.Config):
-    suffix = config.Field("Filename suffix", str, "")
-    selected_fibers = config.Field("Fiber selection", str, None)
-
-class defineFlatStripesConfig(config.Config):
-    suffix = config.Field("Filename suffix", str, "")
-    slit_height = config.Field("Pixel illumination in cross-dispersion", int, 10)
-    extract = config.Field("Save extracted Stripes?", bool, False)
-
-class removeStrayLightConfig(config.Config):
-    suffix = config.Field("Filename suffix", str, "")
-    box_size = config.Field("Photutils box size", int, 20)
-    filter_size = config.Field("Photutilz filter size", int, 20)
