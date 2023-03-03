@@ -258,15 +258,18 @@ class MAROONX(Gemini, CCD, NearIR):
         arm_set = 'BLUE' if 'BLUE' in adinputs[0].tags else \
             'RED' if 'RED' in adinputs[0].tags else 'UNDEFINED'
         if arm_set == 'UNDEFINED':
-            raise IOError("%s found without an arm defined in raw",
-                          adinputs[0].filename)
+            log.error("{} found without defined camera arm".format(
+                adinputs[0].filename))
+            raise IOError()
         adoutputs = []
+        if len(adinputs) == 1:
+            log.warning('Only one file passed to checkArm')
         for ad in adinputs:
             # include other objects in list with same tag
             if arm_set not in ad.tags:
                 log.warning("Not all frames taken with the same camera arm, "
                             "restricting set to first arm used in list")
-                log.warning('Not analyzing frame: %s', ad.filename)
+                log.warning('tossing frame: %s', ad.filename)
             else:
                 ad.update_filename(suffix=params['suffix'], strip=True)
                 adoutputs.append(ad)
@@ -302,17 +305,19 @@ class MAROONX(Gemini, CCD, NearIR):
             # perform 2-axis flip as needed
             if (ad.image_orientation()['vertical orientation flip'] and
                     ad.image_orientation()['horizontal orientation flip']):
-                log.fullinfo('%s found in blue orientation, orientation'
-                             'flipped', ad.filename)
+                log.fullinfo('{} set as blue, orientation flipped'.format(ad.filename))
                 adout[0].data = np.fliplr(np.flipud(ad[0].data))
-                adout[0].mask = np.fliplr(np.flipud(ad[0].mask))
+                try:
+                    adout[0].mask = np.fliplr(np.flipud(ad[0].mask))
+                except:
+                    log.warning('DQ not found for ', ad.filename,
+                                'while orienting image')
             elif not (ad.image_orientation()['vertical orientation flip'] and
                       ad.image_orientation()['horizontal orientation flip']):
-                log.fullinfo('%s found in red orientation, orientation '
-                             'unchanged', ad.filename)
+                log.fullinfo('{} set as red, orientation unchanged'.format(ad.filename))
             else:
-                raise IOError("%s frame found without correctly defined "
-                              "orientation flips in raw", ad.filename)
+                log.error("{} has no defined orientation".format(ad.filename))
+                raise IOError
             adout.update_filename(suffix=params['suffix'], strip=True)
             adoutputs.append(adout)
 
@@ -348,9 +353,11 @@ class MAROONX(Gemini, CCD, NearIR):
                     ad.update_filename(suffix=params['suffix'], strip=True)
                     adoutputs.append(ad)
             if len(adoutputs) == 1:
-                raise IOError("Only first frame found, of given, with its"
-                              "simcal ND filter setting")
+                log.error("Only first frame found, of given, with its" +
+                              " simcal ND filter setting")
+                raise IOError()
         else:
+            log.warning('Only one file passed to checkND')
             return adinputs
         return adoutputs
 
@@ -762,50 +769,50 @@ class MAROONX(Gemini, CCD, NearIR):
 
         for ad in adinputs:
 
-            ny, nx = ad.data[0].shape
+            npix_y, npix_x = ad.data[0].shape
             # first smooth frame to improve algorithm stability
             filtered_ad = median_filter(ad.data[0], med_filter)
             filtered_ad = gaussian_filter(filtered_ad, gauss_filter_sigma)
 
             # find peaks in center column
-            data = filtered_ad[:, int(nx / 2)]
+            data = filtered_ad[:, int(npix_x / 2)]
             peaks = np.r_[True, data[1:] >= data[:-1]] & \
                     np.r_[data[:-1] > data[1:], True]
 
             idx = np.logical_and(peaks, data > min_peak * np.max(data))
-            maxima = np.arange(ny)[idx]
+            maxima = np.arange(npix_y)[idx]
 
             # filter out maxima too close to the boundary to avoid problems
             maxima = maxima[maxima > 3]
-            maxima = maxima[maxima < ny - 3]
+            maxima = maxima[maxima < npix_y - 3]
 
             n_order = len(maxima)
             log.fullinfo(f'Number of stripes found: {n_order}')
 
-            orders = np.zeros((n_order, nx))
+            orders = np.zeros((n_order, npix_x))
             # walk through to the left and right along the maximum of the order
-            for m, row in enumerate(maxima):
-                column = int(nx / 2)
-                orders[m, column] = row
+            for row_max, row in enumerate(maxima):
+                column = int(npix_x / 2)
+                orders[row_max, column] = row
                 start_row = row
                 # walk right
-                while column + 1 < nx:
+                while column + 1 < npix_x:
                     column += 1
                     args = [start_row]
                     if start_row - 1 > 1:
                         args.append(start_row - 1)
                     else:
                         args.append(1)
-                    if start_row + 1 < ny - 1:
+                    if start_row + 1 < npix_y - 1:
                         args.append(start_row + 1)
                     else:
-                        args.append(ny - 1)
-                    p = filtered_ad[args, column]
+                        args.append(npix_y - 1)
+                    pixel = filtered_ad[args, column]
                     # new maximum
-                    start_row = args[int(np.argmax(p))]
-                    orders[m, column] = start_row
+                    start_row = args[int(np.argmax(pixel))]
+                    orders[row_max, column] = start_row
 
-                column = int(nx / 2)
+                column = int(npix_x / 2)
                 start_row = row
                 # walk left
                 while column > 0:
@@ -815,20 +822,20 @@ class MAROONX(Gemini, CCD, NearIR):
                         args.append(start_row - 1)
                     else:
                         args.append(1)
-                    if start_row + 1 < ny - 1:
+                    if start_row + 1 < npix_y - 1:
                         args.append(start_row + 1)
                     else:
-                        args.append(ny - 1)
-                    p = filtered_ad[args, column]
+                        args.append(npix_y - 1)
+                    pixel = filtered_ad[args, column]
                     # new maximum
-                    start_row = args[int(np.argmax(p))]
-                    orders[m, column] = start_row
+                    start_row = args[int(np.argmax(pixel))]
+                    orders[row_max, column] = start_row
 
             # do Polynomial fit for each order
             log.fullinfo(f'Fit polynomial of order {deg_polynomial} '
                          f'to each stripe')
-            xx = np.arange(nx)
-            polynomials = [np.poly1d(np.polyfit(xx, o, deg_polynomial))
+            x_pixels = np.arange(npix_x)
+            polynomials = [np.poly1d(np.polyfit(x_pixels, o, deg_polynomial))
                            for o in orders]
             # polynomials is FITs-unsaveable dict of dicts,
             # will use and then remove before storing
@@ -861,7 +868,9 @@ class MAROONX(Gemini, CCD, NearIR):
         ------
         adoutput : single MX astrodata object with STRIPES_ID extension.
         This extension temporarily holds the fits-unsavable fiber information
-        before it is utilized and then removed.
+        before it is utilized and then removed. A new extension REMOVED_STRIPES
+        also saves the polynomial info for every stripe that is not identified
+        from the original set inherited from findStripes
 
         """
         log = self.log
@@ -873,9 +882,9 @@ class MAROONX(Gemini, CCD, NearIR):
             if positions_dir is None:
                 positions_dir = self._get_sid_filename(ad)
                 log.info(positions_dir)
-            with fits.open(positions_dir, 'readonly') as f:
-                positions = f[1].data
-            _, nx = ad.data[0].shape
+            with fits.open(positions_dir, 'readonly') as lookup_frame:
+                positions = lookup_frame[1].data
+            _, npix_x = ad.data[0].shape
             p_id = {}
 
             selected_fibers = list(np.asarray((selected_fibers.split(','))
@@ -890,9 +899,9 @@ class MAROONX(Gemini, CCD, NearIR):
             if selected_fibers is None:
                 selected_fibers = unique_fibers
 
-            for f in unique_fibers:
-                if f not in selected_fibers:
-                    idx = np.where(fibers == f)
+            for fiber_iter in unique_fibers:
+                if fiber_iter not in selected_fibers:
+                    idx = np.where(fibers == fiber_iter)
                     y_positions = np.delete(y_positions, idx)
                     fibers = np.delete(fibers, idx)
                     orders = np.delete(orders, idx)
@@ -900,8 +909,8 @@ class MAROONX(Gemini, CCD, NearIR):
             used = np.zeros_like(y_positions)
             # second, pull in previously calculated locations on frame
             observed_y = []
-            for _, p in enumerate(ad[0].STRIPES_LOC):
-                observed_y.append(np.poly1d(p)(nx / 2))
+            for _, poly in enumerate(ad[0].STRIPES_LOC):
+                observed_y.append(np.poly1d(poly)(npix_x / 2))
 
             # third, compare the reference values plus an arbitrary shift
             # to the on frame location, over a range in shifts
@@ -926,8 +935,11 @@ class MAROONX(Gemini, CCD, NearIR):
             shift_calculated = shifts[np.argmin(total_distances)]
             # finally, create dict of dicts assigning stripe fibers and orders
             # to those found in the flat frame.
-            for _, p in enumerate(ad[0].STRIPES_LOC):
-                observed_y = np.poly1d(p)(nx / 2)
+            # Additionally, save unidentified stripe polynomial info in
+            # FITs savable REMOVED_STRIPES extension
+            unidentified_stripes = []
+            for _, poly in enumerate(ad[0].STRIPES_LOC):
+                observed_y = np.poly1d(poly)(npix_x / 2)
                 closest_stripe_idx = np.argmin(np.abs(y_positions +
                                                       shift_calculated -
                                                       observed_y))
@@ -943,18 +955,23 @@ class MAROONX(Gemini, CCD, NearIR):
                         order = f'{order}'
 
                         if fiber in p_id:
-                            p_id[fiber].update({order: p.coefficients})
+                            p_id[fiber].update({order: poly.coefficients})
                         else:
-                            p_id[fiber] = {order: p.coefficients}
+                            p_id[fiber] = {order: poly.coefficients}
                     else:
-                        log.warning(f'Stripe at {observed_y} could not be '
-                                    f'identified unambiguously')
+                        log.warning(f'Stripe at {observed_y} could not be' +
+                                    ' identified unambiguously')
+                        unidentified_stripes.append(poly.coefficients)
                 else:
-                    log.warning(f'Stripe at {observed_y} could not be '
-                                f'identified')
-            # p_id is FITs-unsaveable dict of dicts,
+                    log.warning(f'Stripe at {observed_y} could not be' +
+                                ' identified')
+                    unidentified_stripes.append(poly.coefficients)
+            # p_id is FITs-unsavable dict of dicts,
             # will use and then reformat before storing
             ad[0].STRIPES_ID = p_id
+            # REMOVED_STRIPES is FITS-savable np.array of unidentified stripes
+            # there is no meta-info being dropped as the stripe is unidentified
+            ad[0].REMOVED_STRIPES = np.array(unidentified_stripes)
             gt.mark_history(ad, primname=self.myself(), keyword=timestamp_key)
             ad.update_filename(suffix=params["suffix"], strip=False)
             return adinputs
@@ -962,15 +979,22 @@ class MAROONX(Gemini, CCD, NearIR):
     def defineFlatStripes(self,adinputs=None, slit_height=10, extract=False,
                           **params):
         """
-        Extracts and saves flat field profiles in a fits-acceptable extension.
+        Saves fiber location info based on flat field info for stray light
+        removal (extract=False) and for future science extraction (extract=True).
         Requires the findStripes and identifyStripes primitives to be run prior
-        during recipe so necessary information exists in extensions.
-        Will remove previous STRIPES_ID and STRIPES_LOC extensions and replace
-        with INDEX_FIBER and INDEX_ORDER extensions.
+        during recipe so necessary information exists in input extensions.
+        Will remove previous (improperly formatted, but fast)
+        STRIPES_ID and STRIPES_LOC extensions and replace with INDEX_FIBER
+        and INDEX_ORDER pixel map extensions, as needed in straylight removal,
+        and (if extract=True) a FITS savable STRIPES_ID and STRIPES_FIBERS.
 
         For a given slit_height, this function extracts the flat field stripes,
         calculates a box extracted spectrum and normalizes the flat field to
-        generate a 2D profile that is used in the optimal extraction process.
+        generate a 2D pixel map that is used in the straylight removal.
+
+        STRIPES_ID and STRIPES_FIBERS contain the by-spectral-order
+        polynomial plate solution for each illuminated fiber that is utilized
+        to define 2D extraction regions in science extractions.
 
         Parameters
         -------
@@ -984,7 +1008,7 @@ class MAROONX(Gemini, CCD, NearIR):
         Returns
         -------
         adoutput : single MX astrodata object with INDEX_FIBER, INDEX_ORDER
-            extensions and possibly STRIPES_ID extension
+            extensions and possibly STRIPES_ID and STRIPES_FIBERS extensions
         """
 
         log = self.log
@@ -993,45 +1017,47 @@ class MAROONX(Gemini, CCD, NearIR):
         for ad in adinputs:
             p_id = ad[0].STRIPES_ID
             img = ad[0].data
-            ny, nx = img.shape
-            xx = np.arange(nx)
+            npix_y, npix_x = img.shape
+            x_pixels = np.arange(npix_x)
             index_fiber = np.zeros_like(img, dtype=np.int8)
             index_order = np.zeros_like(img, dtype=np.int8)
             slit_indices_y = np.arange(-slit_height, slit_height)\
-                .repeat(nx).reshape((2 * slit_height, nx))
-            slit_indices_x = np.tile(np.arange(nx), 2 * slit_height)\
-                .reshape((2 * slit_height, nx))
-            for f in p_id.keys():
-                for o, p in p_id[f].items():
-                    y = np.poly1d(p)(xx)
+                .repeat(npix_x).reshape((2 * slit_height, npix_x))
+            slit_indices_x = np.tile(np.arange(npix_x), 2 * slit_height)\
+                .reshape((2 * slit_height, npix_x))
+            for fiber_iter in p_id.keys():
+                for order_iter, poly in p_id[fiber_iter].items():
+                    y = np.poly1d(poly)(x_pixels)
                     indices = np.rint(slit_indices_y + y).astype(int)
-                    valid_indices = np.logical_and(indices < ny, indices > 0)
-                    ff = f
-                    if isinstance(ff, str):
-                        ff = int(''.join(filter(str.isdigit, ff)))
+                    valid_indices = np.logical_and(indices < npix_y,
+                                                   indices > 0)
+                    final_fiber = fiber_iter
+                    if isinstance(final_fiber, str):
+                        final_fiber = int(''.join(filter(str.isdigit,
+                                                         final_fiber)))
                     index_fiber[indices[valid_indices],
-                                slit_indices_x[valid_indices]] = ff
-                    oo = o
-                    if isinstance(oo, str):
-                        oo = int(''.join(filter(str.isdigit, oo)))
+                                slit_indices_x[valid_indices]] = final_fiber
+                    final_order = order_iter
+                    if isinstance(final_order, str):
+                        final_order = int(''.join(filter(str.isdigit,
+                                                         final_order)))
                     index_order[indices[valid_indices],
-                                slit_indices_x[valid_indices]] = oo
+                                slit_indices_x[valid_indices]] = final_order
 
             ad[0].INDEX_FIBER = index_fiber.astype(int)
             ad[0].INDEX_ORDER = index_order.astype(int)
-            del ad[0].STRIPES_ID  # delete interim information
+            del ad[0].STRIPES_ID  # delete interim information in improper format
             del ad[0].STRIPES_LOC  # delete interim information
 
             if extract:
                 fiber_tables = []
-                # need to sort the keys alphanumerically to ensure proper
-                # downstream management of fibers
                 for ifib in sorted(p_id.keys(), key=lambda x: x.lower()):
                     fiber_tables.append(
                         Table.from_pandas(pd.DataFrame(p_id[ifib])))
                 ad[0].STRIPES_ID = vstack(fiber_tables,
                                           metadata_conflicts="silent")
-                # extracting stripes using full STRIPES_ID info in DRAGONS,
+                ad[0].STRIPES_FIBERS = np.array([key[-1] for key in list(sorted(p_id.keys(), key=lambda x: x.lower()))]).astype(int)
+                # actually extracting stripes using full info in DRAGONS,
                 # aka sparse matrix realizations,
                 # not utilized as csc not FITS compatible
 
@@ -1040,11 +1066,13 @@ class MAROONX(Gemini, CCD, NearIR):
         return adinputs
 
     def removeStrayLight(self, adinputs=None, box_size=20, filter_size=20,
-                         **params):
+                         snapshot=False, **params):
         """
         Removes stray light from full frame images for more accurate fiber flux
         accounting. Requires the defineStripes primitive to be run prior during
-        recipe so necessary information exists in extensions
+        recipe so INDEX_FIBER and INDEX_ORDER extensions exist to define pixel
+        locations across frame within fiber traces to avoid when finding stray
+        light.
 
         Parameters
         --------
@@ -1054,6 +1082,8 @@ class MAROONX(Gemini, CCD, NearIR):
             background identification sub-routine
         filter_size : pixel height and width of window to perform
             background identification sub-routine
+        snapshot : Bool to save difference frame of removed stray light as
+            extension STRAYLIGHT_DIFFERENCE
 
         Returns
         ------
@@ -1160,7 +1190,12 @@ class MAROONX(Gemini, CCD, NearIR):
             log.fullinfo(f'Truncated median sub-zero pixel value: '
                          f'{np.median(adout[0].data[adout[0].data < 0])}')
             adout[0].data[adout[0].data < 0] = 0.01
-
+            if snapshot:
+                # used for unit testing, save straylight difference
+                # but return original data so it can be compared in test
+                adout[0].STRAYLIGHT_DIFFERENCE = adout[0].data - \
+                                                 deepcopy(ad)[0].data
+                adout[0].data = deepcopy(ad)[0].data
             adout.update_filename(suffix=params['suffix'], strip=True)
             adoutputs.append(adout)
 
@@ -1187,35 +1222,35 @@ class MAROONX(Gemini, CCD, NearIR):
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
         # Initialize lists of AstroData objects to be added to the streams
-        flat_FDDDF_list = []
-        flat_DFFFD_list = []
+        flat_fdddf_list = []
+        flat_dfffd_list = []
         mislabeled = []
         for ad in adinputs:
             tags = ad.tags
             if "FLAT" in tags and ad.fiber_setup() == ['Flat', 'Dark', 'Dark',
                                                        'Dark', 'Flat']:
-                flat_FDDDF_list.append(ad)
-                log.fullinfo("FDDDF Flat: %s", ad.filename)
+                flat_fdddf_list.append(ad)
+                log.fullinfo("FDDDF Flat: {}".format(ad.filename))
             elif "FLAT" in tags and ad.fiber_setup() == ['Dark', 'Flat', 'Flat',
                                                          'Flat', 'Dark']:
-                flat_DFFFD_list.append(ad)
-                log.fullinfo("DFFFD Flat: %s", ad.filename)
+                flat_dfffd_list.append(ad)
+                log.fullinfo("DFFFD Flat: {}".format(ad.filename))
             else:
                 mislabeled.append(ad)
-                log.warning("Not registered as Flat: %s", ad.filename)
-        if not flat_FDDDF_list:
+                log.warning("Not registered as Flat: {}".format(ad.filename))
+        if not flat_fdddf_list:
             log.warning("No FDDDF Flats in input list")
-        if not flat_DFFFD_list:
+        if not flat_dfffd_list:
             log.warning("No DFFFD Flats in input list")
 
-        self.streams["DFFFD_flats"] = flat_DFFFD_list
-        return flat_FDDDF_list
+        self.streams["DFFFD_flats"] = flat_dfffd_list
+        return flat_fdddf_list
 
     def combineFlatStreams(self, adinputs=None, source=None, **params):
         """
-        This primitive recombines the flat data into one master frame,
-        combining the main stream pre-master and the 'source' stream
-        pre-master with a simple max comparison at each pix
+        This primitive recombines the flat data into one processed frame,
+        combining the main stream pre-processed and the 'source' stream
+        pre-proccessed with a simple max comparison at each pix
 
         Parameters
         ------

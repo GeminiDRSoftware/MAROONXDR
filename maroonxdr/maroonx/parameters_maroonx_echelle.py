@@ -10,6 +10,7 @@ from geminidr.core import parameters_calibdb  # import core pkgs as needed.
 class extractStripesConfig(config.Config):
     suffix = config.Field("Filename suffix", str, "")
     slit_height = config.Field("Pixel illumination in cross-dispersion",int, 10)
+    test_extraction = config.Field("Save in FITS-readable format for testing", bool, False)
 
 class optimalExtractionConfig(config.Config):
     suffix = config.Field("Filename suffix", str, "_reduced")
@@ -22,7 +23,7 @@ class optimalExtractionConfig(config.Config):
     def setDefaults(self):
         self.penalty = 1.0
         self.s_clip = 5.0
-        self.back_var = 200.0
+        self.back_var = 0.0
         self.read_noise = 1.14
         self.gain = 2.72
 

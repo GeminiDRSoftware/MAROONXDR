@@ -8,7 +8,7 @@ recipe_tags = set(['MAROONX', 'CAL', 'DARK'])
 def makeProcessedDark(p):
     """
     This recipe performs the standardization and corrections needed to convert
-    the raw input dark images into a single master dark image. This output
+    the raw input dark images into a single processed dark image. This output
     processed dark is stored on disk using storeProcessedDark and has a name
     equal to the name of the first input bias image with "_dark.fits" appended.
     The background in an un-illuminated frame is very low for exposure times of
@@ -17,7 +17,7 @@ def makeProcessedDark(p):
     illuminated with the FP etalon. The extended wings of the etalon reach
     into one of the science fibers with a few 10 counts. To remove these wings
     and any broad diffuse (illumination independent) background, DDDDE frames
-    are taken in daytime to construct a DDDDE master dark. These darks are specific
+    are taken in daytime to construct a DDDDE processed dark. These darks are specific
     for different exposure times (i.e. ND filter settings) and should be taken
     close in time (within a day or two) to the science frame as the etalon
     source brightness can be time variable.
