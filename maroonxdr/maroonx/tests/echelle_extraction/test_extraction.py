@@ -6,7 +6,6 @@ import numpy as np
 import maroonx_instruments
 from maroonxdr.maroonx.primitives_maroonx_echelle import MAROONXEchelle
 
-
 @pytest.mark.parametrize("filename_r", ["20220808T111549Z_SOOOE_r_0300_reduced.fits"])
 @pytest.mark.parametrize("filename_b", ["20220808T111549Z_SOOOE_b_0300_reduced.fits"])
 def test_optimal_extracting_science_data(caplog, filename_r, filename_b):
