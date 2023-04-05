@@ -44,6 +44,52 @@ class MAROONXEchelle(MAROONX, Spect):
                 raise
         return adinputs
 
+    def darkSubtraction(self, adinputs=None, dark=None, **params):
+        """
+        Finds the dark frame in association with the adinput and creates a
+        dark subtracted extension that could be requested during stripe extraction
+        Args:
+        adinputs
+        dark: (optional) adinput of relevant processed dark
+
+        Returns
+        adinputs with additional image extension of dark subtracted full frame.
+
+        """
+        log = self.log
+        log.debug(gt.log_message("primitive", self.myself(), "starting"))
+        # timestamp_key = self.timestamp_keys[self.myself()]
+        for ad in adinputs:
+            if dark is None:
+                if 'BLUE' in ad.tags:
+                    # will replace with caldb call to processed dark
+                    dark_ad = astrodata.open('/home/david/PycharmProjects/' +
+                                             'MAROONXDR/calibrations/processed_dark/' +
+                                             '20220808T163524Z_DDDDE_b_0300_dark.fits')
+                    # '20201120T165414Z_DDDDE_b_0900_dark.fits')
+                elif 'RED' in ad.tags:
+                    # will replace with caldb call to processed dark
+                    dark_ad = astrodata.open('/home/david/PycharmProjects/' +
+                                             'MAROONXDR/calibrations/processed_dark/' +
+                                             '20220808T163524Z_DDDDE_r_0300_dark.fits')
+                    # '0201120T165414Z_DDDDE_r_0900_dark.fits')
+
+                else:
+                    log.warning("No dark subtraction will be made to {} "
+                                "prior to stripe extraction, since no "
+                                "dark was found/specified".format(ad.filename))
+
+            log.fullinfo("{} found as associated dark".format(
+                    dark_ad.filename))
+            ad[0].DARK_SUBTRACTED = ad.data[0] - dark_ad.data[0]
+            # if dark_ad:
+            #     gt.mark_history(ad, primname=self.myself(),
+            #                     keyword='REDUCTION_DARK',
+            #                     comment=dark_ad.filename)
+            # ad.update_filename(suffix=params['suffix'], strip=True)
+        # gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
+        return adinputs
+
     def extractStripes(self, adinputs=None, flat=None, dark=None,
                        skip_dark=None, slit_height=10,
                        test_extraction=False, **params):
@@ -98,31 +144,9 @@ class MAROONXEchelle(MAROONX, Spect):
                 else:
                     log.warning("No extraction will be made on {}, since no "
                                 "flat was found/specified".format(ad.filename))
-
-            if dark is None:
-                if 'BLUE' in ad.tags:
-                    # will replace with caldb call to processed dark
-                    dark_ad = astrodata.open('/home/david/PycharmProjects/'+
-                    'MAROONXDR/calibrations/processed_dark/'+
-                    '20220808T163524Z_DDDDE_b_0300_dark.fits')
-                    #'20201120T165414Z_DDDDE_b_0900_dark.fits')
-                elif 'RED' in ad.tags:
-                    # will replace with caldb call to processed dark
-                    dark_ad = astrodata.open('/home/david/PycharmProjects/'+
-                    'MAROONXDR/calibrations/processed_dark/'+
-                    '20220808T163524Z_DDDDE_r_0300_dark.fits')
-                    #'0201120T165414Z_DDDDE_r_0900_dark.fits')
-
-                else:
-                    log.warning("No dark subtraction will be made to {} "
-                                "prior to stripe extraction, since no "
-                                "dark was found/specified".format(ad.filename))
             if flat_ad:
                 log.fullinfo("{} found as associated flat".format(
                     flat_ad.filename))
-            if dark_ad:
-                log.fullinfo("{} found as associated dark".format(
-                    dark_ad.filename))
             stripes = {}
             f_stripes = {}
             stripes_masks = {}
@@ -150,11 +174,13 @@ class MAROONXEchelle(MAROONX, Spect):
             for f in p_id.keys():  # extract info into sparse matricies
                 adint = copy.deepcopy(ad)
                 flatint = copy.deepcopy(flat_ad)
+                # dark subtract the frame for the fiber if appropriate
+                # each fiber is independent in its need of the dark subtraction
                 if int(f[-1]) in skip_dark:
                     log.fullinfo(f'No dark subtracted for fiber {f[-1]}')
                     adint.data[0] = ad.data[0]
                 else:
-                    adint.data[0] = ad.data[0] - dark_ad.data[0]
+                    adint.data[0] = ad[0].DARK_SUBTRACTED
                 log.fullinfo('skipping all fiber dark subtraction is the '
                              'default option')
                 for o, p in p_id[f].items():
@@ -201,10 +227,10 @@ class MAROONXEchelle(MAROONX, Spect):
             # fix mark history to give full flat and dark name
             gt.mark_history(ad, primname=self.myself(),
                             keyword='REDUCTION_FLAT', comment=flat_ad.filename)
-            if dark_ad:
-                gt.mark_history(ad, primname=self.myself(),
-                                keyword='REDUCTION_DARK',
-                                comment=dark_ad.filename)
+            # if dark_ad:
+            #     gt.mark_history(ad, primname=self.myself(),
+            #                     keyword='REDUCTION_DARK',
+            #                     comment=dark_ad.filename)
             ad.update_filename(suffix=params['suffix'], strip=True)
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs

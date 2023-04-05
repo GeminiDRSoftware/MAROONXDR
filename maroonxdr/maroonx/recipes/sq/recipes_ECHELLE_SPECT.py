@@ -36,6 +36,7 @@ def reduce(p):
     p.correctImageOrientation()
     # p.addVAR(read_noise=True,poisson_noise=True)
     # get and save wavelength solution (either static reference or frame's unique sim cal solved)
+    p.darkSubtraction()
     p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
     p.optimalExtraction()  # does 2D to 1D conversion of cut out spectra
     p.storeProcessedScience(suffix='_reduced')
@@ -63,5 +64,6 @@ def makeStripeExtractionCheck(p):
     p.correctImageOrientation()
     # p.addVAR(read_noise=True,poisson_noise=True)
     # get and save wavelength solution (either static reference or frame's unique sim cal solved)
+    p.darkSubtraction()
     p.extractStripes(test_extraction=True)  # gets relevant flat and dark to cut out frame's spectra
     p.storeProcessedScience(suffix='_test_stripes')

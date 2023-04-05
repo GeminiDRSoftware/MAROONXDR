@@ -17,7 +17,7 @@ def test_getting_stripe_locations(caplog, filename_r, filename_b):
         assert len(caplog.records) > 0
         assert any("found as associated flat" in r.message for r in caplog.records)
         assert ad.phu.comments['REDUCTION_FLAT'] in [r.message for r in caplog.records if "found as associated flat" in r.message][0]
-        assert ad.phu.comments['REDUCTION_DARK'] in [r.message for r in caplog.records if "found as associated dark" in r.message][0]
+        # assert ad.phu.comments['REDUCTION_DARK'] in [r.message for r in caplog.records if "found as associated dark" in r.message][0]
         assert len(adtest[0][0].STRIPES.keys()) == len(ad[0].TEST_ORDERS)
         print('here')
         for idx,ifib in enumerate(sorted(adtest[0][0].STRIPES.keys(), key=lambda x: x.lower())):

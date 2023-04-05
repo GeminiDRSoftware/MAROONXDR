@@ -27,6 +27,9 @@ class optimalExtractionConfig(config.Config):
         self.read_noise = 1.14
         self.gain = 2.72
 
+class darkSubtractionConfig(config.Config):
+    suffix = config.Field("Filename suffix", str, "")
+
 class overscanCorrectConfig(parameters_ccd.overscanCorrectConfig):
     def setDefaults(self):
         self.function = "none"
