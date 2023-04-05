@@ -47,7 +47,7 @@ _default = reduce
 def makeStripeExtractionCheck(p):
     """
     This recipe is utilized to check the stripe exctraction that is made
-    in the normal processing of a science frames
+    in the normal processing of a science frame
     Parameters
     ----------
     p : PrimitivesCORE object

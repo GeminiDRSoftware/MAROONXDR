@@ -44,14 +44,14 @@ class MAROONXEchelle(MAROONX, Spect):
                 raise
         return adinputs
 
-    def darkSubtraction(self, adinputs=None, dark=None, **params):
+    def darkSubtraction(self, adinputs=None, dark=None,
+                        **params):
         """
         Finds the dark frame in association with the adinput and creates a
         dark subtracted extension that could be requested during stripe extraction
         Args:
         adinputs
         dark: (optional) adinput of relevant processed dark
-
         Returns
         adinputs with additional image extension of dark subtracted full frame.
 
@@ -59,7 +59,9 @@ class MAROONXEchelle(MAROONX, Spect):
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
         # timestamp_key = self.timestamp_keys[self.myself()]
+        adoutputs = []
         for ad in adinputs:
+            adout = copy.deepcopy(ad)
             if dark is None:
                 if 'BLUE' in ad.tags:
                     # will replace with caldb call to processed dark
@@ -81,14 +83,14 @@ class MAROONXEchelle(MAROONX, Spect):
 
             log.fullinfo("{} found as associated dark".format(
                     dark_ad.filename))
-            ad[0].DARK_SUBTRACTED = ad.data[0] - dark_ad.data[0]
+            adout[0].DARK_SUBTRACTED = copy.deepcopy(ad)[0].data - copy.deepcopy(dark_ad).data[0]
+            adoutputs.append(adout)
             # if dark_ad:
             #     gt.mark_history(ad, primname=self.myself(),
             #                     keyword='REDUCTION_DARK',
             #                     comment=dark_ad.filename)
-            # ad.update_filename(suffix=params['suffix'], strip=True)
         # gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
-        return adinputs
+        return adoutputs
 
     def extractStripes(self, adinputs=None, flat=None, dark=None,
                        skip_dark=None, slit_height=10,
@@ -180,7 +182,7 @@ class MAROONXEchelle(MAROONX, Spect):
                     log.fullinfo(f'No dark subtracted for fiber {f[-1]}')
                     adint.data[0] = ad.data[0]
                 else:
-                    adint.data[0] = ad[0].DARK_SUBTRACTED
+                    adint.data[0] = copy.deepcopy(ad)[0].DARK_SUBTRACTED
                 log.fullinfo('skipping all fiber dark subtraction is the '
                              'default option')
                 for o, p in p_id[f].items():
@@ -697,7 +699,7 @@ class MAROONXEchelle(MAROONX, Spect):
 
         if total_count > 0:
             log.fullinfo(
-                f'Rejected {np.sum(reject_tracker):.0f} pixels in' +
+                f'Rejected {np.sum(reject_tracker):.0f} pixels in ' +
                 f'{total_count} columns during optimal extraction.')
             irrelevant_count_percentage = irrelevant_count / total_count * 100
             if irrelevant_count_percentage > 30:
