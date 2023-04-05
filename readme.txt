@@ -108,7 +108,11 @@ Box extraction is the simple summation of all spatial pixels in a given fiber/or
         
 Performs checkArm, addDQ, overscanCorrect, and correctImageOrientation identically to their use in the creation of a master dark to ensure all recieved raw science frames are prepared correctly for use. Given the current implementation of subsequent primitives I think checkArm could be dropped (all frames are indepenedently reduced with individual calls to a reference flat) but I haven't tested this.
 
-extractStripes: creates sparse matrix of each fiber+order given the references previously calculated in the processed flat frame for the BPM, flat, science (and dark) frames. Currently the connected processed_flat and processed_dark frames are both hardcoded because MX isn't in the caldb. Essentially a big wrapper around the _extract_single_stripe function (which is misnamed, is really just retrieval, not extraction) to retrieve all pixels for each element that goes into the optimal extraction.
+darkSubtraction: Finds the relevant processed_dark frame and creates a DARK_SUBTRACTED extension in the science frame
+for possible use in the echelle stripe extraction. Currently, the connected processed_dark frame is hardcoded because MX isn't in the caldb.
+
+extractStripes: creates sparse matrix of each fiber+order given the references previously calculated in the processed flat frame for the BPM, flat, and science frames.
+Currently, the connected processed_flat frame is hardcoded because MX isn't in the caldb. Essentially a big wrapper around the _extract_single_stripe function (which is misnamed, is really just retrieval, not extraction) to retrieve all pixels for each element that goes into the optimal extraction.
 
 optimalExtraction:  automatically performs a normal 2D->1D 'box' extraction and if desired (as is default for target fibers) performs an optimal extraction on each of the sparse echelle spectra found in extractStripes (Requires extractStripes to be run first in recipe). The given corresponding sparse flat field spectra is used to generate normalized 'profiles' that are used as weighting functions in the optimal reduction. The algorithm further checks for cosmic hit outliers and rejects them, iterating the BPM in the process. Output is fits-writeable copies of the (final) BPM, box extraction and error, optimal extraction and error, and a copy of the absolute orders extracted for each fiber. All extensions are always created no matter what is requested to be optimally extracted for ease-of-access following reduction. Essentially a big wrapper around the _optimal_extraction_single_stripe and _box_extract_single_stripe functions to do 2D->1D extraction on all fiber/orders.
         
@@ -153,6 +157,9 @@ test_stripe_finding.py: three tests and a private method that directly test the 
 ECHELLE EXTRACTION TESTS
 found in ./maroonxdr/maroonx/tests/echelle_extraction/
 *issue with standard reduction_flat and reduction_dark values being to short to save full filename for proper use to make sure test primitive uses same file as previous reduction*
+
+test_dark_subtraction.py: tests that the re-creation of a dark subtracted science frame with the darkSubtraction primitive is as it was before with comparison to the actual pixel values in the
+DARK_SUBTRACTED extension.
 
 test_stripe_retrieval.py: tests the creation of the flat, science frame, and BPM, sparse matricies for all fiber/orders by the extractStripes primitive given a science frame that has been previously partially reduced using the makeStripeExtractionCheck non-default echelle_spect recipe. Tests both red arm and blue arm frame-extraction as currently written. 
 The makeStripeExtractionCheck runs all primitives of the regular recipe from a raw input science frame and uses the 'test_extraction' parameter = True to have the sparse matricies all be rewritten in (dense) fits-writeable format extensions.
