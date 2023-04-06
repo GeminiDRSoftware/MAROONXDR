@@ -65,14 +65,12 @@ class MAROONXEchelle(MAROONX, Spect):
             if dark is None:
                 if 'BLUE' in ad.tags:
                     # will replace with caldb call to processed dark
-                    dark_ad = astrodata.open('/home/david/PycharmProjects/' +
-                                             'MAROONXDR/calibrations/processed_dark/' +
+                    dark_ad = astrodata.open('./calibrations/processed_dark/' +
                                              '20220808T163524Z_DDDDE_b_0300_dark.fits')
                     # '20201120T165414Z_DDDDE_b_0900_dark.fits')
                 elif 'RED' in ad.tags:
                     # will replace with caldb call to processed dark
-                    dark_ad = astrodata.open('/home/david/PycharmProjects/' +
-                                             'MAROONXDR/calibrations/processed_dark/' +
+                    dark_ad = astrodata.open('./calibrations/processed_dark/' +
                                              '20220808T163524Z_DDDDE_r_0300_dark.fits')
                     # '0201120T165414Z_DDDDE_r_0900_dark.fits')
 
@@ -133,14 +131,12 @@ class MAROONXEchelle(MAROONX, Spect):
             if flat is None:
                 if 'BLUE' in ad.tags:
                     # will replace with caldb call to processed flat
-                    flat_ad = astrodata.open('/home/david/PycharmProjects/'+
-                    'MAROONXDR/calibrations/processed_flat/'+
+                    flat_ad = astrodata.open('./calibrations/processed_flat/'+
                     '20220725T164012Z_FDDDF_b_0007_FFFFF_flat.fits')
                     # '20200911T220106Z_FDDDF_b_0002_FFFFF_flat.fits')
                 elif 'RED' in ad.tags:
                     # will replace with caldb call to processed flat
-                    flat_ad = astrodata.open('/home/david/PycharmProjects/'+
-                    'MAROONXDR/calibrations/processed_flat/'+
+                    flat_ad = astrodata.open('./calibrations/processed_flat/'+
                     '20220725T164012Z_FDDDF_r_0001_FFFFF_flat.fits')
                     # '20200911T220106Z_FDDDF_r_0000_FFFFF_flat.fits')
                 else:
