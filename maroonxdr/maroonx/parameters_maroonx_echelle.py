@@ -29,6 +29,7 @@ class optimalExtractionConfig(config.Config):
 
 class darkSubtractionConfig(config.Config):
     suffix = config.Field("Filename suffix", str, "")
+    individual = config.Field("individual or group caldb call", bool, False)
 
 class overscanCorrectConfig(parameters_ccd.overscanCorrectConfig):
     def setDefaults(self):

@@ -44,7 +44,7 @@ class MAROONXEchelle(MAROONX, Spect):
                 raise
         return adinputs
 
-    def darkSubtraction(self, adinputs=None, dark=None,
+    def darkSubtraction(self, adinputs=None, dark=None, individual=False,
                         **params):
         """
         Finds the dark frame in association with the adinput and creates a
@@ -52,47 +52,92 @@ class MAROONXEchelle(MAROONX, Spect):
         Args:
         adinputs
         dark: (optional) adinput of relevant processed dark
+        indiviual: (bool) if True, creates a calib call for each individual science frame.
+            If False, groups frames into exposure time and ND_filter and calls one calib per group
+            based on first frame in group.
         Returns
         adinputs with additional image extension of dark subtracted full frame.
 
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
-        # timestamp_key = self.timestamp_keys[self.myself()]
+        timestamp_key = self.timestamp_keys[self.myself()]
         adoutputs = []
-        for ad in adinputs:
-            adout = copy.deepcopy(ad)
-            if dark is None:
-                if 'BLUE' in ad.tags:
-                    # will replace with caldb call to processed dark
-                    dark_ad = astrodata.open('./calibrations/processed_dark/' +
-                                             '20220808T163524Z_DDDDE_b_0300_dark.fits')
-                    # '20201120T165414Z_DDDDE_b_0900_dark.fits')
-                elif 'RED' in ad.tags:
-                    # will replace with caldb call to processed dark
-                    dark_ad = astrodata.open('./calibrations/processed_dark/' +
-                                             '20220808T163524Z_DDDDE_r_0300_dark.fits')
-                    # '0201120T165414Z_DDDDE_r_0900_dark.fits')
+        if len(adinputs) > 1:
+            if not individual:  # group frames by unique sets of xptime and nd_filter
+                exposure_time_list = []
+                nd_filter_list = []
+                for ad in adinputs:
+                    exposure_time_list.append(ad.exposure_time())
+                    nd_filter_list.append(ad.filter_orientation()['ND'])
+                exposure_time_list = np.array(exposure_time_list)
+                nd_filter_list = np.array(nd_filter_list)
+                for time in np.unique(exposure_time_list):
+                    for nd_filter in np.unique(nd_filter_list[exposure_time_list == time]):
+                        cal_list = []
+                        for ad in adinputs:
+                            if ad.exposure_time() == time and ad.filter_orientation()['ND'] == nd_filter:
+                                cal_list.append(ad)
+                        if dark is None:
+                            if 'BLUE' in cal_list[0].tags:
+                                # will replace with caldb call to processed dark
+                                dark_ad = astrodata.open('./calibrations/processed_dark/' +
+                                                         '20220808T163524Z_DDDDE_b_0300_dark.fits')
+                                # '20201120T165414Z_DDDDE_b_0900_dark.fits')
+                            elif 'RED' in cal_list[0].tags:
+                                # will replace with caldb call to processed dark
+                                dark_ad = astrodata.open('./calibrations/processed_dark/' +
+                                                         '20220808T163524Z_DDDDE_r_0300_dark.fits')
+                                # '0201120T165414Z_DDDDE_r_0900_dark.fits')
 
-                else:
-                    log.warning("No dark subtraction will be made to {} "
-                                "prior to stripe extraction, since no "
-                                "dark was found/specified".format(ad.filename))
+                            else:
+                                log.warning("No dark subtraction will be made to {} "
+                                            "group prior to stripe extraction, since no "
+                                            "dark was found/specified".format(cal_list[0].filename))
+                        for ad_found in cal_list:
+                            adout = copy.deepcopy(ad_found)
+                            log.fullinfo("{} found as associated dark".format(
+                                dark_ad.filename))
+                            adout[0].DARK_SUBTRACTED = copy.deepcopy(ad_found)[0].data - copy.deepcopy(dark_ad).data[0]
+                            adoutputs.append(adout)
+                            if dark_ad:
+                                gt.mark_history(ad, primname=self.myself(),
+                                                keyword='REDUCTION_DARK',
+                                                comment=dark_ad.filename)
+        else:
+            for ad in adinputs:
+                adout = copy.deepcopy(ad)
+                if dark is None:
+                    if 'BLUE' in ad.tags:
+                        # will replace with caldb call to processed dark
+                        dark_ad = astrodata.open('./calibrations/processed_dark/' +
+                                                 '20220808T163524Z_DDDDE_b_0300_dark.fits')
+                        # '20201120T165414Z_DDDDE_b_0900_dark.fits')
+                    elif 'RED' in ad.tags:
+                        # will replace with caldb call to processed dark
+                        dark_ad = astrodata.open('./calibrations/processed_dark/' +
+                                                 '20220808T163524Z_DDDDE_r_0300_dark.fits')
+                        # '0201120T165414Z_DDDDE_r_0900_dark.fits')
 
-            log.fullinfo("{} found as associated dark".format(
-                    dark_ad.filename))
-            adout[0].DARK_SUBTRACTED = copy.deepcopy(ad)[0].data - copy.deepcopy(dark_ad).data[0]
-            adoutputs.append(adout)
-            # if dark_ad:
-            #     gt.mark_history(ad, primname=self.myself(),
-            #                     keyword='REDUCTION_DARK',
-            #                     comment=dark_ad.filename)
-        # gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
+                    else:
+                        log.warning("No dark subtraction will be made to {} "
+                                    "prior to stripe extraction, since no "
+                                    "dark was found/specified".format(ad.filename))
+
+                log.fullinfo("{} found as associated dark".format(
+                        dark_ad.filename))
+                adout[0].DARK_SUBTRACTED = copy.deepcopy(ad)[0].data - copy.deepcopy(dark_ad).data[0]
+                adoutputs.append(adout)
+                if dark_ad:
+                    gt.mark_history(ad, primname=self.myself(),
+                                    keyword='REDUCTION_DARK',
+                                    comment=dark_ad.filename)
+            gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adoutputs
 
     def extractStripes(self, adinputs=None, flat=None, dark=None,
                        skip_dark=None, slit_height=10,
-                       test_extraction=False, **params):
+                       test_extraction=False, individual=False, **params):
         """
         Extracts the stripes from the original 2D spectrum to a sparse array,
         containing only relevant pixels.
@@ -112,6 +157,8 @@ class MAROONXEchelle(MAROONX, Spect):
             test_extraction (bool): used in unit test for this function, saves
             science extraction, flat extraction, and the bpm-extraction in
             FITS-readable format (STRIPES, F_STRIPES, STRIPES_MASK)
+            individual: (bool) if False uses one calib call for all frames per arm,
+            if True performs a calib call for each frame
 
         Returns:
             adinputs with sparse matricies added holding the 2D extractions for
@@ -126,25 +173,57 @@ class MAROONXEchelle(MAROONX, Spect):
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
         timestamp_key = self.timestamp_keys[self.myself()]
-
+        blue_frames = []
+        red_frames = []
         for ad in adinputs:
-            if flat is None:
-                if 'BLUE' in ad.tags:
-                    # will replace with caldb call to processed flat
-                    flat_ad = astrodata.open('./calibrations/processed_flat/'+
-                    '20220725T164012Z_FDDDF_b_0007_FFFFF_flat.fits')
-                    # '20200911T220106Z_FDDDF_b_0002_FFFFF_flat.fits')
-                elif 'RED' in ad.tags:
-                    # will replace with caldb call to processed flat
-                    flat_ad = astrodata.open('./calibrations/processed_flat/'+
-                    '20220725T164012Z_FDDDF_r_0001_FFFFF_flat.fits')
-                    # '20200911T220106Z_FDDDF_r_0000_FFFFF_flat.fits')
-                else:
-                    log.warning("No extraction will be made on {}, since no "
-                                "flat was found/specified".format(ad.filename))
-            if flat_ad:
-                log.fullinfo("{} found as associated flat".format(
-                    flat_ad.filename))
+            if 'BLUE' in ad.tags:
+                blue_frames.append(ad)
+            elif 'RED' in ad.tags:
+                red_frames.append(ad)
+
+        for ad in blue_frames+red_frames:
+            if not ad:
+                continue
+            try:
+                if ad.filename == blue_frames[0].filename:
+                    if flat is None:
+                        # call one flat for all blue frames
+                        flat_ad = astrodata.open('./calibrations/processed_flat/' +
+                                                 '20220725T164012Z_FDDDF_b_0007_FFFFF_flat.fits')
+                        log.fullinfo("{} found as associated flat for all blue frames".format(
+                            flat_ad.filename))
+            except IndexError:
+                pass
+            try:
+                if ad.filename == red_frames[0].filename:
+                    if flat is None:
+                        # call one flat for all red frames
+                        flat_ad = astrodata.open('./calibrations/processed_flat/' +
+                                                   '20220725T164012Z_FDDDF_r_0001_FFFFF_flat.fits')
+                        log.fullinfo("{} found as associated flat for all red frames".format(
+                            flat_ad.filename))
+            except IndexError:
+                pass
+            if individual:
+                # overwrite as requested with a call at each frame
+                if flat is None:
+                    if 'BLUE' in ad.tags:
+                        # will replace with caldb call to processed flat
+                        flat_ad_i = astrodata.open('./calibrations/processed_flat/'+
+                        '20220725T164012Z_FDDDF_b_0007_FFFFF_flat.fits')
+                        # '20200911T220106Z_FDDDF_b_0002_FFFFF_flat.fits')
+                    elif 'RED' in ad.tags:
+                        # will replace with caldb call to processed flat
+                        flat_ad_i = astrodata.open('./calibrations/processed_flat/'+
+                        '20220725T164012Z_FDDDF_r_0001_FFFFF_flat.fits')
+                        # '20200911T220106Z_FDDDF_r_0000_FFFFF_flat.fits')
+                    else:
+                        log.warning("No extraction will be made on {}, since no "
+                                    "flat was found/specified".format(ad.filename))
+                if flat_ad_i:
+                    log.fullinfo("{} found as associated flat".format(
+                        flat_ad_i.filename))
+                flat_ad = flat_ad_i
             stripes = {}
             f_stripes = {}
             stripes_masks = {}

@@ -6,7 +6,7 @@ import numpy as np
 import maroonx_instruments
 from maroonxdr.maroonx.primitives_maroonx_echelle import MAROONXEchelle
 
-@pytest.mark.parametrize("filename", ["20220808T111549Z_SOOOE_r_0300_reduced.fits"])
+@pytest.mark.parametrize("filename", ["./maroonxdr/maroonx/tests/echelle_extraction/20220808T111549Z_SOOOE_r_0300_reduced.fits"])
 def test_getting_stripe_locations(caplog, filename):
     caplog.set_level(logging.DEBUG)
     ad = astrodata.open(filename)

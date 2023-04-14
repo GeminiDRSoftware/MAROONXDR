@@ -9,5 +9,6 @@ timestamp_keys = {
     "defineFlatStripes": "FLATSTRIPES_DEFINED",
     "removeStrayLight": "STRAYLIGHT_REMOVED",
     "extractStripes": "SCIENCE_STRIPES_PULLED",
-    "optimalExtraction": "SCIENCE_STRIPES_EXTRACTED"
+    "optimalExtraction": "SCIENCE_STRIPES_EXTRACTED",
+    "darkSubtraction": "SCIENCE_DARK_EXTENSION_SUBTRACTED"
 }
