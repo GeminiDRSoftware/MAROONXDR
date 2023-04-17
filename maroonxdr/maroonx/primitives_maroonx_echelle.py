@@ -49,6 +49,12 @@ class MAROONXEchelle(MAROONX, Spect):
         """
         Finds the dark frame in association with the adinput and creates a
         dark subtracted extension that could be requested during stripe extraction
+
+        TODO: In current format (without caldb assistance) processed darks need to be
+        manually hardcode swapped based on input science xptime and nd_filter values.
+        When MX data is brought into GOA and Caldb, can replace with calls, should
+        use caldb argument to figure out which arm is needed instead of here
+
         Args:
         adinputs
         dark: (optional) adinput of relevant processed dark
@@ -64,7 +70,9 @@ class MAROONXEchelle(MAROONX, Spect):
         timestamp_key = self.timestamp_keys[self.myself()]
         adoutputs = []
         if len(adinputs) > 1:
-            if not individual:  # group frames by unique sets of xptime and nd_filter
+            if not individual:  # group frames given by unique sets of xptime and nd_filter
+                # saves on redundent caldb requests. Each daytime-made xptime & nd_filter unique processed dark
+                # only needs to be called once per science series with that xptime & nd_filter
                 exposure_time_list = []
                 nd_filter_list = []
                 for ad in adinputs:
@@ -80,15 +88,13 @@ class MAROONXEchelle(MAROONX, Spect):
                                 cal_list.append(ad)
                         if dark is None:
                             if 'BLUE' in cal_list[0].tags:
-                                # will replace with caldb call to processed dark
+                                # TODO: replace hardcoded reference with caldb call to processed dark
                                 dark_ad = astrodata.open('./calibrations/processed_dark/' +
                                                          '20220808T163524Z_DDDDE_b_0300_dark.fits')
-                                # '20201120T165414Z_DDDDE_b_0900_dark.fits')
                             elif 'RED' in cal_list[0].tags:
-                                # will replace with caldb call to processed dark
+                                # TODO: replace hardcoded reference with caldb call to processed dark
                                 dark_ad = astrodata.open('./calibrations/processed_dark/' +
                                                          '20220808T163524Z_DDDDE_r_0300_dark.fits')
-                                # '0201120T165414Z_DDDDE_r_0900_dark.fits')
 
                             else:
                                 log.warning("No dark subtraction will be made to {} "
@@ -106,18 +112,16 @@ class MAROONXEchelle(MAROONX, Spect):
                                                 comment=dark_ad.filename)
         else:
             for ad in adinputs:
-                adout = copy.deepcopy(ad)
+                adout = copy.deepcopy(ad)  # don't group frames and make a dark caldb call for each science frame
                 if dark is None:
                     if 'BLUE' in ad.tags:
-                        # will replace with caldb call to processed dark
+                        # TODO: replace hardcoded reference with caldb call to processed dark
                         dark_ad = astrodata.open('./calibrations/processed_dark/' +
                                                  '20220808T163524Z_DDDDE_b_0300_dark.fits')
-                        # '20201120T165414Z_DDDDE_b_0900_dark.fits')
                     elif 'RED' in ad.tags:
-                        # will replace with caldb call to processed dark
+                        # TODO: replace hardcoded reference with caldb call to processed dark
                         dark_ad = astrodata.open('./calibrations/processed_dark/' +
                                                  '20220808T163524Z_DDDDE_r_0300_dark.fits')
-                        # '0201120T165414Z_DDDDE_r_0900_dark.fits')
 
                     else:
                         log.warning("No dark subtraction will be made to {} "
@@ -145,6 +149,11 @@ class MAROONXEchelle(MAROONX, Spect):
         This function marks all relevant pixels for extraction.
         Reinterpreting the flat reference it iterates over all stripes in the
         image and saves a sparse matrix for each stripe.
+
+        TODO: In current format (without caldb assistance) processed flats need to be
+        manually hardcoded.
+        When MX data is brought into GOA and Caldb, can replace with calls, should
+        use caldb argument to figure out which arm is needed instead of here
 
         Args:
             adinputs
@@ -187,7 +196,9 @@ class MAROONXEchelle(MAROONX, Spect):
             try:
                 if ad.filename == blue_frames[0].filename:
                     if flat is None:
-                        # call one flat for all blue frames
+                        # call one flat for all blue frames, saves redundent caldb requests as new flats are rarely made
+                        # time between flats > 1 year
+                        # TODO: replace hardcoded reference with caldb call to processed flat
                         flat_ad = astrodata.open('./calibrations/processed_flat/' +
                                                  '20220725T164012Z_FDDDF_b_0007_FFFFF_flat.fits')
                         log.fullinfo("{} found as associated flat for all blue frames".format(
@@ -197,7 +208,9 @@ class MAROONXEchelle(MAROONX, Spect):
             try:
                 if ad.filename == red_frames[0].filename:
                     if flat is None:
-                        # call one flat for all red frames
+                        # call one flat for all red frames, saves redundent caldb requests as new flats are rarely made
+                        # time between flats > 1 year
+                        # TODO: replace hardcoded reference with caldb call to processed flat
                         flat_ad = astrodata.open('./calibrations/processed_flat/' +
                                                    '20220725T164012Z_FDDDF_r_0001_FFFFF_flat.fits')
                         log.fullinfo("{} found as associated flat for all red frames".format(
@@ -205,15 +218,15 @@ class MAROONXEchelle(MAROONX, Spect):
             except IndexError:
                 pass
             if individual:
-                # overwrite as requested with a call at each frame
+                # overwrite flat to be used as requested with an individual call for the specific science frame
                 if flat is None:
                     if 'BLUE' in ad.tags:
-                        # will replace with caldb call to processed flat
+                        # TODO: replace hardcoded reference with caldb call to processed flat
                         flat_ad_i = astrodata.open('./calibrations/processed_flat/'+
                         '20220725T164012Z_FDDDF_b_0007_FFFFF_flat.fits')
                         # '20200911T220106Z_FDDDF_b_0002_FFFFF_flat.fits')
                     elif 'RED' in ad.tags:
-                        # will replace with caldb call to processed flat
+                        # TODO: replace hardcoded reference with caldb call to processed flat
                         flat_ad_i = astrodata.open('./calibrations/processed_flat/'+
                         '20220725T164012Z_FDDDF_r_0001_FFFFF_flat.fits')
                         # '20200911T220106Z_FDDDF_r_0000_FFFFF_flat.fits')
