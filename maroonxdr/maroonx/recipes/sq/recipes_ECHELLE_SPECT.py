@@ -7,7 +7,7 @@ recipe_tags = set(['MAROONX', 'ECHELLE', 'SPECT'])
 
 def reduce(p):
     """
-    This recipe processes MAROON-X echelle spectrum, (1) it traces
+    This recipe processes MAROON-X science echelle spectrum, (1) it traces
     and identifies the fibers and orders in a 2D processed flat and
     (2) performs both regular (aka 'box') and optimum extraction
     to produce 1D extracted spectra for 2D input spectra.
@@ -23,6 +23,11 @@ def reduce(p):
     in a given fiber/order combination. Optimal extraction is per
     default only applied to fibers illuminated with flat (F)
     and science (O) input.
+
+    TODO: Once the Static and Dynamic wavecal recipes have been created, an additional
+    set of parameters in this recipe should be added to request the calibration
+    frame produced by the dynamic wavecal recipe and utilize it to perform a
+    drift corrected wavelength calibration for the science frame fibers.
     Parameters
     ----------
     p : PrimitivesCORE object
@@ -39,6 +44,7 @@ def reduce(p):
     p.darkSubtraction()
     p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
     p.optimalExtraction()  # does 2D to 1D conversion of cut out spectra
+
     p.storeProcessedScience(suffix='_reduced')
     return
 

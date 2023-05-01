@@ -8,6 +8,9 @@ Broadly the repo currently makes a few products that are recognizable as standar
 2) master flats
 3) 2D echelle optimally extracted reduced science frames
 
+in progress are the wavelength calibration recipes
+ (STATICWAVECAL, DYNAMICWAVECAL, and the to be written additional primitive calls in the echelle_spect recipe)
+
 
 ==============================
 RAW FRAME EXPECTATIONS

@@ -237,6 +237,18 @@ class MAROONX(Gemini, CCD, NearIR):
                 raise
         return adinputs
 
+    def standardizeWCS(self, adinputs=None, suffix=None, **params):
+        """
+        MAROONXDR-specific version of validateData to ignore the invalid WCS
+        exception.
+        """
+        try:
+            super().standardizeWCS(adinputs, suffix=suffix)
+        except TypeError as e:
+            if 'The value must be' not in str(e):
+                raise
+        return adinputs
+
     def checkArm(self, adinputs=None, **params):
         """
         Check that MX frame arm is consistent through all input files, i.e.
@@ -525,7 +537,7 @@ class MAROONX(Gemini, CCD, NearIR):
                               else ad[index].nddata.window[statsec])
                     scale_mask = (ad[index].nddata.window[:].mask if statsec is None
                               else ad[index].nddata.window[statsec].mask) == DQ.good
-                    # MX specific changed line!!
+                    # MX specific changed line
                     # uses entire good pixel frame, purposely
                     # including etalon flux, to calculate level as sum
                     levels[i, index] = np.nansum(nddata.data[scale_mask])
@@ -538,7 +550,7 @@ class MAROONX(Gemini, CCD, NearIR):
             if separate_ext:
                 # Target value is corresponding extension of first image
                 if scale:
-                    # MX specific changed line!!
+                    # MX specific changed line
                     # scale each frame by its fractional change from the average
                     # level as opposed to first frame value
                     scale_factors = (np.mean(levels) / levels).T
@@ -599,7 +611,7 @@ class MAROONX(Gemini, CCD, NearIR):
             log.stdinfo(status)
             if (scale or zero) and (index == 0 or separate_ext):
                 for ad, value in zip(adinputs, numbers):
-                    # MX-specific changed line!!
+                    # MX-specific changed line
                     # need one digit beyond 10.3f to see differences
                     log.stdinfo(f"{ad.filename:40s}{value:10.4f}")
 
@@ -697,7 +709,7 @@ class MAROONX(Gemini, CCD, NearIR):
 
     def stackDarks(self, adinputs=None, **params):
         """
-        MaroonX-specific version of stack darks allowing scaling for etalon
+        MX-specific version of stack darks allowing scaling for etalon
         intensity drift that is in MX 'darks'
         """
         log = self.log
@@ -710,13 +722,13 @@ class MAROONX(Gemini, CCD, NearIR):
                    for dark in adinputs[1:]):
             raise ValueError("Darks are not of equal exposure time")
 
-        # MX specific-changed lines start!!
+        # MX specific-changed lines start
         # MX 'dark' frames have flux in them, need to scale.
         # Also utilizes special stackFramesMXCal scaling.
         stack_params = self._inherit_params(params, "stackFramesMXCal")
         stack_params.update({'zero': False})  # 'scale': False
         adinputs = self.stackFramesMXCal(adinputs, **params)
-        # MX specific-changed lines end!!
+        # MX specific-changed lines end
         return adinputs
 
     def stackFlats(self, adinputs=None, **params):
@@ -724,7 +736,7 @@ class MAROONX(Gemini, CCD, NearIR):
         for the flats."""
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
-        # MX specific-changed line!!
+        # MX specific-changed line
         # Utilizes special stackFramesMXCal scaling.
         stack_params = self._inherit_params(params, "stackFramesMXCal")
         stack_params.update({'zero': False})

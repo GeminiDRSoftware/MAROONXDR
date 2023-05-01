@@ -34,7 +34,3 @@ class darkSubtractionConfig(config.Config):
 class overscanCorrectConfig(parameters_ccd.overscanCorrectConfig):
     def setDefaults(self):
         self.function = "none"
-
-# class storeProcessedScience(parameters_calibdb.storeProcessedScienceConfig):
-#     def setDefaults(self):
-#         self.update_datalab

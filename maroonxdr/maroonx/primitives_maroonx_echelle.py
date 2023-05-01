@@ -32,18 +32,6 @@ class MAROONXEchelle(MAROONX, Spect):
         self.inst_lookups = 'maroonxdr.maroonx.lookups'
         self._param_update(parameters_maroonx_echelle)
 
-    def standardizeWCS(self, adinputs=None, suffix=None, **params):
-        """
-        MAROONXDR-specific version of validateData to ignore the invalid WCS
-        exception.
-        """
-        try:
-            super().standardizeWCS(adinputs, suffix=suffix)
-        except TypeError as e:
-            if 'The value must be' not in str(e):
-                raise
-        return adinputs
-
     def darkSubtraction(self, adinputs=None, dark=None, individual=False,
                         **params):
         """
@@ -139,7 +127,7 @@ class MAROONXEchelle(MAROONX, Spect):
             gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adoutputs
 
-    def extractStripes(self, adinputs=None, flat=None, dark=None,
+    def extractStripes(self, adinputs=None, flat=None,
                        skip_dark=None, slit_height=10,
                        test_extraction=False, individual=False, **params):
         """
@@ -620,7 +608,7 @@ class MAROONXEchelle(MAROONX, Spect):
             mask (np.ndarray): bad pixel mask. Note: the mask will be modified
             by iterative algorithm that looks for outliers during optimal
                 extraction
-            !full_output (bool): if True, returns all intermediate
+            full_output (bool): if True, returns all intermediate
                 results for debugging/testing
             s_clip (float): sigma clipping value for optimal extraction
             penalty (float): scaling factor for global per-order profile

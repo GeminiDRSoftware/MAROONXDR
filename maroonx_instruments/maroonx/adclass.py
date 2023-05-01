@@ -6,7 +6,7 @@ from gemini_instruments.gemini import AstroDataGemini
 import re
 # gemini_keyword_names = dict(overscan_section = 'BIASSEC')
 
-class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms are combined to one MEF
+class AstroDataMAROONX(AstroDataGemini):
 
     # single keyword mapping.  add only the ones that are different
     # from what's already defined in AstroDataGemini.
@@ -15,7 +15,7 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
 
     @staticmethod
     def _matches_data(source):
-        return source[0].header.get('INSTRUME', '').upper() == 'MAROON-X'  # !add to all data
+        return source[0].header.get('INSTRUME', '').upper() == 'MAROON-X'  # TODO: add to all headers
     # def _matches_data(source):
     #     if 'HIERARCH MAROONX PUPILCAMERA STATUS' in source[0].header:
     #         return True
@@ -34,7 +34,12 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
     def _tag_echelle(self):
         return TagSet(['ECHELLE'])
 
-    @astro_data_tag  # !add to headers
+    @astro_data_tag
+    def _tag_wavecal(self):
+        return TagSet(['WAVECAL'])
+
+
+    @astro_data_tag  # TODO: add to headers
     def _tag_arm(self):
         if re.findall(r"_\w_\d{4}", self.filename)[0][1] == 'b':
             return TagSet(['BLUE'])
@@ -46,8 +51,7 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
     @astro_data_tag
     def _tag_dark(self):
         if self.phu.get('HIERARCH FIBER1') == self.phu.get('HIERARCH FIBER2') == 'Dark'\
-                and self.phu.get('HIERARCH FIBER5') == 'Etalon'\
-                and self.phu.get('EXPTIME') >= 60.:  # part of dark correction is for etalon light leak into fiber 4
+                and self.phu.get('HIERARCH FIBER5') == 'Etalon':
             return TagSet(['DARK', 'CAL'], blocks=['SPECT', 'ECHELLE'])
 
     @astro_data_tag
@@ -65,31 +69,20 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
 
     @astro_data_tag
     def _tag_etalon(self):
-        if (self.phu.get('HIERARCH FIBER1') == 'Etalon' or self.phu.get('HIERARCH FIBER2') == 'Etalon' \
-                or self.phu.get('HIERARCH FIBER5') == 'Etalon')\
-                and self.phu.get('EXPTIME') < 60.:  # only different than darks by shorter exposure time
-            return TagSet(['ARC', 'CAL'])
+        if (self.phu.get('HIERARCH FIBER1') == 'Etalon' or self.phu.get('HIERARCH FIBER2') == 'Etalon') \
+                and self.phu.get('HIERARCH FIBER5') == 'Etalon':
+            return TagSet(['WAVECAL', 'ETALON', 'CAL'], blocks=['SPECT', 'ECHELLE', 'DARK'])
 
     @astro_data_tag
-    def _tag_thar(self): # !combine with iodine as ARC class?
-        if self.phu.get('HIERARCH FIBER1') == 'ThAr' or self.phu.get('HIERARCH FIBER2') == 'ThAr' \
-                or self.phu.get('HIERARCH FIBER5') == 'ThAr':
-            return TagSet(['ARC', 'CAL'])
+    def _tag_lfc(self):
+        if (self.phu.get('HIERARCH FIBER1') == 'LFC' or self.phu.get('HIERARCH FIBER2') == 'LFC') \
+                and self.phu.get('HIERARCH FIBER5') == 'LFC':
+            return TagSet(['WAVECAL', 'LFC', 'CAL'],  blocks=['SPECT', 'ECHELLE'])
 
     @astro_data_tag
     def _tag_bpm(self):
         if self.phu.get('OBSTYPE') == 'BPM':
             return TagSet(['BPM'])
-
-    # @astro_data_tag  # no bias frames
-    # def _tag_bias(self):
-    #     if self.phu.get('OBSTYPE') == 'BIAS':
-    #         return TagSet(['BIAS', 'CAL', 'CCD'], blocks=['IMAGE', 'SPECT'])
-
-    @astro_data_tag
-    def _tag_iodine(self):  # !combine with thar as ARC class?
-        if self.phu.get('HIERARCH FIBER5') == 'Iodine':  # just simcal
-            return TagSet(['ARC', 'CAL'])
 
     # The tags above are examples (except the "instrument" tag).  
     # Adapt as required.
@@ -113,7 +106,7 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
         return super().instrument().replace('-', '')
 
     @astro_data_descriptor
-    def array_name(self):  # ! add info to headers and change here to reflect direct access?
+    def array_name(self):
         """
         Returns a list of the names of the arrays of the extensions, or
         a string if called on a single-extension slice
@@ -167,7 +160,7 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
         return self.phu.get('HIERARCH MAROONX TELESCOPE PROGRAMID')
 
     @astro_data_descriptor
-    def overscan_section(self, pretty=False):  # ! add info to headers and change here to reflect direct access?
+    def overscan_section(self, pretty=False):
         """
         Returns the overscan (or bias) section.
 
@@ -196,7 +189,7 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
                 return allext
 
     @astro_data_descriptor
-    def data_section(self, pretty=False):  # ! add info to headers and change here to reflect direct access?
+    def data_section(self, pretty=False):
         """
         Returns the sky-exposable data pixels (or bias) section.
 
@@ -225,7 +218,7 @@ class AstroDataMAROONX(AstroDataGemini):  # ! will need to overhall when arms ar
                 return allext
 
     @astro_data_descriptor
-    def array_section(self, pretty=False):  # ! add info to headers and change here to reflect direct access?
+    def array_section(self, pretty=False):
         """
         Returns the array (full amplifier including overscan) sections.  A
         list of strings of 0-based coordinates is returned.
