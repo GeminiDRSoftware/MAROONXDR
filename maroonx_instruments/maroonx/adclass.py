@@ -74,6 +74,11 @@ class AstroDataMAROONX(AstroDataGemini):
             return TagSet(['WAVECAL', 'ETALON', 'CAL'], blocks=['SPECT', 'ECHELLE', 'DARK'])
 
     @astro_data_tag
+    def _tag_thar(self):
+        if (self.phu.get('HIERARCH FIBER1') == 'ThAr' or self.phu.get('HIERARCH FIBER2') == 'ThAr') \
+                and self.phu.get('HIERARCH FIBER5') == 'ThAr':
+            return TagSet(['WAVECAL', 'ThAr', 'CAL'],  blocks=['SPECT', 'ECHELLE'])
+    @astro_data_tag
     def _tag_lfc(self):
         if (self.phu.get('HIERARCH FIBER1') == 'LFC' or self.phu.get('HIERARCH FIBER2') == 'LFC') \
                 and self.phu.get('HIERARCH FIBER5') == 'LFC':
