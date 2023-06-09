@@ -1,0 +1,11 @@
+INSTALLATION GUIDE FOR DRAGONS AND MAROON-X 
+
+There are certain non-obvious steps that are currently necessary to ensure Dragons and Maroon-X data reduction work properly. 
+Not following these steps will probably lead to run-time errors that are very difficult to diagnose.
+
+1. If not already installed, install Anaconda.  If on an M1 Mac, ensure that you are using the x86 version of the Anaconda binaries. 
+
+2. Set up a new conda environment with python version 3.10, Dragons, DS9, astropy version 5.2 and bokeh version 2.4.3.   The command will be formatted like this: conda create -n NAME python=3.10 dragons ds9 astropy=5.2 bokeh=2.4.3
+NOTE:  IT IS CURRENTLY ESSENTIAL TO ENSURE YOU INSTALL OLDER VERSIONS OF ASTROPY AND BOKEH.  DRAGONS DOES NOT WORK WITH THE LATEST VERSION OF ASTROPY.
+
+3. Edit simple_test.py to provide the correct path for your dark files (DDDDE files), and run this file.  It should execute correctly.

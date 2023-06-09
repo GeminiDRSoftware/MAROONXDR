@@ -24,14 +24,14 @@ Repo currently expects on any raw MAROON-X fits read:
 3) All raw fits frames are full-frame images with no changing bias/data/array/detector section values. Each read section is treated as a separate data section with a unique name. The values are stored in the ./maroonx_instruments/maroonx/lookups.py file.
 
 4) all raw maroon-x fits files to have defined HIERARCH FIBER1 through FIBER5 for all frames (multiple data_tags utilize these entries to to set the associated TagSet for any file type)
--- currently utilzed data_tags are _tag_dark, _tag_flat, and _tag_science which currently utilize 'Dark'+'Etalon', 'Flat', and 'OBJECT'+'ETALON' entry values respectively to make 'DARK'+'CAL', 'FLAT'+'CAL', and 'SCI' TagSet associations respectively.
+-- currently utilized data_tags are _tag_dark, _tag_flat, and _tag_science which currently utilize 'Dark'+'Etalon', 'Flat', and 'OBJECT'+'ETALON' entry values respectively to make 'DARK'+'CAL', 'FLAT'+'CAL', and 'SCI' TagSet associations respectively.
 
 5) Currently with any raw frame, HIERARCH MAROONX IMAGE ORIENTATION HORIZONTAL FLIP and HIERARCH MAROONX IMAGE ORIENTATION VERTICAL FLIP are utilized to re-orient blue frames to have the same dispersion and cross-dispersion that red frames have. This is redundant with _tag_arm.
  
 =============================
 RUN OPTIONS
 Current run options:
-Performing a standard 'reduce' command on all frames of a particular arm and file type can be achived through the standard methods
+Performing a standard 'reduce' command on all frames of a particular arm and file type can be achieved through the standard methods
 
 e.g.
 all_files = glob.glob('/some_path/*_r_*.fits')
@@ -55,7 +55,7 @@ will only use the flats in agreement with the first dark's arm and will log warn
 checkND: Robust to being fed flats at different exposure times with the checkND primitive:
 will only use the flats in agreement with the first dark's ND and will log warning, error if only one
 
-addDQ: Adds BPM in ./maroonxdr/maroonx/lookups/BPM/ depending on data sereis arm with the addDQ overwrite of standard call in maroonx primitives (only needed because we are not in caldb). Differences are noted with !! commments
+addDQ: Adds BPM in ./maroonxdr/maroonx/lookups/BPM/ depending on data series arm with the addDQ overwrite of standard call in maroonx primitives (only needed because we are not in caldb). Differences are noted with !! commments
 
 overscanCorrect: Overscan corrects each frames depending on arm and instrument lookup values.
 
@@ -70,27 +70,27 @@ storeProcessedDark: Standard reduction on the recipe spits out the final frame i
 MASTER FLAT CREATION DETAILS
 - found in default at ./maroonxdr/maroonx/sq/recipes_FLAT_SPECT.py
 (for makeStrayLightCheck info, see test_stray_light_removal.py test)
-This recipe performs the standardization and corrections needed to convert the raw input flat images into a single stacked flat image. This output processed flat is stored on disk using storeProcessedFlat and has a name equal to the name of the first input bias image with "_FFFFF_flat.fits" appended. A processed flatfield is required to perform optimal flux extraction and to determine the blaze function. Due to the stability of the spectrograph, one processed flatfield is typically 'valid' for at least a two-week period. Cross-comparison between different processed flatfields taken months apart have not been conducted so far. The recipe expects two sets of sub-illumated flat frames (as needed for best background subtraction processing).
+This recipe performs the standardization and corrections needed to convert the raw input flat images into a single stacked flat image. This output processed flat is stored on disk using storeProcessedFlat and has a name equal to the name of the first input bias image with "_FFFFF_flat.fits" appended. A processed flatfield is required to perform optimal flux extraction and to determine the blaze function. Due to the stability of the spectrograph, one processed flatfield is typically 'valid' for at least a two-week period. Cross-comparison between different processed flatfields taken months apart have not been conducted so far. The recipe expects two sets of sub-illuminated flat frames (as needed for best background subtraction processing).
 
 notes on recipe in chronological order of primitive calls:
 
-Performs checkArm, checkND, addDQ, overscanCorrect, and correctImageOrientation identically to their use in the creation of a master dark to ensure all recieved raw flat frames have identical setup and are prepared correctly for use. 
+Performs checkArm, checkND, addDQ, overscanCorrect, and correctImageOrientation identically to their use in the creation of a master dark to ensure all received raw flat frames have identical setup and are prepared correctly for use. 
 
-seperateFlatStreams: uses fiber_setup data_descriptor to identify which of the given frames have flat illumation in the non-target fibers (known internally in the code as FDDDF) and stay in the main stream and which have flat illumination in the target fibers (i.e. DFFFD) that get moved to the newly created DFFFD_flats stream. Warns if no frames are found in either of the two patterns.
+separateFlatStreams: uses fiber_setup data_descriptor to identify which of the given frames have flat illumination in the non-target fibers (known internally in the code as FDDDF) and stay in the main stream and which have flat illumination in the target fibers (i.e. DFFFD) that get moved to the newly created DFFFD_flats stream. Warns if no frames are found in either of the two patterns.
 
 ---starting here primitive calls are run on both the main stream and the 'DFFFD_flats' stream
 
 stackFlats: stacks based on the stackFramesMXCal primitive that scales based on average full-frame mean.
 
-findStripes: locates and fits stripes in the stacked flat field spectrum. Starting in the central column, the algorithm identifies peaks and traces each stripe to the edge of the detector by following the brightest pixels along each order. It then fits a polynomial to each stripe. This information is saved in a non-fits-writeable extension of the astrodata object. I.E. find all fiber traces in the 2D frame, save the polynomal that defines their pixel locations.
+findStripes: locates and fits stripes in the stacked flat field spectrum. Starting in the central column, the algorithm identifies peaks and traces each stripe to the edge of the detector by following the brightest pixels along each order. It then fits a polynomial to each stripe. This information is saved in a non-fits-writeable extension of the astrodata object. I.E. find all fiber traces in the 2D frame, save the polynomial that defines their pixel locations.
 
-identifyStripes: identifies the stripes to their proper order and fiber number, including correction for the possibilitiy that the spectra have shifted up/down in the cross-dispersion direction since the reference was made. Reference fits tables are found in ./maroonxdr/maroonx/lookups/SID/ using the internal _get_sid_filename primitive function. This primitive requires the findStripes primitive to be run prior during recipe so the stripes pixel traces are located in the input, i.e. STRIPES_LOC extension exists. The proper order and fiber number identification is also held in a non-fits-writeable extension. I.E. decide which traces are real fiber/orders and zip the pixel location polynomials with the fiber/order IDs.
+identifyStripes: identifies the stripes to their proper order and fiber number, including correction for the possibility that the spectra have shifted up/down in the cross-dispersion direction since the reference was made. Reference fits tables are found in ./maroonxdr/maroonx/lookups/SID/ using the internal _get_sid_filename primitive function. This primitive requires the findStripes primitive to be run prior during recipe so the stripes pixel traces are located in the input, i.e. STRIPES_LOC extension exists. The proper order and fiber number identification is also held in a non-fits-writeable extension. I.E. decide which traces are real fiber/orders and zip the pixel location polynomials with the fiber/order IDs.
 
 defineFlatStripes: The first two times this primitive is called (extract==Default==False) is to map all pixels in each stacked flat field frame that have been identified as part of a real fiber trace so that they can be masked in the following background modelling. Requires the findStripes and identifyStripes primitives to be run prior during recipe so necessary information exists in input extensions. Will remove previous (improperly formatted, but fast) STRIPES_ID and STRIPES_LOC extensions and replace with INDEX_FIBER and INDEX_ORDER pixel map extensions, as needed in straylight removal. Previous, temporary non-fits-writeable extensions are dropped. I.E. with extract == False creates two 2D composite map frames with the pixel entries being their fibers and orders respectively for all pixels found (by identifyStripes) to be in a fiber trace.
 
 removeStrayLight: Removes stray light from full frame images for more accurate fiber flux accounting. Requires the defineStripes primitive to be run prior during recipe so INDEX_FIBER and INDEX_ORDER extensions exist to define pixel locations across frame within fiber traces to avoid when finding stray light. Additionally some arm dependent, hard-coded elements are added to the edges of the mask prior to use of photutils.background2D to calculate the background. 
 
----end of primitive calls that are run on eacch stream separately
+---end of primitive calls that are run on each stream separately
 
 combineFlatStreams: recombines the background-subtracted flat frame data into one processed frame,combining the main (FDDDF illumated) stream and the 'DFFFD_flats' stream with a simple max comparison at each pix and saves in main stream.
 
@@ -98,7 +98,7 @@ clearStream: default call to remove the now unneeded non-main stream.
 
 findStripes and identifyStripes are now called fresh on the fully-illumated, background-subtracted flat-frame. This is performed for quality assurance as well as correct indexing in meta-data. Outputs are still saved as temporary non-fits-writeable extensions.
 
-defineFlatStripes: now called on the fully-illumated, background-subtracted flat-frame with extract_parameter=True. Now saves fiber location info for future science extraction as FITS savable STRIPES_ID and STRIPES_FIBERS. STRIPES_ID and STRIPES_FIBERS contain the by-spectral-order polynomial plate solution for each illuminated fiber that is utilized to define 2D extraction regions in science extractions.
+defineFlatStripes: now called on the fully-illuminated, background-subtracted flat-frame with extract_parameter=True. Now saves fiber location info for future science extraction as FITS savable STRIPES_ID and STRIPES_FIBERS. STRIPES_ID and STRIPES_FIBERS contain the by-spectral-order polynomial plate solution for each illuminated fiber that is utilized to define 2D extraction regions in science extractions.
 
 storeProcessedFlat: standard reduction on the recipe spits out the final frame in ./calibrations/processed_flat/
         
@@ -110,7 +110,7 @@ SCIENCE FLUX EXTRACTION DETAILS
 This recipe processes MAROON-X echelle spectrum, using previously identified fiber/order traces in a 2D flat, this recipe performs both regular (aka 'box') and optimum extraction to produce 1D extracted spectra for 2D input spectra.
 Box extraction is the simple summation of all spatial pixels in a given fiber/order combination. Optimal extraction is per default only applied to fibers illuminated with flat (F) and science (O) input.        
         
-Performs checkArm, addDQ, overscanCorrect, and correctImageOrientation identically to their use in the creation of a master dark to ensure all recieved raw science frames are prepared correctly for use. Given the current implementation of subsequent primitives I think checkArm could be dropped (all frames are indepenedently reduced with individual calls to a reference flat) but I haven't tested this.
+Performs checkArm, addDQ, overscanCorrect, and correctImageOrientation identically to their use in the creation of a master dark to ensure all received raw science frames are prepared correctly for use. Given the current implementation of subsequent primitives I think checkArm could be dropped (all frames are independently reduced with individual calls to a reference flat) but I haven't tested this.
 
 darkSubtraction: Finds the relevant processed_dark frame and creates a DARK_SUBTRACTED extension in the science frame
 for possible use in the echelle stripe extraction. Currently, the connected processed_dark frame is hardcoded because MX isn't in the caldb.
@@ -126,7 +126,7 @@ storeProcessedScience: standard reduction on the recipe spits out the final fram
 IMAGE TESTS
 found in ./maroonxdr/maroonx/tests/image/
 
-test_file_sorting.py: composed of three tests functions that test the checkArm, seperateFlatStream, and combineFlatStream primitives respectively for use cases.
+test_file_sorting.py: composed of three tests functions that test the checkArm, separateFlatStream, and combineFlatStream primitives respectively for use cases.
 -test_checkArm_collection_and_rejection: is purposely given frames of both the red and blue arms to ensure that the primitive tested correctly warns and truncates output to just the type that the first given frame has
 -test_separating_flat_streams: given a series including both types of raw illuminated flat frames of a single arm, the primitive is tested on whether it correctly separates the sets and creates the second stream against the directly calculated expectation in the test
 -test_combining_flat_streams: is given two stacked flat frames of a given arm and the resulting 'combined' frame that the primitive creates is tested directly against the directly calculated expectation in the test.
@@ -137,7 +137,7 @@ test_image_orientation_corrector.py: composed of two test functions that tests t
 -test_correctImageOrientation_flips_blue_frames: given a blue frame, the test function checks that the primitive output pixel values did undergo flips in both the vertical and horizontal directions.
 
 
-test_ND_filter_check.py: three test functions that check the rejection capabilites of the checkND primitive.
+test_ND_filter_check.py: three test functions that check the rejection capabilities of the checkND primitive.
 -test_nd_filter_good_series: given a series of frames that contain the same ND filter value, the primitive output is checked to see that it holds them
 -test_nd_filter_subgood_series: given a series of frames that hold some frames of the same ND filter value (equal to the first frame's), the primitive output is checked to see that the undesired frames no longer remain, the frames of the same ND filter do remain, and that a warning was given.
 -test_nd_filter_bad_series: given a series of frames of which the first frame has a unique ND filter value, the primitive is checked for flagging the specific 'first frame uniqueness' IO error 
@@ -165,8 +165,8 @@ found in ./maroonxdr/maroonx/tests/echelle_extraction/
 test_dark_subtraction.py: tests that the re-creation of a dark subtracted science frame with the darkSubtraction primitive is as it was before with comparison to the actual pixel values in the
 DARK_SUBTRACTED extension.
 
-test_stripe_retrieval.py: tests the creation of the flat, science frame, and BPM, sparse matricies for all fiber/orders by the extractStripes primitive given a science frame that has been previously partially reduced using the makeStripeExtractionCheck non-default echelle_spect recipe. Tests both red arm and blue arm frame-extraction as currently written. 
-The makeStripeExtractionCheck runs all primitives of the regular recipe from a raw input science frame and uses the 'test_extraction' parameter = True to have the sparse matricies all be rewritten in (dense) fits-writeable format extensions.
+test_stripe_retrieval.py: tests the creation of the flat, science frame, and BPM, sparse matrices for all fiber/orders by the extractStripes primitive given a science frame that has been previously partially reduced using the makeStripeExtractionCheck non-default echelle_spect recipe. Tests both red arm and blue arm frame-extraction as currently written. 
+The makeStripeExtractionCheck runs all primitives of the regular recipe from a raw input science frame and uses the 'test_extraction' parameter = True to have the sparse matrices all be rewritten in (dense) fits-writeable format extensions.
 In the test this previously calculated information is all np.testing.assert_allclose against the freshly calculated values based on the primitive running during the test on the 2D image.
 
 

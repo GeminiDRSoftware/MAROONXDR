@@ -1077,7 +1077,7 @@ class MAROONX(Gemini, CCD, NearIR):
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
 
-    def removeStrayLight(self, adinputs=None, box_size=20, filter_size=20,
+    def removeStrayLight(self, adinputs=None, box_size=21, filter_size=21,
                          snapshot=False, **params):
         """
         Removes stray light from full frame images for more accurate fiber flux

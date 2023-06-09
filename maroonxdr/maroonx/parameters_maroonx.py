@@ -58,7 +58,6 @@ class stackDarksConfig(parameters_stack.stackDarksConfig, stackFramesMXCalConfig
         self.hsigma = 2.  # dark stack is 2 sig, flat stack is 3 sig
         self.lsigma = 2.
         self.max_iters = 5
-        self.scale = True
 
 class stackFlatsConfig(parameters_stack.stackFlatsConfig,stackFramesMXCalConfig):
     suffix = config.Field("Filename suffix", str, "")  # ?
