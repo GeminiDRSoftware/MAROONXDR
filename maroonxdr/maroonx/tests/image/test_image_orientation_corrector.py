@@ -15,6 +15,10 @@ def test_correctImageOrientation_does_not_change_red_frames(caplog, filename):
     ----------
     caplog : fixture
     filename : str
+
+    Returns
+    -------
+    None
     """
     caplog.set_level(logging.DEBUG)
     ad = astrodata.open(filename)
@@ -34,6 +38,10 @@ def test_correctImageOrientation_flips_blue_frames(caplog, filename):
     ----------
     caplog : fixture
     filename : str
+
+    Returns
+    -------
+    None
     """
     caplog.set_level(logging.DEBUG)
     ad = astrodata.open(filename)

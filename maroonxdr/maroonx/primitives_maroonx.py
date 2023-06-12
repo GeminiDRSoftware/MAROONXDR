@@ -65,6 +65,7 @@ class MAROONX(Gemini, CCD, NearIR):
 
         Parameters
         ----------
+        adinputs : list of AstroData objects with no DQ extension
         suffix: str
             suffix to be added to output files
         static_bpm: str
@@ -75,9 +76,14 @@ class MAROONX(Gemini, CCD, NearIR):
             darks.  It is an optional BPM that can be added to the static one.
         illum_mask: bool
             add illumination mask?
+
+        Returns
+        -------
+        adinputs : list of AstroData objects with a DQ extension added to them 
         """
+
         log = self.log
-        log.debug(gt.log_message("primitive", self.myself(), "starting"))
+        log.debug(gt.log_message("primitive", self.myself(), "starting")) 
         timestamp_key = self.timestamp_keys["addDQ"]
         sfx = params["suffix"]
 
@@ -229,6 +235,14 @@ class MAROONX(Gemini, CCD, NearIR):
         """
         MAROON-X-specific version of validateData to ignore the invalid WCS
         exception.
+
+        Parameters
+        ----------
+        adinputs : List of unchecked AstroData objects
+
+        Returns
+        -------
+        adinputs : List of checked AstroData objects
         """
         try:
             super().validateData(adinputs, suffix=suffix)
@@ -262,7 +276,7 @@ class MAROONX(Gemini, CCD, NearIR):
 
         Returns
         -------
-        adinputs - set of list that passes test,  always at least first frame
+        adoutputs - set of list that passes test,  always at least first frame
 
         """
         log = self.log
@@ -276,8 +290,10 @@ class MAROONX(Gemini, CCD, NearIR):
         adoutputs = []
         if len(adinputs) == 1:
             log.warning('Only one file passed to checkArm')
+
+        # include other objects in list with same tag
+        # Warn user and toss frame if not all frames are taken with the same arm
         for ad in adinputs:
-            # include other objects in list with same tag
             if arm_set not in ad.tags:
                 log.warning("Not all frames taken with the same camera arm, "
                             "restricting set to first arm used in list")
@@ -301,7 +317,7 @@ class MAROONX(Gemini, CCD, NearIR):
         ----------
         adinputs - list of un-checked MX objects
 
-        Parameters
+        Returns
         ----------
         adoutputs - same list as inputs, with correct orientation to SCI
         """
@@ -315,6 +331,10 @@ class MAROONX(Gemini, CCD, NearIR):
             adout = deepcopy(ad)
             # check for tags inherited from original fits,
             # perform 2-axis flip as needed
+            
+            #Check if the frame was from the blue arm by looking at the tags
+            #If it is, then flip the image
+            #TODO: Change this to just look at the arm tag
             if (ad.image_orientation()['vertical orientation flip'] and
                     ad.image_orientation()['horizontal orientation flip']):
                 log.fullinfo('{} set as blue, orientation flipped'.format(ad.filename))
@@ -324,9 +344,14 @@ class MAROONX(Gemini, CCD, NearIR):
                 except:
                     log.warning('DQ not found for ', ad.filename,
                                 'while orienting image')
+            
+            #If it is not from the blue arm, then check if it is from the red arm by looking 
+            #at the image orientation.  Do not flip the image
             elif not (ad.image_orientation()['vertical orientation flip'] and
                       ad.image_orientation()['horizontal orientation flip']):
                 log.fullinfo('{} set as red, orientation unchanged'.format(ad.filename))
+            
+            #In any other case, something has gone wrong- return an error
             else:
                 log.error("{} has no defined orientation".format(ad.filename))
                 raise IOError
@@ -354,8 +379,12 @@ class MAROONX(Gemini, CCD, NearIR):
 
         """
         log = self.log
+
+        #Get the simcal ND filter setting for the first file
         check_val = adinputs[0].filter_orientation()['ND']
         adoutputs = []
+
+        #In case we have multiple files, check that they all have the same ND filter setting
         if len(adinputs) > 1:
             for ad in adinputs:
                 if check_val != ad.filter_orientation()['ND']:
@@ -364,10 +393,15 @@ class MAROONX(Gemini, CCD, NearIR):
                 else:
                     ad.update_filename(suffix=params['suffix'], strip=True)
                     adoutputs.append(ad)
+        
+        #If we only have one file with the correct filter setting, return an error
             if len(adoutputs) == 1:
                 log.error("Only first frame found, of given, with its" +
                               " simcal ND filter setting")
                 raise IOError()
+        
+        #If we only have one file in total, return a warning
+        #
         else:
             log.warning('Only one file passed to checkND')
             return adinputs
@@ -715,6 +749,7 @@ class MAROONX(Gemini, CCD, NearIR):
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
 
+        # Check that all inputs are DARKs and have the same exposure time - not MX specific
         if not all('DARK' in dark.tags for dark in adinputs):
             raise ValueError("Not all inputs have DARK tag")
 
@@ -726,7 +761,7 @@ class MAROONX(Gemini, CCD, NearIR):
         # MX 'dark' frames have flux in them, need to scale.
         # Also utilizes special stackFramesMXCal scaling.
         stack_params = self._inherit_params(params, "stackFramesMXCal")
-        stack_params.update({'zero': False})  # 'scale': False
+        stack_params.update({'zero': False})  
         adinputs = self.stackFramesMXCal(adinputs, **params)
         # MX specific-changed lines end
         return adinputs
@@ -1031,10 +1066,10 @@ class MAROONX(Gemini, CCD, NearIR):
             img = ad[0].data
             npix_y, npix_x = img.shape
             x_pixels = np.arange(npix_x)
-            index_fiber = np.zeros_like(img, dtype=np.int8)
+            index_fiber = np.zeros_like(img, dtype=np.int8) 
             index_order = np.zeros_like(img, dtype=np.int8)
             slit_indices_y = np.arange(-slit_height, slit_height)\
-                .repeat(npix_x).reshape((2 * slit_height, npix_x))
+                .repeat(npix_x).reshape((2 * slit_height, npix_x)) 
             slit_indices_x = np.tile(np.arange(npix_x), 2 * slit_height)\
                 .reshape((2 * slit_height, npix_x))
             for fiber_iter in p_id.keys():
@@ -1239,17 +1274,21 @@ class MAROONX(Gemini, CCD, NearIR):
         mislabeled = []
         for ad in adinputs:
             tags = ad.tags
+            #Create list of FDDDF flats to go in the main stream
             if "FLAT" in tags and ad.fiber_setup() == ['Flat', 'Dark', 'Dark',
                                                        'Dark', 'Flat']:
                 flat_fdddf_list.append(ad)
                 log.fullinfo("FDDDF Flat: {}".format(ad.filename))
+            #Create list of DFFFD flats to go in the DFFFD_flats stream
             elif "FLAT" in tags and ad.fiber_setup() == ['Dark', 'Flat', 'Flat',
                                                          'Flat', 'Dark']:
                 flat_dfffd_list.append(ad)
                 log.fullinfo("DFFFD Flat: {}".format(ad.filename))
+            #Warn if non-flats are in the input list- any other fiber setup is incorrect
             else:
                 mislabeled.append(ad)
                 log.warning("Not registered as Flat: {}".format(ad.filename))
+            #Provide warnings if we do not have both types of flats
         if not flat_fdddf_list:
             log.warning("No FDDDF Flats in input list")
         if not flat_dfffd_list:
@@ -1260,9 +1299,9 @@ class MAROONX(Gemini, CCD, NearIR):
 
     def combineFlatStreams(self, adinputs=None, source=None, **params):
         """
-        This primitive recombines the flat data into one processed frame,
+        Recombines the flat data into one processed frame,
         combining the main stream pre-processed and the 'source' stream
-        pre-proccessed with a simple max comparison at each pix
+        pre-processed with a simple max comparison at each pix
 
         Parameters
         ------
@@ -1271,27 +1310,35 @@ class MAROONX(Gemini, CCD, NearIR):
         **params needed for access to stream
         Returns
         -------
-        adouput : single FFFFF_flat MX astrodata object with primary extension
+        adoutput : single FFFFF_flat MX astrodata object with primary extension
             data as combined all fiber illuminated flat
         """
         log = self.log
-        log.debug(gt.log_message("primitive", self.myself(), "starting"))
+        log.debug(gt.log_message("primitive", self.myself(), "starting")) #Log the start of the primitive
 
-        if source not in self.streams.keys():
+        if source not in self.streams.keys(): #Check the streams dictionary to see if there is source exists
             log.info("Stream %s does not exist so nothing to "
                      "transfer", source)
-            return adinputs
+            return adinputs #If source does not exist, return the provided input without modification
 
-        source_length = len(self.streams[source])
-        adinputs_length = len(adinputs)
-        if not adinputs_length == source_length == 1:
+        source_length = len(self.streams[source]) #Get the length of the source stream
+        adinputs_length = len(adinputs) #Get the length of the input stream
+
+        """
+        We expect the source stream to have a length of 1, and the input stream to have a length of 1
+        as we have a single DFFFD flat and a single FDDDF flat. If this is not the case, we log a warning.
+        """
+
+        if not adinputs_length == source_length == 1: 
             log.warning("Unexpected stream lengths: %s and %s",
                         adinputs_length, source_length)
-            return adinputs
+            return adinputs #Return the input without modification as we have unexpected stream lengths
+        #Provided the stream lengths are as expected, we can proceed with the combination
         adoutputs = []
-        adout = deepcopy(adinputs[0])
+        adout = deepcopy(adinputs[0]) 
+        #Combine the data from the two streams by taking the max at each pixel
         adout[0].data = np.max([adinputs[0].data[0],
-                                self.streams[source][0].data[0]], axis=0)
+                                self.streams[source][0].data[0]], axis=0) 
         adoutputs.append(adout)
         # don't need to copy fiber-related extension info here, it can be off,
         # will rerun id'ing on combined image frame
@@ -1299,17 +1346,18 @@ class MAROONX(Gemini, CCD, NearIR):
 
     def _get_sid_filename(self, ad):
         """
-        Gets stripe ID file for input frame
+        Gets stripe ID file for input frame.  SID will not be caldb compliant as it is 
+        instrument specific.
 
         Returns
         -------
         str/None: Filename of appropriate sid
         """
         log = self.log
-        arm = ('b' if 'BLUE' in ad.tags else 'r')
+        arm = ('b' if 'BLUE' in ad.tags else 'r') #Get appropriate arm
         sid_dir = os.path.join(os.path.dirname(maroonx_siddb.__file__), 'SID')
         db_matches = sorted((k, v) for k, v in maroonx_siddb.sid_dict.items()
-                            if arm in k)
+                            if arm in k) #Check if there is a Stripe ID file for the given arm
         if db_matches:
             sid = db_matches[-1][1]
         else:
@@ -1322,13 +1370,14 @@ class MAROONX(Gemini, CCD, NearIR):
         """
         Gets bad pixel mask for input MX science frame.
         this function can be removed when MX is bpm caldb compliant
+
         Returns
         -------
         str/None: Filename of the appropriate bpms
         """
-        arm = ('b' if 'BLUE' in ad.tags else 'r')
+        arm = ('b' if 'BLUE' in ad.tags else 'r') #Get appropriate arm
         bpm_dir = os.path.join(os.path.dirname(maroonx_maskdb.__file__), 'BPM')
-        bpm = 'BPM_'+arm+'_0000.fits'
+        bpm = 'BPM_'+arm+'_0000.fits' #Append appropriate arm to the bpm name
         return bpm if bpm.startswith(os.path.sep) else \
             os.path.join(bpm_dir, bpm)
 
@@ -1336,5 +1385,5 @@ class MAROONX(Gemini, CCD, NearIR):
     def _has_valid_extensions(ad):
         """ Check that the AD has a valid number of extensions. """
 
-        # this needs to be updated at appropriate.
+        # this needs to be updated as appropriate.
         return len(ad) in [1]

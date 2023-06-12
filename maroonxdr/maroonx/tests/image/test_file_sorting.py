@@ -18,6 +18,10 @@ def test_checkArm_collection_and_rejection(caplog, filename_r, filename_b):
     caplog : fixture
     filename_r : str
     filename_b : str
+
+    Returns
+    -------
+    None
     """
     caplog.set_level(logging.DEBUG)
     ad_red = astrodata.open(filename_r)
@@ -47,6 +51,10 @@ def test_separating_flat_streams(caplog, DFFFD_file, FDDDF_file):
     caplog : fixture
     filename_r : str
     filename_b : str
+
+    Returns
+    -------
+    None
     """
     caplog.set_level(logging.DEBUG)
     ad_DFFFD = astrodata.open(DFFFD_file)
@@ -81,6 +89,10 @@ def test_combining_flat_streams(caplog, DFFFD_file, FDDDF_file):
     caplog : fixture
     filename_r : str
     filename_b : str
+
+    Returns
+    -------
+    None
     """
     caplog.set_level(logging.DEBUG)
     ad_DFFFD = astrodata.open(DFFFD_file)

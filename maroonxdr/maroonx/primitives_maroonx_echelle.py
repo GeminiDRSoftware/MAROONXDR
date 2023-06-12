@@ -43,13 +43,16 @@ class MAROONXEchelle(MAROONX, Spect):
         When MX data is brought into GOA and Caldb, can replace with calls, should
         use caldb argument to figure out which arm is needed instead of here
 
-        Args:
+        Parameters
+        ----------
         adinputs
         dark: (optional) adinput of relevant processed dark
         indiviual: (bool) if True, creates a calib call for each individual science frame.
             If False, groups frames into exposure time and ND_filter and calls one calib per group
             based on first frame in group.
+
         Returns
+        -------
         adinputs with additional image extension of dark subtracted full frame.
 
         """
@@ -143,7 +146,8 @@ class MAROONXEchelle(MAROONX, Spect):
         When MX data is brought into GOA and Caldb, can replace with calls, should
         use caldb argument to figure out which arm is needed instead of here
 
-        Args:
+        Parameters
+        ----------
             adinputs
             flat: adinput of relevant processed flat, as processed, will have
                 the STRIPES_ID and STRIPES_FIBERS extensions needed
@@ -157,7 +161,8 @@ class MAROONXEchelle(MAROONX, Spect):
             individual: (bool) if False uses one calib call for all frames per arm,
             if True performs a calib call for each frame
 
-        Returns:
+        Returns
+        -------
             adinputs with sparse matricies added holding the 2D extractions for
             each fiber/order for the science frame, flat frame, and BPM
             (STRIPES, F_STRIPES, STRIPES_MASK)

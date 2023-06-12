@@ -18,6 +18,10 @@ def test_nd_filter_good_series(caplog, filename):
     ----------
     caplog : fixture
     filename : str
+
+    Returns
+    -------
+    None
     """
     caplog.set_level(logging.DEBUG)
     ad = astrodata.open(filename)
@@ -40,6 +44,10 @@ def test_nd_filter_subgood_series(caplog, filename):
     ----------
     caplog : fixture
     filename : str
+
+    Returns
+    -------
+    None
     """
     caplog.set_level(logging.DEBUG)
     ad = astrodata.open(filename)

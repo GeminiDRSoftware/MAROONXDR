@@ -18,6 +18,10 @@ def test_find_stripes(caplog, filename):
     ----------
     caplog : fixture
     filename : str
+
+    Returns
+    -------
+    None
     """
     caplog.set_level(logging.DEBUG)
     ad = astrodata.open(filename)
@@ -52,6 +56,10 @@ def test_identify_stripes(caplog, filename):
     ----------
     caplog : fixture
     filename : str
+
+    Returns
+    -------
+    None
     """
     caplog.set_level(logging.DEBUG)
     ad = astrodata.open(filename)
@@ -85,6 +93,10 @@ def test_full_stripe_definition(caplog, filename):
     ----------
     caplog : fixture
     filename : str
+
+    Returns
+    -------
+    None
     """
     caplog.set_level(logging.DEBUG)
     ad = astrodata.open(filename)
