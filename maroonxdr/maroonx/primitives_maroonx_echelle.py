@@ -36,7 +36,7 @@ class MAROONXEchelle(MAROONX, Spect):
                         **params):
         """
         Finds the dark frame in association with the adinput and creates a
-        dark subtracted extension that could be requested during stripe extraction
+        dark subtracted extension that can be requested during stripe extraction
 
         TODO: In current format (without caldb assistance) processed darks need to be
         manually hardcode swapped based on input science xptime and nd_filter values.
@@ -45,7 +45,7 @@ class MAROONXEchelle(MAROONX, Spect):
 
         Parameters
         ----------
-        adinputs
+        adinputs: AstroData object(s) for which dark subtraction is to be performed
         dark: (optional) adinput of relevant processed dark
         indiviual: (bool) if True, creates a calib call for each individual science frame.
             If False, groups frames into exposure time and ND_filter and calls one calib per group
@@ -153,7 +153,7 @@ class MAROONXEchelle(MAROONX, Spect):
                 the STRIPES_ID and STRIPES_FIBERS extensions needed
             dark: (optional) adinput of relevant processed dark
             skip_dark: if dark given, which individual fibers dark
-                subtraction be skipped
+                subtraction should be skipped
             slit_height (int): total slit height in px
             test_extraction (bool): used in unit test for this function, saves
             science extraction, flat extraction, and the bpm-extraction in
@@ -163,7 +163,7 @@ class MAROONXEchelle(MAROONX, Spect):
 
         Returns
         -------
-            adinputs with sparse matricies added holding the 2D extractions for
+            adinputs with sparse matrices added holding the 2D extractions for
             each fiber/order for the science frame, flat frame, and BPM
             (STRIPES, F_STRIPES, STRIPES_MASK)
             if test_extraction==True, the extractions are FITS-readable and not
@@ -331,7 +331,8 @@ class MAROONXEchelle(MAROONX, Spect):
         The algorithm further checks for outliers and rejects them.
         This is to prevent contributions from cosmic hits.
 
-        Args:
+        Parameters
+        ----------
             adinputs with STRIPES, F_STRIPES, and STRIPES_MASKS 'extensions' as
             dicts of sparse arrays
             opt_extraction (list): fibers considered for optimal extraction
@@ -343,7 +344,8 @@ class MAROONXEchelle(MAROONX, Spect):
                 extraction
             s_clip (float): sigma-clipping paramter during optimal extraction
 
-        Returns:
+        Returns
+        -------
             adinputs with optimal and box extracted orders for each fiber as
             well as uncertainties and the bad pixel mask result from the optimal
             extraction
@@ -561,12 +563,14 @@ class MAROONXEchelle(MAROONX, Spect):
         This function returns a sparse matrix containing all relevant pixels for
         a single stripe for a given polynomial p and a given slit height.
 
-        Args:
+        Parameters
+        ----------
             polynomials (np.ndarray): polynomial coefficients
             img (np.ndarray): 2d echelle spectrum
             slit_height (int): total slit height in pixel to be extracted
 
-        Returns:
+        Returns
+        -------
             scipy.sparse.csc_matrix: extracted spectrum
 
         """
@@ -599,7 +603,8 @@ class MAROONXEchelle(MAROONX, Spect):
         Performs optimal extraction of a single stripe.
         Based on the algorithm described by Horne et al. 1986, PASP, 98, 609.
 
-        Args:
+        Parameters
+        ----------
             stripe (scipy.sparse.spmatrix): sparse matrix stripe from science
                 frame to be extracted
             flat_stripe (scipy.sparse.spmatrix): sparse matrix stripe from
@@ -620,7 +625,8 @@ class MAROONXEchelle(MAROONX, Spect):
                 mismatch correction between expected (flat) and found (science).
                 Set 0 for no correction
 
-        Returns:
+        Returns
+        -------
             tuple(np.ndarray, np.ndarray, dict): (optimal extracted spectrum,
             box extracted spectrum, dict of additional intermediate results
             if full_output was True)
@@ -806,12 +812,14 @@ class MAROONXEchelle(MAROONX, Spect):
         """
         Box extraction of a single stripe.
 
-        Args:
+        Parameters
+        ----------
             stripe (sparse.matrix): stripe to be extracted
             mask (np.ndarray): binary pixel mask. Where mask==1: values will
             contribute. Same shape as stripe.toarray()
 
-        Returns:
+        Returns
+        -------
             np.ndarray: box extracted flux
         """
         if mask is None:

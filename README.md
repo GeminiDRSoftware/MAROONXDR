@@ -13,6 +13,7 @@ This repo contains the MAROON-X DRAGONS implementation of the data reduction pip
   - [MASTER FLAT CREATION](#master-flat-creation)
   - [SCIENCE FLUX EXTRACTION](#science-flux-extraction)
 - [DETAILS ON PRIMITIVES IN PRIMITIVES_MAROONX.PY](#details-on-primitives-in-primitives_maroonxpy)
+- [DETAILS ON PRIMITIVES IN PRIMITIVES_MAROONX_ECHELLE.PY](#details-on-primitives-in-primitives_maroonx_echellepy)
 - [IMAGE TESTING](#image-testing)
 
 ## QUICK INSTALLATION
@@ -146,7 +147,7 @@ Performs checkArm, addDQ, overscanCorrect, and correctImageOrientation identical
 
 ## DETAILS ON PRIMITIVES IN PRIMITIVES_MAROONX.PY
 
-The following list contains all the primitives in the primitives_maroon.py file.  These primitives deal with the frames as a whole, as opposed to primitives in primitives_maroonx_echelle.py file, which deal with echelles.
+The following list contains all the primitives in the primitives_maroon.py file in alphabetical order.  These primitives deal with the frames as a whole, as opposed to primitives in primitives_maroonx_echelle.py file, which deal with echelles.
 
 - **addDQ** : This primitive is used to add a DQ extension to the input AstroData object. The value of a pixel in the DQ extension will be the sum of the following: (0=good, 1=bad pixel (found in bad pixel mask), 2=pixel is in the non-linear regime, 4=pixel is saturated). This primitive will trim the BPM to match the input AstroData object(s).
   - Parameters:
@@ -307,9 +308,74 @@ STRIPES_ID and STRIPES_FIBERS contain the by-spectral-order polynomial plate sol
 
 ## DETAILS ON PRIMITIVES IN PRIMITIVES_MAROONX_ECHELLE.PY
 
+This section contains details on the primitives in primitives_maroonx_echelle.py. The primitives are listed in alphabetical order.
+
+- _box_extract_single_stripe: Box extraction of a single stripe.
+  - Parameters
+    - stripe (sparse.matrix): stripe to be extracted
+    - mask (np.ndarray): binary pixel mask. Where mask==1: values will contribute. Same shape as stripe.toarray()
+  - Returns:
+    - np.ndarray: box extracted flux
+
+- darkSubtraction: Finds the dark frame in association with the adinput and creates a dark subtracted extension that can be requested during stripe extraction
+  - Parameters
+    - adinputs: AstroData object(s) for which dark subtraction is to be performed
+    - dark: (optional) adinput of relevant processed dark
+    - individual: (bool) if True, creates a calib call for each individual science frame.
+            If False, groups frames into exposure time and ND_filter and calls one calib per group
+            based on first frame in group.
+  - Returns
+    - adinputs with additional image extension of dark subtracted full frame.
+
+- _extract_single_stripe:  Extracts single stripe from 2d image.  This function returns a sparse matrix containing all relevant pixels for a single stripe for a given polynomial p and a given slit height.  This is a helper function for extractStripes, and should be altered with caution.
+  - Parameters
+    - polynomials (np.ndarray): polynomial coefficients
+    - img (np.ndarray): 2d echelle spectrum
+    - slit_height (int): total slit height in pixel to be extracted
+  - Returns
+    - scipy.sparse.csc_matrix: extracted spectrum
+
+- extractStripes: Extracts the stripes from the original 2D spectrum to a sparse array, containing only relevant pixels. <br> This function marks all relevant pixels for extraction.  Reinterpreting the flat reference it iterates over all stripes in the image and saves a sparse matrix for each stripe.
+  - Parameters
+    - adinputs
+    - flat: adinput of relevant processed flat, as processed, will have the STRIPES_ID and STRIPES_FIBERS extensions needed
+    - dark: (optional) adinput of relevant processed dark
+    - skip_dark: if dark given, which individual fibers dark subtraction should be skipped
+    - slit_height (int): total slit height in px
+    - test_extraction (bool): used in unit test for this function, saves science extraction, flat extraction, and the bpm-extraction in FITS-readable format (STRIPES, F_STRIPES, STRIPES_MASK)
+    - individual: (bool) if False uses one calib call for all frames per arm, if True performs a calib call for each frame
+  - Returns
+    - adinputs with sparse matrices added holding the 2D extractions for each fiber/order for the science frame, flat frame, and BPM (STRIPES, F_STRIPES, STRIPES_MASK)if test_extraction==True, the extractions are FITS-readable and not sparse matrix format
+
+- optimalExtraction: Optimal extraction of the 2d echelle spectrum.<br>  This function performs an optimal extraction of a 2d echelle spectrum. A given flat field spectrum is used to generate normalized 'profiles' that are used as weighting functions for the spectrum that is going to be extracted.  The algorithm further checks for outliers and rejects them.  This is to prevent contributions from cosmic hits.
+  - Parameters
+    - adinputs with STRIPES, F_STRIPES, and STRIPES_MASKS 'extensions' as dicts of sparse arrays
+    - opt_extraction (list): fibers considered for optimal extraction
+    - back_var (float): manual background variance for frame
+    - full_output (bool): if True, an additional set of intermediate products will be returned / saved penalty (float): scaling penalty factor for mismatch correction between flat field profile and science spectrum during optimal extraction
+    - s_clip (float): sigma-clipping paramter during optimal extraction
+  - Returns
+    - adinputs with optimal and box extracted orders for each fiber as well as uncertainties and the bad pixel mask result from the optimal extraction
+
+- _optimal_extraction_single_stripe: Performs optimal extraction of a single stripe.  Based on the algorithm described by Horne et al. 1986, PASP, 98, 609.  This is a helper function for optimalExtraction and should be altered with caution.
+  - Parameters
+    - stripe (scipy.sparse.spmatrix): sparse matrix stripe from science
+                frame to be extracted
+    - flat_stripe (scipy.sparse.spmatrix): sparse matrix stripe from flat frame to be used as profile
+    - gain (float): detector gain factor (conversion photons -> DN, given in e-/DN )
+    - read_noise (float): typical detector read noise given as the variance in DN
+    - back_var (np.ndarray): background variance (from scattered light model or dark, otherwise 0)
+    - mask (np.ndarray): bad pixel mask. Note: the mask will be modified by iterative algorithm that looks for outliers during optimal extraction
+    - full_output (bool): if True, returns all intermediate results for debugging/testing
+    - s_clip (float): sigma clipping value for optimal extraction penalty (float): scaling factor for global per-order profile mismatch correction between expected (flat) and found (science).  Set 0 for no correction
+  - Returns
+    - tuple(np.ndarray, np.ndarray, dict): (optimal extracted spectrum, box extracted spectrum, dict of additional intermediate results if full_output was True)
+
 ## IMAGE TESTING
 
 found in ./maroonxdr/maroonx/tests/image/
+
+To ensure that the unit tests work, we suggest putting your fits files in a folder called science_dir inside the MAROONXDR directory. If you put your fits files in a different directory, you will need to change the path in the test files.
 
 - test_file_sorting.py: Composed of three tests functions that test the checkArm, separateFlatStream, and combineFlatStream primitives respectively for use cases.
   - test_checkArm_collection_and_rejection: is purposely given frames of both the red and blue arms to ensure that the primitive tested correctly warns and truncates output to just the type that the first given frame has.

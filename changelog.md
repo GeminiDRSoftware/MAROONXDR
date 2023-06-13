@@ -11,8 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline comments for all methods in primitives_maroonx_echelle.py
 - addVAR() method
 - Dynamic wavelength calibration
-- Method decsiptions for methods in primitives_maroonx_echelle.py
+- Method descriptions for methods in primitives_maroonx_echelle.py
 - Integration with DRAGONS caldb
+
+## [0.1.1] - 2023-06-13
+
+### Added
+
+- Added .pylintrc file to project with edits to disable some pylint warnings and use camelCase for method names
+- Added method descriptions for primitives in primitives_maroonx_echelle.py to README.md
+- Added some explanation on how to ensure correct operation of provided unit tests to README.md
+
+### Changed
+
+- Formatted log messages in primitives_maroonx.py to use fstring in accordance with PyLint
+- Changed import statements in test files and for primitives_maroonx.py to be more robust (previous implementation was not working)
 
 ## [0.1.0] - 2023-06-12
 

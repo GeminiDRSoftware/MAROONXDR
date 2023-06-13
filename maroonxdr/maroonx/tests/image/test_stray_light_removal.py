@@ -1,10 +1,15 @@
+from copy import deepcopy
+from pathlib import Path
+import sys
+import os
 import logging
 import pytest
 import astrodata
-from copy import deepcopy
-import numpy as np
-import maroonx_instruments
+
+parent_dir = Path(__file__).parents[4]
+sys.path.append(str(parent_dir))
 from maroonxdr.maroonx.primitives_maroonx import MAROONX
+import maroonx_instruments
 
 
 @pytest.mark.parametrize("DFFFD_file", ["20220725T162106Z_DFFFD_r_0001_straylight_flat.fits"])
