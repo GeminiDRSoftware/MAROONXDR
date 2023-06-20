@@ -7,11 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Inline comments for some methods in primitives_maroonx.py
-- Inline comments for all methods in primitives_maroonx_echelle.py
 - addVAR() method
 - Dynamic wavelength calibration
-- Method descriptions for methods in primitives_maroonx_echelle.py
 - Integration with DRAGONS caldb
 ## [0.1.2] - 2023-06-14
 
@@ -20,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added "complete" tests, simple scripts that create darks and flats that can be used by an end user to test their 
 installation.
 - Added some documentation about how an end user can use these tests to test their installation
+- Added method descriptions for the primitives_maroonx_echelle.py file in README.md
 - Finished adding comments to the primitives_maroonx_echelle.py file
 ### Changed
 - Changed the import paths of all tests to be absolute so that they are more robust
