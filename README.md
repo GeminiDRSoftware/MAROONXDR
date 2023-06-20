@@ -26,7 +26,8 @@ Not following these steps will probably lead to run-time errors that are very di
 2. Set up a new conda environment with python version 3.10, Dragons, DS9, astropy version 5.2 and bokeh version 2.4.3.   The command will be formatted like this: conda create -n NAME python=3.10 dragons ds9 astropy=5.2 bokeh=2.4.3 <br>
 **NOTE:  IT IS CURRENTLY ESSENTIAL TO ENSURE YOU INSTALL OLDER VERSIONS OF ASTROPY AND BOKEH.  DRAGONS DOES NOT WORK WITH THE LATEST VERSION OF ASTROPY.**
 
-3. Edit simple_test.py to provide the correct path for your dark files (DDDDE files), and run this file.  It should execute correctly.
+3. Edit dark_test.py to provide the correct path for your dark files (DDDDE files), and run this file.  It should execute correctly.  Following this, do the same for flat_test.py and science_test.py.  If all three files execute correctly, you have installed DRAGONS correctly.
+
 The simplest way to ensure correct installation is to create a science_dir file in the root folder of the installation and put all fits files in this folder.  Doing this will ensure that you do not have to change the path in simple_test.py.
 
 ## INTRODUCTION
@@ -371,11 +372,25 @@ This section contains details on the primitives in primitives_maroonx_echelle.py
   - Returns
     - tuple(np.ndarray, np.ndarray, dict): (optimal extracted spectrum, box extracted spectrum, dict of additional intermediate results if full_output was True)
 
-## IMAGE TESTING
+## TESTS
+
+The tests are divided into three categories: echelle tests, image tests, and complete tests.  The echelle tests are unit tests for the primitives in primitives_maroonx_echelle.py, while image tests are unit tests for the primitives in primitives_maroonx.py. These tests are implemented using pytest, so please make sure you have pytest installed in your conda environment. Complete tests on the other hand test the entire reduction process for darks, flats and science files, and are not implemented using pytest.  The end user should only have to worry about the complete tests, and should not have to worry about the echelle or image tests. 
+### COMPLETE TESTS
+
+found in ./maroonxdr/maroonx/tests/complete/
+
+The complete tests are not written using pytest.  Instead these are just 3 simple scripts that allow the end user to test the entire reduction process for darks, flats, and science files.  The end user should only have to worry about these tests, and should not have to worry about the echelle or image tests.  The suser should be able to run these tests by simply running python xxxx_test.py in the terminal.
+### IMAGE TESTS
 
 found in ./maroonxdr/maroonx/tests/image/
 
 To ensure that the unit tests work, we suggest putting your fits files in a folder called science_dir inside the MAROONXDR directory. If you put your fits files in a different directory, you will need to change the path in the test files.
+
+#### KNOWN ISSUES
+
+Currently, 2 tests in checkND and the tests in findStripes fail.  This is expected and will be investigated later.
+
+#### TESTS IN ALPHABETICAL ORDER
 
 - test_file_sorting.py: Composed of three tests functions that test the checkArm, separateFlatStream, and combineFlatStream primitives respectively for use cases.
   - test_checkArm_collection_and_rejection: is purposely given frames of both the red and blue arms to ensure that the primitive tested correctly warns and truncates output to just the type that the first given frame has.
@@ -467,3 +482,9 @@ To ensure that the unit tests work, we suggest putting your fits files in a fold
 
     - Returns
       - None
+
+### ECHELLE TESTS
+
+found in ./maroonxdr/maroonx/tests/echelle_extraction/
+
+- test_dark_subtraction.py: Composed of only one test, 

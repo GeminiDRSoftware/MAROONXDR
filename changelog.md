@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dynamic wavelength calibration
 - Method descriptions for methods in primitives_maroonx_echelle.py
 - Integration with DRAGONS caldb
+## [0.1.2] - 2023-06-14
+
+### Added
+
+- Added "complete" tests, simple scripts that create darks and flats that can be used by an end user to test their 
+installation.
+- Added some documentation about how an end user can use these tests to test their installation
+- Finished adding comments to the primitives_maroonx_echelle.py file
+### Changed
+- Changed the import paths of all tests to be absolute so that they are more robust
+
+### Known Issues
+- Currently the tests in find_stripes and 2 tests in checkND fail.  Looking into this.
 
 ## [0.1.1] - 2023-06-13
 

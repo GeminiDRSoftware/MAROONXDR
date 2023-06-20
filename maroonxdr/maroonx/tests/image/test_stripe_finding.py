@@ -1,13 +1,20 @@
+from copy import deepcopy
+from pathlib import Path
+import sys
+import os
 import logging
 import pytest
 import astrodata
 import numpy as np
-from copy import deepcopy
-import maroonx_instruments
+
+parent_dir = Path(__file__).parents[4]
+sys.path.append(str(parent_dir))
 from maroonxdr.maroonx.primitives_maroonx import MAROONX
+import maroonx_instruments
 
 
-@pytest.mark.parametrize("filename",["20220725T164012Z_FDDDF_r_0001_FFFFF_flat.fits"])
+
+@pytest.mark.parametrize("filename",["science_dir/20220725T164012Z_FDDDF_r_0001_FFFFF_flat.fits"])
 def test_find_stripes(caplog, filename):
     """
     Test that the findStripe routine works to identify all stripes that have

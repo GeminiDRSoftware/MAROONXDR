@@ -121,7 +121,7 @@ class MAROONX(Gemini, CCD, NearIR):
                 # So it can be zipped with the AD
                 final_static = [None] * len(ad)
             else:
-                log.stdinfo("Using {} as static BPM\n".format(static.filename))
+                log.stdinfo(f"Using {static.filename} as static BPM.\n")
                 final_static = gt.clip_auxiliary_data(ad, aux=static,
                                                       aux_type='bpm',
                                                       return_dtype=DQ.datatype)
@@ -129,7 +129,7 @@ class MAROONX(Gemini, CCD, NearIR):
             if user is None:
                 final_user = [None] * len(ad)
             else:
-                log.stdinfo("Using {} as user BPM".format(user.filename))
+                log.stdinfo(f"Using {user.filename} as user BPM.\n")
                 final_user = gt.clip_auxiliary_data(ad, aux=user,
                                                     aux_type='bpm',
                                                     return_dtype=DQ.datatype)
@@ -283,7 +283,7 @@ class MAROONX(Gemini, CCD, NearIR):
         arm_set = 'BLUE' if 'BLUE' in adinputs[0].tags else \
             'RED' if 'RED' in adinputs[0].tags else 'UNDEFINED'
         if arm_set == 'UNDEFINED':
-            log.error("f{adinputs[0].filename} found without defined camera arm")
+            log.error(f"{adinputs[0].filename} found without defined camera arm")
             raise IOError()
         adoutputs = []
         if len(adinputs) == 1:
@@ -1292,16 +1292,16 @@ class MAROONX(Gemini, CCD, NearIR):
             if "FLAT" in tags and ad.fiber_setup() == ['Flat', 'Dark', 'Dark',
                                                        'Dark', 'Flat']:
                 flat_fdddf_list.append(ad)
-                log.fullinfo("FDDDF Flat: {}".format(ad.filename))
+                log.fullinfo(f"FDDDF Flat: {ad.filename}")
             #Create list of DFFFD flats to go in the DFFFD_flats stream
             elif "FLAT" in tags and ad.fiber_setup() == ['Dark', 'Flat', 'Flat',
                                                          'Flat', 'Dark']:
                 flat_dfffd_list.append(ad)
-                log.fullinfo("DFFFD Flat: {}".format(ad.filename))
+                log.fullinfo(f"DFFFD Flat: {ad.filename}")
             #Warn if non-flats are in the input list- any other fiber setup is incorrect
             else:
                 mislabeled.append(ad)
-                log.warning("Not registered as Flat: {}".format(ad.filename))
+                log.warning(f"Not registered as Flat: {ad.filename}")
             #Provide warnings if we do not have both types of flats
         if not flat_fdddf_list:
             log.warning("No FDDDF Flats in input list")

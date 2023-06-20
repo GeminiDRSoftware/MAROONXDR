@@ -52,7 +52,8 @@ _default = makeProcessedFlat
 def makeStrayLightCheck(p):
     """
     This recipe is utilized to check the stray light subtraction that is made
-    in the normal processing of a series of flat frames
+    in the normal processing of a series of flat frames.  Run the straylight_test_prep.py
+    file to generate these.
     Parameters
     ----------
     p : PrimitivesCORE object
@@ -78,8 +79,21 @@ def makeStrayLightCheck(p):
     p.identifyStripes(stream='DFFFD_flats', selected_fibers='0,2,3,4,0')
     p.defineFlatStripes()  # defines pixel inclusion for each flat region based on stripe ids
     p.defineFlatStripes(stream='DFFFD_flats')
-    p.removeStrayLight(snapshot=True)  # remove straylight from frame (this is why 2 partial illumination flat sets are necessary)
-    p.removeStrayLight(stream='DFFFD_flats', snapshot=True)
-    p.storeProcessedFlat(suffix='_straylight_flat')
+    p.removeStrayLight(snapshot=True, filter_size = 21, box_size = 21)  # remove straylight from frame (this is why 2 partial illumination flat sets are necessary)
+    p.removeStrayLight(stream='DFFFD_flats', snapshot=True, filter_size = 21, box_size = 21)
     p.storeProcessedFlat(stream='DFFFD_flats', suffix='_straylight_flat')
+    p.storeProcessedFlat(suffix='_straylight_flat')
 
+def makeStripeFindingCheck(p):
+    """
+    This recipe is used to check the find stripes algorithm that is done during the normal
+    processing of a series of flat frames.  Run the find_stripes_test_prep.py file in the test/images
+    directory to generate the files.
+    Parameters
+    ----------
+    p : PrimitivesCORE object
+        A primitive set matching the recipe_tags.
+    Returns
+    -------
+    creates test frames with stripes 
+    """
