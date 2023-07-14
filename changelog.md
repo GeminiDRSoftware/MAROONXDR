@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Fixed the tests in find_stripes.
 - Cleaned code in the stackFramesMXCal() method
-
+-  Modified .gitignore file to ignore .fits files
 ## [0.1.2] - 2023-06-14
 
 ### Added
