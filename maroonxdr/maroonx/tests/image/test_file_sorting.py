@@ -109,6 +109,7 @@ def test_combining_flat_streams(caplog, DFFFD_file, FDDDF_file):
     test_flats = [deepcopy(ad_FDDDF), deepcopy(ad_DFFFD)]
     p = MAROONX(test_flats)
     p.prepare()
+    p.addVAR()
     p.separateFlatStreams()
     adtest = p.combineFlatStreams(stream='main', source='DFFFD_flats')
     assert not any("does not exist so nothing to transfer" in r.message for r in caplog.records)

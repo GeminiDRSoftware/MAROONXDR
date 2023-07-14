@@ -26,7 +26,7 @@ def makeProcessedFlat(p):
     p.addDQ()
     p.overscanCorrect()
     p.correctImageOrientation()
-    # p.addVAR(read_noise=True,poisson_noise=True)
+    p.addVAR(read_noise=True,poisson_noise=True)
     p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
     p.stackFlats(suffix='FDDDF_flats')
     p.stackFlats(stream='DFFFD_flats',suffix='DFFFD')
@@ -69,7 +69,7 @@ def makeStrayLightCheck(p):
     p.addDQ()
     p.overscanCorrect()
     p.correctImageOrientation()
-    # p.addVAR(read_noise=True,poisson_noise=True)
+    p.addVAR(read_noise=True,poisson_noise=True)
     p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
     p.stackFlats(suffix='FDDDF_flats')
     p.stackFlats(stream='DFFFD_flats', suffix='DFFFD')
@@ -84,16 +84,27 @@ def makeStrayLightCheck(p):
     p.storeProcessedFlat(stream='DFFFD_flats', suffix='_straylight_flat')
     p.storeProcessedFlat(suffix='_straylight_flat')
 
-def makeStripeFindingCheck(p):
+def makeFlatVarCheck(p):
     """
-    This recipe is used to check the find stripes algorithm that is done during the normal
-    processing of a series of flat frames.  Run the find_stripes_test_prep.py file in the test/images
-    directory to generate the files.
+    This recipe is used to check if the variance extensions are correctly being 
+    computed to a stack of flat images.  It does not find, idntify, or define any stripes.
+    It also does not remove stray light.  Mostly used to test if variance is being 
+    computed correctly for a stack of images.
     Parameters
     ----------
     p : PrimitivesCORE object
         A primitive set matching the recipe_tags.
     Returns
     -------
-    creates test frames with stripes 
+    creates test frames with variance added
     """
+    p.prepare()
+    p.checkArm()
+    p.checkND()
+    p.addDQ()
+    p.overscanCorrect()
+    p.correctImageOrientation()
+    p.addVAR(read_noise=True,poisson_noise=True)
+    p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
+    p.stackFlats(stream='DFFFD_flats', suffix='DFFFD')
+    p.storeProcessedFlat(stream='DFFFD_flats', suffix='_varAddedStack')

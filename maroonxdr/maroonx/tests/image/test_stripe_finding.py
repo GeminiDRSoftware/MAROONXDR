@@ -48,7 +48,7 @@ def test_find_stripes(caplog, filename):
     assert missing_stripes == 0
 
 
-@pytest.mark.parametrize("filename",["20220725T164012Z_FDDDF_r_0001_FFFFF_flat.fits"])
+@pytest.mark.parametrize("filename",["science_dir/20220725T164012Z_FDDDF_r_0001_FFFFF_flat.fits"])
 def test_identify_stripes(caplog, filename):
     """
     Test that the identifyStripe routine works to give order and number
@@ -91,7 +91,7 @@ def test_identify_stripes(caplog, filename):
 
 
 
-@pytest.mark.parametrize("filename", ["20220725T164012Z_FDDDF_r_0001_FFFFF_flat.fits"])
+@pytest.mark.parametrize("filename", ["science_dir/20220725T164012Z_FDDDF_r_0001_FFFFF_flat.fits"])
 def test_full_stripe_definition(caplog, filename):
     """
     Test that the same exact stripes are found in reference masterflat frame

@@ -55,12 +55,12 @@ class stackDarksConfig(parameters_stack.stackDarksConfig, stackFramesMXCalConfig
     def setDefaults(self):
         self.reject_method = "sigclip"
         self.operation = "mean"
-        self.hsigma = 2.  # dark stack is 2 sig, flat stack is 3 sig
-        self.lsigma = 2.
+        self.hsigma = 3.  
+        self.lsigma = 3.
         self.max_iters = 5
 
 class stackFlatsConfig(parameters_stack.stackFlatsConfig,stackFramesMXCalConfig):
-    suffix = config.Field("Filename suffix", str, "")  # ?
+    suffix = config.Field("Filename suffix", str, "")
     def setDefaults(self):
         self.reject_method = "sigclip"
         self.operation = "mean"

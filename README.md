@@ -183,6 +183,14 @@ The following list contains all the primitives in the primitives_maroon.py file 
   - Returns
     - adoutputs : adinputs that pass test
 
+- **addVAR** : Calculates the variance based on the read noise for the chip and the poisson noise(the variance in this case is just the number of photons for each pixel).  The variance is then stored as a FITS extension for each file.
+  - Parameters
+    - adinputs - list of MX objects without variance extensions
+    - read_noise - boolean, whether to include read noise in variance calculations
+    - poisson_noise - boolean, whether to include poisson noise in variance calculations
+  - Returns
+    - adoutputs - list of MX objects with variance extensions
+    
 - **combineFlatStreams** : Recombines the flat data into one processed frame, combining the main stream pre-processed and the 'source' stream pre-processed with a simple max comparison at each pixel.  Saves in main stream.
   - Parameters
     - 'DFFFD_flats' stream : single MX astrodata object

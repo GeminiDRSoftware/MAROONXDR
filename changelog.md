@@ -8,8 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - addVAR() method
-- Dynamic wavelength calibration
+
 - Integration with DRAGONS caldb
+
+## [0.2.0] - 2023-07-13
+
+### Added
+
+- Added addVAR() method to primitives_maroon.py
+- Added test for addVAR() method
+- Begun implementation of dynamic wavelength calibration
+- Added test recipes 
+
+### Changed
+- Fixed the tests in find_stripes.
+- Cleaned code in the stackFramesMXCal() method
+
 ## [0.1.2] - 2023-06-14
 
 ### Added

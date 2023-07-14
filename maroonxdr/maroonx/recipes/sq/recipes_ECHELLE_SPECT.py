@@ -39,7 +39,7 @@ def reduce(p):
     p.addDQ()  # just placeholder until MX is in caldb
     p.overscanCorrect()
     p.correctImageOrientation()
-    # p.addVAR(read_noise=True,poisson_noise=True)
+    p.addVAR(read_noise=True,poisson_noise=True)
     # get and save wavelength solution (either static reference or frame's unique sim cal solved)
     p.darkSubtraction()
     p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
@@ -68,7 +68,7 @@ def makeStripeExtractionCheck(p):
     p.addDQ()  # just placeholder until MX is in caldb
     p.overscanCorrect()
     p.correctImageOrientation()
-    # p.addVAR(read_noise=True,poisson_noise=True)
+    p.addVAR(read_noise=True,poisson_noise=True)
     # get and save wavelength solution (either static reference or frame's unique sim cal solved)
     p.darkSubtraction()
     p.extractStripes(test_extraction=True)  # gets relevant flat and dark to cut out frame's spectra

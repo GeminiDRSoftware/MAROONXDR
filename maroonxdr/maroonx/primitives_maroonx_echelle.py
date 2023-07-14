@@ -585,7 +585,24 @@ class MAROONXEchelle(MAROONX, Spect):
             ad.update_filename(suffix=params["suffix"], strip=False)
             log.fullinfo(f"frame {ad.filename} extracted")
         return adinputs
+    
+    def boxExtraction(self, adinputs, **params):
+        """
+        This primitive performs box extraction on a 2d echelle spectrum.  
+        Utilized in the dynamic wavelength calibration recipe as we do 
+        not have any flats available at this stage. 
 
+        Parameters
+        ----------
+        adinputs with STRIPES, F_STRIPES, and STRIPES_MASKS 'extensions' as
+            dicts of sparse arrays
+        
+        Returns
+        -------
+        adinputs with box extracted orders for each fiber as
+        well as uncertainties calculated during the box extraction
+        """
+        
     @staticmethod
     def _extract_single_stripe(data=None, polynomials=None, slit_height=10):
         """

@@ -1,0 +1,1 @@
+files in this directory are DFFFD and FDDDF flats including both red and blue arms as well as DDDDE darks including both red and blue arms. Master calibration frames should be makeable with a reduce with no changes to the repo as theese cal frames have all expected header info and there are no dependent files in the master dark and master flat creation.
