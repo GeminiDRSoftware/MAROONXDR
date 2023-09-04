@@ -28,7 +28,7 @@ def makeStaticWavecal(p):
     # get and save wavelength solution (either static reference or frame's unique sim cal solved)
     # first perform echelle extraction of fibers
     p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
-    p.optimalExtraction()  # TODO: box extraction on all 5 fibers
+    p.boxExtraction()
     # TODO: second perform static wavecal calculations on the extracted fibers
     # 
     p.storeProcessedArc(suffix='_static_wavecal')

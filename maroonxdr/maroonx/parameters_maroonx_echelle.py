@@ -2,7 +2,6 @@
 # defined in the primitive_maroonx_echelle.py file.
 
 from gempy.library import config
-from geminidr.core import parameters_stack, parameters_standardize
 from geminidr.core import parameters_ccd
 from geminidr.core import parameters_calibdb  # import core pkgs as needed.
 
@@ -26,6 +25,9 @@ class optimalExtractionConfig(config.Config):
         self.back_var = 0.0
         self.read_noise = 1.14
         self.gain = 2.72
+
+class boxExtractionConfig(config.Config):
+    suffix = config.Field("Filename suffix", str, "")
 
 class darkSubtractionConfig(config.Config):
     suffix = config.Field("Filename suffix", str, "")

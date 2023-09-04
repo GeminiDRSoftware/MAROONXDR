@@ -7,9 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- addVAR() method
-
+- Fitting peaks to 30-knot spline
 - Integration with DRAGONS caldb
+
+## [0.3.0] - 2023-09-04
+
+### Added
+
+- Code to fit polynomials and peaks to the extracted 1D spectra
+- Added tests for this code
+
+### Changed
+
+- Reorganized the code into different class structures
+- Changed the tagsets to make more sense
 
 ## [0.2.0] - 2023-07-13
 

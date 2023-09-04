@@ -389,8 +389,9 @@ class MAROONX(Gemini, CCD, NearIR):
                 otherwise use the read noise for the red arm.
                 """
                 if ('BLUE' in ad.tags):
+                    rn_electron = ad[0] #read noise in electrons for blue arm
                     log.stdinfo(f'{ad.filename} set as Blue, electron read noise is 2.9')
-                    rn_electron = 2.9 #read noise in electrons for blue arm
+                    
                 elif ('RED' in ad.tags):
                     rn_electron = 3.5 #read noise in electrons for red arm
                     log.stdinfo(f'{ad.filename} set as Red, electron read noise is 3.5')

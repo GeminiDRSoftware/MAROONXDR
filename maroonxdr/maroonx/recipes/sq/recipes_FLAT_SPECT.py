@@ -1,6 +1,7 @@
 """
 Recipes available to data with tags ['MAROONX', 'CAL', 'FLAT'].
 Default is "makeProcessedFlat"
+TODO: Add a step to get the 1D Spectra for the fibers to use in Wavecal and Science
 """
 
 recipe_tags = set(['MAROONX', 'CAL', 'FLAT'])

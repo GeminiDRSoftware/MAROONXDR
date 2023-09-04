@@ -4,17 +4,24 @@ This repo contains the MAROON-X DRAGONS implementation of the data reduction pip
 
 ## TABLE OF CONTENTS
 
-- [QUICK INSTALLATION](#quick-installation)
-- [INTRODUCTION](#introduction)
-- [EXPECTATIONS FOR THE RAW FRAMES PROVIDED TO THE PIPELINE](#expectations-for-the-raw-frames-provided-to-the-pipeline)
-- [RUN OPTIONS](#run-options)
-- [RECIPE DETAILS](#recipe-details)
-  - [MASTER DARK CREATION](#master-dark-creation)
-  - [MASTER FLAT CREATION](#master-flat-creation)
-  - [SCIENCE FLUX EXTRACTION](#science-flux-extraction)
-- [DETAILS ON PRIMITIVES IN PRIMITIVES_MAROONX.PY](#details-on-primitives-in-primitives_maroonxpy)
-- [DETAILS ON PRIMITIVES IN PRIMITIVES_MAROONX_ECHELLE.PY](#details-on-primitives-in-primitives_maroonx_echellepy)
-- [IMAGE TESTING](#image-testing)
+- [MAROONXDR](#maroonxdr)
+  - [TABLE OF CONTENTS](#table-of-contents)
+  - [QUICK INSTALLATION](#quick-installation)
+  - [INTRODUCTION](#introduction)
+  - [EXPECTATIONS FOR THE RAW FRAMES PROVIDED TO THE PIPELINE](#expectations-for-the-raw-frames-provided-to-the-pipeline)
+  - [RUN OPTIONS](#run-options)
+  - [RECIPE DETAILS](#recipe-details)
+    - [MASTER DARK CREATION](#master-dark-creation)
+    - [MASTER FLAT CREATION](#master-flat-creation)
+    - [SCIENCE FLUX EXTRACTION](#science-flux-extraction)
+  - [DETAILS ON PRIMITIVES IN PRIMITIVES\_MAROONX.PY](#details-on-primitives-in-primitives_maroonxpy)
+  - [DETAILS ON PRIMITIVES IN PRIMITIVES\_MAROONX\_ECHELLE.PY](#details-on-primitives-in-primitives_maroonx_echellepy)
+  - [TESTS](#tests)
+    - [COMPLETE TESTS](#complete-tests)
+    - [IMAGE TESTS](#image-tests)
+      - [KNOWN ISSUES](#known-issues)
+      - [TESTS IN ALPHABETICAL ORDER](#tests-in-alphabetical-order)
+    - [ECHELLE TESTS](#echelle-tests)
 
 ## QUICK INSTALLATION
 
@@ -356,6 +363,32 @@ This section contains details on the primitives in primitives_maroonx_echelle.py
   - Returns
     - adinputs with sparse matrices added holding the 2D extractions for each fiber/order for the science frame, flat frame, and BPM (STRIPES, F_STRIPES, STRIPES_MASK)if test_extraction==True, the extractions are FITS-readable and not sparse matrix format
 
+- boxExtraction:  Box extraction of stripes from 2D to 1D.  This function is utilized during dynamic wavelength calibration as optimal extraction is more computationally expenisve and not required at this stage.  This function extracts all fibers and does not take a list as an argument to extract fewer fibers.
+- Parameters
+  - adinputs with STRIPES, F_STRIPES, and STRIPES_MASKS 'extensions' as dicts of sparse arrays
+- Returns
+  - adinputs with box extracted orders for each fiber as well as uncertainties calculated during the box extraction
+
+- getWaveCalSolution:   Extracts the etalon positions from the 1D spectra, determines the centroid, and fits polynomials.This is done by finding the peak and fitting them using a box convolved with 2 Gaussians  The sigmas of the Gaussians are fitted to a low order polynomial, along with the width of the box.<br>
+   Below information taken from the MAROON-X Data Handbook: 
+        https://sites.google.com/uchicago.edu/maroonx-data-handbook/data-reduction/wavelength-calibration/etalon-line-fitting
+
+        The line profiles are modeled using a box convolved with 2 Gaussians on either side (sum of 2 erf functions).In order to remove degeneracies between the width of the box (representing the width of the entance slit) and the sigma/FWHM of the Gaussians (representing the field and wavelength dependent abberations), a composite model for each fiber/order is built from all the individual etalon lines in a fiber/order plus a smooth background. Only the line intensities and positions are fitted individually for each  etalon line.  Box widths, Gaussian sigmas, and the background are constrained to a low order polynomial across a given fiber/ order.  This is motivated by the fac that these quantities only vary slowly and steadily along an order.
+  - Parameters:
+    -  adinputs: list of AstroData objects with 1D box extracted spectra
+    - guess_file (str): Name of file containing initial guess spectrum.
+    - fibers (list of ints): Fibers to fit
+    - orders (list of ints): Orders to fit
+    - degree_sigma (int): Degree of the sigma polynomial
+    - degree_width (int): Degree of the width polynomial
+    - use_sigma_lr (bool):Use different polynomial degrees for left and right side of wings
+    - show_plots (bool): Show plots of the etalon line fits
+    - plot_path (str): Path to save plots to.  If None, plots are not saved.
+    - multithreading (bool): Use multithreading to speed up extraction.  Disables plotting.
+    - iterations (int): Maximum number of iterations on the fit.
+  - Returns:
+    - adinputs with extensions containing the peak parameters and polynomial parameters
+  
 - optimalExtraction: Optimal extraction of the 2d echelle spectrum.<br>  This function performs an optimal extraction of a 2d echelle spectrum. A given flat field spectrum is used to generate normalized 'profiles' that are used as weighting functions for the spectrum that is going to be extracted.  The algorithm further checks for outliers and rejects them.  This is to prevent contributions from cosmic hits.
   - Parameters
     - adinputs with STRIPES, F_STRIPES, and STRIPES_MASKS 'extensions' as dicts of sparse arrays
