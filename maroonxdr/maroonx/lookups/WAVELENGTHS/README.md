@@ -1,0 +1,1 @@
+Nominal static wavlength solutions for MAROON-X taken from the config files.

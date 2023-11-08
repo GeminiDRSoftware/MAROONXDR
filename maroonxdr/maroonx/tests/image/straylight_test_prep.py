@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 parent_dir = Path(__file__).parents[4]
 sys.path.append(str(parent_dir))
-from maroonxdr.maroonx.primitives_maroonx import MAROONX
+from MAROONXDR.maroonxdr.maroonx.primitives_maroonx.primitives_maroonx_generic import MAROONX
 import maroonx_instruments
 
 """

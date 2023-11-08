@@ -5,8 +5,8 @@ This module contains primitives to generate wavelength calibration solutions fro
 from astropy.table import Table
 from recipe_system.utils.decorators import parameter_override
 from . import parameters_maroonx_spectrum
-from . import maroonx_etalon_fit
-from . import maroonx_etalon_data
+from .maroonx_fit import maroonx_fit
+from .import maroonx_utils
 from .primitives_maroonx_echelle import MAROONXEchelle
 from gempy.gemini import gemini_tools as gt
 from geminidr.core import Spect
@@ -48,9 +48,9 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         self._param_update(parameters_maroonx_spectrum)
 
     def getPeaksAndPolynomials(self, adinputs=None, guess_file=None, 
-                            fibers=[], orders=[], degree_sigma=4, degree_width=2, 
-                            use_sigma_lr=True, show_plots=False,
-                            plot_path="", multithreading=True, 
+                            fibers=[2], orders=[67,82, 87], degree_sigma=4, degree_width=2, 
+                            use_sigma_lr=True, show_plots=True,
+                            plot_path="", multithreading=False, 
                             iterations = 3, **params):
         """
         Extracts the etalon positions from the 1D spectra, determines the centroid, 
@@ -142,7 +142,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             if multithreading:
                 pool = multiprocessing.get_context("fork").Pool()
                 log.fullinfo(f"Using {pool._processes} processes for extraction")
-                for fiber, order, data, guess in maroonx_etalon_data.load_recordings(
+                for fiber, order, data, guess in maroonx_utils.load_recordings(
                 ad, guess_file, fibers, orders):
                     log.fullinfo(f"Fitting fiber {fiber} order {order}")
 
@@ -171,7 +171,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
                     # Asynchronously run iterative fit using the data yielded by the generator function
                     pool.apply_async(
-                        maroonx_etalon_fit.iterative_fit,
+                        maroonx_fit.iterative_fit,
                         kwds=dict(
                             input_spectrum = data,
                             degree_sigma = degree_sigma,
@@ -192,7 +192,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             # If multithreading is off, run in serial
             else:
                 log.fullinfo("Using single process for extraction")
-                for fiber, order, data, guess in maroonx_etalon_data.load_recordings(
+                for fiber, order, data, guess in maroonx_utils.load_recordings(
                 ad, guess_file, fibers, orders):
                     log.fullinfo(f"Fitting fiber {fiber} order {order}")
 
@@ -209,7 +209,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     ############################
 
                     # Run iterative fit using the data yielded by the generator function in serial
-                    output = maroonx_etalon_fit.iterative_fit(
+                    output = maroonx_fit.iterative_fit(
                             input_spectrum = data, 
                             degree_sigma = degree_sigma, 
                             degree_width = degree_width,
@@ -233,9 +233,9 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             if results is not []:
                 # Add the results to adinputs
                 log.fullinfo(f"Adding peaks extension to {ad.filename}")
-                peaks = maroonx_etalon_data.insert_peak_parameters(results)
+                peaks = maroonx_fit.insert_peak_parameters(results)
                 log.fullinfo(f"Adding poly extension to {ad.filename}")
-                poly = maroonx_etalon_data.insert_polynomial_parameters(results)
+                poly = maroonx_fit.insert_polynomial_parameters(results)
                 peaks_astropy = Table.from_pandas(peaks)
                 poly_astropy = Table.from_pandas(poly)
                 ad[0].PEAKS = peaks_astropy
@@ -248,3 +248,103 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
         return adinputs
     
+    def fitAndApplyEtalonWls(self, adinputs, fibers, plot_path=None, ref_file=None, ref_fiber=None, symmetric_linefits=False):
+        """
+        This step computes a new spline-based dynamical wavelength solution for each fiber using etalon paramters that
+        are provided as a config file, and a initial solution generated from a DTTTE file.  The lines in the spectra 
+        are identified based on the initial spectrum, which assigns a corresponding wavelength to each pixel.  Then
+        this is fitted to a 30 knot spline to find the new dynamic wavelength solution. 
+
+        Parameters:
+        -----------
+        adinputs: list of AstroData objects with 1D box extracted spectra (PEAKS and POLY extensions)
+        fibers: list of ints
+            Fibers containing Etalon spectra
+        plot_path: str
+            If path is not none, save plots to this path.
+        ref_file: str
+            Absolute path and filename containing reduced and fitted etalon spectra.  
+            This input is only used for the drift correction step.
+        ref_fiber: int
+            Which fiber to use as the reference fiber if a reference spectrum was provided. 
+            This input is only used for the drift correction step.
+
+        Returns:
+        --------
+        adinputs with a new extension containing the spline based wavelength solution
+        """
+
+        log = self.log
+        log.debug(gt.log_message("primitive", self.myself(), "starting"))
+
+        # Determine tag for log and plot filename
+        if symmetric_linefits:
+            tag  = '_spline_symmetrical'
+        else:
+            tag = '_spline'
+        if ref_file is not None:
+            tag = tag + '_ref'
+
+        # If a reference file and reference fiber is given, offset the etalon position on
+        # all fibers by the offset found in the reference fiber
+
+        if ref_file is not None:
+            ref_peaks = ref_file[0].PEAKS[ref_file[0].PEAKS['FIBER'] == ref_fiber]
+            peak_centers = ref_peaks["CENTER"]
+            # TODO: Ask Andreas what this is supposed to do because currently 
+            # we do not know how this works in the old pipeline
+
+        for ad in adinputs:
+            # Set the location of the plot file
+            if plot_path is not None:
+                plot_file = plot_path + '/' + adinputs[0].filename + tag + '.png'
+            # Load the reference spectrum from config
+            wavelength_file = maroonx_utils._get_refwavelength_filename(ad)
+            wave_dict = ad.open(wavelength_file)
+            log.fullinfo(f"Using reference file {wavelength_file} for wavelength solution")
+
+            # Check the fibers
+            fibers = [ad.phu.get('HIERARCH FIBER1'), 
+                      ad.phu.get('HIERARCH FIBER2'), 
+                      ad.phu.get('HIERARCH FIBER3'), 
+                      ad.phu.get('HIERARCH FIBER4'), 
+                      ad.phu.get('HIERARCH FIBER5')]
+
+            fiber_number = 0
+            for fiber in fibers:
+                fiber_number += 1
+                if fiber == 'Etalon':
+                        peak_data = ad[0].PEAKS
+                        poly_data = ad[0].POLY
+                        # Access data from input file
+                        if fiber_number == 1:
+                            reduced_orders = ad[0].REDUCED_ORDERS_FIBER_1
+                            reduced_fiber = ad[0].BOX_REDUCED_FIBER_1
+                            reduced_err = ad[0].BOX_REDUCED_FIBER_1_ERR
+                            wavelengths = ad[0].FIBER_1
+                        if fiber_number == 2:
+                            reduced_orders = ad[0].REDUCED_ORDERS_FIBER_2
+                            reduced_fiber = ad[0].BOX_REDUCED_FIBER_2
+                            reduced_err = ad[0].BOX_REDUCED_FIBER_2_ERR
+                            wavelengths = ad[0].FIBER_2
+                        if fiber_number == 3:
+                            reduced_orders = ad[0].REDUCED_ORDERS_FIBER_3
+                            reduced_fiber = ad[0].BOX_REDUCED_FIBER_3
+                            reduced_err = ad[0].BOX_REDUCED_FIBER_3_ERR
+                            wavelengths = ad[0].FIBER_3
+                        if fiber_number == 4:
+                            reduced_orders = ad[0].REDUCED_ORDERS_FIBER_4
+                            reduced_fiber = ad[0].BOX_REDUCED_FIBER_4
+                            reduced_err = ad[0].BOX_REDUCED_FIBER_4_ERR
+                            wavelengths = ad[0].FIBER_4
+                        if fiber_number == 5:
+                            reduced_orders = ad[0].REDUCED_ORDERS_FIBER_5
+                            reduced_fiber = ad[0].BOX_REDUCED_FIBER_5
+                            reduced_err = ad[0].BOX_REDUCED_FIBER_5_ERR
+                            wavelengths = ad[0].FIBER_5
+                        
+                        # Guess the peak numbers in the measured spectrum
+                        peak_numbers = guess_peak_numbers(self, reduced_fiber, peak_data, poly_data)
+                            
+            return adinputs
+            

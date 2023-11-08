@@ -1,30 +1,31 @@
-#
-#                                                                       DRAGONS
-#
-#                                                 primitives_maroonx_echelle.py
+'''
+Primitives for MAROON-X echelle data reduction.  Primities in this file are
+focused on the code to produce 1D extracted spectra from 2D spectra
+(as compared to primitives_maroonx_2D, which is focused on primitives
+that focus on the 2D spectra themselves).
+'''
 # ------------------------------------------------------------------------------
 
 # from geminidr.gemini.lookups import DQ_definitions as DQ
 import copy
-import os
 import astrodata
 import numpy as np
 
 from scipy.ndimage import median_filter
 import scipy.sparse as sparse
 
-from . import parameters_maroonx_echelle
-from .primitives_maroonx import MAROONX
 from recipe_system.utils.decorators import parameter_override
 from gempy.gemini import gemini_tools as gt
 from geminidr.core import Spect
+from . import parameters_maroonx_echelle
+from .primitives_maroonx_2D import MAROONX
 # ------------------------------------------------------------------------------
 @parameter_override
 class MAROONXEchelle(MAROONX, Spect):
     """
     This class contains primitives that applies to all MAROON-X echelle
     data.  Specifically, this class is focused on the code to produce 1D
-    extracted spectra from 2D spectra.   Additional steps to produce wavelength 
+    extracted spectra from 2D spectra.   Additional steps to produce wavelength
     calibrations are in the MaroonXSpectrum class.
     """
 
@@ -65,7 +66,8 @@ class MAROONXEchelle(MAROONX, Spect):
         adoutputs = []
         if len(adinputs) > 1: # Logic for multiple inputs
             if not individual:  # group frames given by unique sets of xptime and nd_filter
-                # saves on redundent caldb requests. Each daytime-made xptime & nd_filter unique processed dark
+                # saves on redundent caldb requests.
+                # Each daytime-made xptime & nd_filter unique processed dark
                 # only needs to be called once per science series with that xptime & nd_filter
                 exposure_time_list = []
                 nd_filter_list = []
@@ -73,7 +75,7 @@ class MAROONXEchelle(MAROONX, Spect):
                     # Create lists of the exposure times and neutral density filters for each image
                     exposure_time_list.append(ad.exposure_time())
                     nd_filter_list.append(ad.filter_orientation()['ND'])
-                
+
                 # Convert lists to numpy arrays for easier indexing
                 exposure_time_list = np.array(exposure_time_list)
                 nd_filter_list = np.array(nd_filter_list)
@@ -84,7 +86,8 @@ class MAROONXEchelle(MAROONX, Spect):
                         # Loop over unique ND filters for each exposure time
                         cal_list = []
                         for ad in adinputs:
-                            # Create a list of all images with the current exposure time and ND filter
+                            # Create a list of all images with the current exposure time
+                            # and ND filter
                             if ad.exposure_time() == time and ad.filter_orientation()['ND'] == nd_filter:
                                 cal_list.append(ad)
                         if dark is None:
@@ -104,7 +107,7 @@ class MAROONXEchelle(MAROONX, Spect):
                                 log.warning(f"No dark subtraction will be made to {cal_list[0].filename} "
                                             "group prior to stripe extraction, since no "
                                             "dark was found/specified")
-                                
+
                         for ad_found in cal_list:
                             # Loop over all images in the current exposure time and ND filter group
                             adout = copy.deepcopy(ad_found)
@@ -147,7 +150,7 @@ class MAROONXEchelle(MAROONX, Spect):
                                     comment=dark_ad.filename)
             gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adoutputs
-    
+
     def extractStripes(self, adinputs=None, flat=None,
                        skip_dark=None, slit_height=10,
                        test_extraction=False, individual=False, **params):
@@ -270,12 +273,12 @@ class MAROONXEchelle(MAROONX, Spect):
                                         for colname in p_id.colnames),
                         'fiber_5': dict((colname, p_id[24:][colname].data)
                                         for colname in p_id.colnames)}
-            
+
             log.fullinfo("Flat-Identified pixel associations with fiber/order "
                          "found as polynomial info in association "
                          f"with science frame {ad.filename}")
-            
-            for f in p_id.keys():  # extract info into sparse matrices
+
+            for f, op in p_id.items():  # extract info into sparse matrices
                 adint = copy.deepcopy(ad)
                 flatint = copy.deepcopy(flat_ad)
                 # dark subtract the frame for the fiber if appropriate
@@ -289,8 +292,8 @@ class MAROONXEchelle(MAROONX, Spect):
 
                 log.fullinfo('skipping all fiber dark subtraction is the '
                              'default option')
-                
-                for o, p in p_id[f].items():
+
+                for o, p in op.items():
                     # extract the stripe, and the flat stripe and the stripe mask
                     stripe = self._extract_single_stripe(
                         adint.data[0], p, slit_height)
@@ -299,7 +302,7 @@ class MAROONXEchelle(MAROONX, Spect):
                     s_mask = self._extract_single_stripe(
                         np.logical_not(adint.mask[0]).astype(int), p,
                         slit_height)
-                    
+
                     # Update the stripe, flat stripe and stripe mask
                     if f in stripes:
                         stripes[f].update({o: stripe})
@@ -328,8 +331,8 @@ class MAROONXEchelle(MAROONX, Spect):
                         repack_f_stripes.append(f_stripes[ifib][iorder].todense())
                         repack_stripes_masks.append(stripes_masks[ifib][iorder].todense())
                         test_orders.append(iorder)
-                
-                # Store the stripe, flat stripe and stripe mask as extensions 
+
+                # Store the stripe, flat stripe and stripe mask as extensions
                 ad[0].STRIPES = np.array(repack_stripes)
                 ad[0].F_STRIPES = np.array(repack_f_stripes)
                 ad[0].STRIPES_MASKS = np.array(repack_stripes_masks)
@@ -392,11 +395,10 @@ class MAROONXEchelle(MAROONX, Spect):
         extracted_bpms = {}
 
         for ad in adinputs:
-            """
-            For each fiber, we need extensions for the reduced orders, the optimal reduced fiber,
-            the error of the optimal reduced fiber, the box reduced fiber, the error of the box
-            reduced fiber, and the bad pixel mask.
-            """
+            # For each fiber, we need extensions for the reduced orders, the optimal reduced fiber,
+            # the error of the optimal reduced fiber, the box reduced fiber, the error of the box
+            # reduced fiber, and the bad pixel mask.
+
             # Fiber 1
             ad[0].REDUCED_ORDERS_FIBER_1 = np.zeros(shape=[1, 1])
             ad[0].OPTIMAL_REDUCED_FIBER_1 = np.zeros(shape=[1, 1])
@@ -432,7 +434,7 @@ class MAROONXEchelle(MAROONX, Spect):
             ad[0].BOX_REDUCED_FIBER_5 = np.zeros(shape=[1, 1])
             ad[0].BOX_REDUCED_ERR_5 = np.zeros(shape=[1, 1])
             ad[0].BPM_FIBER_5 = np.zeros(shape=[1, 1])
-            
+
             # Creating sparse matrices that we end up deleting
             stripes = ad[0].STRIPES
             mask = ad[0].STRIPES_MASKS
@@ -505,8 +507,8 @@ class MAROONXEchelle(MAROONX, Spect):
                         box_reduced_err[f].values()), dtype=float)
                     bpm_single_fiber = np.array(list(
                         extracted_bpms[f].values()), dtype=int)
-                    
-                    # Update the extensions depending on the fiber.  
+
+                    # Update the extensions depending on the fiber.
                     if f == 'fiber_1':
                         ad[0].REDUCED_ORDERS_FIBER_1 = optimal_reduced_single_fiber_order_key
                         ad[0].OPTIMAL_REDUCED_FIBER_1 = optimal_reduced_single_fiber
@@ -543,10 +545,9 @@ class MAROONXEchelle(MAROONX, Spect):
                         ad[0].BOX_REDUCED_ERR_5 = box_reduced_single_err
                         ad[0].BPM_FIBER_5 = bpm_single_fiber
                 else:
-                    """
-                    Dealing with the case that we have no optimal extraction, so the reduced order
-                    is the box extraction as opposed to the optimal extraction.
-                    """
+                    # Dealing with the case that we have no optimal extraction, so the reduced order
+                    # is the box extraction as opposed to the optimal extraction.
+
                     box_reduced_single_fiber_order_key = np.array(list(
                         box_reduced_stripes[f].keys()), dtype=float)
                     box_reduced_single_fiber = np.array(list(
@@ -555,7 +556,7 @@ class MAROONXEchelle(MAROONX, Spect):
                         box_reduced_err[f].values()), dtype=float)
                     bpm_single_fiber = np.array(list(
                         extracted_bpms[f].values()), dtype=int)
-                    # Update the extensions based on which fiber we have.  
+                    # Update the extensions based on which fiber we have.
                     if f == 'fiber_1':
                         ad[0].REDUCED_ORDERS_FIBER_1 = box_reduced_single_fiber_order_key
                         ad[0].BOX_REDUCED_FIBER_1 = box_reduced_single_fiber
@@ -582,8 +583,8 @@ class MAROONXEchelle(MAROONX, Spect):
                         ad[0].BOX_REDUCED_ERR_5 = box_reduced_single_err
                         ad[0].BPM_FIBER_5 = bpm_single_fiber
 
-            # Delete the sparse matrices from the ad object            
-            del ad[0].STRIPES 
+            # Delete the sparse matrices from the ad object
+            del ad[0].STRIPES
             del ad[0].F_STRIPES
             del ad[0].STRIPES_MASKS
 
@@ -591,17 +592,17 @@ class MAROONXEchelle(MAROONX, Spect):
             ad.update_filename(suffix=params["suffix"], strip=False)
             log.fullinfo(f"frame {ad.filename} extracted")
         return adinputs
-    
+
     def boxExtraction(self, adinputs, **params):
         """
-        This primitive performs box extraction on a 2d echelle spectrum.  
-        Utilized in the dynamic and static wavelength calibration recipe as it 
-        is quicker than relying on optimal extraction. 
+        This primitive performs box extraction on a 2d echelle spectrum.
+        Utilized in the dynamic and static wavelength calibration recipe as it
+        is quicker than relying on optimal extraction.
         Parameters
         ----------
         adinputs with STRIPES, F_STRIPES, and STRIPES_MASKS 'extensions' as
             dicts of sparse arrays
-        
+
         Returns
         -------
         adinputs with box extracted orders for each fiber as
@@ -615,11 +616,10 @@ class MAROONXEchelle(MAROONX, Spect):
         extracted_bpms = {}
 
         for ad in adinputs:
-            """
-            For each fiber, we need extensions for the reduced orders,
-            the box reduced fiber, the error of the box
-            reduced fiber, and the bad pixel mask.
-            """
+            # For each fiber, we need extensions for the reduced orders,
+            # the box reduced fiber, the error of the boxreduced fiber,
+            # and the bad pixel mask.
+
             # Fiber 1
             ad[0].REDUCED_ORDERS_FIBER_1 = np.zeros(shape=[1, 1])
             ad[0].BOX_REDUCED_FIBER_1 = np.zeros(shape=[1, 1])
@@ -650,7 +650,7 @@ class MAROONXEchelle(MAROONX, Spect):
             ad[0].BOX_REDUCED_ERR_5 = np.zeros(shape=[1, 1])
             ad[0].BOX_REDUCED_FLAT_5 = np.zeros(shape=[1, 1])
             ad[0].BPM_FIBER_5 = np.zeros(shape=[1, 1])
-            
+
             # Creating sparse matrices that we do not delete in this case
             stripes = ad[0].STRIPES
             mask = ad[0].STRIPES_MASKS
@@ -659,8 +659,8 @@ class MAROONXEchelle(MAROONX, Spect):
             gain = ad.gain()[0][0]  # fix for different channels
             read_noise = ad.read_noise()[0][0]  # Each chip has a different read noise
 
-            for f in stripes.keys():
-                for o, stripe in stripes[f].items():
+            for f, o_stripes in stripes:
+                for o, stripe in o_stripes.items():
                     log.fullinfo(f'Box extraction in {f}, order {o}')
                     stand_spec = self._box_extract_single_stripe(stripe, mask[f][o])
                     stand_err = np.sqrt(stand_spec/gain)
@@ -671,14 +671,14 @@ class MAROONXEchelle(MAROONX, Spect):
                         box_reduced_err[f].update({o: stand_err})
                         box_reduced_flats[f].update({o: stand_flat})
                         extracted_bpms[f] = {o: np.array(np.sum(mask[f][o], axis=0).T).flatten()}
-                       
+
                     else:
                         # We do not have the extensions yet, so create them
                         box_reduced_stripes[f] = {o: stand_spec}
                         box_reduced_err[f] = {o: stand_err}
                         box_reduced_flats[f] = {o: stand_flat}
                         extracted_bpms[f] = {o: np.array(np.sum(mask[f][o], axis=0).T).flatten()}
-                        
+
                 box_reduced_single_fiber_order_key = np.array(list(
                     box_reduced_stripes[f].keys()), dtype=float)
                 box_reduced_single_fiber = np.array(list(
@@ -688,7 +688,7 @@ class MAROONXEchelle(MAROONX, Spect):
                 box_reduced_flat = np.array(list(
                         box_reduced_flats[f].values()), dtype=int)
                 bpm_single_fiber = np.array(list(extracted_bpms[f].values()), dtype=int)
-                
+
                 # Update the extensions based on which fiber we have
                 if f == 'fiber_1':
                     ad[0].REDUCED_ORDERS_FIBER_1 = box_reduced_single_fiber_order_key
@@ -756,13 +756,11 @@ class MAROONXEchelle(MAROONX, Spect):
         xx = np.arange(nx)
         y = np.poly1d(polynomials)(xx)
 
-        """
-        Create matrix containing all indices for a given slit height.
-        For the y matrix, the matrix is values from - slit height to + slit height,
-        repeating nx times.  For the x matrix, it is values 0 to nx repeated 2* slit height.
-        Both have dimensions (2*slit height) x nx.
-        """
-        
+        # Create matrix containing all indices for a given slit height.
+        # For the y matrix, the matrix is values from - slit height to + slit height,
+        # repeating nx times.  For the x matrix, it is values 0 to nx repeated 2* slit height.
+        # Both have dimensions (2*slit height) x nx.
+
         slit_indices_y = np.arange(-slit_height, slit_height
                                    ).repeat(nx).reshape((2 * slit_height, nx))
         slit_indices_x = np.tile(np.arange(nx), 2 * slit_height
@@ -771,10 +769,9 @@ class MAROONXEchelle(MAROONX, Spect):
         indices = np.rint(slit_indices_y + y).astype(int)
         valid_indices = np.logical_and(indices < ny, indices > 0)
 
-        """
-        Create sparse matrix of dimensions ny x nx, with row indices given by indices[valid_indices] 
-        and column indices sit_indices_x[valid_indices].
-        """
+        # Create sparse matrix of dimensions ny x nx, with row indices given by indices[valid_indices]
+        # and column indices sit_indices_x[valid_indices].
+
         mat = sparse.coo_matrix((data[indices[valid_indices],
             slit_indices_x[valid_indices]],(indices[valid_indices],
             slit_indices_x[valid_indices])), shape=(ny, nx))

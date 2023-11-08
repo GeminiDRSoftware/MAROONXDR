@@ -29,7 +29,7 @@ class AstroDataMAROONX(AstroDataGemini):
    # @astro_data_tag
    # def _tag_spect(self):
    #     return TagSet(['SPECT'])
-    
+
    # @astro_data_tag
    # def _tag_echelle(self):
    #     return TagSet(['ECHELLE'])
@@ -45,8 +45,8 @@ class AstroDataMAROONX(AstroDataGemini):
 
     @astro_data_tag
     def _tag_dark(self):
-        if self.phu.get('HIERARCH FIBER1') == self.phu.get('HIERARCH FIBER2') == 'Dark'\
-                and self.phu.get('HIERARCH FIBER5') == 'Etalon':
+        if self.phu.get('HIERARCH FIBER1') == 'Dark' and self.phu.get('HIERARCH FIBER2') == 'Dark':
+            print("File is a dark")
             return TagSet(['DARK', 'CAL'])
 
     @astro_data_tag
@@ -55,7 +55,7 @@ class AstroDataMAROONX(AstroDataGemini):
             self.phu.get('HIERARCH FIBER3') == self.phu.get('HIERARCH FIBER4') == 'OBJECT'\
                 and self.phu.get('HIERARCH FIBER5') == 'Etalon':
             return TagSet(['SCI', 'SPECT'])
-        
+
     @astro_data_tag
     def _tag_flat(self):
         if self.phu.get('HIERARCH FIBER1') == 'Flat' or self.phu.get('HIERARCH FIBER2') == 'Flat' \
@@ -65,16 +65,16 @@ class AstroDataMAROONX(AstroDataGemini):
 
     @astro_data_tag
     def _tag_wavecal(self):
-        if (self.phu.get('HIERARCH FIBER1') == 'Etalon' or self.phu.get('HIERARCH FIBER2') == 'Etalon') \
-                and self.phu.get('HIERARCH FIBER5') == 'Etalon':
-            return TagSet(['WAVECAL','SPECT', 'CAL'])
+        if self.phu.get('HIERARCH FIBER1') == 'Etalon' or self.phu.get('HIERARCH FIBER2') == 'Etalon':
+            if (self.phu.get('HIERARCH FIBER5') == 'Etalon'):
+                return TagSet(['WAVECAL','SPECT', 'CAL'])
 
     @astro_data_tag
     def _tag_thar(self):
         if (self.phu.get('HIERARCH FIBER1') == 'ThAr' or self.phu.get('HIERARCH FIBER2') == 'ThAr') \
                 and self.phu.get('HIERARCH FIBER5') == 'ThAr':
             return TagSet(['WAVECAL', 'SPECT', 'ThAr', 'CAL'])
-        
+
     @astro_data_tag
     def _tag_lfc(self):
         if (self.phu.get('HIERARCH FIBER1') == 'LFC' or self.phu.get('HIERARCH FIBER2') == 'LFC') \
@@ -140,7 +140,7 @@ class AstroDataMAROONX(AstroDataGemini):
         """
         return [self.phu.get('HIERARCH FIBER1'),self.phu.get('HIERARCH FIBER2'),self.phu.get('HIERARCH FIBER3'),
                 self.phu.get('HIERARCH FIBER4'),self.phu.get('HIERARCH FIBER5')]
-    
+
     @astro_data_descriptor
     def data_label(self):
         """
