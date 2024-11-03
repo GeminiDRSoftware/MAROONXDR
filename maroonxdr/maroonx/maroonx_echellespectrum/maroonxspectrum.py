@@ -71,7 +71,9 @@ class MXSpectrum(object):
         '''
         Access data from input file.
         ROHAN:  This is where I stopped my work.
-        I actually don't know if anything below this comment is useful - I think all we should need is the peaks per order
+        I actually don't know if anything below this comment is useful.
+        I think all we should need is the peaks per order
+        And then we would apply a 30 knot spline to the peaks to get the wavelength solution
         '''
 
         for fiber in fibers:
