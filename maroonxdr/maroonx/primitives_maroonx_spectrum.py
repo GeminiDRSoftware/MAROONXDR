@@ -40,11 +40,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
     """
     This class contains primitives to reduce MAROON-X 1-D spectra.
     Code in this class takes already produced 1-D reduced spectra
-<<<<<<< HEAD
-    and utilizes it to genterate mappings from pixel to wavelength
-=======
-    and utilized it to genterate mappings from pixel to wavelength
->>>>>>> 9289dd70091d33872455b5dab3b5248b5a783cbe
+    and utilizes it to generate mappings from pixel to wavelength
     (dynamic wavelength calibratiosn).
     """
 
@@ -335,7 +331,5 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             for fiber in fibers:
                 # Guess the peak numbers in the measured spectrum
                 peak_numbers = guess_peak_numbers(self, reduced_fiber, peak_data, poly_data)
-
-
             return adinputs
 
