@@ -16,11 +16,8 @@ from .primitives_maroonx_echelle import MAROONXEchelle
 from .maroonx_echellespectrum.maroonxspectrum import MXSpectrum
 from gempy.gemini import gemini_tools as gt
 from geminidr.core import Spect
-<<<<<<< HEAD
 from matplotlib.backends.backend_pdf import PdfPages
-=======
 from .maroonx_echellespectrum.maroonxspectrum import MXSpectrum
->>>>>>> 9289dd70091d33872455b5dab3b5248b5a783cbe
 # ------------------------------------------------------------------------------
 class LogExceptions(object):
     """
