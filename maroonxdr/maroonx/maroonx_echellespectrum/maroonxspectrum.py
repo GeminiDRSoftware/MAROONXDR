@@ -63,7 +63,11 @@ class MXSpectrum(object):
 
         peak_data = adinput[0].PEAKS
         # Convert peak_data to pandas dataframe
+<<<<<<< HEAD
         peak_df = peak_data.to_pandas()
+=======
+        peak_df = self.peak_data.to_pandas()
+>>>>>>> 9289dd70091d33872455b5dab3b5248b5a783cbe
         poly_data = adinput[0].POLY
         fiber_number = 0
         self.spectra = {}
@@ -73,6 +77,7 @@ class MXSpectrum(object):
             fiber_number += 1
             if fiber_number == 1:
                 reduced_orders = adinput[0].REDUCED_ORDERS_FIBER_1
+<<<<<<< HEAD
                 '''
                 box_reduced_fiber = adinput[0].BOX_REDUCED_FIBER_1
                 # box_reduced_err = adinput[0].BOX_REDUCED_FIBER_1_ERR
@@ -92,40 +97,80 @@ class MXSpectrum(object):
             if fiber_number == 3:
                 reduced_orders = adinput[0].REDUCED_ORDERS_FIBER_3
                 '''
+=======
+                box_reduced_fiber = adinput[0].BOX_REDUCED_FIBER_1
+                box_reduced_err = adinput[0].BOX_REDUCED_FIBER_1_ERR
+                opt_reduced_fiber = adinput[0].OPTIMAL_REDUCED_FIBER_1
+                opt_reduced_err = adinput[0].OPTIMAL_REDUCED_FIBER_1_ERR
+                wavelengths = adinput[0].FIBER_1
+            if fiber_number == 2:
+                reduced_orders = adinput[0].REDUCED_ORDERS_FIBER_2
+                box_reduced_fiber = adinput[0].BOX_REDUCED_FIBER_2
+                box_reduced_err = adinput[0].BOX_REDUCED_FIBER_2_ERR
+                opt_reduced_fiber = adinput[0].OPTIMAL_REDUCED_FIBER_2
+                opt_reduced_err = adinput[0].OPTIMAL_REDUCED_FIBER_2_ERR
+                wavelengths = adinput[0].FIBER_2
+            if fiber_number == 3:
+                reduced_orders = adinput[0].REDUCED_ORDERS_FIBER_3
+>>>>>>> 9289dd70091d33872455b5dab3b5248b5a783cbe
                 box_reduced_fiber = adinput[0].BOX_REDUCED_FIBER_3
                 box_reduced_err = adinput[0].BOX_REDUCED_FIBER_3_ERR
                 opt_reduced_fiber = adinput[0].OPTIMAL_REDUCED_FIBER_3
                 opt_reduced_err = adinput[0].OPTIMAL_REDUCED_FIBER_3_ERR
                 wavelengths = adinput[0].FIBER_3
+<<<<<<< HEAD
                 '''
             if fiber_number == 4:
                 reduced_orders = adinput[0].REDUCED_ORDERS_FIBER_4
                 '''
+=======
+            if fiber_number == 4:
+                reduced_orders = adinput[0].REDUCED_ORDERS_FIBER_4
+>>>>>>> 9289dd70091d33872455b5dab3b5248b5a783cbe
                 box_reduced_fiber = adinput[0].BOX_REDUCED_FIBER_4
                 box_reduced_err = adinput[0].BOX_REDUCED_FIBER_4_ERR
                 opt_reduced_fiber = adinput[0].OPTIMAL_REDUCED_FIBER_4
                 opt_reduced_err = adinput[0].OPTIMAL_REDUCED_FIBER_4_ERR
                 wavelengths = adinput[0].FIBER_4
+<<<<<<< HEAD
                 '''
             if fiber_number == 5:
                 reduced_orders = adinput[0].REDUCED_ORDERS_FIBER_5
                 '''
+=======
+            if fiber_number == 5:
+                reduced_orders = adinput[0].REDUCED_ORDERS_FIBER_5
+>>>>>>> 9289dd70091d33872455b5dab3b5248b5a783cbe
                 box_reduced_fiber = adinput[0].BOX_REDUCED_FIBER_5
                 box_reduced_err = adinput[0].BOX_REDUCED_FIBER_5_ERR
                 opt_reduced_fiber = adinput[0].OPTIMAL_REDUCED_FIBER_5
                 opt_reduced_err = adinput[0].OPTIMAL_REDUCED_FIBER_5_ERR
                 wavelengths = adinput[0].FIBER_5
+<<<<<<< HEAD
                 '''
             if fiber == 'Etalon':
                 # Create the EtalonSpectrum object
                 self.spectra[fiber_number] = EtalonSpectrum(orders = reduced_orders,
                                                             peak_data = peak_df.loc[peak_df['FIBER'] == fiber_number],
+=======
+
+            if fiber == 'Etalon':
+                # Create the EtalonSpectrum object
+                self.spectra[fiber_number] = EtalonSpectrum(orders = reduced_orders,
+                                                            box_data = box_reduced_fiber,
+                                                            box_error = box_reduced_err,
+                                                            opt_data = opt_reduced_fiber,
+                                                            opt_error = opt_reduced_err,
+                                                            wavelength_data = wavelengths,
+                                                            peak_data = peak_df.loc[peak_df['Fiber'] == fiber_number],
+>>>>>>> 9289dd70091d33872455b5dab3b5248b5a783cbe
                                                             poly_data = poly_data,
                                                             pm = pm,
                                                             etalon_peaks_symmetric = etalon_peaks_symmetric)
             elif fiber == 'Flat':
                 # Create the FlatSpectrum object
                 self.spectra[fiber_number] = FlatSpectrum(orders = reduced_orders,
+<<<<<<< HEAD
                                                           peak_data = peak_df.loc[peak_df['FIBER'] == fiber_number],
                                                           poly_data = poly_data,
                                                           pm = pm)
@@ -137,5 +182,25 @@ class MXSpectrum(object):
                 # Treat as regular Echelle spectrum
                 self.spectra[fiber_number] = EchelleSpectrum(orders=reduced_orders,
                                                              peak_data = peak_df.loc[peak_df['FIBER'] == fiber_number],
+=======
+                                                          box_data = box_reduced_fiber,
+                                                          box_error = box_reduced_err,
+                                                          opt_data = opt_reduced_fiber,
+                                                          opt_error = opt_reduced_err,
+                                                          wavelength_data = wavelengths,
+                                                          peak_data = peak_df.loc[peak_df['Fiber'] == fiber_number],
+                                                          poly_data = poly_data,
+                                                          pm = pm)
+            else:
+                # Treat as regular Echelle spectrum
+                self.spectra[fiber_number] = EchelleSpectrum(orders = reduced_orders,
+                                                             box_data = box_reduced_fiber,
+                                                             box_error = box_reduced_err,
+                                                             opt_data = opt_reduced_fiber,
+                                                             opt_error = opt_reduced_err,
+                                                             wavelength_data = wavelengths,
+                                                             peak_data = peak_df.loc[peak_df['Fiber'] == fiber_number],
+                                                             poly_data = poly_data,
+>>>>>>> 9289dd70091d33872455b5dab3b5248b5a783cbe
                                                              pm = pm)
 

@@ -16,7 +16,11 @@ from .primitives_maroonx_echelle import MAROONXEchelle
 from .maroonx_echellespectrum.maroonxspectrum import MXSpectrum
 from gempy.gemini import gemini_tools as gt
 from geminidr.core import Spect
+<<<<<<< HEAD
 from matplotlib.backends.backend_pdf import PdfPages
+=======
+from .maroonx_echellespectrum.maroonxspectrum import MXSpectrum
+>>>>>>> 9289dd70091d33872455b5dab3b5248b5a783cbe
 # ------------------------------------------------------------------------------
 class LogExceptions(object):
     """
@@ -39,7 +43,11 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
     """
     This class contains primitives to reduce MAROON-X 1-D spectra.
     Code in this class takes already produced 1-D reduced spectra
+<<<<<<< HEAD
     and utilizes it to genterate mappings from pixel to wavelength
+=======
+    and utilized it to genterate mappings from pixel to wavelength
+>>>>>>> 9289dd70091d33872455b5dab3b5248b5a783cbe
     (dynamic wavelength calibratiosn).
     """
 
@@ -51,7 +59,11 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         self._param_update(parameters_maroonx_spectrum)
 
     def getPeaksAndPolynomials(self, adinputs=None, guess_file=None,
+<<<<<<< HEAD
                             fibers=[2,3,4,5], orders=None, degree_sigma=4, degree_width=2,
+=======
+                            fibers=[], orders=[], degree_sigma=4, degree_width=2,
+>>>>>>> 9289dd70091d33872455b5dab3b5248b5a783cbe
                             use_sigma_lr=True, show_plots=False,
                             plot_path="", multithreading=True,
                             iterations = 5, **params):
@@ -251,7 +263,11 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
         return adinputs
 
+<<<<<<< HEAD
     def fitAndApplyEtalonWls(self, adinputs, plot_path=None, ref_file=None, ref_fiber=None, symmetric_linefits=False):
+=======
+    def fitAndApplyEtalonWls(self, adinputs, fibers, plot_path=None, ref_file=None, ref_fiber=None, symmetric_linefits=False):
+>>>>>>> 9289dd70091d33872455b5dab3b5248b5a783cbe
         """
         This step computes a new spline-based dynamical wavelength solution for each fiber using etalon paramters that
         are provided as a config file, and a initial solution generated from a DTTTE file.  The lines in the spectra
@@ -309,6 +325,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 log.error(f'Exception: {e}')
                 continue
 
+<<<<<<< HEAD
             '''
 
                 # If a reference file and reference fiber is given, offset the etalon position on all fibers by the offset
@@ -537,3 +554,30 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
     print('Results saved')
     print('Done')
 '''
+=======
+        if ref_file is not None:
+            ref_peaks = ref_file[0].PEAKS[ref_file[0].PEAKS['FIBER'] == ref_fiber]
+            peak_centers = ref_peaks["CENTER"]
+            # TODO: Ask Andreas what this is supposed to do because currently
+            # we do not know how this works in the old pipeline
+
+        for ad in adinputs:
+            # Set the location of the plot file
+            if plot_path is not None:
+                plot_file = plot_path + '/' + adinputs[0].filename + tag + '.png'
+            # Load the reference spectrum from config
+            wavelength_file = maroonx_utils.get_refwavelength_filename(ad)
+            wave_dict = ad.open(wavelength_file)
+            log.fullinfo(f"Using reference file {wavelength_file} for wavelength solution")
+            if symmetric_linefits:
+                etalon = MXSpectrum(ad, etalon_peaks_symmetric=True)
+            else:
+                etalon = MXSpectrum(ad)
+            for fiber in fibers:
+                # Guess the peak numbers in the measured spectrum
+                peak_numbers = guess_peak_numbers(self, reduced_fiber, peak_data, poly_data)
+
+
+            return adinputs
+
+>>>>>>> 9289dd70091d33872455b5dab3b5248b5a783cbe

@@ -10,14 +10,21 @@ class EtalonSpectrum(EchelleSpectrum):
     """
     Describes an etalon spectrum.  Inherits from EchelleSpectrum.
     """
+<<<<<<< HEAD
     def __init__(self, peak_data, poly_data,  etalon_peaks_symmetric = False, **kwargs):
+=======
+    def __init__(self, peak_data, **kwargs):
+>>>>>>> 9289dd70091d33872455b5dab3b5248b5a783cbe
         """
         Initializes the EtalonSpectrum object.
         """
         super().__init__(**kwargs)
         self.peak_data = peak_data
+<<<<<<< HEAD
         self.poly_data = poly_data
         self.etalon_peaks_symmetric = etalon_peaks_symmetric
+=======
+>>>>>>> 9289dd70091d33872455b5dab3b5248b5a783cbe
         self.etalon_parameters = self.generate_etalon_parameters(l=9.9985)
 
 

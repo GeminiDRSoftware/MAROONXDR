@@ -44,9 +44,29 @@ class EchelleSpectrum:
         filename : str
             Filename of raw file.  Used for book-keeping.
         """
+<<<<<<< HEAD
 
         # physical orders - sorted like the index
         self.orders = orders
+=======
+        self.box_data = box_data
+        self.box_error = box_error
+        self.opt_data = opt_data
+        self.opt_error = opt_error
+        self.filename = filename
+
+        #Construct a dataframe with the data
+        self.data = pd.DataFrame.from_dict({'box_intensity': box_data, 'box_error': box_error,
+                                            'opt_intensity': opt_data, 'opt_error': opt_error,
+                                            'wavelength': wavelength_data})
+        #'wavelength': wavelength_data
+        self.data.set_index(orders, inplace=True)
+        self.data.sort_index(inplace=True)
+
+        # physical orders - sorted like the index
+        self.orders = orders
+
+>>>>>>> 9289dd70091d33872455b5dab3b5248b5a783cbe
         min_order = np.min(orders)
         max_order = np.max(orders)
 
@@ -104,7 +124,10 @@ class EchelleSpectrum:
         norm_pixel = (pixel - min_pixel)/(max_pixel - min_pixel) * 2. - 1.
         return norm_pixel
 
+<<<<<<< HEAD
     '''
+=======
+>>>>>>> 9289dd70091d33872455b5dab3b5248b5a783cbe
     @property
     def data(self):
         """
@@ -114,7 +137,11 @@ class EchelleSpectrum:
             data (dataframe): Data.
         """
         return self.data
+<<<<<<< HEAD
     '''
+=======
+
+>>>>>>> 9289dd70091d33872455b5dab3b5248b5a783cbe
     @property
     def orders(self):
         """
