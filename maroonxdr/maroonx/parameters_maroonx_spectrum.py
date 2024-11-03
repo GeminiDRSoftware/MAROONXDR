@@ -17,4 +17,13 @@ class getPeaksAndPolynomialsConfig(config.Config):
     use_sigma_lr = config.Field("Use different polynomials for the left and right sides of the wings", bool, True)
     #plot_path = config.Field("Path to save plots", str, None)
     multithreading = config.Field("Use multithreading", bool, False)
-    iterations = config.Field("Number of iterations", int, 3)
+    iterations = config.Field("Number of iterations", int, 10)
+
+class fitAndApplyEtalonWlsConfig(config.Config):
+    '''
+    This parameter set controls the fitAndApplyEtalonWls primitive for MAROON-X.
+    '''
+    plot_path = config.Field("Path to save plots", str, '')
+    ref_file = config.Field("Reference file", str, '')
+    ref_fiber = config.Field("Reference fiber", int, 5)
+    symmetric_linefits = config.Field("Symmetric line fits", bool, False)

@@ -9,7 +9,7 @@ parent_dir = Path(__file__).parents[4]
 sys.path.append(str(parent_dir))
 import maroonx_instruments
 
-all_files = glob.glob('/Users/rohan/Desktop/DRAGONS-X/MAROONXDR/science_dir/20220725T031211Z_DEEEE_r_0003.fits')
+all_files = glob.glob('/Users/rohan/Desktop/DRAGONS-X/MAROONXDR/20220725T031211Z_DEEEE_r_0003_dynamic_wavecal.fits')
 
 all_files.sort()
 

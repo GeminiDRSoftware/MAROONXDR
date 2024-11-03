@@ -46,7 +46,6 @@ class AstroDataMAROONX(AstroDataGemini):
     @astro_data_tag
     def _tag_dark(self):
         if self.phu.get('HIERARCH FIBER1') == 'Dark' and self.phu.get('HIERARCH FIBER2') == 'Dark':
-            print("File is a dark")
             return TagSet(['DARK', 'CAL'])
 
     @astro_data_tag

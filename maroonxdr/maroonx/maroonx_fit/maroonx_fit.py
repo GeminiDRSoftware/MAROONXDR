@@ -105,10 +105,7 @@ def insert_polynomial_parameters(results):
             and result_obj.param_obj.meta_parameters.use_sigma_lr == meta_parameters.use_sigma_lr:
             raise ValueError('All meta_parameters must be the same')
 
-    if meta_parameters.use_sigma_lr:
-        poly = pd.DataFrame()
-    else:
-        poly = pd.DataFrame()
+    poly = pd.DataFrame()
     # Make the empty columns
     recorded_list = []
     fiber_list = []
@@ -296,9 +293,8 @@ def iterative_fit(
 
     amplitudes_sorted = np.sort(fit_object.eval_polynomials_at_centers()[1, :])
 
-    log.info("Flat-relative amplitudes on %s (0. iteration):\
-            min: %.2f, max: %.2f, median: %.2f",\
-            fiber, amplitudes_sorted[10], amplitudes_sorted[-10], np.median(amplitudes_sorted))
+    log.info(f"Flat-relative amplitudes on {fiber} (0. iteration):\
+            min: {amplitudes_sorted[10]}, {amplitudes_sorted[-10]}, median: {np.median(amplitudes_sorted)}")
 
     #Get the required data to calculate residuals
     spectrum_values = fit_object.spectrum_val()
@@ -350,6 +346,7 @@ def iterative_fit(
                  {residuals:.1f} ({resis_norm:.3f})")
 
             # If new residuals differ less than 5% from old residuals, stop iterating
+        if np.abs(resis_norm - old_resis_norm) < 0.05:
             converged = True
             if resis_norm < old_resis_norm:
                 # if we see an improvement, keep the new parameters and increment the iterator
@@ -361,9 +358,9 @@ def iterative_fit(
         old_resis_norm = resis_norm
 
     if converged:
-        log.info("No more improvement for %s after %d. iteration, finished", fiber, i-1)
+        log.info(f"No more improvement for {fiber} after {i-1} iteration, finished")
     else:
-        log.warning("Global fit did not converge for %s after %d. iteration", fiber, i+1)
+        log.warning(f"Global fit did not converge for {fiber} after {i+1} iteration")
 
     if show_plots:
         fit_object.plot_fit()

@@ -282,6 +282,8 @@ class MaroonXFit(object):
         data_sorted = np.sort(data)
         ax1.set_ylim(-0.01, 1.1*data_sorted[-50])
         ax1.legend()
+        ax1.set_ylabel("Normalized Flux")
+        ax1.set_xlabel("Pixel Count")
 
         # Create the residual plot
         ax3.set_title(f'Residuals ({resis:.1f})')
@@ -291,6 +293,8 @@ class MaroonXFit(object):
         ax3_yl = np.nanmin(dmf)
         ax3_yu = np.nanmax(dmf)
         ax3.set_ylim(ax3_yl,ax3_yu)
+        ax3.set_ylabel("Normalized Flux")
+        ax3.set_xlabel("Pixel Count")
 
         # Create the plot with the polynomial values
         ax2.set_title("Polynomial values")
@@ -299,6 +303,8 @@ class MaroonXFit(object):
         for label, values in zip(labels, polynomials):
             ax2.plot(fitrange, values, label=label)
         ax2.legend()
+        ax2.set_ylabel("Value in pixels")
+        ax2.set_xlabel("Pixel Count")
 
         if filename is not None:
             plt.savefig(filename, **PLOT_KWARGS)

@@ -32,7 +32,7 @@ def change_ext(filename, new_ext):
 # Spectrum_vals is polymorphic so that it can be used to
 # give the y-values for a given spectrum either by just providing
 # a fit object or by providing the parameters and meta parameters.
-#Doing this allows us to keep the code cleaner in most places
+# Doing this allows us to keep the code cleaner in most places
 # as 90% of the time we can just use the MaroonXFit object.x
 
 def peak_val(x, amplitude, center, sigma1, half_width, sigma2):
@@ -292,7 +292,7 @@ def fit_peak_centers(fitrange, data, param_obj, parameter_bounds, iteration = No
             x_scale='jac',
         )
         if not res.success:
-            log.error("Failed fitting peak at %d.", p)
+            log.error(f"Failed fitting peak at {p}.")
         fit_results.append(res)
 
     # Get the centers and the amplitudes from fit_results so that
@@ -348,7 +348,7 @@ def find_peaks(data, order=2, savgol_window_length=3, savgol_polyorder=1):
     data[np.array([e>(1.5*cleanmax) if ~np.isnan(e) else False for e in data], dtype=bool) ] = np.nan
 
     if np.count_nonzero(np.isnan(data)) - nancount > 0:
-        log.info("Removed %d positive outlieres 50%% higher than %.3f",\
+        log.info("Removed %d positive outliers 50%% higher than %.3f",\
              np.count_nonzero(np.isnan(data)) - nancount, cleanmax)
 
     # Clean nan values since they get otherwise smeared out by the filter
@@ -356,7 +356,7 @@ def find_peaks(data, order=2, savgol_window_length=3, savgol_polyorder=1):
     mask = np.isnan(data)
     data_clean[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), data[~mask])
 
-    log.info("Found %d nan values in the data", np.count_nonzero(np.isnan(data_clean)))
+    log.info(f"Found {np.count_nonzero(np.isnan(data_clean))} nan values in the data")
 
     # Apply a savgol filter to smooth the data and get rid of noise
     d = signal.savgol_filter(
@@ -407,8 +407,10 @@ def find_peaks(data, order=2, savgol_window_length=3, savgol_polyorder=1):
     # Check if there are minima and maxima at the same pixel and remove them
     minima = np.setdiff1d(minima, maxima)
 
+    len_minima = len(minima)
+    len_maxima = len(maxima)
     # Check that minima and maxima occur alternated, if not, make plots to show error
-    if len(minima) != len(maxima) + 1 or np.any((minima[:-1] > maxima) | (maxima > minima[1:])):
+    if len_minima != len_maxima + 1 or np.any((minima[:-1] > maxima) | (maxima > minima[1:])):
         plt.figure()
         d_nonnan = d.copy()
         d_nonnan[np.isnan(d)] = 0
@@ -422,7 +424,7 @@ def find_peaks(data, order=2, savgol_window_length=3, savgol_polyorder=1):
             f"Found inconsistent number of peaks: {len(minima)} minima and {len(maxima)} maxima"
             ,(maxima, minima))
 
-    log.info("Found %d minima and %d maxima", len(minima), len(maxima))
+    log.info(f"Found {len_minima} minima and {len_maxima} maxima")
     return maxima, minima
 
 def plot_peaks(data, minima, maxima, ax=None, filename=None):

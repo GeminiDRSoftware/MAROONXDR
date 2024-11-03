@@ -29,7 +29,7 @@ from scipy.ndimage import measurements
 from recipe_system.utils.md5 import md5sum
 from recipe_system.utils.decorators import parameter_override
 
-from . lookups import timestamp_keywords as maroonx_stamps
+from .lookups import timestamp_keywords as maroonx_stamps
 from . import parameters_maroonx_2D
 from . import maroonx_utils
 # ------------------------------------------------------------------------------
