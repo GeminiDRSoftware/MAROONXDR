@@ -21,6 +21,7 @@ def makeProcessedDark(p):
     for different exposure times (i.e. ND filter settings) and should be taken
     close in time (within a day or two) to the science frame as the etalon
     source brightness can be time variable.
+
     Parameters
     ----------
     p : PrimitivesCORE object
@@ -34,7 +35,7 @@ def makeProcessedDark(p):
     p.addDQ()
     p.overscanCorrect()
     p.correctImageOrientation()
-    # p.addVAR(read_noise=True,poisson_noise=True) # 9/8 check
+    p.addVAR(read_noise=True,poisson_noise=True)
     p.stackDarks()  # see parameters file for sig-clip choices and overwrites
     p.storeProcessedDark()
 
@@ -42,4 +43,23 @@ def makeProcessedDark(p):
 
 _default = makeProcessedDark
 
+def testVARDark(p):
+    """
+    This recipe produces a dark frame with an additional variance plane added to it.
+    Can be used to add a variance plane to a singular dark frame.  The default recipe
+    adds variance planes to all the dark frames while stacking, and also outputs a dark 
+    frame with a variance plane added to it. 
 
+    Parameters
+    ----------
+    p : PrimitivesCORE object
+        A primitive set matching the recipe_tags.
+    """
+    p.prepare()
+    p.checkArm()
+    p.checkND()
+    p.addDQ()
+    p.overscanCorrect()
+    p.correctImageOrientation()
+    p.addVAR(read_noise=True,poisson_noise=True)
+    p.storeProcessedDark(suffix='_varAdded')

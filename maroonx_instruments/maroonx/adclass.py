@@ -26,18 +26,13 @@ class AstroDataMAROONX(AstroDataGemini):
     def _tag_instrument(self):
         return TagSet(['MAROONX'])
 
-    @astro_data_tag
-    def _tag_spect(self):
-        return TagSet(['SPECT'])
+   # @astro_data_tag
+   # def _tag_spect(self):
+   #     return TagSet(['SPECT'])
 
-    @astro_data_tag
-    def _tag_echelle(self):
-        return TagSet(['ECHELLE'])
-
-    @astro_data_tag
-    def _tag_wavecal(self):
-        return TagSet(['WAVECAL'])
-
+   # @astro_data_tag
+   # def _tag_echelle(self):
+   #     return TagSet(['ECHELLE'])
 
     @astro_data_tag  # TODO: add to headers
     def _tag_arm(self):
@@ -50,46 +45,46 @@ class AstroDataMAROONX(AstroDataGemini):
 
     @astro_data_tag
     def _tag_dark(self):
-        if self.phu.get('HIERARCH FIBER1') == self.phu.get('HIERARCH FIBER2') == 'Dark'\
-                and self.phu.get('HIERARCH FIBER5') == 'Etalon':
-            return TagSet(['DARK', 'CAL'], blocks=['SPECT', 'ECHELLE'])
+        if self.phu.get('HIERARCH FIBER1') == 'Dark' and self.phu.get('HIERARCH FIBER2') == 'Dark':
+            return TagSet(['DARK', 'CAL'])
 
     @astro_data_tag
     def _tag_science(self):
         if self.phu.get('HIERARCH FIBER1') == 'Sky' and self.phu.get('HIERARCH FIBER2') == \
             self.phu.get('HIERARCH FIBER3') == self.phu.get('HIERARCH FIBER4') == 'OBJECT'\
                 and self.phu.get('HIERARCH FIBER5') == 'Etalon':
-            return TagSet(['SCI'])
+            return TagSet(['SCI', 'SPECT'])
+
     @astro_data_tag
     def _tag_flat(self):
         if self.phu.get('HIERARCH FIBER1') == 'Flat' or self.phu.get('HIERARCH FIBER2') == 'Flat' \
                 or self.phu.get('HIERARCH FIBER5') == 'Flat':
             # 2 types based on fiber_setup (science flat and cal fibers flat)
-            return TagSet(['FLAT', 'CAL'], blocks=['SPECT', 'ECHELLE'])
+            return TagSet(['FLAT', 'CAL'])
 
     @astro_data_tag
-    def _tag_etalon(self):
-        if (self.phu.get('HIERARCH FIBER1') == 'Etalon' or self.phu.get('HIERARCH FIBER2') == 'Etalon') \
-                and self.phu.get('HIERARCH FIBER5') == 'Etalon':
-            return TagSet(['WAVECAL', 'ETALON', 'CAL'], blocks=['SPECT', 'ECHELLE', 'DARK'])
+    def _tag_wavecal(self):
+        if self.phu.get('HIERARCH FIBER1') == 'Etalon' or self.phu.get('HIERARCH FIBER2') == 'Etalon':
+            if (self.phu.get('HIERARCH FIBER5') == 'Etalon'):
+                return TagSet(['WAVECAL','SPECT', 'CAL'])
 
     @astro_data_tag
     def _tag_thar(self):
         if (self.phu.get('HIERARCH FIBER1') == 'ThAr' or self.phu.get('HIERARCH FIBER2') == 'ThAr') \
                 and self.phu.get('HIERARCH FIBER5') == 'ThAr':
-            return TagSet(['WAVECAL', 'ThAr', 'CAL'],  blocks=['SPECT', 'ECHELLE'])
+            return TagSet(['WAVECAL', 'SPECT', 'ThAr', 'CAL'])
+
     @astro_data_tag
     def _tag_lfc(self):
         if (self.phu.get('HIERARCH FIBER1') == 'LFC' or self.phu.get('HIERARCH FIBER2') == 'LFC') \
                 and self.phu.get('HIERARCH FIBER5') == 'LFC':
-            return TagSet(['WAVECAL', 'LFC', 'CAL'],  blocks=['SPECT', 'ECHELLE'])
+            return TagSet(['WAVECAL', 'SPECT', 'LFC', 'CAL'])
 
     @astro_data_tag
     def _tag_bpm(self):
         if self.phu.get('OBSTYPE') == 'BPM':
             return TagSet(['BPM'])
 
-    # The tags above are examples (except the "instrument" tag).  
     # Adapt as required.
     # More tags needs to be added by the MAROON-X DR team
 
@@ -144,6 +139,7 @@ class AstroDataMAROONX(AstroDataGemini):
         """
         return [self.phu.get('HIERARCH FIBER1'),self.phu.get('HIERARCH FIBER2'),self.phu.get('HIERARCH FIBER3'),
                 self.phu.get('HIERARCH FIBER4'),self.phu.get('HIERARCH FIBER5')]
+
     @astro_data_descriptor
     def data_label(self):
         """

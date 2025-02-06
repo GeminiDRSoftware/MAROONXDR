@@ -1,13 +1,20 @@
+from copy import deepcopy
+from pathlib import Path
+import sys
+import os
 import logging
 import pytest
 import astrodata
 import numpy as np
-from copy import deepcopy
+
+parent_dir = Path(__file__).parents[4]
+sys.path.append(str(parent_dir))
+from MAROONXDR.maroonxdr.maroonx.primitives_maroonx.primitives_maroonx_generic import MAROONX
 import maroonx_instruments
-from maroonxdr.maroonx.primitives_maroonx import MAROONX
 
 
-@pytest.mark.parametrize("filename",["20220725T164012Z_FDDDF_r_0001_FFFFF_flat.fits"])
+
+@pytest.mark.parametrize("filename",["science_dir/20220725T164012Z_FDDDF_r_0001_FFFFF_flat.fits"])
 def test_find_stripes(caplog, filename):
     """
     Test that the findStripe routine works to identify all stripes that have
@@ -18,6 +25,10 @@ def test_find_stripes(caplog, filename):
     ----------
     caplog : fixture
     filename : str
+
+    Returns
+    -------
+    None
     """
     caplog.set_level(logging.DEBUG)
     ad = astrodata.open(filename)
@@ -37,7 +48,7 @@ def test_find_stripes(caplog, filename):
     assert missing_stripes == 0
 
 
-@pytest.mark.parametrize("filename",["20220725T164012Z_FDDDF_r_0001_FFFFF_flat.fits"])
+@pytest.mark.parametrize("filename",["science_dir/20220725T164012Z_FDDDF_r_0001_FFFFF_flat.fits"])
 def test_identify_stripes(caplog, filename):
     """
     Test that the identifyStripe routine works to give order and number
@@ -52,6 +63,10 @@ def test_identify_stripes(caplog, filename):
     ----------
     caplog : fixture
     filename : str
+
+    Returns
+    -------
+    None
     """
     caplog.set_level(logging.DEBUG)
     ad = astrodata.open(filename)
@@ -76,7 +91,7 @@ def test_identify_stripes(caplog, filename):
 
 
 
-@pytest.mark.parametrize("filename", ["20220725T164012Z_FDDDF_r_0001_FFFFF_flat.fits"])
+@pytest.mark.parametrize("filename", ["science_dir/20220725T164012Z_FDDDF_r_0001_FFFFF_flat.fits"])
 def test_full_stripe_definition(caplog, filename):
     """
     Test that the same exact stripes are found in reference masterflat frame
@@ -85,6 +100,10 @@ def test_full_stripe_definition(caplog, filename):
     ----------
     caplog : fixture
     filename : str
+
+    Returns
+    -------
+    None
     """
     caplog.set_level(logging.DEBUG)
     ad = astrodata.open(filename)

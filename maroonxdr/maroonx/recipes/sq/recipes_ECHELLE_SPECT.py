@@ -1,9 +1,9 @@
 """
-Recipes available to data with tags ['MAROONX', 'ECHELLE', 'SPECT']
+Recipes available to data with tags ['MAROONX', 'SCI']
 Default is "reduce".
 """
 
-recipe_tags = set(['MAROONX', 'ECHELLE', 'SPECT'])
+recipe_tags = set(['MAROONX', 'SCI'])
 
 def reduce(p):
     """
@@ -39,12 +39,14 @@ def reduce(p):
     p.addDQ()  # just placeholder until MX is in caldb
     p.overscanCorrect()
     p.correctImageOrientation()
-    # p.addVAR(read_noise=True,poisson_noise=True)
+    p.addVAR(read_noise=True,poisson_noise=True)
     # get and save wavelength solution (either static reference or frame's unique sim cal solved)
     p.darkSubtraction()
-    p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
-    p.optimalExtraction()  # does 2D to 1D conversion of cut out spectra
-
+    p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra TODO Skip dark for fiber 5
+    p.optimalExtraction()  # does 2D to 1D conversion of cut out spectra (only for fibers 2,3,4)
+    # TODO: perform echelle peak fitting on fiber 5
+    # TODO: Get wavelength solution from dynamic wavecal recipe
+    # TODO: Take Fiber 5 peak positions and 
     p.storeProcessedScience(suffix='_reduced')
     return
 
@@ -52,7 +54,7 @@ _default = reduce
 
 def makeStripeExtractionCheck(p):
     """
-    This recipe is utilized to check the stripe exctraction that is made
+    This recipe is utilized to check the stripe extraction that is made
     in the normal processing of a science frame
     Parameters
     ----------
@@ -68,7 +70,7 @@ def makeStripeExtractionCheck(p):
     p.addDQ()  # just placeholder until MX is in caldb
     p.overscanCorrect()
     p.correctImageOrientation()
-    # p.addVAR(read_noise=True,poisson_noise=True)
+    p.addVAR(read_noise=True,poisson_noise=True)
     # get and save wavelength solution (either static reference or frame's unique sim cal solved)
     p.darkSubtraction()
     p.extractStripes(test_extraction=True)  # gets relevant flat and dark to cut out frame's spectra

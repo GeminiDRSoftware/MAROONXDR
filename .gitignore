@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# fits files
+*.fits
+
 # Distribution / packaging
 .Python
 env/
@@ -110,3 +113,4 @@ ENV/
 .idea
 .pycharm-bash
 
+*.hdf

@@ -1,14 +1,21 @@
+from copy import deepcopy
+from pathlib import Path
+import os
+import sys
 import logging
 import pytest
 import astrodata
-from copy import deepcopy
 import numpy as np
+
+parent_dir = Path(__file__).parents[4]
+sys.path.append(str(parent_dir))
+from MAROONXDR.maroonxdr.maroonx.primitives_maroonx.primitives_maroonx_generic import MAROONX
 import maroonx_instruments
-from maroonxdr.maroonx.primitives_maroonx import MAROONX
 
+os.chdir(parent_dir)
 
-@pytest.mark.parametrize("filename_r", ["20200911T214124Z_DFFFD_r_0000.fits"])
-@pytest.mark.parametrize("filename_b", ["20220725T162306Z_DFFFD_b_0006.fits"])
+@pytest.mark.parametrize("filename_r", ["science_dir/20220725T162106Z_DFFFD_r_0001.fits"])
+@pytest.mark.parametrize("filename_b", ["science_dir/20220725T162451Z_DFFFD_b_0006.fits"])
 def test_checkArm_collection_and_rejection(caplog, filename_r, filename_b):
     """
     Test that first file and others of its arm-type are included
@@ -18,6 +25,10 @@ def test_checkArm_collection_and_rejection(caplog, filename_r, filename_b):
     caplog : fixture
     filename_r : str
     filename_b : str
+
+    Returns
+    -------
+    None
     """
     caplog.set_level(logging.DEBUG)
     ad_red = astrodata.open(filename_r)
@@ -36,8 +47,9 @@ def test_checkArm_collection_and_rejection(caplog, filename_r, filename_b):
     assert all(test_objects[-1].filename not in ad.filename for ad in out)
 
 
-@pytest.mark.parametrize("DFFFD_file", ["20220725T162306Z_DFFFD_b_0006.fits"])
-@pytest.mark.parametrize("FDDDF_file", ["20220725T164341Z_FDDDF_b_0007.fits"])
+@pytest.mark.parametrize("DFFFD_file", ["science_dir/20220725T162306Z_DFFFD_b_0006.fits"])
+@pytest.mark.parametrize("FDDDF_file", ["science_dir/20220725T164854Z_FDDDF_b_0007.fits"])
+
 def test_separating_flat_streams(caplog, DFFFD_file, FDDDF_file):
     """
     Test that seperateFlatStreams correctly separates a set of given flats by
@@ -47,6 +59,10 @@ def test_separating_flat_streams(caplog, DFFFD_file, FDDDF_file):
     caplog : fixture
     filename_r : str
     filename_b : str
+
+    Returns
+    -------
+    None
     """
     caplog.set_level(logging.DEBUG)
     ad_DFFFD = astrodata.open(DFFFD_file)
@@ -68,8 +84,9 @@ def test_separating_flat_streams(caplog, DFFFD_file, FDDDF_file):
                 for ad in test_flats])
 
 
-@pytest.mark.parametrize("DFFFD_file", ["20220725T162306Z_DFFFD_b_0006.fits"])
-@pytest.mark.parametrize("FDDDF_file", ["20220725T164341Z_FDDDF_b_0007.fits"])
+@pytest.mark.parametrize("DFFFD_file", ["science_dir/20220725T162306Z_DFFFD_b_0006.fits"])
+@pytest.mark.parametrize("FDDDF_file", ["science_dir/20220725T164854Z_FDDDF_b_0007.fits"])
+
 def test_combining_flat_streams(caplog, DFFFD_file, FDDDF_file):
     """
     Test that combineFlatStreams correctly 'combines' a set of given two flats
@@ -81,6 +98,10 @@ def test_combining_flat_streams(caplog, DFFFD_file, FDDDF_file):
     caplog : fixture
     filename_r : str
     filename_b : str
+
+    Returns
+    -------
+    None
     """
     caplog.set_level(logging.DEBUG)
     ad_DFFFD = astrodata.open(DFFFD_file)
@@ -88,6 +109,7 @@ def test_combining_flat_streams(caplog, DFFFD_file, FDDDF_file):
     test_flats = [deepcopy(ad_FDDDF), deepcopy(ad_DFFFD)]
     p = MAROONX(test_flats)
     p.prepare()
+    p.addVAR()
     p.separateFlatStreams()
     adtest = p.combineFlatStreams(stream='main', source='DFFFD_flats')
     assert not any("does not exist so nothing to transfer" in r.message for r in caplog.records)

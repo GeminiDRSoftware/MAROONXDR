@@ -1,6 +1,7 @@
 """
 Recipes available to data with tags ['MAROONX', 'CAL', 'FLAT'].
 Default is "makeProcessedFlat"
+TODO: Add a step to get the 1D Spectra for the fibers to use in Wavecal and Science
 """
 
 recipe_tags = set(['MAROONX', 'CAL', 'FLAT'])
@@ -26,7 +27,7 @@ def makeProcessedFlat(p):
     p.addDQ()
     p.overscanCorrect()
     p.correctImageOrientation()
-    # p.addVAR(read_noise=True,poisson_noise=True)
+    p.addVAR(read_noise=True,poisson_noise=True)
     p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
     p.stackFlats(suffix='FDDDF_flats')
     p.stackFlats(stream='DFFFD_flats',suffix='DFFFD')
@@ -36,8 +37,8 @@ def makeProcessedFlat(p):
     p.identifyStripes(stream='DFFFD_flats',selected_fibers='0,2,3,4,0')
     p.defineFlatStripes()  # defines pixel inclusion for each flat region based on stripe ids
     p.defineFlatStripes(stream='DFFFD_flats')
-    p.removeStrayLight()  # remove straylight from frame (this is why 2 partial illumination flat sets are necessary)
-    p.removeStrayLight(stream='DFFFD_flats')
+    p.removeStrayLight(filter_size = 21, box_size = 21)  # remove straylight from frame (this is why 2 partial illumination flat sets are necessary)
+    p.removeStrayLight(stream='DFFFD_flats', filter_size = 21, box_size = 21)
     p.combineFlatStreams(stream='main', source='DFFFD_flats')  # combine straylight-removed images
     p.clearStream(stream='DFFFD_flats') # remove second stream
     p.findStripes()  # re-run find/identify/define routine on combined frame
@@ -52,7 +53,8 @@ _default = makeProcessedFlat
 def makeStrayLightCheck(p):
     """
     This recipe is utilized to check the stray light subtraction that is made
-    in the normal processing of a series of flat frames
+    in the normal processing of a series of flat frames.  Run the straylight_test_prep.py
+    file to generate these.
     Parameters
     ----------
     p : PrimitivesCORE object
@@ -68,7 +70,7 @@ def makeStrayLightCheck(p):
     p.addDQ()
     p.overscanCorrect()
     p.correctImageOrientation()
-    # p.addVAR(read_noise=True,poisson_noise=True)
+    p.addVAR(read_noise=True,poisson_noise=True)
     p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
     p.stackFlats(suffix='FDDDF_flats')
     p.stackFlats(stream='DFFFD_flats', suffix='DFFFD')
@@ -78,8 +80,32 @@ def makeStrayLightCheck(p):
     p.identifyStripes(stream='DFFFD_flats', selected_fibers='0,2,3,4,0')
     p.defineFlatStripes()  # defines pixel inclusion for each flat region based on stripe ids
     p.defineFlatStripes(stream='DFFFD_flats')
-    p.removeStrayLight(snapshot=True)  # remove straylight from frame (this is why 2 partial illumination flat sets are necessary)
-    p.removeStrayLight(stream='DFFFD_flats', snapshot=True)
-    p.storeProcessedFlat(suffix='_straylight_flat')
+    p.removeStrayLight(snapshot=True, filter_size = 21, box_size = 21)  # remove straylight from frame (this is why 2 partial illumination flat sets are necessary)
+    p.removeStrayLight(stream='DFFFD_flats', snapshot=True, filter_size = 21, box_size = 21)
     p.storeProcessedFlat(stream='DFFFD_flats', suffix='_straylight_flat')
+    p.storeProcessedFlat(suffix='_straylight_flat')
 
+def makeFlatVarCheck(p):
+    """
+    This recipe is used to check if the variance extensions are correctly being 
+    computed to a stack of flat images.  It does not find, idntify, or define any stripes.
+    It also does not remove stray light.  Mostly used to test if variance is being 
+    computed correctly for a stack of images.
+    Parameters
+    ----------
+    p : PrimitivesCORE object
+        A primitive set matching the recipe_tags.
+    Returns
+    -------
+    creates test frames with variance added
+    """
+    p.prepare()
+    p.checkArm()
+    p.checkND()
+    p.addDQ()
+    p.overscanCorrect()
+    p.correctImageOrientation()
+    p.addVAR(read_noise=True,poisson_noise=True)
+    p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
+    p.stackFlats(stream='DFFFD_flats', suffix='DFFFD')
+    p.storeProcessedFlat(stream='DFFFD_flats', suffix='_varAddedStack')
