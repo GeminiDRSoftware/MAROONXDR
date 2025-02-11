@@ -1,0 +1,10 @@
+[tool.poetry]
+name = "maroonxdr"
+version = "0.0.0"
+description = "A package in the DRAGONS ecosystem."
+authors = ["The Maroon-X Team <NONE PROVIDED>"]
+license = "BSD3"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+numpy = "*"
