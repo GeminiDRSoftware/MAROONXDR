@@ -6,7 +6,6 @@ from pathlib import Path
 import nox
 
 # Commenting out formating sessions, waiting to have better tests
-# nox.options.sessions = ["lint", "ruff_format"]
 nox.options.sessions = ['observer']
 
 
@@ -163,9 +162,45 @@ def build_tests(session: nox.Session):
     """Run build tests."""
 
 
+@nox.session
+def coverage(session: nox.Session):
+    """Run tests with coverage reporting."""
+    session.install('coverage', 'pytest', 'pytest-cov')
+
+    session.run('coverage', 'erase')
+    session.run('pytest', '-q', 'tests/unit', '--cov=maroonxdr/', '--cov-append')
+    session.run('coverage', 'report', '--fail-under=80', '-m')
+
+
+# Documentation
+@nox.session
+def docs(session: nox.Session):
+    """Build documentation using Sphinx."""
+    session.install('sphinx', 'sphinx-rtd-theme', 'myst-parser')
+    session.run('sphinx-build', '-b', 'html', 'docs/source', 'docs/build/html')
+
+
 # Building
 @nox.session
 def build(session: nox.Session):
     """Build the project."""
     session.install('poetry')
     session.run('poetry', 'build', '--output=dist')
+
+
+# Code complexity checks
+@nox.session
+def complexity(session: nox.Session):
+    """Check code complexity metrics."""
+    session.install('radon')
+    session.run('radon', 'cc', 'maroonxdr/', '-a', '-n', 'C')
+    session.run(
+        'xenon',
+        '--max-absolute',
+        'C',
+        '--max-modules',
+        'C',
+        '--max-average',
+        'A',
+        'maroonxdr/',
+    )
