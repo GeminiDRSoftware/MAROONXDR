@@ -1,88 +1,219 @@
-"""Nox sessions for various automations."""
+"""Noxfile for the MAROONXDR package.
+
+For a list of sessions and their descriptions, run:
+
+.. code-block::
+    nox -l
+
+Please note that, to prevent undesirable execution, there are no default
+sessions, so running ``nox`` in isolation will do nothing.
+"""
 
 import re
 from pathlib import Path
 
 import nox
 
-# Commenting out formating sessions, waiting to have better tests
-nox.options.sessions = ['observer']
+nox.options.sessions = []
+nox.options.default_venv_backend = 'conda'
+nox.options.error_on_external_run = True
+
+# Dragons installation resources
+DRAGONS_URL = R'https://github.com/GeminiDRSoftware/DRAGONS'
+CALMGR_URL = R'https://github.com/GeminiDRSoftware/GeminiCalMgr.git@release/1.1.x'
+OBSDB_URL = R'https://github.com/GeminiDRSoftware/GeminiObsDB.git@release/1.0.x'
+
+DRAGONS_BRANCH = 'master'
+DRAGONS_LOCATION = 'DRAGONS/'
 
 
-def get_dependencies(session: nox.Session) -> list[str]:
-    """Get dependencies from `pyproject.toml` using Poetry."""
-    lockfile_path = Path('poetry.lock')
+def check_dragons_version(session: nox.Session):
+    """Check if dragons is the expected version."""
+    with session.chdir(DRAGONS_LOCATION):
+        result = session.run('git', 'branch', silent=True, external=True)
 
-    if not lockfile_path.exists():
-        session.run('poetry', 'lock', external=True)
+        match_ = re.match(r'^.*\s+(\w+)\s*.*$', result)
 
-    result = session.run(
-        'poetry',
-        'show',
-        '--top-level',
-        silent=True,
+        if not match_:
+            message = 'No DRAGONS branch found.'
+            raise ValueError(message)
+
+        branch_name = match_.group(1)
+
+        if branch_name != DRAGONS_BRANCH:
+            session.warn(f'Unexpected git branch: {branch_name} (not {DRAGONS_BRANCH})')
+
+        else:
+            session.log(f'Found correct branch: {branch_name}')
+
+        result = session.run('git', 'fetch', '--dry-run', silent=True, external=True)
+
+        if result:
+            session.warn(
+                f'Your DRAGONS version is not up-to-date.\n'
+                f'Please check the latest version at:\n'
+                f'    {DRAGONS_URL}\n'
+                f'And, if you would like to update, run:\n\n'
+                f'    git fetch && git pull\n\n'
+                f' We strongly encourage you do this regularly in case of '
+                f' important updates.'
+            )
+
+        else:
+            session.log('DRAGONS is up to date!')
+
+
+def install_dragons(session: nox.Session, python: Path | None = None):
+    """Install dragons into the given session.
+
+    If python is not None, it assumes it is a path to the
+    correct python binary to use.
+    """
+    dragons_path = Path(DRAGONS_LOCATION)
+
+    if not dragons_path.exists():
+        # Clone dragons locally
+        session.run(
+            'git',
+            'clone',
+            '-b',
+            DRAGONS_BRANCH,
+            DRAGONS_URL,
+            str(dragons_path),
+            external=True,
+        )
+
+    check_dragons_version(session)
+
+    if python:
+        session.run(
+            str(python),
+            '-m',
+            'pip',
+            'install',
+            '-e',
+            str(dragons_path),
+            external=True,
+        )
+
+        session.run(
+            str(python),
+            '-m',
+            'pip',
+            'install',
+            f'git+{CALMGR_URL}',
+            f'git+{OBSDB_URL}',
+            external=True,
+        )
+
+        return
+
+    session.install('-e', str(dragons_path))
+    session.install(f'git+{CALMGR_URL}', f'git+{OBSDB_URL}')
+
+
+@nox.session(venv_backend=None)
+def devenv(session: nox.Session):
+    """Create a development environment.
+
+    This will perform the following steps:
+
+    + Create a new virtual environment at ``venv/``
+    + Install DRAGONS:
+        + If DRAGONS does not exist locally, clone it.
+        + Otherwise, perform a ``git fetch && git pull``
+    + Install any other dependencies needed.
+    """
+    env_name = 'mx_dev'
+    session.run(
+        'python3.10',
+        '-m',
+        'venv',
+        'venv/',
+        '--clear',
+        '--upgrade-deps',
+        '--prompt',
+        env_name,
         external=True,
     )
 
-    result = result.replace('(!)', '   ')
+    venv_loc = Path('venv').resolve()
+    venv_python = venv_loc / 'bin' / 'python'
 
-    dependencies = []
-    for line in result.splitlines():
-        if match := re.match(r'^\s*(\S+)\s+([\.0-9vV]+)\s*.*$', line):
-            name = match.group(1)
-            version = match.group(2)
-            dependencies.append(f'{name}=={version}')
+    # Install DRAGONS
+    install_dragons(session, python=venv_python)
 
-    return dependencies
-
-
-@nox.session
-def create_venv(session: nox.Session):
-    """Create a new virtual environment for development."""
-    session.install('poetry', 'poetry-plugin-export', 'virtualenv')
-    dependencies = get_dependencies(session)
+    requirements_file = Path('requirements.txt')
 
     session.run(
-        'virtualenv',
-        'venv',
-        '--prompt=(MAROONXDR)',
+        str(venv_python),
+        '-m',
+        'pip',
+        'install',
+        '-r',
+        str(requirements_file),
+        external=True,
     )
 
-    # Install dependencies
-    session.run('venv/bin/pip', 'install', *dependencies, external=True)
-    session.log('Dependencies installed. Listing them below:')
-    session.run('venv/bin/pip', 'freeze', external=True)
+    venv_activate = venv_loc / 'bin' / 'activate'
 
-    # Initialize pre-commit hooks
+    session.log(
+        f'Successfully created virtual environment at {venv_loc}! '
+        f'To activate your environment, run: \n'
+        f'     source {venv_activate}\n'
+    )
+
     session.notify('initialize_commit_hooks')
 
 
-@nox.session(venv_backend='conda')
-def create_conda_env(session: nox.Session):
-    """Create a new conda environment for development."""
-    session.install('poetry', 'poetry-plugin-export')
-
-    # Get the dependencies directly using get_dependencies
-    dependencies = get_dependencies(session)
-
-    # Create the Conda environment
+@nox.session(venv_backend=None)
+def devconda(session: nox.Session):
+    """Create a conda development environment."""
+    env_name = 'mx_devconda'
     session.run(
         'conda',
         'create',
-        '--force',
-        '--name=mx_dragons',
         '--yes',
-        'python=3.12',
+        '--force',
+        '-n',
+        env_name,
+        '-c',
+        'conda-forge',
+        'python=3.10',
+        external=True,
     )
 
-    # Install dependencies using conda for each dependency
-    for dep in dependencies:
-        session.run(
-            'conda', 'install', '--name=mx_dragons', '--yes', dep, external=True
-        )
+    result = session.run('conda', 'info', '-e', silent=True, external=True)
 
-    # Initialize pre-commit hooks
-    session.notify('initialize_commit_hooks')
+    EXPECTED_COLUMNS = 2
+
+    env_path = None
+
+    for line in result.splitlines():
+        info = line.split('#')[0]
+
+        columns = info.split()
+
+        if len(columns) != EXPECTED_COLUMNS:
+            continue
+
+        name, path = columns
+
+        if name == env_name:
+            env_path = Path(path)
+            break
+
+    if env_path is None:
+        message = f'Could not find environment {env_name}'
+        raise OSError(message)
+
+    env_python = env_path / 'bin' / 'python'
+
+    # Install DRAGONS
+    install_dragons(session, python=env_python)
+
+    session.log('Conda environment generated, to activate run:')
+    session.log(f'   conda activate {env_name}')
 
 
 @nox.session
@@ -108,10 +239,10 @@ def observer(session: nox.Session):
     session.run('ruff', '-s', 'check')
 
     # Check tests
-    session.run('pytest', 'tests/unit', '--tb=no')
+    session.run('pytest', 'maroonxdr/tests/', '--tb=no')
 
 
-@nox.session
+@nox.session(venv_backend=None)
 def initialize_commit_hooks(session: nox.Session):
     """Run pre-commit to install various hooks.
 
@@ -143,23 +274,20 @@ def initialize_commit_hooks(session: nox.Session):
 
 
 # Testing
-@nox.session(python=['3.10', '3.11', '3.12'])
+@nox.session(python='3.10')
 def unit_tests(session: nox.Session):
     """Run unit tests."""
     session.install('pytest')
-    session.run('pytest', 'tests/unit', *session.posargs)
+    session.run(
+        'pytest', 'maroonxdr/tests/', 'maroonx_instruments/tests/', *session.posargs
+    )
 
 
-@nox.session(python=['3.10', '3.11', '3.12'])
+@nox.session(python='3.10')
 def integration_tests(session: nox.Session):
     """Run integration tests."""
-    session.install('pytest')
-    session.run('pytest', 'tests/integration', *session.posargs)
-
-
-@nox.session(python=['3.10', '3.11', '3.12'])
-def build_tests(session: nox.Session):
-    """Run build tests."""
+    message = f'{session.name} not configured.'
+    raise NotImplementedError(message)
 
 
 @nox.session
@@ -168,12 +296,12 @@ def coverage(session: nox.Session):
     session.install('coverage', 'pytest', 'pytest-cov')
 
     session.run('coverage', 'erase')
-    session.run('pytest', '-q', 'tests/unit', '--cov=maroonxdr/', '--cov-append')
+    session.run('pytest', '-q', 'maroonxdr/tests/', '--cov=maroonxdr/', '--cov-append')
     session.run('coverage', 'report', '--fail-under=80', '-m')
 
 
 # Documentation
-@nox.session
+@nox.session(venv_backend='virtualenv')
 def docs(session: nox.Session):
     """Build documentation using Sphinx."""
     session.install('sphinx', 'sphinx-rtd-theme', 'myst-parser')
@@ -181,15 +309,15 @@ def docs(session: nox.Session):
 
 
 # Building
-@nox.session
+@nox.session(venv_backend='virtualenv')
 def build(session: nox.Session):
     """Build the project."""
     session.install('poetry')
     session.run('poetry', 'build', '--output=dist')
 
 
-# Code complexity checks
-@nox.session
+# Code complexity
+@nox.session(venv_backend='virtualenv')
 def complexity(session: nox.Session):
     """Check code complexity metrics."""
     session.install('radon')
