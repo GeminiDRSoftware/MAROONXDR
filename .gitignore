@@ -1,3 +1,8 @@
+# Dragons and MX dev files
+DRAGONS/
+*.hdf
+*.h5
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -114,5 +119,3 @@ ENV/
 # PyCharm
 .idea
 .pycharm-bash
-
-*.hdf
