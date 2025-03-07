@@ -1,7 +1,9 @@
 # Dragons and MX dev files
 DRAGONS/
+science_dir/
 *.hdf
 *.h5
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
