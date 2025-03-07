@@ -6,10 +6,33 @@ authors = ["The Maroon-X Team"]
 license = "BSD3"
 readme = "README.md"
 
+
 [tool.poetry.dependencies]
-python = "3.10"
-numpy = "1.18.1"
-pandas = "1.0.1"
+python = "^3.10"
+numpy = "^1.23"
+pandas = "^1.5"
+astropy = "^6.0"
+
+
+[tool.poetry.group.test.dependencies]
+pytest = "^7.3"
+pytest-cov = "^4.1"
+coverage = "^7.4.4"
+
+
+[tool.poetry.group.dev.dependencies]
+coverage = "^7.4.4"
+pytest = "^7.3"
+pytest-cov = "^4.1"
+ruff = "^0.5.6"
+isort = "^5.13.2"
+pre-commit = "^3.6.2"
+
+
+[tool.poetry.group.docs.dependencies]
+sphinx = "^7.2.6"
+sphinx-rtd-theme = "^2.0.0"
+myst-parser = "^2.0.0"
 
 
 [tool.ruff.format]
@@ -17,6 +40,7 @@ quote-style = "single"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
+
 
 [tool.ruff.lint]
 # All rules definitions can be found at:
