@@ -112,7 +112,48 @@ def install_dragons(session: nox.Session, python: Path | None = None):
     session.install(f'git+{CALMGR_URL}', f'git+{OBSDB_URL}')
 
 
-@nox.session(venv_backend=None)
+def get_dependencies(session: nox.Session, only: str = '') -> list[str]:
+    """Get dependencies from `pyproject.toml` using Poetry.
+
+    Args:
+        session: The nox session
+        only: Optional dependency group name. If not provided, returns main
+             dependencies. Valid values include "main", "test", "dev", or any
+             custom group defined in pyproject.toml.
+
+    Returns
+    -------
+        List of dependencies in the format "name==version"
+    """
+    lockfile_path = Path('poetry.lock')
+    if not lockfile_path.exists():
+        session.run('poetry', 'lock', external=True)
+
+    only = only if only else 'main'
+
+    cmd = ['poetry', 'show', '--top-level', '--only', only]
+
+    result = session.run(
+        *cmd,
+        silent=True,
+        external=True,
+    )
+    return _parse_dependencies(result)
+
+
+def _parse_dependencies(result: str) -> list[str]:
+    """Parse the output of poetry show to extract dependencies."""
+    result = result.replace('(!)', ' ')
+    dependencies = []
+    for line in result.splitlines():
+        if match := re.match(r'^\s*(\S+)\s+([\.0-9vV]+)\s*.*$', line):
+            name = match.group(1)
+            version = match.group(2)
+            dependencies.append(f'{name}=={version}')
+    return dependencies
+
+
+@nox.session(venv_backend=None, python='3.10')
 def devenv(session: nox.Session):
     """Create a development environment.
 
@@ -124,6 +165,9 @@ def devenv(session: nox.Session):
         + Otherwise, perform a ``git fetch && git pull``
     + Install any other dependencies needed.
     """
+    session.install('poetry', 'poetry-plugin-export')
+    dependencies = get_dependencies(session, only='main,dev,test')
+
     env_name = 'mx_dev'
     session.run(
         'python3.10',
@@ -143,15 +187,13 @@ def devenv(session: nox.Session):
     # Install DRAGONS
     install_dragons(session, python=venv_python)
 
-    requirements_file = Path('requirements.txt')
-
+    # Install dependencies
     session.run(
         str(venv_python),
         '-m',
         'pip',
         'install',
-        '-r',
-        str(requirements_file),
+        *dependencies,
         external=True,
     )
 
@@ -169,6 +211,9 @@ def devenv(session: nox.Session):
 @nox.session(venv_backend=None)
 def devconda(session: nox.Session):
     """Create a conda development environment."""
+    session.install('poetry', 'poetry-plugin-export')
+    dependencies = get_dependencies(session, only='main,dev,test')
+
     env_name = 'mx_devconda'
     session.run(
         'conda',
@@ -191,14 +236,12 @@ def devconda(session: nox.Session):
 
     for line in result.splitlines():
         info = line.split('#')[0]
-
         columns = info.split()
 
         if len(columns) != EXPECTED_COLUMNS:
             continue
 
         name, path = columns
-
         if name == env_name:
             env_path = Path(path)
             break
@@ -211,6 +254,12 @@ def devconda(session: nox.Session):
 
     # Install DRAGONS
     install_dragons(session, python=env_python)
+
+    # Install dependencies
+    for dep in dependencies:
+        session.run(
+            'conda', 'install', f'--name={env_name}', '--yes', dep, external=True
+        )
 
     session.log('Conda environment generated, to activate run:')
     session.log(f'   conda activate {env_name}')
@@ -230,19 +279,7 @@ def ruff_format(session: nox.Session):
     session.run('ruff', 'format')
 
 
-@nox.session
-def observer(session: nox.Session):
-    """Run non-destructive checks."""
-    session.install('ruff', 'pytest')
-
-    # Check linting issues
-    session.run('ruff', '-s', 'check')
-
-    # Check tests
-    session.run('pytest', 'maroonxdr/tests/', '--tb=no')
-
-
-@nox.session(venv_backend=None)
+@nox.session(python=False)
 def initialize_commit_hooks(session: nox.Session):
     """Run pre-commit to install various hooks.
 
@@ -277,9 +314,16 @@ def initialize_commit_hooks(session: nox.Session):
 @nox.session(python='3.10')
 def unit_tests(session: nox.Session):
     """Run unit tests."""
-    session.install('pytest')
+    session.install('poetry', 'poetry-plugin-export')
+
+    dependencies = get_dependencies(session, only='main,test')
+    session.install(*dependencies)
+
     session.run(
-        'pytest', 'maroonxdr/tests/', 'maroonx_instruments/tests/', *session.posargs
+        'pytest',
+        'maroonxdr/maroonx/tests/',
+        'maroonx_instruments/tests/',
+        *session.posargs,
     )
 
 
@@ -293,7 +337,10 @@ def integration_tests(session: nox.Session):
 @nox.session
 def coverage(session: nox.Session):
     """Run tests with coverage reporting."""
-    session.install('coverage', 'pytest', 'pytest-cov')
+    session.install('poetry', 'poetry-plugin-export')
+
+    dependencies = get_dependencies(session, only='main,test')
+    session.install(*dependencies)
 
     session.run('coverage', 'erase')
     session.run('pytest', '-q', 'maroonxdr/tests/', '--cov=maroonxdr/', '--cov-append')
@@ -304,7 +351,11 @@ def coverage(session: nox.Session):
 @nox.session(venv_backend='virtualenv')
 def docs(session: nox.Session):
     """Build documentation using Sphinx."""
-    session.install('sphinx', 'sphinx-rtd-theme', 'myst-parser')
+    session.install('poetry', 'poetry-plugin-export')
+
+    dependencies = get_dependencies(session, only='main,docs')
+    session.install(*dependencies)
+
     session.run('sphinx-build', '-b', 'html', 'docs/source', 'docs/build/html')
 
 
@@ -314,21 +365,3 @@ def build(session: nox.Session):
     """Build the project."""
     session.install('poetry')
     session.run('poetry', 'build', '--output=dist')
-
-
-# Code complexity
-@nox.session(venv_backend='virtualenv')
-def complexity(session: nox.Session):
-    """Check code complexity metrics."""
-    session.install('radon')
-    session.run('radon', 'cc', 'maroonxdr/', '-a', '-n', 'C')
-    session.run(
-        'xenon',
-        '--max-absolute',
-        'C',
-        '--max-modules',
-        'C',
-        '--max-average',
-        'A',
-        'maroonxdr/',
-    )
