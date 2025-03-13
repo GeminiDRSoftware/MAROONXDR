@@ -4,6 +4,7 @@ Recipes available to data with tags ``['MAROONX', `BUNDLE`]``.
 
 recipe_tags = set(['MAROONX', 'BUNDLE', 'UNPREPARED'])
 
+
 def processBundle(p):
     """
     This recipe processes MAROONX observation bundles.
@@ -15,7 +16,6 @@ def processBundle(p):
         A primitive set matching the recipe_tags.
     """
     p.splitBundle()
-    return
 
 
 _default = processBundle
