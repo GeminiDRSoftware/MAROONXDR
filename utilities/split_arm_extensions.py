@@ -1,13 +1,10 @@
-
-
 from pathlib import Path
-import glob
 
-from astropy.io import fits
 import astrodata
+from astropy.io import fits
+
 
 def split_arm_extensions(ad):
-
     extensions = {}
 
     for ext in range(len(ad)):
@@ -26,16 +23,15 @@ def split_arm_extensions(ad):
     return extensions
 
 
-# This will take all new maroonx files, separate red/blue frames and write 
+# This will take all new maroonx files, separate red/blue frames and write
 # them back with the original name
 
 base_path = Path('/home/martin/Documentos/Projects/MAROONXDR/science_dir')
 
-subdirs = ['20241114', '20241115'] #, '20241116', '20241124']
+subdirs = ['20241114', '20241115']  # , '20241116', '20241124']
 
 for subdir in subdirs:
-
-    files = glob.glob(str(base_path / subdir / '*'))
+    files = list((base_path / subdir).glob('*'))
 
     for file in files:
         ad = astrodata.open(file)
@@ -53,4 +49,3 @@ for subdir in subdirs:
             arm_ad.phu.insert('ORIGNAME', archive_card, after=True)
 
             arm_ad.write(new_filename, overwrite=True)
-        
