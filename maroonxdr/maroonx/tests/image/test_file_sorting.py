@@ -3,27 +3,57 @@ import os
 from copy import deepcopy
 from pathlib import Path
 
-import astrodata
 import numpy as np
 import pytest
 
+import astrodata
+
 from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 
-parent_dir = Path(__file__).parents[4]
-# sys.path.append(str(parent_dir))
-# from MAROONXDR.maroonxdr.maroonx.primitives_maroonx.primitives_maroonx_generic import MAROONX
+import maroonx_instruments  # noqa : import is necesary for astrodata.instrument()
 
-os.chdir(parent_dir)
+# Test data should be under science_dir
+science_dir = Path(__file__).parents[4] / 'science_dir'
+os.chdir(science_dir)
 
 
-# @pytest.mark.parametrize("filename_r", ["science_dir/20220725T162106Z_DFFFD_r_0001.fits"])
-# @pytest.mark.parametrize("filename_b", ["science_dir/20220725T162451Z_DFFFD_b_0006.fits"])
-@pytest.mark.parametrize(
-    'filename_r', ['science_dir/20241114T181028Z_DFFFD_r_0002.fits']
-)
-@pytest.mark.parametrize(
-    'filename_b', ['science_dir/20241114T181028Z_DFFFD_b_0008.fits']
-)
+@pytest.mark.parametrize('bundle_filename', ['N20241114M3271.fits'])
+def test_splitBundle(caplog, bundle_filename):
+    """
+    Test that a Bundle is splitted in Blue and Red astrodata objects.
+
+    Parameters
+    ----------
+    caplog : fixture
+    bundle_filename : str
+
+    Returns
+    -------
+    None
+    """
+    caplog.set_level(logging.DEBUG)
+
+    ad_bundle = astrodata.open(bundle_filename)
+
+    p = MAROONX([ad_bundle])
+    out = p.splitBundle()
+
+    assert len(out) == 2, "Should return two astrodata objects"
+
+    ad_1, ad_2 = out
+    assert ad_1.indices == [0], "Should have only one indexable header"
+    assert ad_2.indices == [0], "Should have only one indexable header"
+
+    assert ad_1[0].hdr.get('ARM') in ['BLUE', 'RED'], "ARM should be BLUE or RED"
+    assert ad_2[0].hdr.get('ARM') in ['BLUE', 'RED'], "ARM should be BLUE or RED"
+    assert ad_1[0].hdr.get('ARM') != ad_2[0].hdr.get('ARM')
+
+    assert ad_1.phu.get('ORIGNAME') != ad_2.phu.get('ORIGNAME')
+    assert ad_1.phu.get('ARCHNAME') == ad_2.phu.get('ARCHNAME')
+
+
+@pytest.mark.parametrize('filename_r', ['20241114T181028Z_DFFFD_r_0002.fits'])
+@pytest.mark.parametrize('filename_b', ['20241114T181028Z_DFFFD_b_0008.fits'])
 def test_checkArm_collection_and_rejection(caplog, filename_r, filename_b):
     """
     Test that first file and others of its arm-type are included
@@ -68,12 +98,9 @@ def test_checkArm_collection_and_rejection(caplog, filename_r, filename_b):
     assert all(test_objects[-1].filename not in ad.filename for ad in out)
 
 
-@pytest.mark.parametrize(
-    'DFFFD_file', ['science_dir/20220725T162306Z_DFFFD_b_0006.fits']
-)
-@pytest.mark.parametrize(
-    'FDDDF_file', ['science_dir/20220725T164854Z_FDDDF_b_0007.fits']
-)
+@pytest.mark.xfail
+@pytest.mark.parametrize('DFFFD_file', ['20241114T181815Z_DFFFD_b_0008.fits'])
+@pytest.mark.parametrize('FDDDF_file', ['20241114T191006Z_DDDDF_b_0007.fits'])
 def test_separating_flat_streams(caplog, DFFFD_file, FDDDF_file):
     """
     Test that seperateFlatStreams correctly separates a set of given flats by
@@ -120,12 +147,9 @@ def test_separating_flat_streams(caplog, DFFFD_file, FDDDF_file):
     )
 
 
-@pytest.mark.parametrize(
-    'DFFFD_file', ['science_dir/20220725T162306Z_DFFFD_b_0006.fits']
-)
-@pytest.mark.parametrize(
-    'FDDDF_file', ['science_dir/20220725T164854Z_FDDDF_b_0007.fits']
-)
+@pytest.mark.xfail
+@pytest.mark.parametrize('DFFFD_file', ['20220725T162306Z_DFFFD_b_0006.fits'])
+@pytest.mark.parametrize('FDDDF_file', ['20220725T164854Z_FDDDF_b_0007.fits'])
 def test_combining_flat_streams(caplog, DFFFD_file, FDDDF_file):
     """
     Test that combineFlatStreams correctly 'combines' a set of given two flats

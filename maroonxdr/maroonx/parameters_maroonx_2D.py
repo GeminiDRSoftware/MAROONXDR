@@ -154,3 +154,11 @@ class validateDataConfig(parameters_standardize.validateDataConfig):
 
     def setDefaults(self):
         self.require_wcs = False
+
+
+class splitBundleConfig(config.Config):
+    """
+    This parameter set controls the splitBundle primitive for MAROON-X.
+    """
+
+    suffix = config.Field('Filename suffix', str, '')

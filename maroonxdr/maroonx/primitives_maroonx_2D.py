@@ -44,9 +44,6 @@ class MAROONX(Gemini, CCD, NearIR):
         # Add MAROON-X specific timestamp keywords
         self.timestamp_keys.update(maroonx_stamps.timestamp_keys)
 
-    def splitBundle(self, adinputs=None, **params):
-        return
-
     def addDQ(self, adinputs=None, **params):
         # just edited for bpm lookup, can be removed when MX is caldb compliant
         """
@@ -1478,4 +1475,37 @@ class MAROONX(Gemini, CCD, NearIR):
         adoutputs.append(adout)
         # For the rest of the extensions, we do not need to do this because we
         # will rerun id'ing on combined image frame
+        return adoutputs
+
+    def splitBundle(self, adinputs=None, **params):
+        log = self.log
+        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
+
+        adoutputs = []
+
+        for ad in adinputs:
+            for ext in ad.indices:
+                hdu = fits.ImageHDU(
+                    data=ad[ext].data,
+                    header=ad[ext].hdr,
+                    name=ad[ext].hdr.get('EXTNAME', 'SCI'),
+                )
+
+                # New astrodata for this extension
+                arm_ad = astrodata.create(deepcopy(ad.phu), [hdu])
+
+                # Revert to original file name
+                arm_name = ad[ext].hdr.get('ORIGNAME')
+                arm_ad.filename = arm_name
+
+                # Overwrite ORIGNAME from PHU for consistency
+                arm_ad.phu['ORIGNAME'] = arm_name
+
+                # Now add a ARCHNAME for reference after ORIGNAME
+                archive_card = fits.Card('ARCHNAME', ad.filename, 'Gemini archive name')
+                arm_ad.phu.insert('ORIGNAME', archive_card, after=True)
+
+                # arm_ad.write(new_filename, overwrite=True)
+                adoutputs.append(arm_ad)
+
         return adoutputs
