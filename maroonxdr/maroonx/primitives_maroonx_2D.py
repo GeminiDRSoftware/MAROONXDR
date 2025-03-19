@@ -1478,6 +1478,27 @@ class MAROONX(Gemini, CCD, NearIR):
         return adoutputs
 
     def splitBundle(self, adinputs=None, **params):
+        """
+        Splits a bundle (Red and Blue multi-extension AstroData object) into separate
+        AstroData objects, each containing one of the original extensions.
+
+        This primitive creates a separate AstroData object for each extension in the input
+        bundle. Each new object is a complete deep copy of the original, with all other
+        extensions removed. This ensures all tables and associated data are preserved for
+        the remaining extension. The original file name is retrieved from the 'ORIGNAME'
+        header and assigned to the new object, and an 'ARCHNAME' header is added to
+        reference the Gemini Archive file name.
+
+        Parameters
+        ----------
+        adinputs : list of AstroData objects
+            List of multi-extension AstroData objects to be split.
+
+        Returns
+        -------
+        adouputs : list of AstroData objects
+            List containing a separate AstroData object for each extension in each input
+        """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
 
@@ -1485,14 +1506,13 @@ class MAROONX(Gemini, CCD, NearIR):
 
         for ad in adinputs:
             for ext in ad.indices:
-                hdu = fits.ImageHDU(
-                    data=ad[ext].data,
-                    header=ad[ext].hdr,
-                    name=ad[ext].hdr.get('EXTNAME', 'SCI'),
-                )
+                # Create a deep copy of the original AstroData object
+                arm_ad = deepcopy(ad)
 
-                # New astrodata for this extension
-                arm_ad = astrodata.create(deepcopy(ad.phu), [hdu])
+                # Keep only the current extension and remove others
+                indices_to_remove = [i for i in arm_ad.indices if i != ext]
+                for i in indices_to_remove:
+                    del arm_ad[i]
 
                 # Revert to original file name
                 arm_name = ad[ext].hdr.get('ORIGNAME')

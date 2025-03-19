@@ -5,6 +5,12 @@ from . import lookup
 
 # gemini_keyword_names = dict(overscan_section = 'BIASSEC')
 
+FLAT_FIBER_SETUPS = [
+    ['Flat lamp', 'Dark', 'Dark', 'Dark', 'Flat lamp'],
+    ['Dark', 'Flat lamp', 'Flat lamp', 'Flat lamp', 'Dark'],
+    ['Dark', 'Dark', 'Dark', 'Dark', 'Flat lamp'],
+]
+
 
 class AstroDataMAROONX(AstroDataGemini):
     # single keyword mapping.  add only the ones that are different
@@ -38,6 +44,7 @@ class AstroDataMAROONX(AstroDataGemini):
 
     @astro_data_tag
     def _tag_arm(self):
+        """Tag the data as either BLUE, RED, or BUNDLE."""
         if len(self.indices) == 2:
             if self[0].hdr.get('ARM') == 'BLUE' and self[1].hdr.get('ARM') == 'RED':
                 return TagSet(['BUNDLE'])
@@ -68,12 +75,7 @@ class AstroDataMAROONX(AstroDataGemini):
 
     @astro_data_tag
     def _tag_flat(self):
-        if (
-            self.phu.get('FIBER1') == 'Flat'
-            or self.phu.get('FIBER2') == 'Flat'
-            or self.phu.get('FIBER5') == 'Flat'
-        ):
-            # 2 types based on fiber_setup (science flat and cal fibers flat)
+        if self.fiber_setup() in FLAT_FIBER_SETUPS:
             return TagSet(['FLAT', 'CAL'])
 
     @astro_data_tag

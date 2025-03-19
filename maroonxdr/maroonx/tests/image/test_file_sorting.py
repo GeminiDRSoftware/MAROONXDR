@@ -3,14 +3,12 @@ import os
 from copy import deepcopy
 from pathlib import Path
 
+import astrodata
 import numpy as np
 import pytest
 
-import astrodata
-
-from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
-
 import maroonx_instruments  # noqa : import is necesary for astrodata.instrument()
+from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 
 # Test data should be under science_dir
 science_dir = Path(__file__).parents[4] / 'science_dir'
@@ -38,18 +36,20 @@ def test_splitBundle(caplog, bundle_filename):
     p = MAROONX([ad_bundle])
     out = p.splitBundle()
 
-    assert len(out) == 2, "Should return two astrodata objects"
+    assert len(out) == 2, 'Should return two astrodata objects'
 
     ad_1, ad_2 = out
-    assert ad_1.indices == [0], "Should have only one indexable header"
-    assert ad_2.indices == [0], "Should have only one indexable header"
+    assert ad_1.indices == [0], 'Should have only one indexable header'
+    assert ad_2.indices == [0], 'Should have only one indexable header'
 
-    assert ad_1[0].hdr.get('ARM') in ['BLUE', 'RED'], "ARM should be BLUE or RED"
-    assert ad_2[0].hdr.get('ARM') in ['BLUE', 'RED'], "ARM should be BLUE or RED"
+    assert ad_1[0].hdr.get('ARM') in ['BLUE', 'RED'], 'ARM should be BLUE or RED'
+    assert ad_2[0].hdr.get('ARM') in ['BLUE', 'RED'], 'ARM should be BLUE or RED'
     assert ad_1[0].hdr.get('ARM') != ad_2[0].hdr.get('ARM')
 
     assert ad_1.phu.get('ORIGNAME') != ad_2.phu.get('ORIGNAME')
     assert ad_1.phu.get('ARCHNAME') == ad_2.phu.get('ARCHNAME')
+
+    assert ad_bundle.tables == ad_1.tables == ad_2.tables
 
 
 @pytest.mark.parametrize('filename_r', ['20241114T181028Z_DFFFD_r_0002.fits'])
