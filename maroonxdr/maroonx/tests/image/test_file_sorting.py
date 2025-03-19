@@ -108,8 +108,8 @@ def test_separating_flat_streams(caplog, DFFFD_file, FDDDF_file):
     Parameters
     ----------
     caplog : fixture
-    filename_r : str
-    filename_b : str
+    DFFFD_file : str
+    FDDDF_file : str
 
     Returns
     -------
@@ -150,9 +150,9 @@ def test_separating_flat_streams(caplog, DFFFD_file, FDDDF_file):
     assert len(p.streams['DFFFD_flats']) == num_DFFFD
 
 
-@pytest.mark.xfail
-@pytest.mark.parametrize('DFFFD_file', ['20220725T162306Z_DFFFD_b_0006.fits'])
-@pytest.mark.parametrize('FDDDF_file', ['20220725T164854Z_FDDDF_b_0007.fits'])
+
+@pytest.mark.parametrize('DFFFD_file', ['20241114T181815Z_DFFFD_b_0008.fits'])
+@pytest.mark.parametrize('FDDDF_file', ['20241114T191006Z_DDDDF_b_0007.fits'])
 def test_combining_flat_streams(caplog, DFFFD_file, FDDDF_file):
     """
     Test that combineFlatStreams correctly 'combines' a set of given two flats
@@ -163,8 +163,8 @@ def test_combining_flat_streams(caplog, DFFFD_file, FDDDF_file):
     Parameters
     ----------
     caplog : fixture
-    filename_r : str
-    filename_b : str
+    DFFFD_file : str
+    FDDDF_file : str
 
     Returns
     -------
@@ -176,17 +176,24 @@ def test_combining_flat_streams(caplog, DFFFD_file, FDDDF_file):
     test_flats = [deepcopy(ad_FDDDF), deepcopy(ad_DFFFD)]
     p = MAROONX(test_flats)
     p.prepare()
-    p.addVAR()
+    p_var = p.addVAR()
     p.separateFlatStreams()
-    adtest = p.combineFlatStreams(stream='main', source='DFFFD_flats')
+    adtest = p.combineFlatStreams(stream_2='DFFFD_flats')
+
     assert not any(
         'does not exist so nothing to transfer' in r.message for r in caplog.records
     )
     assert not any('Unexpected stream lengths' in r.message for r in caplog.records)
     assert len(adtest) == 1
-    assert (
-        adtest[0].data[0] == np.max([ad_DFFFD.data[0], ad_FDDDF.data[0]], axis=0)
-    ).all()
+
+    np.testing.assert_array_equal(
+        adtest[0].data[0],
+        np.max([ad_DFFFD.data[0], ad_FDDDF.data[0]], axis=0)
+    )
+    np.testing.assert_allclose(
+        adtest[0].variance[0],
+        np.max([p_var[0].variance[0], p_var[1].variance[0]], axis=0)
+    )
 
 
 if __name__ == '__main__':

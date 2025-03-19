@@ -1422,47 +1422,52 @@ class MAROONX(Gemini, CCD, NearIR):
             log.warning('No DFFFD Flats in input list')
 
         self.streams['DFFFD_flats'] = flat_dfffd_list
+        log.fullinfo('Flat streams sotred in: p.streams["DFFFD_flats"] and p.streams["main"]')
         return flat_fdddf_list
 
-    def combineFlatStreams(self, adinputs=None, source=None, **params):
+    def combineFlatStreams(self, adinputs=None, stream_2=None, **params):
         """
-        Recombines the flat data into one processed frame,
-        combining the main stream pre-processed and the 'source' stream
-        pre-processed with a simple max comparison at each pix
-
+        Combines two flat field streams into a single, unified flat.
+        
+        This primitive takes two streams of pre-processed flat fields 
+        (typically 'FDDDF' flats in the main stream and 'DFFFD' flats in a 
+        secondary stream) and creates a combined flat field by taking the 
+        maximum value at each pixel position. This produces a flat field with 
+        all fibers illuminated (FFFFF flat configuration).
+        
         Parameters
         ----------
-        'DFFFD_flats' stream : single MX astrodata object
-        'main' stream : single MX astrodata object
-        **params needed for access to stream
-
+        adinputs : list of AstroData
+            Primary stream of flat objects (typically FDDDF flats)
+        stream_2 : str
+            Name of the secondary stream to combine with the main stream
+            (typically 'DFFFD_flats')
+        **params : dict of parameters, optional
+        
         Returns
         -------
-        adoutput : single FFFFF_flat MX astrodata object with primary extension
-            data as combined all fiber illuminated flat
+        list of AstroData
+            List containing a single AstroData object with the combined flat field
+            data.
         """
         log = self.log
-        log.debug(
-            gt.log_message('primitive', self.myself(), 'starting')
-        )  # Log the start of the primitive
+        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
 
-        if (
-            source not in self.streams.keys()
-        ):  # Check the streams dictionary to see if there is source exists
-            log.info(f'Stream {source} does not exist so nothing to transfer')
-            return adinputs  # If source does not exist, return the provided input without modification
+        if stream_2 not in self.streams.keys():
+            # If stream_2 does not exist, return the provided input without modification
+            log.info(f'Stream {stream_2} does not exist so nothing to transfer')
+            return adinputs
 
-        source_length = len(self.streams[source])  # Get the length of the source stream
-        adinputs_length = len(adinputs)  # Get the length of the input stream
+        # We expect both streams to have a length of 1 as we have a single DFFFD flat 
+        # and a single FDDDF flat after stacking. Log a warning otherwise.
+        stream_length = len(self.streams[stream_2])
+        adinputs_length = len(adinputs)
 
-        # We expect the source stream to have a length of 1, and the input stream to have a length of 1
-        # as we have a single DFFFD flat and a single FDDDF flat. If this is not the case, we log a warning.
-
-        if not adinputs_length == source_length == 1:
-            log.warning(
-                f'Unexpected stream lengths: {adinputs_length} and {source_length}'
-            )
+        if not adinputs_length == stream_length == 1:
             # Return the input without modification as we have unexpected stream lengths
+            log.warning(
+                f'Unexpected stream lengths: {adinputs_length} and {stream_length}'
+            )
             return adinputs
 
         # Provided the stream lengths are as expected, we can proceed with the combination
@@ -1470,11 +1475,11 @@ class MAROONX(Gemini, CCD, NearIR):
         adout = deepcopy(adinputs[0])
         # Combine the data from the two streams by taking the max at each pixel
         adout[0].data = np.max(
-            [adinputs[0].data[0], self.streams[source][0].data[0]], axis=0
+            [adinputs[0].data[0], self.streams[stream_2][0].data[0]], axis=0
         )
         # Do the same for the variance
         adout[0].variance = np.max(
-            [adinputs[0].variance[0], self.streams[source][0].variance[0]], axis=0
+            [adinputs[0].variance[0], self.streams[stream_2][0].variance[0]], axis=0
         )
         adoutputs.append(adout)
         # For the rest of the extensions, we do not need to do this because we

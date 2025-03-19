@@ -37,7 +37,7 @@ class combineFlatStreamsConfig(config.Config):
     """
 
     suffix = config.Field('Filename suffix', str, '')  # ?
-    source = config.Field('Stream to transfer from', str, None)
+    stream_2 = config.Field('Second stream to combine', str, None)
 
 
 class correctImageOrientationConfig(config.Config):
