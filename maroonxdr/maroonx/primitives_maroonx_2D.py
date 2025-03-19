@@ -1365,53 +1365,57 @@ class MAROONX(Gemini, CCD, NearIR):
 
     def separateFlatStreams(self, adinputs=None, **params):
         """
-        This primitive splits the flat data into two streams, the 'DFFFD_flats'
-        stream containing DFFFD flats, and main containing FDDDF flats.
-        It also warns if non-flats somehow made it into the list of inputs
+        Splits the flat data into two streams based on fiber setup.
+
+        This primitive divides the input flats into two categories:
+        - 'DFFFD': stored in p.streams['DFFFD_flats']
+        - 'FDDDF' or 'DDDDF': stored in p.streams['main']
 
         Parameters
         ----------
         adinputs : list of MX flats
-        **params needed for access to stream
+        **params : dict of parameters
 
         Returns
         -------
-        'DFFFD_flats' stream
-        'main' stream
+        adoutputs : 'FDDDF' or 'DDDDF' list of AstroData objects
+
+        Notes
+        -----
+        Modifies the instance's `streams` dictionary by adding a 'DFFFD_flats' key
+        containing the list of DFFFD flat field AstroData objects.
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
+
+        # Define flat setups to sort the streams
+        DARK, FLAT = 'Dark', 'Flat lamp'
+        FDDDF_setup = [FLAT, DARK, DARK, DARK, FLAT]
+        DDDDF_setup = [DARK, DARK, DARK, DARK, FLAT]
+        DFFFD_setup = [DARK, FLAT, FLAT, FLAT, DARK]
+
         # Initialize lists of AstroData objects to be added to the streams
         flat_fdddf_list = []
         flat_dfffd_list = []
         mislabeled = []
+
         for ad in adinputs:
-            tags = ad.tags
             # Create list of FDDDF flats to go in the main stream
-            if 'FLAT' in tags and ad.fiber_setup() == [
-                'Flat',
-                'Dark',
-                'Dark',
-                'Dark',
-                'Flat',
-            ]:
+            if 'FLAT' in ad.tags and ad.fiber_setup() in [FDDDF_setup, DDDDF_setup]:
                 flat_fdddf_list.append(ad)
                 log.fullinfo(f'FDDDF Flat: {ad.filename}')
+
             # Create list of DFFFD flats to go in the DFFFD_flats stream
-            elif 'FLAT' in tags and ad.fiber_setup() == [
-                'Dark',
-                'Flat',
-                'Flat',
-                'Flat',
-                'Dark',
-            ]:
+            elif 'FLAT' in ad.tags and ad.fiber_setup() in [DFFFD_setup]:
                 flat_dfffd_list.append(ad)
                 log.fullinfo(f'DFFFD Flat: {ad.filename}')
+
             # Warn if non-flats are in the input list- any other fiber setup is incorrect
             else:
                 mislabeled.append(ad)
                 log.warning(f'Not registered as Flat: {ad.filename}')
-            # Provide warnings if we do not have both types of flats
+
+        # Provide warnings if we do not have both types of flats
         if not flat_fdddf_list:
             log.warning('No FDDDF Flats in input list')
         if not flat_dfffd_list:

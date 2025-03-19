@@ -98,7 +98,6 @@ def test_checkArm_collection_and_rejection(caplog, filename_r, filename_b):
     assert all(test_objects[-1].filename not in ad.filename for ad in out)
 
 
-@pytest.mark.xfail
 @pytest.mark.parametrize('DFFFD_file', ['20241114T181815Z_DFFFD_b_0008.fits'])
 @pytest.mark.parametrize('FDDDF_file', ['20241114T191006Z_DDDDF_b_0007.fits'])
 def test_separating_flat_streams(caplog, DFFFD_file, FDDDF_file):
@@ -129,22 +128,26 @@ def test_separating_flat_streams(caplog, DFFFD_file, FDDDF_file):
     p = MAROONX(test_flats)
     p.prepare()
     p.separateFlatStreams()
+
     assert not any('Not registered as Flat' in r.message for r in caplog.records)
     assert not any('No FDDDF Flats in input list' in r.message for r in caplog.records)
     assert not any('No DFFFD Flats in input list' in r.message for r in caplog.records)
-    assert len(p.streams['main']) == sum(
-        [
-            ad[0].fiber_setup() == ['Flat', 'Dark', 'Dark', 'Dark', 'Flat']
-            for ad in test_flats
-        ]
+
+    DARK, FLAT = 'Dark', 'Flat lamp'
+    num_DDDDF = sum(
+        [ad.fiber_setup() == [DARK, DARK, DARK, DARK, FLAT] for ad in test_flats]
     )
+    num_FDDDF = sum(
+        [ad.fiber_setup() == [FLAT, DARK, DARK, DARK, FLAT] for ad in test_flats]
+    )
+    num_DFFFD = sum(
+        [ad.fiber_setup() == [DARK, FLAT, FLAT, FLAT, DARK] for ad in test_flats]
+    )
+
+    assert len(p.streams['main']) == num_DDDDF + num_FDDDF
+
     assert p.streams['DFFFD_flats'] is not None
-    assert len(p.streams['DFFFD_flats']) == sum(
-        [
-            ad[0].fiber_setup() == ['Dark', 'Flat', 'Flat', 'Flat', 'Dark']
-            for ad in test_flats
-        ]
-    )
+    assert len(p.streams['DFFFD_flats']) == num_DFFFD
 
 
 @pytest.mark.xfail

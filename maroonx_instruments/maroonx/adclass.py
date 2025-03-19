@@ -5,10 +5,23 @@ from . import lookup
 
 # gemini_keyword_names = dict(overscan_section = 'BIASSEC')
 
+# Define the fiber types that are used to identify the type of data
+DARK = 'Dark'
+FLAT = 'Flat lamp'
+SKY = 'Sky'
+OBJECT = 'OBJECT'
+ETALON = 'Etalon'
+THAR = 'ThAr'
+LFC = 'LFC'
+
 FLAT_FIBER_SETUPS = [
-    ['Flat lamp', 'Dark', 'Dark', 'Dark', 'Flat lamp'],
-    ['Dark', 'Flat lamp', 'Flat lamp', 'Flat lamp', 'Dark'],
-    ['Dark', 'Dark', 'Dark', 'Dark', 'Flat lamp'],
+    [FLAT, DARK, DARK, DARK, FLAT],
+    [DARK, FLAT, FLAT, FLAT, DARK],
+    [DARK, DARK, DARK, DARK, FLAT],
+]
+
+DARK_FIBER_SETUPS = [
+    [DARK, DARK, DARK, DARK, ETALON],
 ]
 
 
@@ -58,8 +71,13 @@ class AstroDataMAROONX(AstroDataGemini):
 
     @astro_data_tag
     def _tag_dark(self):
-        if self.phu.get('FIBER1') == 'Dark' and self.phu.get('FIBER2') == 'Dark':
+        if self.fiber_setup() in DARK_FIBER_SETUPS:
             return TagSet(['DARK', 'CAL'])
+
+    @astro_data_tag
+    def _tag_flat(self):
+        if self.fiber_setup() in FLAT_FIBER_SETUPS:
+            return TagSet(['FLAT', 'CAL'])
 
     @astro_data_tag
     def _tag_science(self):
@@ -72,11 +90,6 @@ class AstroDataMAROONX(AstroDataGemini):
             and self.phu.get('FIBER5') == 'Etalon'
         ):
             return TagSet(['SCI', 'SPECT'])
-
-    @astro_data_tag
-    def _tag_flat(self):
-        if self.fiber_setup() in FLAT_FIBER_SETUPS:
-            return TagSet(['FLAT', 'CAL'])
 
     @astro_data_tag
     def _tag_wavecal(self):
