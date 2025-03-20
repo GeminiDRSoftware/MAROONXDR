@@ -405,37 +405,47 @@ class MAROONX(Gemini, CCD, NearIR):
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
         timestamp_key = self.timestamp_keys[self.myself()]
+
         adoutputs = []
         for ad in adinputs:
             log.stdinfo(f'Adding variance extension for {ad.filename}')
+
             npix_x, npix_y = ad[0].data.shape
             var = np.zeros((npix_x, npix_y))
+
             if read_noise:
                 # Check if the frame was from the blue arm by looking at the tags.
                 # If it is, then use the read noise for the blue arm,
                 # otherwise use the read noise for the red arm.
-                if 'BLUE' in ad.tags:
-                    rn_electron = ad[0]  # read noise in electrons for blue arm
-                    log.stdinfo(
-                        f'{ad.filename} set as Blue, electron read noise is 2.9'
-                    )
+                # if 'BLUE' in ad.tags:
+                #     rn_electron = 2.9 # ad[0]  # read noise in electrons for blue arm
+                #     log.stdinfo(
+                #         f'{ad.filename} set as Blue, electron read noise is 2.9'
+                #     )
 
-                elif 'RED' in ad.tags:
-                    rn_electron = 3.5  # read noise in electrons for red arm
-                    log.stdinfo(f'{ad.filename} set as Red, electron read noise is 3.5')
-                else:
-                    # We should never reach this point, but just in case
-                    log.error(f'{ad.filename} has no defined orientation')
-                    raise OSError
-                read_noise = (
-                    rn_electron * ad[0].gain()[0]
-                )  # convert read noise to data units
-                var += read_noise**2
+                # elif 'RED' in ad.tags:
+                #     rn_electron = 3.5  # read noise in electrons for red arm
+                #     log.stdinfo(f'{ad.filename} set as Red, electron read noise is 3.5')
+                # else:
+                #     # We should never reach this point, but just in case
+                #     log.error(f'{ad.filename} has no defined orientation')
+                #     raise OSError
+                # convert read noise to data units
+                # read_noise = rn_electron * ad[0].gain()[0][0]
+                # var += read_noise**2
+
+                read_noise_var = ad.read_noise()[0]
+                var += read_noise_var
+
+                log.stdinfo(
+                    f'{ad.filename} read noise variance contribution is {read_noise_var}'
+                )
+
             if poisson_noise:
                 # The variance due to poisson noise is just the number of photons for each pixel.
                 # Add this to the variance due to the read noise.
-
                 var += ad[0].data
+
             ad[0].variance = var
             adoutputs.append(ad)
         gt.mark_history(adoutputs, primname=self.myself(), keyword=timestamp_key)
@@ -1422,19 +1432,21 @@ class MAROONX(Gemini, CCD, NearIR):
             log.warning('No DFFFD Flats in input list')
 
         self.streams['DFFFD_flats'] = flat_dfffd_list
-        log.fullinfo('Flat streams sotred in: p.streams["DFFFD_flats"] and p.streams["main"]')
+        log.fullinfo(
+            'Flat streams sotred in: p.streams["DFFFD_flats"] and p.streams["main"]'
+        )
         return flat_fdddf_list
 
     def combineFlatStreams(self, adinputs=None, stream_2=None, **params):
         """
         Combines two flat field streams into a single, unified flat.
-        
-        This primitive takes two streams of pre-processed flat fields 
-        (typically 'FDDDF' flats in the main stream and 'DFFFD' flats in a 
-        secondary stream) and creates a combined flat field by taking the 
-        maximum value at each pixel position. This produces a flat field with 
+
+        This primitive takes two streams of pre-processed flat fields
+        (typically 'FDDDF' flats in the main stream and 'DFFFD' flats in a
+        secondary stream) and creates a combined flat field by taking the
+        maximum value at each pixel position. This produces a flat field with
         all fibers illuminated (FFFFF flat configuration).
-        
+
         Parameters
         ----------
         adinputs : list of AstroData
@@ -1443,7 +1455,7 @@ class MAROONX(Gemini, CCD, NearIR):
             Name of the secondary stream to combine with the main stream
             (typically 'DFFFD_flats')
         **params : dict of parameters, optional
-        
+
         Returns
         -------
         list of AstroData
@@ -1458,7 +1470,7 @@ class MAROONX(Gemini, CCD, NearIR):
             log.info(f'Stream {stream_2} does not exist so nothing to transfer')
             return adinputs
 
-        # We expect both streams to have a length of 1 as we have a single DFFFD flat 
+        # We expect both streams to have a length of 1 as we have a single DFFFD flat
         # and a single FDDDF flat after stacking. Log a warning otherwise.
         stream_length = len(self.streams[stream_2])
         adinputs_length = len(adinputs)

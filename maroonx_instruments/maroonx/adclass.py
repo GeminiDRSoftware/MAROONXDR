@@ -58,7 +58,13 @@ class AstroDataMAROONX(AstroDataGemini):
     @astro_data_tag
     def _tag_arm(self):
         """Tag the data as either BLUE, RED, or BUNDLE."""
-        if len(self.indices) == 2:
+        if self.is_single:
+            if self.hdr.get('ARM') == 'BLUE':
+                return TagSet(['BLUE'])
+            if self.hdr.get('ARM') == 'RED':
+                return TagSet(['RED'])
+
+        elif len(self.indices) == 2:
             if self[0].hdr.get('ARM') == 'BLUE' and self[1].hdr.get('ARM') == 'RED':
                 return TagSet(['BUNDLE'])
         elif len(self.indices) == 1:
@@ -148,13 +154,11 @@ class AstroDataMAROONX(AstroDataGemini):
             names of the arrays
         """
         if 'BLUE' in self.tags:
-            arrays = lookup.array_name_b
-        elif 'RED' in self.tags:
-            arrays = lookup.array_name_r
-
-        if self.is_single:
-            return arrays
-        return [arrays]
+            return lookup.array_name_b
+        if 'RED' in self.tags:
+            return lookup.array_name_r
+        if 'BUNDLE' in self.tags:
+            return lookup.array_name_b + lookup.array_name_r
 
     @astro_data_descriptor
     def fiber_setup(self):
@@ -304,23 +308,52 @@ class AstroDataMAROONX(AstroDataGemini):
 
     @astro_data_descriptor
     def read_noise(self):
-        ampname = self.array_name()
-        if self.is_single:
-            return [lookup.read_noise[amp] for amp in ampname]
-        allext = []
-        for extampname in ampname:
-            allext.append([lookup.read_noise[amp] for amp in extampname])
-        return allext
+        # TODO: check if read noise is requested in variance or not
+        # the problem is that the lookup file and the original pipeline quote the
+        # value in data units and in variance,
+        # but the header has the value in electrons and not in variance
+
+        # old implementation - read noise is in variance
+        # ampname = self.array_name()
+        # if self.is_single:
+        #     return [lookup.read_noise[amp] for amp in ampname]
+        # allext = []
+        # for extampname in ampname:
+        #     allext.append([lookup.read_noise[amp] for amp in extampname])
+        # return allext
+
+        # read from header - header is in e- and NOT the variance
+        # def _read_noise_variance(hdr):
+        #     # read noise variance in data units
+        #     return (hdr.get('RDNOISE') / hdr.get('GAIN')) ** 2
+        #
+        # if self.is_single:
+        #     return [_read_noise_variance(self.hdr)]
+        # else:
+        #     return [_read_noise_variance(self[ext].hdr) for ext in self.indices]
+
+        # use lookup table - read noise is in variance
+        return [lookup.read_noise[amp] for amp in self.array_name()]
 
     @astro_data_descriptor
     def gain(self):
-        ampname = self.array_name()
-        if self.is_single:
-            return [lookup.gain[amp] for amp in ampname]
-        allext = []
-        for extampname in ampname:
-            allext.append([lookup.gain[amp] for amp in extampname])
-        return allext
+        # old implementation
+        # ampname = self.array_name()
+        # if self.is_single:
+        #     return [lookup.gain[amp] for amp in ampname]
+        # allext = []
+        # for extampname in ampname:
+        #     allext.append([lookup.gain[amp] for amp in extampname])
+        # return allext
+
+        # read from header
+        # if self.is_single:
+        #     return [self.hdr.get('GAIN')]
+        # else:
+        #     return [self[ext].hdr.get('GAIN') for ext in self.indices]
+
+        # use lookup table
+        return [lookup.gain[amp] for amp in self.array_name()]
 
     @astro_data_descriptor
     def filter_orientation(
