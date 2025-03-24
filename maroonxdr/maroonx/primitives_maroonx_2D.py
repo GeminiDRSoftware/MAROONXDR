@@ -434,7 +434,8 @@ class MAROONX(Gemini, CCD, NearIR):
                 # read_noise = rn_electron * ad[0].gain()[0][0]
                 # var += read_noise**2
 
-                read_noise_var = ad.read_noise()[0]
+                # Use the read noise from first array Region
+                read_noise_var = ad.read_noise()[0][0]  
                 var += read_noise_var
 
                 log.stdinfo(
@@ -487,7 +488,7 @@ class MAROONX(Gemini, CCD, NearIR):
             # If we only have one file with the correct filter setting, return an error
             if len(adoutputs) == 1:
                 log.error(
-                    'Only first frame found, of given, with its'
+                    'Only first frame found, of given, with its '
                     'simcal ND filter setting'
                 )
                 raise OSError

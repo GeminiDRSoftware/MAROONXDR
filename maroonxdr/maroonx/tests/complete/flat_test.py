@@ -17,11 +17,16 @@ from pathlib import Path
 
 from recipe_system.reduction.coreReduce import Reduce
 
+import maroonx_instruments  # noqa : important to load adclass tags
+
 # Get all files in the science_dir.  Change the path here to suit your installation.
 science_dir = Path('/home/martin/Documentos/Projects/MAROONXDR/science_dir')
 
 FDDDF_files = list(science_dir.glob('*_DDDDF_r_0002.fits'))
 DFFFD_files = list(science_dir.glob('*_DFFFD_r_0002.fits'))
+
+FDDDF_files = [str(f) for f in FDDDF_files]
+DFFFD_files = [str(f) for f in DFFFD_files]
 
 FDDDF_files.sort()
 DFFFD_files.sort()

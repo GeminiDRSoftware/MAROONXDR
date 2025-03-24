@@ -1,4 +1,4 @@
-from astrodata import Section, TagSet, astro_data_descriptor, astro_data_tag
+from astrodata import Section, TagSet, astro_data_descriptor, astro_data_tag, returns_list
 from gemini_instruments.gemini import AstroDataGemini
 
 from . import lookup
@@ -142,6 +142,7 @@ class AstroDataMAROONX(AstroDataGemini):
         """
         return super().instrument().replace('-', '')
 
+    @returns_list
     @astro_data_descriptor
     def array_name(self):
         """
@@ -154,11 +155,14 @@ class AstroDataMAROONX(AstroDataGemini):
             names of the arrays
         """
         if 'BLUE' in self.tags:
-            return lookup.array_name_b
+            arrays = [lookup.array_name_b]
         if 'RED' in self.tags:
-            return lookup.array_name_r
+            arrays = [lookup.array_name_r]
         if 'BUNDLE' in self.tags:
-            return lookup.array_name_b + lookup.array_name_r
+            arrays = [lookup.array_name_b, lookup.array_name_r]
+
+        return arrays
+
 
     @astro_data_descriptor
     def fiber_setup(self):
@@ -178,27 +182,6 @@ class AstroDataMAROONX(AstroDataGemini):
             self.phu.get('FIBER5'),
         ]
 
-    @astro_data_descriptor
-    def data_label(self):
-        """
-        Returns the target name as recorded by telops
-
-        Returns
-        -------
-        str name
-        """
-        return self.phu.get('HIERARCH MAROONX TELESCOPE TARGETNAME')
-
-    @astro_data_descriptor
-    def observation_id(self):
-        """
-        Returns the observations program ID as recorded by telops
-
-        Returns
-        -------
-        str pid
-        """
-        return self.phu.get('HIERARCH MAROONX TELESCOPE PROGRAMID')
 
     @astro_data_descriptor
     def overscan_section(self, pretty=False):
@@ -219,8 +202,10 @@ class AstroDataMAROONX(AstroDataGemini):
             for extampname in ampname:
                 allext.append([lookup.bias_section[amp] for amp in extampname])
             return allext
+        
         if self.is_single:
             return [Section.from_string(lookup.bias_section[amp]) for amp in ampname]
+        
         allext = []
         for extampname in ampname:
             allext.append(
@@ -285,6 +270,7 @@ class AstroDataMAROONX(AstroDataGemini):
             )
         return allext
 
+    
     @astro_data_descriptor
     def detector_section(
         self, pretty=False
@@ -313,15 +299,6 @@ class AstroDataMAROONX(AstroDataGemini):
         # value in data units and in variance,
         # but the header has the value in electrons and not in variance
 
-        # old implementation - read noise is in variance
-        # ampname = self.array_name()
-        # if self.is_single:
-        #     return [lookup.read_noise[amp] for amp in ampname]
-        # allext = []
-        # for extampname in ampname:
-        #     allext.append([lookup.read_noise[amp] for amp in extampname])
-        # return allext
-
         # read from header - header is in e- and NOT the variance
         # def _read_noise_variance(hdr):
         #     # read noise variance in data units
@@ -332,35 +309,40 @@ class AstroDataMAROONX(AstroDataGemini):
         # else:
         #     return [_read_noise_variance(self[ext].hdr) for ext in self.indices]
 
-        # use lookup table - read noise is in variance
-        return [lookup.read_noise[amp] for amp in self.array_name()]
+        # old implementation - read noise is in variance
+        ampname = self.array_name()
+        if self.is_single:
+            return [lookup.read_noise[amp] for amp in ampname]
+        allext = []
+        for extampname in ampname:
+            allext.append([lookup.read_noise[amp] for amp in extampname])
+        return allext
 
     @astro_data_descriptor
     def gain(self):
-        # old implementation
-        # ampname = self.array_name()
-        # if self.is_single:
-        #     return [lookup.gain[amp] for amp in ampname]
-        # allext = []
-        # for extampname in ampname:
-        #     allext.append([lookup.gain[amp] for amp in extampname])
-        # return allext
-
         # read from header
         # if self.is_single:
         #     return [self.hdr.get('GAIN')]
         # else:
         #     return [self[ext].hdr.get('GAIN') for ext in self.indices]
 
-        # use lookup table
-        return [lookup.gain[amp] for amp in self.array_name()]
+        # old implementation
+        ampname = self.array_name()
+        if self.is_single:
+            return [lookup.gain[amp] for amp in ampname]
+        allext = []
+        for extampname in ampname:
+            allext.append([lookup.gain[amp] for amp in extampname])
+        return allext
+
 
     @astro_data_descriptor
     def filter_orientation(
         self,
     ):  # this needs to be checked for all analysis utilizing fifth fiber data
         # i.e. dark creation (some value > 0), flat creation (always 0), science extractions (same as dark)
-        return {'ND': '{:.1f}'.format(self.phu.get('HIERARCH MAROONX ND POSITION'))}
+        nd_pos = self.hdr.get('HIERARCH MAROONX ND POSITION')[0]
+        return {'ND': '{:.1f}'.format(nd_pos)}
 
     @astro_data_descriptor
     def image_orientation(self):  # dictionary descriptor
