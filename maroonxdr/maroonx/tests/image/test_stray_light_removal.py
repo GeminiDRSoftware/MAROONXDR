@@ -15,9 +15,8 @@ os.chdir(science_dir)
 
 
 #Change the path names below to suit your installation and the files given to you
-@pytest.mark.xfail
-@pytest.mark.parametrize("DFFFD_file", ["science_dir/20220725T162635Z_DFFFD_r_0001_straylight_flat.fits"])
-@pytest.mark.parametrize("FDDDF_file", ["science_dir/20220725T164012Z_FDDDF_r_0001_straylight_flat.fits"])
+@pytest.mark.parametrize("DFFFD_file", ["20241114T182328Z_DFFFD_b_0008_straylight_flat.fits"])
+@pytest.mark.parametrize("FDDDF_file", ["20241114T190714Z_DDDDF_b_0007_straylight_flat.fits"])
 def test_stray_light_removal(caplog, DFFFD_file, FDDDF_file):
     """
     Test that removeStrayLight correctly removes the stray light across the frame.
@@ -33,9 +32,11 @@ def test_stray_light_removal(caplog, DFFFD_file, FDDDF_file):
     filename_b : str
     """
     caplog.set_level(logging.DEBUG)
+
     ad_DFFFD = astrodata.open(DFFFD_file)
     ad_FDDDF = astrodata.open(FDDDF_file)
     test_flats = [deepcopy(ad_FDDDF), deepcopy(ad_DFFFD)]
+
     p = MAROONX(test_flats)
     p.prepare()
     p.separateFlatStreams()
@@ -47,6 +48,7 @@ def test_stray_light_removal(caplog, DFFFD_file, FDDDF_file):
     p.defineFlatStripes(stream='DFFFD_flats')
     FDDDF_out = p.removeStrayLight(box_size = 21, filter_size = 21)  # remove straylight from frame (this is why 2 partial illumination flat sets are necessary)
     DFFFD_out = p.removeStrayLight(stream='DFFFD_flats', box_size=21, filter_size=21)
+    
     assert (ad_FDDDF[0].STRAYLIGHT_DIFFERENCE == FDDDF_out[0].data - ad_FDDDF[0].data).all()
     assert (ad_DFFFD[0].STRAYLIGHT_DIFFERENCE == DFFFD_out[0].data - ad_DFFFD[0].data).all()
 
