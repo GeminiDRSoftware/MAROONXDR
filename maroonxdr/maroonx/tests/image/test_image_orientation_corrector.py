@@ -14,8 +14,8 @@ from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 science_dir = Path(__file__).parents[4] / 'science_dir'
 os.chdir(science_dir)
 
-@pytest.mark.xfail
-@pytest.mark.parametrize("filename",["science_dir/20220725T162106Z_DFFFD_r_0001.fits"])
+
+@pytest.mark.parametrize("filename", ["20241114T181815Z_DFFFD_r_0002.fits"])
 def test_correctImageOrientation_does_not_change_red_frames(caplog, filename):
     """
     Test that orientation does not change if given a raw red frame
@@ -29,16 +29,18 @@ def test_correctImageOrientation_does_not_change_red_frames(caplog, filename):
     None
     """
     caplog.set_level(logging.DEBUG)
+
     ad = astrodata.open(filename)
     p = MAROONX([deepcopy(ad)])
     p.prepare()
     adtest = p.correctImageOrientation().pop()
+
     np.testing.assert_allclose(adtest[0].data, ad[0].data)
     assert len(caplog.records) > 0
     assert any("set as red" in r.message for r in caplog.records)
 
-@pytest.mark.xfail
-@pytest.mark.parametrize("filename",["science_dir/20220725T162451Z_DFFFD_b_0006.fits"])
+
+@pytest.mark.parametrize("filename", ["20241114T181959Z_DFFFD_b_0008.fits"])
 def test_correctImageOrientation_flips_blue_frames(caplog, filename):
     """
     Test that blue frames are flipped along both axes given a raw blue frame
@@ -52,10 +54,12 @@ def test_correctImageOrientation_flips_blue_frames(caplog, filename):
     None
     """
     caplog.set_level(logging.DEBUG)
+
     ad = astrodata.open(filename)
     p = MAROONX([deepcopy(ad)])
     p.prepare()
     adtest = p.correctImageOrientation().pop()
+
     np.testing.assert_allclose(adtest[0].data, np.fliplr(np.flipud(ad[0].data)))
     assert len(caplog.records) > 0
     assert any("set as blue" in r.message for r in caplog.records)
