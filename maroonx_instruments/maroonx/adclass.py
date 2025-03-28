@@ -76,6 +76,13 @@ class AstroDataMAROONX(AstroDataGemini):
             return TagSet(['UNDEFINED'])
 
     @astro_data_tag
+    def _tag_exptime(self):
+        if self.is_single:
+            return TagSet([f'{int(self.hdr.get("EXPTIME"))}s'])
+        elif len(self.indices) == 1:
+            return TagSet([f'{int(self[0].hdr.get("EXPTIME"))}s'])
+
+    @astro_data_tag
     def _tag_dark(self):
         if self.fiber_setup() in DARK_FIBER_SETUPS:
             return TagSet(['DARK', 'CAL'])
