@@ -197,6 +197,17 @@ def devenv(session: nox.Session):
         external=True,
     )
 
+    # Install maroonxdr and maroonx_instruments
+    session.run(
+        str(venv_python),
+        '-m',
+        'pip',
+        'install',
+        '-e',
+        '.',
+        external=True,
+    )
+
     venv_activate = venv_loc / 'bin' / 'activate'
 
     session.log(
@@ -252,14 +263,43 @@ def devconda(session: nox.Session):
 
     env_python = env_path / 'bin' / 'python'
 
-    # Install DRAGONS
-    install_dragons(session, python=env_python)
 
-    # Install dependencies
-    for dep in dependencies:
+    # Install dependencies from pyproject.toml without version constraints
+    for dependency in dependencies:
+        dep = dependency #.split('==')[0]
         session.run(
             'conda', 'install', f'--name={env_name}', '--yes', dep, external=True
         )
+
+    # Install DRAGONS conda dependencies as stated in its README
+    session.run(
+        'conda', 
+        'install', 
+        f'--name={env_name}', 
+        '--yes',
+        '--no-update-deps',
+        '-c', 
+        'conda-forge',
+        'astropy=6', 'matplotlib', 'numpy', 'psutil', 'python-dateutil',
+        'requests', 'scikit-image', 'scipy', 'sextractor', 'sqlalchemy', 'ds9', 
+        'gwcs', 'specutils', 'sphinx', 'sphinx_rtd_theme', 'bokeh', 'holoviews', 
+        'cython', 'future', 'astroscrappy=1.1', 'fitsverify', 'imexam',
+        external=True
+    )
+
+    # Install DRAGONS
+    install_dragons(session, python=env_python)
+
+    # Install maroonxdr and maroonx_instruments
+    session.run(
+        str(env_python),
+        '-m',
+        'pip',
+        'install',
+        '-e',
+        '.',
+        external=True,
+    )
 
     session.log('Conda environment generated, to activate run:')
     session.log(f'   conda activate {env_name}')
