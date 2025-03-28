@@ -15,8 +15,8 @@ science_dir = Path(__file__).parents[4] / 'science_dir'
 os.chdir(science_dir)
 
 
-@pytest.mark.xfail
-@pytest.mark.parametrize("filename",["science_dir/20220725T164012Z_FDDDF_r_0001_FFFFF_flat.fits"])
+
+@pytest.mark.parametrize("filename", ["20241114T190714Z_DDDDF_r_0002_FFFFF_flat.fits"])
 def test_find_stripes(caplog, filename):
     """
     Test that the findStripe routine works to identify all stripes that have
@@ -50,8 +50,7 @@ def test_find_stripes(caplog, filename):
     assert missing_stripes == 0
 
 
-@pytest.mark.xfail
-@pytest.mark.parametrize("filename",["science_dir/20220725T164012Z_FDDDF_r_0001_FFFFF_flat.fits"])
+@pytest.mark.parametrize("filename", ["20241114T190714Z_DDDDF_r_0002_FFFFF_flat.fits"])
 def test_identify_stripes(caplog, filename):
     """
     Test that the identifyStripe routine works to give order and number
@@ -93,8 +92,7 @@ def test_identify_stripes(caplog, filename):
            == len(ad[0].REMOVED_STRIPES)
 
 
-@pytest.mark.xfail
-@pytest.mark.parametrize("filename", ["science_dir/20220725T164012Z_FDDDF_r_0001_FFFFF_flat.fits"])
+@pytest.mark.parametrize("filename", ["20241114T190714Z_DDDDF_r_0002_FFFFF_flat.fits"])
 def test_full_stripe_definition(caplog, filename):
     """
     Test that the same exact stripes are found in reference masterflat frame
