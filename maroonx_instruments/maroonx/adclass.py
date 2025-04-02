@@ -1,4 +1,10 @@
-from astrodata import Section, TagSet, astro_data_descriptor, astro_data_tag, returns_list
+from astrodata import (
+    Section,
+    TagSet,
+    astro_data_descriptor,
+    astro_data_tag,
+    returns_list,
+)
 from gemini_instruments.gemini import AstroDataGemini
 
 from . import lookup
@@ -9,7 +15,7 @@ from . import lookup
 DARK = 'Dark'
 FLAT = 'Flat lamp'
 SKY = 'Sky'
-OBJECT = 'Target' # 'OBJECT'
+OBJECT = 'Target'  # 'OBJECT'
 ETALON = 'Etalon'
 THAR = 'ThAr'
 LFC = 'LFC'
@@ -83,7 +89,7 @@ class AstroDataMAROONX(AstroDataGemini):
     def _tag_exptime(self):
         if self.is_single:
             return TagSet([f'{int(self.hdr.get("EXPTIME"))}s'])
-        elif len(self.indices) == 1:
+        if len(self.indices) == 1:
             return TagSet([f'{int(self[0].hdr.get("EXPTIME"))}s'])
 
     @astro_data_tag
@@ -167,7 +173,6 @@ class AstroDataMAROONX(AstroDataGemini):
 
         return arrays
 
-
     @astro_data_descriptor
     def fiber_setup(self):
         """
@@ -185,7 +190,6 @@ class AstroDataMAROONX(AstroDataGemini):
             self.phu.get('FIBER4'),
             self.phu.get('FIBER5'),
         ]
-
 
     @astro_data_descriptor
     def overscan_section(self, pretty=False):
@@ -206,10 +210,10 @@ class AstroDataMAROONX(AstroDataGemini):
             for extampname in ampname:
                 allext.append([lookup.bias_section[amp] for amp in extampname])
             return allext
-        
+
         if self.is_single:
             return [Section.from_string(lookup.bias_section[amp]) for amp in ampname]
-        
+
         allext = []
         for extampname in ampname:
             allext.append(
@@ -274,7 +278,6 @@ class AstroDataMAROONX(AstroDataGemini):
             )
         return allext
 
-    
     @astro_data_descriptor
     def detector_section(
         self, pretty=False
@@ -339,14 +342,13 @@ class AstroDataMAROONX(AstroDataGemini):
             allext.append([lookup.gain[amp] for amp in extampname])
         return allext
 
-
     @astro_data_descriptor
     def filter_orientation(
         self,
     ):  # this needs to be checked for all analysis utilizing fifth fiber data
         # i.e. dark creation (some value > 0), flat creation (always 0), science extractions (same as dark)
         nd_pos = self.hdr.get('HIERARCH MAROONX ND POSITION')[0]
-        return {'ND': '{:.1f}'.format(nd_pos)}
+        return {'ND': f'{nd_pos:.1f}'}
 
     @astro_data_descriptor
     def image_orientation(self):  # dictionary descriptor
