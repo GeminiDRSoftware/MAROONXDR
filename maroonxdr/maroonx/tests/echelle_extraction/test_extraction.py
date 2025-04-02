@@ -1,13 +1,23 @@
-import logging
-import pytest
-import astrodata
-from copy import deepcopy
-import numpy as np
-import maroonx_instruments
-from MAROONXDR.maroonxdr.maroonx.primitives_maroonx.primitives_maroonx_echelle import MAROONXEchelle
 
-@pytest.mark.parametrize("filename_r", ["./maroonxdr/maroonx/tests/echelle_extraction/20220808T111549Z_SOOOE_r_0300_reduced.fits"])
-@pytest.mark.parametrize("filename_b", ["./maroonxdr/maroonx/tests/echelle_extraction/20220808T111549Z_SOOOE_b_0300_reduced.fits"])
+import logging
+import os
+from copy import deepcopy
+from pathlib import Path
+
+import astrodata
+import numpy as np
+import pytest
+
+import maroonx_instruments  # noqa : import is necesary for astrodata.instrument()
+from maroonxdr.maroonx.primitives_maroonx_echelle import MAROONXEchelle
+
+# Test data should be under science_dir
+science_dir = Path(__file__).parents[4] / 'science_dir'
+os.chdir(science_dir)
+
+
+@pytest.mark.parametrize("filename_r", ["20241124T041907Z_SOOOE_r_0300_reduced.fits"])
+@pytest.mark.parametrize("filename_b", ["20241124T041907Z_SOOOE_b_0300_reduced.fits"])
 def test_optimal_extracting_science_data(caplog, filename_r, filename_b):
     """
     Test that new optimal extraction and box extraction is equal to

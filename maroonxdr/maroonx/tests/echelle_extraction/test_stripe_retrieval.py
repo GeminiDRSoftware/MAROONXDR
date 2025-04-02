@@ -1,13 +1,22 @@
 import logging
-import pytest
-import astrodata
+import os
 from copy import deepcopy
-import numpy as np
-import maroonx_instruments
-from MAROONXDR.maroonxdr.maroonx.primitives_maroonx.primitives_maroonx_echelle import MAROONXEchelle
+from pathlib import Path
 
-@pytest.mark.parametrize("filename_r", ["./maroonxdr/maroonx/tests/echelle_extraction/20220808T111549Z_SOOOE_r_0300_test_stripes.fits"])
-@pytest.mark.parametrize("filename_b", ["./maroonxdr/maroonx/tests/echelle_extraction/20220808T111549Z_SOOOE_b_0300_test_stripes.fits"])
+import astrodata
+import numpy as np
+import pytest
+
+import maroonx_instruments  # noqa : import is necesary for astrodata.instrument()
+from maroonxdr.maroonx.primitives_maroonx_echelle import MAROONXEchelle
+
+# Test data should be under science_dir
+science_dir = Path(__file__).parents[4] / 'science_dir'
+os.chdir(science_dir)
+
+
+@pytest.mark.parametrize("filename_r", ["20241124T041907Z_SOOOE_r_0300_test_stripes.fits"])
+@pytest.mark.parametrize("filename_b", ["20241124T041907Z_SOOOE_b_0300_test_stripes.fits"])
 def test_getting_stripe_locations(caplog, filename_r, filename_b):
     caplog.set_level(logging.DEBUG)
     for filename in [filename_b, filename_r]:

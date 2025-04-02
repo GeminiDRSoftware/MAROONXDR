@@ -9,24 +9,30 @@ and to have got the test fits files from Kathleen.  You also have to make sure t
 Make sure these flats and darks are in a calibrations directory in the root directory of the installation, and in processed_dark
 and processed_flat subdirectories, respectively.  If you need to change the paths, this can be done in primitives_maroonx_echelle.py
 """
-import glob
-import astrodata
-import sys
-from recipe_system.reduction.coreReduce import Reduce
-from gempy.adlibrary import dataselect
-
 from pathlib import Path
-parent_dir = Path(__file__).parents[4]
-sys.path.append(str(parent_dir))
-import maroonx_instruments
+
+from recipe_system.reduction.coreReduce import Reduce
+
+import maroonx_instruments  # noqa : important to load adclass tags
+
 
 # Get all files in the science_dir.  Change the path here to suit your installation.
-science_files = glob.glob('/Users/rohan/Desktop/DRAGONS-X/MAROONXDR/science_dir/science/*_SOOOE_r_0300.fits')
+science_dir = Path('/home/martin/Documentos/Projects/MAROONXDR/science_dir')
 
-science_files.sort()
+for arm in ['r', 'b']:
+    science_files = list(science_dir.glob(f'*_SOOOE_{arm}_0300.fits'))
 
-# Run reduce on all selected files
-myreduce = Reduce()
-myreduce.files.extend(science_files)
-myreduce.drpkg= 'maroonxdr'
-myreduce.runr()
+    science_files = [str(f) for f in science_files]
+    science_files.sort()
+
+    print(science_files)
+
+    # Run reduce on all selected files
+    myreduce = Reduce()
+    myreduce.files.extend(science_files)
+    myreduce.drpkg= 'maroonxdr'
+    
+    # coment out this line for default reduction
+    myreduce.recipename = 'makeStripeExtractionCheck'
+
+    myreduce.runr()

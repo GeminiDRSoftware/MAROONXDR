@@ -5,20 +5,26 @@ Instead, if the reduce runs successfully, this will produce a 1D reduced spectra
 used for dynamic wavelength calibration.  End users should use this test to test their installation.
 """
 
-import glob
-import sys
+
+
+from pathlib import Path
+
 import astrodata
+
 from recipe_system.reduction.coreReduce import Reduce
 from gempy.adlibrary import dataselect
 
-from pathlib import Path
-parent_dir = Path(__file__).parents[4]
-sys.path.append(str(parent_dir))
-import maroonx_instruments
+import maroonx_instruments  # noqa : important to load adclass tags
 
-all_files = glob.glob('/Users/rohan/Desktop/mxcrunch/outputs/*_DEEEE_r_*.fits')
-    
+# Get all files in the science_dir.  Change the path here to suit your installation.
+science_dir = Path('/home/martin/Documentos/Projects/MAROONXDR/science_dir')
+
+all_files = list(science_dir.glob('*_DEEEE_r_*.fits'))
+all_files = [str(f) for f in all_files]
+
+
 all_files.sort()
+print(all_files)
 
 # Run reduce on all selected files
 myreduce = Reduce()
