@@ -9,7 +9,7 @@ from . import lookup
 DARK = 'Dark'
 FLAT = 'Flat lamp'
 SKY = 'Sky'
-OBJECT = 'OBJECT'
+OBJECT = 'Target' # 'OBJECT'
 ETALON = 'Etalon'
 THAR = 'ThAr'
 LFC = 'LFC'
@@ -22,6 +22,10 @@ FLAT_FIBER_SETUPS = [
 
 DARK_FIBER_SETUPS = [
     [DARK, DARK, DARK, DARK, ETALON],
+]
+
+SCIENCE_FIBER_SETUPS = [
+    [SKY, OBJECT, OBJECT, OBJECT, ETALON],
 ]
 
 
@@ -94,14 +98,7 @@ class AstroDataMAROONX(AstroDataGemini):
 
     @astro_data_tag
     def _tag_science(self):
-        if (
-            self.phu.get('FIBER1') == 'Sky'
-            and self.phu.get('FIBER2')
-            == self.phu.get('FIBER3')
-            == self.phu.get('FIBER4')
-            == 'OBJECT'
-            and self.phu.get('FIBER5') == 'Etalon'
-        ):
+        if self.fiber_setup() in SCIENCE_FIBER_SETUPS:
             return TagSet(['SCI', 'SPECT'])
 
     @astro_data_tag
