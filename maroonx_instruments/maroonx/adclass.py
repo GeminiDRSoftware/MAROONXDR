@@ -12,13 +12,16 @@ from . import lookup
 # gemini_keyword_names = dict(overscan_section = 'BIASSEC')
 
 # Define the fiber types that are used to identify the type of data
+# These names and fiber configuration are taken from the file:
+# 'MAROON-X Data Archiving Notes.pdf'
 DARK = 'Dark'
 FLAT = 'Flat lamp'
 SKY = 'Sky'
-OBJECT = 'Target'  # 'OBJECT'
+OBJECT = 'Target'
 ETALON = 'Etalon'
 THAR = 'ThAr'
 LFC = 'LFC'
+IODINE = 'Iodine cell'
 
 FLAT_FIBER_SETUPS = [
     [FLAT, DARK, DARK, DARK, FLAT],
@@ -33,6 +36,24 @@ DARK_FIBER_SETUPS = [
 SCIENCE_FIBER_SETUPS = [
     [SKY, OBJECT, OBJECT, OBJECT, ETALON],
 ]
+
+THAR_FIBER_SETUPS = [
+    [DARK, THAR, THAR, THAR, THAR],
+    [DARK, THAR, THAR, THAR, ETALON],
+    [DARK, THAR, THAR, THAR, DARK],
+]
+
+ETALON_FIBER_SETUPS = [
+    [DARK, ETALON, ETALON, ETALON, ETALON],
+    [DARK, ETALON, ETALON, ETALON, IODINE],
+]
+
+LFC_FIBER_SETUPS = [
+    [DARK, LFC, LFC, LFC, LFC],
+    [DARK, LFC, LFC, LFC, ETALON],
+    [DARK, ETALON, ETALON, ETALON, LFC],
+]
+
 
 
 class AstroDataMAROONX(AstroDataGemini):
@@ -109,22 +130,28 @@ class AstroDataMAROONX(AstroDataGemini):
 
     @astro_data_tag
     def _tag_wavecal(self):
-        if self.phu.get('FIBER1') == 'Etalon' or self.phu.get('FIBER2') == 'Etalon':
-            if self.phu.get('FIBER5') == 'Etalon':
-                return TagSet(['WAVECAL', 'SPECT', 'CAL'])
+        # if self.phu.get('FIBER1') == 'Etalon' or self.phu.get('FIBER2') == 'Etalon':
+        #     if self.phu.get('FIBER5') == 'Etalon':
+        #         return TagSet(['WAVECAL', 'SPECT', 'CAL'])
+        if self.fiber_setup() in ETALON_FIBER_SETUPS:
+            return TagSet(['WAVECAL', 'SPECT', 'CAL'])
 
     @astro_data_tag
     def _tag_thar(self):
-        if (
-            self.phu.get('FIBER1') == 'ThAr' or self.phu.get('FIBER2') == 'ThAr'
-        ) and self.phu.get('FIBER5') == 'ThAr':
+        # if (
+        #     self.phu.get('FIBER1') == 'ThAr' or self.phu.get('FIBER2') == 'ThAr'
+        # ) and self.phu.get('FIBER5') == 'ThAr':
+        #     return TagSet(['WAVECAL', 'SPECT', 'ThAr', 'CAL'])
+        if self.fiber_setup() in THAR_FIBER_SETUPS:
             return TagSet(['WAVECAL', 'SPECT', 'ThAr', 'CAL'])
 
     @astro_data_tag
     def _tag_lfc(self):
-        if (
-            self.phu.get('FIBER1') == 'LFC' or self.phu.get('FIBER2') == 'LFC'
-        ) and self.phu.get('FIBER5') == 'LFC':
+        # if (
+        #     self.phu.get('FIBER1') == 'LFC' or self.phu.get('FIBER2') == 'LFC'
+        # ) and self.phu.get('FIBER5') == 'LFC':
+        #     return TagSet(['WAVECAL', 'SPECT', 'LFC', 'CAL'])
+        if self.fiber_setup() in LFC_FIBER_SETUPS:
             return TagSet(['WAVECAL', 'SPECT', 'LFC', 'CAL'])
 
     @astro_data_tag
