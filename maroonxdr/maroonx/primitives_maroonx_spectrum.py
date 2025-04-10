@@ -6,19 +6,23 @@ calibration solutions from reduced 1-D spectra.
 import multiprocessing
 import time
 import traceback
-import numpy as np
+
 from astropy.table import Table
+from matplotlib.backends.backend_pdf import PdfPages
+import numpy as np
+
+from geminidr.core import Spect
+from gempy.gemini import gemini_tools as gt
 from recipe_system.utils.decorators import parameter_override
+
 from . import parameters_maroonx_spectrum
 from .maroonx_fit import maroonx_fit
 from . import maroonx_utils
 from .primitives_maroonx_echelle import MAROONXEchelle
 from .maroonx_echellespectrum.maroonxspectrum import MXSpectrum
-from gempy.gemini import gemini_tools as gt
-from geminidr.core import Spect
-from matplotlib.backends.backend_pdf import PdfPages
 from .maroonx_echellespectrum.maroonxspectrum import MXSpectrum
 # ------------------------------------------------------------------------------
+
 class LogExceptions(object):
     """
     Wraps a function, so that a backtrace is written to logger.
@@ -119,15 +123,15 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             if fibers == []:
                 log.warning("No fibers specified.  Finding all etalon fibers and extracting those.")
                 # Read the HIERARCH FIBER keywords from the phu
-                if ad.phu['HIERARCH FIBER1'] == 'Etalon':
+                if ad.phu['FIBER1'] == 'Etalon':
                     fibers.append(1)
-                if ad.phu['HIERARCH FIBER2'] == 'Etalon':
+                if ad.phu['FIBER2'] == 'Etalon':
                     fibers.append(2)
-                if ad.phu['HIERARCH FIBER3'] == 'Etalon':
+                if ad.phu['FIBER3'] == 'Etalon':
                     fibers.append(3)
-                if ad.phu['HIERARCH FIBER4'] == 'Etalon':
+                if ad.phu['FIBER4'] == 'Etalon':
                     fibers.append(4)
-                if ad.phu['HIERARCH FIBER5'] == 'Etalon':
+                if ad.phu['FIBER5'] == 'Etalon':
                     fibers.append(5)
 
             if orders == []:
