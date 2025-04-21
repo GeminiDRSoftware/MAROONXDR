@@ -12,6 +12,20 @@ class getPeaksAndPolynomialsConfig(config.Config):
     """
 
     suffix = config.Field('Filename suffix', str, '_wavecal')
+    guess_file = config.Field(
+        'Name of file containing initial guess spectrum.',
+        str,
+        None,
+        optional=True
+    )
+    fibers = config.ListField(
+        'List of fibers to process.',
+        int,
+        None,
+        optional=True,
+        single=True,
+    )
+    orders = config.ListField('Orders to fit.', int, None, optional=True)
     degree_sigma = config.Field('Degree of the sigma polynomial', int, 4)
     degree_width = config.Field('Degree of the width polynomial', int, 2)
     use_sigma_lr = config.Field(
