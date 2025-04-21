@@ -56,9 +56,9 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         self._param_update(parameters_maroonx_spectrum)
 
     def getPeaksAndPolynomials(self, adinputs=None, guess_file=None,
-                            fibers=[2,3,4,5], orders=None, degree_sigma=4, degree_width=2,
+                            fibers=None, orders=None, degree_sigma=4, degree_width=2,
                             use_sigma_lr=True, show_plots=False,
-                            plot_path="", multithreading=True,
+                            plot_path="", multithreading=False,
                             iterations = 5, **params):
         """
         Extracts the etalon positions from the 1D spectra, determines the centroid,
@@ -120,21 +120,23 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
         for ad in adinputs:
             # See which fibers and orders we are extracting
-            if fibers == []:
+            if fibers is None:
                 log.warning("No fibers specified.  Finding all etalon fibers and extracting those.")
+                fibers_list = []
                 # Read the HIERARCH FIBER keywords from the phu
                 if ad.phu['FIBER1'] == 'Etalon':
-                    fibers.append(1)
+                    fibers_list.append(1)
                 if ad.phu['FIBER2'] == 'Etalon':
-                    fibers.append(2)
+                    fibers_list.append(2)
                 if ad.phu['FIBER3'] == 'Etalon':
-                    fibers.append(3)
+                    fibers_list.append(3)
                 if ad.phu['FIBER4'] == 'Etalon':
-                    fibers.append(4)
+                    fibers_list.append(4)
                 if ad.phu['FIBER5'] == 'Etalon':
-                    fibers.append(5)
+                    fibers_list.append(5)
+                fibers = tuple(fibers_list)
 
-            if orders == []:
+            if orders is None:
                 log.warning("No orders specified.  Extracting all orders.")
 
             # If multithreading is on, disable plotting
