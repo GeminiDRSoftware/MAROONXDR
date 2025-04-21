@@ -212,15 +212,19 @@ class MaroonXFit(object):
 
         idx = meta_parameters.number_of_peaks
 
+        # try:
         #Update the parameters for the fit
         result = optimize.least_squares(
-        spectrum.residual_polynomials,
-        param_obj.parameters[:-2*idx],
-        args = (self,),
-        bounds=parameter_bounds[:, :-2*idx],
-        jac= spectrum.fit_polynomials_jac,
-        x_scale='jac',
-        **kw_args)
+            spectrum.residual_polynomials,
+            param_obj.parameters[:-2*idx],
+            args = (self,),
+            bounds=parameter_bounds[:, :-2*idx],
+            jac= spectrum.fit_polynomials_jac,
+            x_scale='jac',
+            **kw_args)
+        # except ValueError as e:
+        #     print(param_obj.parameters[:-2*idx])
+        #     import ipdb; ipdb.set_trace()
 
         if not result.success:
             raise FitError("Error fitting polynomials.", result)
