@@ -1,32 +1,33 @@
-'''
+"""
 Primitives for MAROON-X echelle data reduction.  Primities in this file are
 focused on the code to produce 1D extracted spectra from 2D spectra
 (as compared to primitives_maroonx_2D, which is focused on primitives
 that focus on the 2D spectra themselves).
-'''
+"""
 # ------------------------------------------------------------------------------
 
 # from geminidr.gemini.lookups import DQ_definitions as DQ
 import copy
-import numpy as np
 from pathlib import Path
 
-from scipy.ndimage import median_filter
-import scipy.sparse as sparse
+import astrodata
 import matplotlib.pyplot as plt
 import numba
-
-import astrodata
+import numpy as np
 from geminidr.core import Spect
 from gempy.gemini import gemini_tools as gt
 from recipe_system.utils.decorators import parameter_override
+from scipy import sparse
+from scipy.ndimage import median_filter
 
 from . import parameters_maroonx_echelle
 from .primitives_maroonx_2D import MAROONX
+
 # ------------------------------------------------------------------------------
 
 PROC_DARK = Path(__file__).parents[2] / 'calibrations' / 'processed_dark'
 PROC_FLAT = Path(__file__).parents[2] / 'calibrations' / 'processed_flat'
+
 
 @parameter_override
 class MAROONXEchelle(MAROONX, Spect):
@@ -44,8 +45,7 @@ class MAROONXEchelle(MAROONX, Spect):
         self.inst_lookups = 'maroonxdr.maroonx.lookups'
         self._param_update(parameters_maroonx_echelle)
 
-    def darkSubtraction(self, adinputs=None, dark=None, individual=False,
-                        **params):
+    def darkSubtraction(self, adinputs=None, dark=None, individual=False, **params):
         """
         Finds the dark frame in association with the adinput and creates a
         dark subtracted extension that can be requested during stripe extraction
@@ -69,11 +69,13 @@ class MAROONXEchelle(MAROONX, Spect):
 
         """
         log = self.log
-        log.debug(gt.log_message("primitive", self.myself(), "starting"))
+        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
         timestamp_key = self.timestamp_keys[self.myself()]
         adoutputs = []
-        if len(adinputs) > 1: # Logic for multiple inputs
-            if not individual:  # group frames given by unique sets of xptime and nd_filter
+        if len(adinputs) > 1:  # Logic for multiple inputs
+            if (
+                not individual
+            ):  # group frames given by unique sets of xptime and nd_filter
                 # saves on redundent caldb requests.
                 # Each daytime-made xptime & nd_filter unique processed dark
                 # only needs to be called once per science series with that xptime & nd_filter
@@ -90,74 +92,117 @@ class MAROONXEchelle(MAROONX, Spect):
 
                 for time in np.unique(exposure_time_list):
                     # Loop over unique exposure times
-                    for nd_filter in np.unique(nd_filter_list[exposure_time_list == time]):
+                    for nd_filter in np.unique(
+                        nd_filter_list[exposure_time_list == time]
+                    ):
                         # Loop over unique ND filters for each exposure time
                         cal_list = []
                         for ad in adinputs:
                             # Create a list of all images with the current exposure time
                             # and ND filter
-                            if ad.exposure_time() == time and ad.filter_orientation()['ND'] == nd_filter:
+                            if (
+                                ad.exposure_time() == time
+                                and ad.filter_orientation()['ND'] == nd_filter
+                            ):
                                 cal_list.append(ad)
                         if dark is None:
                             if 'BLUE' in cal_list[0].tags:
                                 # Find the processed dark for the blue arm
                                 # TODO: replace hardcoded reference with caldb call to processed dark
-                                dark_ad = astrodata.open( str(PROC_DARK / '20241115T193254Z_DDDDE_b_0300_dark.fits') )
+                                dark_ad = astrodata.open(
+                                    str(
+                                        PROC_DARK
+                                        / '20241115T193254Z_DDDDE_b_0300_dark.fits'
+                                    )
+                                )
                             elif 'RED' in cal_list[0].tags:
                                 # Find the processed dark for the red arm
                                 # TODO: replace hardcoded reference with caldb call to processed dark
-                                dark_ad = astrodata.open( str(PROC_DARK / '20241115T193254Z_DDDDE_r_0300_dark.fits') )
+                                dark_ad = astrodata.open(
+                                    str(
+                                        PROC_DARK
+                                        / '20241115T193254Z_DDDDE_r_0300_dark.fits'
+                                    )
+                                )
 
                             else:
                                 # This condition should never be reached
-                                log.warning(f"No dark subtraction will be made to {cal_list[0].filename} "
-                                            "group prior to stripe extraction, since no "
-                                            "dark was found/specified")
+                                log.warning(
+                                    f'No dark subtraction will be made to {cal_list[0].filename} '
+                                    'group prior to stripe extraction, since no '
+                                    'dark was found/specified'
+                                )
 
                         for ad_found in cal_list:
                             # Loop over all images in the current exposure time and ND filter group
                             adout = copy.deepcopy(ad_found)
-                            log.fullinfo(f"{dark_ad.filename} found as associated dark")
+                            log.fullinfo(f'{dark_ad.filename} found as associated dark')
                             # Perform a dark subtraction by using numpy to a do pixel-by-pixel subtraction
-                            adout[0].DARK_SUBTRACTED = copy.deepcopy(ad_found)[0].data - copy.deepcopy(dark_ad).data[0]
+                            adout[0].DARK_SUBTRACTED = (
+                                copy.deepcopy(ad_found)[0].data
+                                - copy.deepcopy(dark_ad).data[0]
+                            )
                             adoutputs.append(adout)
                             if dark_ad:
-                                gt.mark_history(ad, primname=self.myself(),
-                                                keyword='REDUCTION_DARK',
-                                                comment=dark_ad.filename)
-        else: # Logic for single input
+                                gt.mark_history(
+                                    ad,
+                                    primname=self.myself(),
+                                    keyword='REDUCTION_DARK',
+                                    comment=dark_ad.filename,
+                                )
+        else:  # Logic for single input
             for ad in adinputs:
-                adout = copy.deepcopy(ad)  # don't group frames and make a dark caldb call for each science frame
+                adout = copy.deepcopy(
+                    ad
+                )  # don't group frames and make a dark caldb call for each science frame
                 if dark is None:
                     if 'BLUE' in ad.tags:
                         # Find the processed dark for the blue arm
                         # TODO: replace hardcoded reference with caldb call to processed dark
-                        dark_ad = astrodata.open( str(PROC_DARK / '20241115T193254Z_DDDDE_b_0300_dark.fits') )
+                        dark_ad = astrodata.open(
+                            str(PROC_DARK / '20241115T193254Z_DDDDE_b_0300_dark.fits')
+                        )
                     elif 'RED' in ad.tags:
                         # Find the processed dark for the red arm
                         # TODO: replace hardcoded reference with caldb call to processed dark
-                        dark_ad = astrodata.open( str(PROC_DARK / '20241115T193254Z_DDDDE_r_0300_dark.fits') )
+                        dark_ad = astrodata.open(
+                            str(PROC_DARK / '20241115T193254Z_DDDDE_r_0300_dark.fits')
+                        )
 
                     else:
                         # This condition should never be reached
-                        log.warning(f"No dark subtraction will be made to {ad.filename} "
-                                    "prior to stripe extraction, since no "
-                                    "dark was found/specified")
+                        log.warning(
+                            f'No dark subtraction will be made to {ad.filename} '
+                            'prior to stripe extraction, since no '
+                            'dark was found/specified'
+                        )
 
-                log.fullinfo(f"{dark_ad.filename} found as associated dark")
+                log.fullinfo(f'{dark_ad.filename} found as associated dark')
                 # Perform a dark subtraction by using numpy to a do pixel-by-pixel subtraction
-                adout[0].DARK_SUBTRACTED = copy.deepcopy(ad)[0].data - copy.deepcopy(dark_ad).data[0]
+                adout[0].DARK_SUBTRACTED = (
+                    copy.deepcopy(ad)[0].data - copy.deepcopy(dark_ad).data[0]
+                )
                 adoutputs.append(adout)
                 if dark_ad:
-                    gt.mark_history(ad, primname=self.myself(),
-                                    keyword='REDUCTION_DARK',
-                                    comment=dark_ad.filename)
+                    gt.mark_history(
+                        ad,
+                        primname=self.myself(),
+                        keyword='REDUCTION_DARK',
+                        comment=dark_ad.filename,
+                    )
             gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adoutputs
 
-    def extractStripes(self, adinputs=None, flat=None,
-                       skip_dark=None, slit_height=10,
-                       test_extraction=False, individual=False, **params):
+    def extractStripes(
+        self,
+        adinputs=None,
+        flat=None,
+        skip_dark=None,
+        slit_height=10,
+        test_extraction=False,
+        individual=False,
+        **params,
+    ):
         """
         Extracts the stripes from the original 2D spectrum to a sparse array,
         containing only relevant pixels.
@@ -200,7 +245,7 @@ class MAROONXEchelle(MAROONX, Spect):
             skip_dark = [1, 2, 3, 4, 5]
 
         log = self.log
-        log.debug(gt.log_message("primitive", self.myself(), "starting"))
+        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
         timestamp_key = self.timestamp_keys[self.myself()]
         blue_frames = []
         red_frames = []
@@ -211,18 +256,25 @@ class MAROONXEchelle(MAROONX, Spect):
             elif 'RED' in ad.tags:
                 red_frames.append(ad)
 
-        for ad in blue_frames+red_frames:
+        for ad in blue_frames + red_frames:
             if not ad:
                 continue
             try:
-                #TODO: I think a lot of this can be replaced with caldb calls - Rohan
+                # TODO: I think a lot of this can be replaced with caldb calls - Rohan
                 if ad.filename == blue_frames[0].filename:
                     if flat is None:
                         # call one flat for all blue frames, saves redundant caldb requests as new flats are rarely made
                         # time between flats > 1 year
                         # TODO: replace hardcoded reference with caldb call to processed flat
-                        flat_ad = astrodata.open( str(PROC_FLAT / '20241114T190714Z_DDDDF_b_0007_FFFFF_flat.fits') )
-                        log.fullinfo(f"{flat_ad.filename} found as associated flat for all blue frames")
+                        flat_ad = astrodata.open(
+                            str(
+                                PROC_FLAT
+                                / '20241114T190714Z_DDDDF_b_0007_DFFFF_flat.fits'
+                            )
+                        )
+                        log.fullinfo(
+                            f'{flat_ad.filename} found as associated flat for all blue frames'
+                        )
             except IndexError:
                 pass
             try:
@@ -231,55 +283,68 @@ class MAROONXEchelle(MAROONX, Spect):
                         # call one flat for all red frames, saves redundant caldb requests as new flats are rarely made
                         # time between flats > 1 year
                         # TODO: replace hardcoded reference with caldb call to processed flat
-                        flat_ad = astrodata.open( str(PROC_FLAT / '20241114T190714Z_DDDDF_r_0002_FFFFF_flat.fits') )
-                        log.fullinfo(f"{flat_ad.filename} found as associated flat for all red frames")
+                        flat_ad = astrodata.open(
+                            str(
+                                PROC_FLAT
+                                / '20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits'
+                            )
+                        )
+                        log.fullinfo(
+                            f'{flat_ad.filename} found as associated flat for all red frames'
+                        )
             except IndexError:
-                pass #TODO: Implement what will happen here
+                pass  # TODO: Implement what will happen here
             if individual:
                 # overwrite flat to be used as requested with an individual call for the specific science frame
                 if flat is None:
                     if 'BLUE' in ad.tags:
                         # TODO: replace hardcoded reference with caldb call to processed flat
-                        flat_ad_i = astrodata.open( str(PROC_FLAT / '20241114T190714Z_DDDDF_b_0007_FFFFF_flat.fits') )
+                        flat_ad_i = astrodata.open(
+                            str(
+                                PROC_FLAT
+                                / '20241114T190714Z_DDDDF_b_0007_DFFFF_flat.fits'
+                            )
+                        )
                         # '20200911T220106Z_FDDDF_b_0002_FFFFF_flat.fits')
                     elif 'RED' in ad.tags:
                         # TODO: replace hardcoded reference with caldb call to processed flat
-                        flat_ad_i = astrodata.open( str(PROC_FLAT / '20241114T190714Z_DDDDF_r_0002_FFFFF_flat.fits') )
+                        flat_ad_i = astrodata.open(
+                            str(
+                                PROC_FLAT
+                                / '20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits'
+                            )
+                        )
                         # '20200911T220106Z_FDDDF_r_0000_FFFFF_flat.fits')
                     else:
-                        log.warning(f"No extraction will be made on {ad.filename}, since no "
-                                    "flat was found/specified")
+                        log.warning(
+                            f'No extraction will be made on {ad.filename}, since no '
+                            'flat was found/specified'
+                        )
                 if flat_ad_i:
-                    log.fullinfo(f"{flat_ad_i.filename} found as associated flat")
+                    log.fullinfo(f'{flat_ad_i.filename} found as associated flat')
                 flat_ad = flat_ad_i
             stripes = {}
             f_stripes = {}
             stripes_masks = {}
             p_id = flat_ad[0].STRIPES_ID
-            fiber_check = flat_ad[0].STRIPES_FIBERS
-
-            # TODO: implement the case where 4 fibers are illuminated in a masterflat
-            # FFFFF and DFFFF
-            if len(p_id) != 30 or len(fiber_check) != 5:
-                log.error(f"No extraction will be made on {ad.filename}, since "
-                            "flat is not fully processed")
 
             ad[0].STRIPES_ID = p_id  # record reference to science frame
-            #repackage p_id as dict expected format for extraction
-            p_id = {'fiber_1': dict((colname, p_id[0:6][colname].data)
-                                    for colname in p_id.colnames),
-                        'fiber_2': dict((colname, p_id[6:12][colname].data)
-                                        for colname in p_id.colnames),
-                        'fiber_3': dict((colname, p_id[12:18][colname].data)
-                                        for colname in p_id.colnames),
-                        'fiber_4': dict((colname, p_id[18:24][colname].data)
-                                        for colname in p_id.colnames),
-                        'fiber_5': dict((colname, p_id[24:][colname].data)
-                                        for colname in p_id.colnames)}
 
-            log.fullinfo("Flat-Identified pixel associations with fiber/order "
-                         "found as polynomial info in association "
-                         f"with science frame {ad.filename}")
+            # repackage p_id as dict expected format for extraction
+            p_id_new = {}
+            for i, f in enumerate(flat_ad[0].STRIPES_FIBERS):
+                # the table has 6 coefficient per fiber, in ascending order
+                p_id_new[f'fiber_{f}'] = dict(
+                    (colname, p_id[6 * i : 6 * (i + 1)][colname].data)
+                    for colname in p_id.colnames
+                )
+            p_id = p_id_new
+
+            log.fullinfo(
+                'Flat-Identified pixel associations with fiber/order '
+                'found as polynomial info in association '
+                f'with science frame {ad.filename}'
+            )
 
             for f, op in p_id.items():  # extract info into sparse matrices
                 adint = copy.deepcopy(ad)
@@ -290,21 +355,20 @@ class MAROONXEchelle(MAROONX, Spect):
                     log.fullinfo(f'No dark subtracted for fiber {f[-1]}')
                     adint.data[0] = ad.data[0]
                 else:
-                    #Make a deepcopy of the dark subtracted fiber
+                    # Make a deepcopy of the dark subtracted fiber
                     adint.data[0] = copy.deepcopy(ad)[0].DARK_SUBTRACTED
 
-                log.fullinfo('skipping all fiber dark subtraction is the '
-                             'default option')
+                log.fullinfo(
+                    'skipping all fiber dark subtraction is the ' 'default option'
+                )
 
                 for o, p in op.items():
                     # extract the stripe, and the flat stripe and the stripe mask
-                    stripe = _extract_single_stripe(
-                        adint.data[0], p, slit_height)
-                    f_stripe = _extract_single_stripe(
-                        flatint.data[0], p, slit_height)
+                    stripe = _extract_single_stripe(adint.data[0], p, slit_height)
+                    f_stripe = _extract_single_stripe(flatint.data[0], p, slit_height)
                     s_mask = _extract_single_stripe(
-                        np.logical_not(adint.mask[0]).astype(int), p,
-                        slit_height)
+                        np.logical_not(adint.mask[0]).astype(int), p, slit_height
+                    )
 
                     # Update the stripe, flat stripe and stripe mask
                     if f in stripes:
@@ -328,11 +392,15 @@ class MAROONXEchelle(MAROONX, Spect):
                 repack_stripes_masks = []
                 test_orders = []
                 for ifib in sorted(stripes.keys(), key=lambda x: x.lower()):
-                    for iorder in sorted(stripes[ifib].keys(), key=lambda x: x.lower())[:1]:
+                    for iorder in sorted(stripes[ifib].keys(), key=lambda x: x.lower())[
+                        :1
+                    ]:
                         # Convert from sparse matrices to dense matrices
                         repack_stripes.append(stripes[ifib][iorder].todense())
                         repack_f_stripes.append(f_stripes[ifib][iorder].todense())
-                        repack_stripes_masks.append(stripes_masks[ifib][iorder].todense())
+                        repack_stripes_masks.append(
+                            stripes_masks[ifib][iorder].todense()
+                        )
                         test_orders.append(iorder)
 
                 # Store the stripe, flat stripe and stripe mask as extensions
@@ -341,8 +409,12 @@ class MAROONXEchelle(MAROONX, Spect):
                 ad[0].STRIPES_MASKS = np.array(repack_stripes_masks)
                 ad[0].TEST_ORDERS = np.array(test_orders).astype('int')
             # fix mark history to give full flat and dark name
-            gt.mark_history(ad, primname=self.myself(),
-                            keyword='REDUCTION_FLAT', comment=flat_ad.filename)
+            gt.mark_history(
+                ad,
+                primname=self.myself(),
+                keyword='REDUCTION_FLAT',
+                comment=flat_ad.filename,
+            )
             # if dark_ad:
             #     gt.mark_history(ad, primname=self.myself(),
             #                     keyword='REDUCTION_DARK',
@@ -351,9 +423,16 @@ class MAROONXEchelle(MAROONX, Spect):
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
 
-    def optimalExtraction(self, adinputs=None, opt_extraction=None,
-                          back_var=None, full_output=False, penalty=None,
-                          s_clip=None, **params):
+    def optimalExtraction(
+        self,
+        adinputs=None,
+        opt_extraction=None,
+        back_var=None,
+        full_output=False,
+        penalty=None,
+        s_clip=None,
+        **params,
+    ):
         """
         Optimal extraction of the 2d echelle spectrum.
 
@@ -384,7 +463,7 @@ class MAROONXEchelle(MAROONX, Spect):
             extraction
         """
         log = self.log
-        log.debug(gt.log_message("primitive", self.myself(), "starting"))
+        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
         timestamp_key = self.timestamp_keys[self.myself()]
 
         # If no fibers are specified, optimal extract fibers 2,3 and 4 (Object fibers in SOOOE frames)
@@ -448,26 +527,37 @@ class MAROONXEchelle(MAROONX, Spect):
 
             for f in stripes.keys():
                 if int(f[-1]) in opt_extraction:
-
                     # if last item of the key is in opt_extraction, we do optimal extraction
                     for o, stripe in stripes[f].items():
                         log.fullinfo(f'Optimum extraction in {f}, order {o}')
-                        flux, var, stand_spec, stand_err, fo = _optimal_extraction_single_stripe_old(
-                            stripe, flat_stripes[f][o], gain=gain,
-                            read_noise=read_noise, back_var=back_var,
-                            mask=mask[f][o], s_clip=s_clip,
-                            penalty=penalty, full_output=full_output, log=log)
+                        flux, var, stand_spec, stand_err, fo = (
+                            _optimal_extraction_single_stripe_old(
+                                stripe,
+                                flat_stripes[f][o],
+                                gain=gain,
+                                read_noise=read_noise,
+                                back_var=back_var,
+                                mask=mask[f][o],
+                                s_clip=s_clip,
+                                penalty=penalty,
+                                full_output=full_output,
+                                log=log,
+                            )
+                        )
 
                         if f in optimal_reduced_stripes:
                             # Update the extensions we created earlier
                             optimal_reduced_stripes[f].update({o: flux})
-                            optimal_reduced_err[f].update({o: np.sqrt(var)}) # TODO: When we add the addVAR() method,
+                            optimal_reduced_err[f].update(
+                                {o: np.sqrt(var)}
+                            )  # TODO: When we add the addVAR() method,
                             # we need  to deal with the variance before this line
                             optimal_reduced_2d_arrays[f].update({o: fo})
                             box_reduced_stripes[f].update({o: stand_spec})
                             box_reduced_err[f].update({o: stand_err})
-                            extracted_bpms[f].update({o: np.array(np.sum(
-                                mask[f][o], axis=0).T).flatten()})
+                            extracted_bpms[f].update(
+                                {o: np.array(np.sum(mask[f][o], axis=0).T).flatten()}
+                            )
                         else:
                             # We do not have the extensions yet, so create them
                             optimal_reduced_stripes[f] = {o: flux}
@@ -475,73 +565,101 @@ class MAROONXEchelle(MAROONX, Spect):
                             optimal_reduced_2d_arrays[f] = {o: fo}
                             box_reduced_stripes[f] = {o: stand_spec}
                             box_reduced_err[f] = {o: stand_err}
-                            extracted_bpms[f] = {o: np.array(np.sum(
-                                mask[f][o], axis=0).T).flatten()}
+                            extracted_bpms[f] = {
+                                o: np.array(np.sum(mask[f][o], axis=0).T).flatten()
+                            }
                 else:
                     # if last item of the key is not in opt_extraction, we do box extraction
                     for o, stripe in stripes[f].items():
                         log.fullinfo(f'Only box extraction in {f}, order {o}')
-                        stand_spec = _box_extract_single_stripe(
-                            stripe, mask[f][o])
-                        stand_err = np.sqrt(stand_spec/gain)
+                        stand_spec = _box_extract_single_stripe(stripe, mask[f][o])
+                        stand_err = np.sqrt(stand_spec / gain)
                         if f in box_reduced_stripes:
                             # Update the extensions we created earlier
                             box_reduced_stripes[f].update({o: stand_spec})
                             box_reduced_err[f].update({o: stand_err})
-                            extracted_bpms[f].update({o: np.array(np.sum(
-                                mask[f][o], axis=0).T).flatten()})
+                            extracted_bpms[f].update(
+                                {o: np.array(np.sum(mask[f][o], axis=0).T).flatten()}
+                            )
                         else:
                             # We do not have the extensions yet, so create them
                             box_reduced_stripes[f] = {o: stand_spec}
                             box_reduced_err[f] = {o: stand_err}
-                            extracted_bpms[f] = {o: np.array(np.sum(
-                                mask[f][o], axis=0).T).flatten()}
+                            extracted_bpms[f] = {
+                                o: np.array(np.sum(mask[f][o], axis=0).T).flatten()
+                            }
             for f in stripes.keys():
-                if f in optimal_reduced_stripes.keys():
-                    optimal_reduced_single_fiber = np.array(list(
-                        optimal_reduced_stripes[f].values()), dtype=float)
-                    optimal_reduced_single_fiber_order_key = np.array(list(
-                        optimal_reduced_stripes[f].keys()), dtype=float)
-                    optimal_reduced_single_fiber_err = np.array(list(
-                        optimal_reduced_err[f].values()), dtype=float)
-                    box_reduced_single_fiber = np.array(list(
-                        box_reduced_stripes[f].values()), dtype=float)
-                    box_reduced_single_err = np.array(list(
-                        box_reduced_err[f].values()), dtype=float)
-                    bpm_single_fiber = np.array(list(
-                        extracted_bpms[f].values()), dtype=int)
+                if f in optimal_reduced_stripes:
+                    optimal_reduced_single_fiber = np.array(
+                        list(optimal_reduced_stripes[f].values()), dtype=float
+                    )
+                    optimal_reduced_single_fiber_order_key = np.array(
+                        list(optimal_reduced_stripes[f].keys()), dtype=float
+                    )
+                    optimal_reduced_single_fiber_err = np.array(
+                        list(optimal_reduced_err[f].values()), dtype=float
+                    )
+                    box_reduced_single_fiber = np.array(
+                        list(box_reduced_stripes[f].values()), dtype=float
+                    )
+                    box_reduced_single_err = np.array(
+                        list(box_reduced_err[f].values()), dtype=float
+                    )
+                    bpm_single_fiber = np.array(
+                        list(extracted_bpms[f].values()), dtype=int
+                    )
 
                     # Update the extensions depending on the fiber.
                     if f == 'fiber_1':
-                        ad[0].REDUCED_ORDERS_FIBER_1 = optimal_reduced_single_fiber_order_key
+                        ad[
+                            0
+                        ].REDUCED_ORDERS_FIBER_1 = (
+                            optimal_reduced_single_fiber_order_key
+                        )
                         ad[0].OPTIMAL_REDUCED_FIBER_1 = optimal_reduced_single_fiber
                         ad[0].OPTIMAL_REDUCED_ERR_1 = optimal_reduced_single_fiber_err
                         ad[0].BOX_REDUCED_FIBER_1 = box_reduced_single_fiber
                         ad[0].BOX_REDUCED_ERR_1 = box_reduced_single_err
                         ad[0].BPM_FIBER_1 = bpm_single_fiber
                     if f == 'fiber_2':
-                        ad[0].REDUCED_ORDERS_FIBER_2 = optimal_reduced_single_fiber_order_key
+                        ad[
+                            0
+                        ].REDUCED_ORDERS_FIBER_2 = (
+                            optimal_reduced_single_fiber_order_key
+                        )
                         ad[0].OPTIMAL_REDUCED_FIBER_2 = optimal_reduced_single_fiber
                         ad[0].OPTIMAL_REDUCED_ERR_2 = optimal_reduced_single_fiber_err
                         ad[0].BOX_REDUCED_FIBER_2 = box_reduced_single_fiber
                         ad[0].BOX_REDUCED_ERR_2 = box_reduced_single_err
                         ad[0].BPM_FIBER_2 = bpm_single_fiber
                     if f == 'fiber_3':
-                        ad[0].REDUCED_ORDERS_FIBER_3 = optimal_reduced_single_fiber_order_key
+                        ad[
+                            0
+                        ].REDUCED_ORDERS_FIBER_3 = (
+                            optimal_reduced_single_fiber_order_key
+                        )
                         ad[0].OPTIMAL_REDUCED_FIBER_3 = optimal_reduced_single_fiber
                         ad[0].OPTIMAL_REDUCED_ERR_3 = optimal_reduced_single_fiber_err
                         ad[0].BOX_REDUCED_FIBER_3 = box_reduced_single_fiber
                         ad[0].BOX_REDUCED_ERR_3 = box_reduced_single_err
                         ad[0].BPM_FIBER_3 = bpm_single_fiber
                     if f == 'fiber_4':
-                        ad[0].REDUCED_ORDERS_FIBER_4 = optimal_reduced_single_fiber_order_key
+                        ad[
+                            0
+                        ].REDUCED_ORDERS_FIBER_4 = (
+                            optimal_reduced_single_fiber_order_key
+                        )
                         ad[0].OPTIMAL_REDUCED_FIBER_4 = optimal_reduced_single_fiber
                         ad[0].OPTIMAL_REDUCED_ERR_4 = optimal_reduced_single_fiber_err
                         ad[0].BOX_REDUCED_FIBER_4 = box_reduced_single_fiber
                         ad[0].BOX_REDUCED_ERR_4 = box_reduced_single_err
                         ad[0].BPM_FIBER_4 = bpm_single_fiber
                     if f == 'fiber_5':
-                        ad[0].REDUCED_ORDERS_FIBER_5 = optimal_reduced_single_fiber_order_key
+                        ad[
+                            0
+                        ].REDUCED_ORDERS_FIBER_5 = (
+                            optimal_reduced_single_fiber_order_key
+                        )
                         ad[0].OPTIMAL_REDUCED_FIBER_5 = optimal_reduced_single_fiber
                         ad[0].OPTIMAL_REDUCED_ERR_5 = optimal_reduced_single_fiber_err
                         ad[0].BOX_REDUCED_FIBER_5 = box_reduced_single_fiber
@@ -551,37 +669,51 @@ class MAROONXEchelle(MAROONX, Spect):
                     # Dealing with the case that we have no optimal extraction, so the reduced order
                     # is the box extraction as opposed to the optimal extraction.
 
-                    box_reduced_single_fiber_order_key = np.array(list(
-                        box_reduced_stripes[f].keys()), dtype=float)
-                    box_reduced_single_fiber = np.array(list(
-                        box_reduced_stripes[f].values()), dtype=float)
-                    box_reduced_single_err = np.array(list(
-                        box_reduced_err[f].values()), dtype=float)
-                    bpm_single_fiber = np.array(list(
-                        extracted_bpms[f].values()), dtype=int)
+                    box_reduced_single_fiber_order_key = np.array(
+                        list(box_reduced_stripes[f].keys()), dtype=float
+                    )
+                    box_reduced_single_fiber = np.array(
+                        list(box_reduced_stripes[f].values()), dtype=float
+                    )
+                    box_reduced_single_err = np.array(
+                        list(box_reduced_err[f].values()), dtype=float
+                    )
+                    bpm_single_fiber = np.array(
+                        list(extracted_bpms[f].values()), dtype=int
+                    )
                     # Update the extensions based on which fiber we have.
                     if f == 'fiber_1':
-                        ad[0].REDUCED_ORDERS_FIBER_1 = box_reduced_single_fiber_order_key
+                        ad[
+                            0
+                        ].REDUCED_ORDERS_FIBER_1 = box_reduced_single_fiber_order_key
                         ad[0].BOX_REDUCED_FIBER_1 = box_reduced_single_fiber
                         ad[0].BOX_REDUCED_ERR_1 = box_reduced_single_err
                         ad[0].BPM_FIBER_1 = bpm_single_fiber
                     if f == 'fiber_2':
-                        ad[0].REDUCED_ORDERS_FIBER_2 = box_reduced_single_fiber_order_key
+                        ad[
+                            0
+                        ].REDUCED_ORDERS_FIBER_2 = box_reduced_single_fiber_order_key
                         ad[0].BOX_REDUCED_FIBER_2 = box_reduced_single_fiber
                         ad[0].BOX_REDUCED_ERR_2 = box_reduced_single_err
                         ad[0].BPM_FIBER_2 = bpm_single_fiber
                     if f == 'fiber_3':
-                        ad[0].REDUCED_ORDERS_FIBER_3 = box_reduced_single_fiber_order_key
+                        ad[
+                            0
+                        ].REDUCED_ORDERS_FIBER_3 = box_reduced_single_fiber_order_key
                         ad[0].BOX_REDUCED_FIBER_3 = box_reduced_single_fiber
                         ad[0].BOX_REDUCED_ERR_3 = box_reduced_single_err
                         ad[0].BPM_FIBER_3 = bpm_single_fiber
                     if f == 'fiber_4':
-                        ad[0].REDUCED_ORDERS_FIBER_4 = box_reduced_single_fiber_order_key
+                        ad[
+                            0
+                        ].REDUCED_ORDERS_FIBER_4 = box_reduced_single_fiber_order_key
                         ad[0].BOX_REDUCED_FIBER_4 = box_reduced_single_fiber
                         ad[0].BOX_REDUCED_ERR_4 = box_reduced_single_err
                         ad[0].BPM_FIBER_4 = bpm_single_fiber
                     if f == 'fiber_5':
-                        ad[0].REDUCED_ORDERS_FIBER_5 = box_reduced_single_fiber_order_key
+                        ad[
+                            0
+                        ].REDUCED_ORDERS_FIBER_5 = box_reduced_single_fiber_order_key
                         ad[0].BOX_REDUCED_FIBER_5 = box_reduced_single_fiber
                         ad[0].BOX_REDUCED_ERR_5 = box_reduced_single_err
                         ad[0].BPM_FIBER_5 = bpm_single_fiber
@@ -592,8 +724,8 @@ class MAROONXEchelle(MAROONX, Spect):
             del ad[0].STRIPES_MASKS
 
             gt.mark_history(ad, primname=self.myself(), keyword=timestamp_key)
-            ad.update_filename(suffix=params["suffix"], strip=False)
-            log.fullinfo(f"frame {ad.filename} extracted")
+            ad.update_filename(suffix=params['suffix'], strip=False)
+            log.fullinfo(f'frame {ad.filename} extracted')
         return adinputs
 
     def boxExtraction(self, adinputs, **params):
@@ -601,6 +733,7 @@ class MAROONXEchelle(MAROONX, Spect):
         This primitive performs box extraction on a 2d echelle spectrum.
         Utilized in the dynamic and static wavelength calibration recipe as it
         is quicker than relying on optimal extraction.
+
         Parameters
         ----------
         adinputs with STRIPES, F_STRIPES, and STRIPES_MASKS 'extensions' as
@@ -612,7 +745,7 @@ class MAROONXEchelle(MAROONX, Spect):
         well as uncertainties calculated during the box extraction
         """
         log = self.log
-        log.debug(gt.log_message("primitive", self.myself(), "starting"))
+        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
         box_reduced_stripes = {}
         box_reduced_err = {}
         box_reduced_flats = {}
@@ -659,7 +792,6 @@ class MAROONXEchelle(MAROONX, Spect):
             mask = ad[0].STRIPES_MASKS
             flat_stripes = ad[0].F_STRIPES
 
-
             gain = ad.gain()[0][0]  # fix for different channels
             read_noise = ad.read_noise()[0][0]  # Each chip has a different read noise
 
@@ -667,31 +799,41 @@ class MAROONXEchelle(MAROONX, Spect):
                 for o, stripe in stripes[f].items():
                     log.fullinfo(f'Box extraction in {f}, order {o}')
                     stand_spec = _box_extract_single_stripe(stripe, mask[f][o])
-                    stand_err = np.sqrt(stand_spec/gain)
-                    stand_flat = _box_extract_single_stripe(flat_stripes[f][o], mask[f][o])
+                    stand_err = np.sqrt(stand_spec / gain)
+                    stand_flat = _box_extract_single_stripe(
+                        flat_stripes[f][o], mask[f][o]
+                    )
                     if f in box_reduced_stripes:
                         # Update the extensions we created earlier
                         box_reduced_stripes[f].update({o: stand_spec})
                         box_reduced_err[f].update({o: stand_err})
                         box_reduced_flats[f].update({o: stand_flat})
-                        extracted_bpms[f] = {o: np.array(np.sum(mask[f][o], axis=0).T).flatten()}
+                        extracted_bpms[f] = {
+                            o: np.array(np.sum(mask[f][o], axis=0).T).flatten()
+                        }
                     else:
                         # We do not have the extensions yet, so create them
                         box_reduced_stripes[f] = {o: stand_spec}
                         box_reduced_err[f] = {o: stand_err}
                         box_reduced_flats[f] = {o: stand_flat}
-                        extracted_bpms[f] = {o: np.array(np.sum(mask[f][o], axis=0).T).flatten()}
+                        extracted_bpms[f] = {
+                            o: np.array(np.sum(mask[f][o], axis=0).T).flatten()
+                        }
 
-                box_reduced_single_fiber_order_key = np.array(list(
-                    box_reduced_stripes[f].keys()), dtype=float)
-                box_reduced_single_fiber = np.array(list(
-                        box_reduced_stripes[f].values()), dtype=float)
-                box_reduced_single_err = np.array(list(
-                        box_reduced_err[f].values()), dtype=float)
-                box_reduced_flat = np.array(list(
-                        box_reduced_flats[f].values()), dtype=int)
+                box_reduced_single_fiber_order_key = np.array(
+                    list(box_reduced_stripes[f].keys()), dtype=float
+                )
+                box_reduced_single_fiber = np.array(
+                    list(box_reduced_stripes[f].values()), dtype=float
+                )
+                box_reduced_single_err = np.array(
+                    list(box_reduced_err[f].values()), dtype=float
+                )
+                box_reduced_flat = np.array(
+                    list(box_reduced_flats[f].values()), dtype=int
+                )
                 bpm_single_fiber = np.array(list(extracted_bpms[f].values()), dtype=int)
-                
+
                 # Update the extensions based on which fiber we have
                 if f == 'fiber_1':
                     ad[0].REDUCED_ORDERS_FIBER_1 = box_reduced_single_fiber_order_key
@@ -727,15 +869,17 @@ class MAROONXEchelle(MAROONX, Spect):
             del ad[0].STRIPES
             del ad[0].F_STRIPES
             del ad[0].STRIPES_MASKS
-            ad.update_filename(suffix=params["suffix"], strip=False)
-            log.fullinfo(f"frame {ad.filename} extracted")
+            ad.update_filename(suffix=params['suffix'], strip=False)
+            log.fullinfo(f'frame {ad.filename} extracted')
         return adinputs
+
 
 ##############################################################################
 # Below are the helper functions for the primitives in this module           #
 ##############################################################################
 
-#@staticmethod
+
+# @staticmethod
 def _extract_single_stripe(data=None, polynomials=None, slit_height=10):
     """
     Extracts single stripe from 2d image.
@@ -766,10 +910,12 @@ def _extract_single_stripe(data=None, polynomials=None, slit_height=10):
     # repeating nx times.  For the x matrix, it is values 0 to nx repeated 2* slit height.
     # Both have dimensions (2*slit height) x nx.
 
-    slit_indices_y = np.arange(-slit_height, slit_height
-                                ).repeat(nx).reshape((2 * slit_height, nx))
-    slit_indices_x = np.tile(np.arange(nx), 2 * slit_height
-                                ).reshape((2 * slit_height, nx))
+    slit_indices_y = (
+        np.arange(-slit_height, slit_height).repeat(nx).reshape((2 * slit_height, nx))
+    )
+    slit_indices_x = np.tile(np.arange(nx), 2 * slit_height).reshape(
+        (2 * slit_height, nx)
+    )
 
     indices = np.rint(slit_indices_y + y).astype(int)
     valid_indices = np.logical_and(indices < ny, indices > 0)
@@ -777,23 +923,50 @@ def _extract_single_stripe(data=None, polynomials=None, slit_height=10):
     # Create sparse matrix of dimensions ny x nx, with row indices given by indices[valid_indices]
     # and column indices sit_indices_x[valid_indices].
 
-    mat = sparse.coo_matrix((data[indices[valid_indices],
-        slit_indices_x[valid_indices]],(indices[valid_indices],
-        slit_indices_x[valid_indices])), shape=(ny, nx))
+    mat = sparse.coo_matrix(
+        (
+            data[indices[valid_indices], slit_indices_x[valid_indices]],
+            (indices[valid_indices], slit_indices_x[valid_indices]),
+        ),
+        shape=(ny, nx),
+    )
     return mat.tocsc()
 
+
 @numba.njit(cache=True)
-def reject_step(back_var, data_var, debug_level, diff_aver, diff_save, flux, gain, good_disp, mask, profile, read_noise,
-            reject_tracker, s_clip, stand_spec, stripe, var):
+def reject_step(
+    back_var,
+    data_var,
+    debug_level,
+    diff_aver,
+    diff_save,
+    flux,
+    gain,
+    good_disp,
+    mask,
+    profile,
+    read_noise,
+    reject_tracker,
+    s_clip,
+    stand_spec,
+    stripe,
+    var,
+):
     for h in good_disp:
-        expected = profile[:, h] * mask[:, h] * stand_spec[h]  # flat column with mask scaled to data total
+        expected = (
+            profile[:, h] * mask[:, h] * stand_spec[h]
+        )  # flat column with mask scaled to data total
         actual = stripe[:, h] * mask[:, h]  # actual column data with mask
         diff = actual - expected
 
-        data_var[:, h] = np.abs(stand_spec[h] * profile[:, h]) / gain + back_var[:, h] + read_noise
+        data_var[:, h] = (
+            np.abs(stand_spec[h] * profile[:, h]) / gain + back_var[:, h] + read_noise
+        )
         noise_rev = 1 / np.sqrt(data_var[:, h])
         diff_save[:, h] = diff * noise_rev
-        reject_index = np.nonzero(((np.abs(diff) - np.abs(diff_aver[:, h])) * noise_rev) >= s_clip)[0]
+        reject_index = np.nonzero(
+            ((np.abs(diff) - np.abs(diff_aver[:, h])) * noise_rev) >= s_clip
+        )[0]
 
         while len(reject_index) > 0:
             worst = np.argmax((np.abs(diff) - np.abs(diff_aver[:, h])) * noise_rev)
@@ -816,18 +989,27 @@ def reject_step(back_var, data_var, debug_level, diff_aver, diff_save, flux, gai
 
             denom = np.sum(profile[:, h] * profile[:, h] * mask[:, h] / data_var[:, h])
 
-            stand_spec[h] = np.sum(profile[:, h] * mask[:, h] * stripe[:, h] / data_var[:, h]) / denom
+            stand_spec[h] = (
+                np.sum(profile[:, h] * mask[:, h] * stripe[:, h] / data_var[:, h])
+                / denom
+            )
 
             expected = profile[:, h] * mask[:, h] * stand_spec[h]
             actual = stripe[:, h] * mask[:, h]
             diff = actual - expected
 
-            data_var[:, h] = np.abs(stand_spec[h] * profile[:, h]) / gain + back_var[:, h] + read_noise
+            data_var[:, h] = (
+                np.abs(stand_spec[h] * profile[:, h]) / gain
+                + back_var[:, h]
+                + read_noise
+            )
             noise_rev = 1 / np.sqrt(data_var[:, h])
             # diff_save[:,h] = diff*noise_rev
-            reject_index = np.nonzero(((np.abs(diff) - np.abs(diff_aver[:, h])) * noise_rev) >= s_clip)[0]
+            reject_index = np.nonzero(
+                ((np.abs(diff) - np.abs(diff_aver[:, h])) * noise_rev) >= s_clip
+            )[0]
 
-            if np.count_nonzero(actual[3:-5]) < len(profile[3:-5, h]) / 2.:
+            if np.count_nonzero(actual[3:-5]) < len(profile[3:-5, h]) / 2.0:
                 # reject_index = np.array([], dtype=int)
                 reject_index = np.empty((0), dtype=np.int_)
                 mask[:, h] = 0
@@ -835,29 +1017,74 @@ def reject_step(back_var, data_var, debug_level, diff_aver, diff_save, flux, gai
             # logger.warning(f'Too many bad pixels in column {h}, reject column')
         if np.count_nonzero(mask[:, h]) > 0:
             denom = np.sum(profile[:, h] * profile[:, h] * mask[:, h] / data_var[:, h])
-            flux[h] = np.sum(profile[:, h] * mask[:, h] * stripe[:, h] / data_var[:, h]) / denom
+            flux[h] = (
+                np.sum(profile[:, h] * mask[:, h] * stripe[:, h] / data_var[:, h])
+                / denom
+            )
             var[h] = np.sum(profile[:, h] * mask[:, h]) / denom
 
-#@staticmethod
-def rectify_and_reshape(back_var, box_extracted_flat_stripe, data, flat_stripe, mask, new_back_var, new_mask, profile,
-                    stripe):
-    '''
+
+# @staticmethod
+def rectify_and_reshape(
+    back_var,
+    box_extracted_flat_stripe,
+    data,
+    flat_stripe,
+    mask,
+    new_back_var,
+    new_mask,
+    profile,
+    stripe,
+):
+    """
     This function takes the stripe and mask and reshapes them to be used in the optimal extraction algorithm.
     It also creates the profile and background variance arrays.
 
     Parameters
-    '''
-    first_row_bigger_than_0 = (stripe!=0).argmax(axis=0)  # returns 0 for rows that contain only 0s
+    ----------
+    """
+    first_row_bigger_than_0 = (stripe != 0).argmax(
+        axis=0
+    )  # returns 0 for rows that contain only 0s
     slit_height = data.shape[0]
-    data[:,:] = np.vstack([stripe[fb:fb + slit_height, i] for i, fb in enumerate(first_row_bigger_than_0)]).T
-    new_mask[:,:] = np.vstack([mask[fb:fb + slit_height, i] for i, fb in enumerate(first_row_bigger_than_0)]).T
-    new_back_var[:,:] = np.vstack([back_var[fb:fb + slit_height, i] for i, fb in enumerate(first_row_bigger_than_0)]).T
-    profile[:,:] = np.vstack([flat_stripe[fb:fb + slit_height, i]/box_extracted_flat_stripe[i] for i, fb in enumerate(first_row_bigger_than_0)]).T
+    data[:, :] = np.vstack(
+        [
+            stripe[fb : fb + slit_height, i]
+            for i, fb in enumerate(first_row_bigger_than_0)
+        ]
+    ).T
+    new_mask[:, :] = np.vstack(
+        [mask[fb : fb + slit_height, i] for i, fb in enumerate(first_row_bigger_than_0)]
+    ).T
+    new_back_var[:, :] = np.vstack(
+        [
+            back_var[fb : fb + slit_height, i]
+            for i, fb in enumerate(first_row_bigger_than_0)
+        ]
+    ).T
+    profile[:, :] = np.vstack(
+        [
+            flat_stripe[fb : fb + slit_height, i] / box_extracted_flat_stripe[i]
+            for i, fb in enumerate(first_row_bigger_than_0)
+        ]
+    ).T
 
     print(slit_height)
 
-def _optimal_extraction_single_stripe(stripe, flat_stripe, gain=1, read_noise=1.23, back_var=None, mask=None,
-                                    debug_level=0, full_output=False, s_clip=5.0, penalty=1.0, log=None):
+
+def _optimal_extraction_single_stripe(
+    stripe,
+    flat_stripe,
+    gain=1,
+    read_noise=1.23,
+    back_var=None,
+    mask=None,
+    debug_level=0,
+    full_output=False,
+    s_clip=5.0,
+    penalty=1.0,
+    log=None,
+):
     """
     Performs optimal extraction of a single stripe.
     Based on the algorithm described by Horne et al. 1986, PASP, 98, 609.
@@ -875,19 +1102,20 @@ def _optimal_extraction_single_stripe(stripe, flat_stripe, gain=1, read_noise=1.
         s_clip (float): sigma clipping value for optimal extraction
         penalty (float): scaling factor for global per-order profile mismatch correction. Set 0 for no correction
 
-    Returns:
+    Returns
+    -------
         tuple(np.ndarray, np.ndarray, dict): (optimal extracted spectrum, box extracted spectrum, dict of additional
         intermediate results if full_output was True)
 
     """
-    #log = self.log
+    # log = self.log
     if mask is None:
-        mask       = stripe.copy()
+        mask = stripe.copy()
         mask[:, :] = 1
     else:
         # copy mask, because it will be modified
-        mask     = mask.copy()
-        #back_var =  back_var.copy()
+        mask = mask.copy()
+        # back_var =  back_var.copy()
         back_var = stripe.copy()
         back_var[:, :] = 0  # back_var.copy()
 
@@ -896,28 +1124,45 @@ def _optimal_extraction_single_stripe(stripe, flat_stripe, gain=1, read_noise=1.
     stand_spec = stand_spec0.copy()
 
     # flat data
-    box_extracted_flat_stripe = _box_extract_single_stripe(flat_stripe, mask)  # spatial sums for flat along disp
+    box_extracted_flat_stripe = _box_extract_single_stripe(
+        flat_stripe, mask
+    )  # spatial sums for flat along disp
 
     # cut stripe sparse matrix into numpy array
     # find the spatial columns utilized along entire stripe (greater than slit height because of stripe path)
     sparse_vcols = np.array(~np.all(stripe.todense() == 0, axis=1)).reshape(-1)
-    stripe       = np.array(stripe.todense()[sparse_vcols])  # strip stripe to the inclusive nonzero rows
-    mask         = mask[sparse_vcols]  # strip mask similarly
-    back_var     = back_var[sparse_vcols] #strip background variance map similarly
-    flat_stripe  = np.array(flat_stripe.todense()[sparse_vcols])
-    sparse_vrows = np.count_nonzero((stripe != 0).T[1500])  # use ~middle column slit height as slit height pass
-    data         = np.zeros((sparse_vrows, stripe.shape[1]))
-    diff_save    = data.copy()
-    new_mask     = data.copy()  # create actual limit numpy arrays
+    stripe = np.array(
+        stripe.todense()[sparse_vcols]
+    )  # strip stripe to the inclusive nonzero rows
+    mask = mask[sparse_vcols]  # strip mask similarly
+    back_var = back_var[sparse_vcols]  # strip background variance map similarly
+    flat_stripe = np.array(flat_stripe.todense()[sparse_vcols])
+    sparse_vrows = np.count_nonzero(
+        (stripe != 0).T[1500]
+    )  # use ~middle column slit height as slit height pass
+    data = np.zeros((sparse_vrows, stripe.shape[1]))
+    diff_save = data.copy()
+    new_mask = data.copy()  # create actual limit numpy arrays
     new_back_var = data.copy()  # create actual limit numpy arrays
-    profile      = data.copy()
-    rectify_and_reshape(back_var, box_extracted_flat_stripe, data, flat_stripe, mask, new_back_var, new_mask, profile,
-                    stripe)
-    new_mask[:, stand_spec0 < 1E-12] = 0  # if sum is less than zero, whole column is cancelled for this stripe
+    profile = data.copy()
+    rectify_and_reshape(
+        back_var,
+        box_extracted_flat_stripe,
+        data,
+        flat_stripe,
+        mask,
+        new_back_var,
+        new_mask,
+        profile,
+        stripe,
+    )
+    new_mask[:, stand_spec0 < 1e-12] = (
+        0  # if sum is less than zero, whole column is cancelled for this stripe
+    )
     mask = new_mask.copy()
     back_var = new_back_var.copy() * mask
     stripe = data  # return variables 'mask' and 'stripe' to the naming conventions
-    data_var = abs(stripe.copy())/gain + back_var + read_noise
+    data_var = abs(stripe.copy()) / gain + back_var + read_noise
 
     # final output
     flux = np.zeros(len(stand_spec0))
@@ -926,44 +1171,74 @@ def _optimal_extraction_single_stripe(stripe, flat_stripe, gain=1, read_noise=1.
     # Calculate a first guess of the difference between stripe and scaled flat_stripe
     expected = profile * mask * stand_spec
     actual = stripe * mask
-    if len(actual) !=len(expected):
-        log.warning(f"Hit flat/science mismatch")
+    if len(actual) != len(expected):
+        log.warning('Hit flat/science mismatch')
     diff = actual - expected
 
     # Calculate the median of the difference along the order. This represents the 'global' mismatch between flat and science profile
     # and helps correct for the 'drift' problem in x-dispersion.
-    diff_aver = penalty * np.abs(median_filter(diff,size=(1,201)))
+    diff_aver = penalty * np.abs(median_filter(diff, size=(1, 201)))
 
     # # avoid already caught bad pixels (whole column is zero in bpm or stripe is too small)
     good_disp = np.nonzero(np.array(~np.any(mask == 0, axis=0)))[0]
     reject_tracker = np.zeros_like(stand_spec0)
-    reject_step(back_var, data_var, debug_level, diff_aver, diff_save, flux, gain, good_disp, mask, profile, read_noise,
-            reject_tracker, s_clip, stand_spec, stripe, var)
+    reject_step(
+        back_var,
+        data_var,
+        debug_level,
+        diff_aver,
+        diff_save,
+        flux,
+        gain,
+        good_disp,
+        mask,
+        profile,
+        read_noise,
+        reject_tracker,
+        s_clip,
+        stand_spec,
+        stripe,
+        var,
+    )
 
     flux[flux == 0] = np.nan
     var[var == 0] = np.nan
 
     stand_spec0[stand_spec0 == 0] = np.nan
     total_count = np.sum(reject_tracker > 0)
-    substantial_count = np.sum(np.abs(stand_spec0 - stand_spec)[reject_tracker > 0] > 0.005 * (stand_spec0[reject_tracker > 0]))
+    substantial_count = np.sum(
+        np.abs(stand_spec0 - stand_spec)[reject_tracker > 0]
+        > 0.005 * (stand_spec0[reject_tracker > 0])
+    )
     irrelevant_count = total_count - substantial_count
 
     if total_count > 0:
-        log.info(f'Rejected {np.sum(reject_tracker):.0f} pixels in {total_count} columns during optimal extraction.')
-        irrelevant_count_percentage = irrelevant_count/total_count*100
+        log.info(
+            f'Rejected {np.sum(reject_tracker):.0f} pixels in {total_count} columns during optimal extraction.'
+        )
+        irrelevant_count_percentage = irrelevant_count / total_count * 100
         if irrelevant_count_percentage > 30:
-            log.warning(f'Rejections with flux changes < 0.5%: {irrelevant_count} ({irrelevant_count_percentage:.0f}%)')
+            log.warning(
+                f'Rejections with flux changes < 0.5%: {irrelevant_count} ({irrelevant_count_percentage:.0f}%)'
+            )
         else:
-            log.info(f'Rejections with flux changes < 0.5%: {irrelevant_count} ({irrelevant_count_percentage:.0f}%)')
+            log.info(
+                f'Rejections with flux changes < 0.5%: {irrelevant_count} ({irrelevant_count_percentage:.0f}%)'
+            )
     else:
         log.info('No rejections')
 
     if debug_level >= 2:
-        #fig, ax = plt.subplots(3, 1)
+        # fig, ax = plt.subplots(3, 1)
         fig, ax = plt.subplots(3, 1, sharex='all')
-        ax[0].imshow(np.vstack((stripe,np.zeros_like(stripe),profile*flux)),interpolation='none')
-        ax[0].scatter(np.where(mask==0)[1],np.where(mask==0)[0],c='r',marker='+')
-        ax[0].set_title('2D spectra before (top) and after (bottom) masking of outliers')
+        ax[0].imshow(
+            np.vstack((stripe, np.zeros_like(stripe), profile * flux)),
+            interpolation='none',
+        )
+        ax[0].scatter(np.where(mask == 0)[1], np.where(mask == 0)[0], c='r', marker='+')
+        ax[0].set_title(
+            '2D spectra before (top) and after (bottom) masking of outliers'
+        )
         ax[1].set_ylabel('Stripe pixel')
 
         ax[1].plot(stand_spec0, 'b', label='Box extraction')
@@ -971,7 +1246,7 @@ def _optimal_extraction_single_stripe(stripe, flat_stripe, gain=1, read_noise=1.
         ax[1].set_ylabel('Flux (DN)')
         ax[1].set_title('Optimal and Box extraction')
 
-        ax[2].plot(flux - stand_spec0,'r',label='Difference box vs optimal')
+        ax[2].plot(flux - stand_spec0, 'r', label='Difference box vs optimal')
         ax[2].set_xlabel('Detector Pixel')
         ax[2].set_ylabel('Flux difference (DN)')
         ax[2].set_title('Difference between Optimal and Box extraction')
@@ -982,17 +1257,33 @@ def _optimal_extraction_single_stripe(stripe, flat_stripe, gain=1, read_noise=1.
 
     # return all intermediate results for debugging/testing
     if full_output:
-        return flux, var, stand_spec0, {'noise': var, 'acceptancemask': mask, "stripe": stripe,
-                                    "initial_sigma": diff_save}  # {'noise': var, 'profile': profile, 'rejectionmask': sparse.csr_matrix(mask),
+        return (
+            flux,
+            var,
+            stand_spec0,
+            {
+                'noise': var,
+                'acceptancemask': mask,
+                'stripe': stripe,
+                'initial_sigma': diff_save,
+            },
+        )  # {'noise': var, 'profile': profile, 'rejectionmask': sparse.csr_matrix(mask),
     # 'expected': expected, 'actual': actual}
-    else:
-        return flux, var, stand_spec0, {'noise': var}
+    return flux, var, stand_spec0, {'noise': var}
 
-def _optimal_extraction_single_stripe_old( stripe=None, flat_stripe=None,
-                                        gain=2.7, read_noise=1.23,
-                                        back_var=None, mask=None,
-                                        full_output=False,
-                                        s_clip=5.0, penalty=1.0, log=None):
+
+def _optimal_extraction_single_stripe_old(
+    stripe=None,
+    flat_stripe=None,
+    gain=2.7,
+    read_noise=1.23,
+    back_var=None,
+    mask=None,
+    full_output=False,
+    s_clip=5.0,
+    penalty=1.0,
+    log=None,
+):
     """
     Performs optimal extraction of a single stripe.
     Based on the algorithm described by Horne et al. 1986, PASP, 98, 609.
@@ -1026,7 +1317,7 @@ def _optimal_extraction_single_stripe_old( stripe=None, flat_stripe=None,
         if full_output was True)
 
     """
-    #log = self.log
+    # log = self.log
     # fix back_var
     if mask is None:
         mask = stripe.copy()
@@ -1041,18 +1332,18 @@ def _optimal_extraction_single_stripe_old( stripe=None, flat_stripe=None,
 
     # box extracted spectrum
     stand_spec0 = _box_extract_single_stripe(stripe, mask)
-    stand_spec_err = np.sqrt(stand_spec0/gain)
+    stand_spec_err = np.sqrt(stand_spec0 / gain)
     stand_spec = stand_spec0.copy()
 
     # flat data
     box_extracted_flat_stripe = _box_extract_single_stripe(
-        flat_stripe, mask)  # spatial sums for flat along disp
+        flat_stripe, mask
+    )  # spatial sums for flat along disp
 
     # cut stripe sparse matrix into numpy array
     # find the spatial columns utilized along entire stripe
     # (greater than slit height because of stripe path)
-    sparse_vcols = np.array(~np.all(stripe.todense() == 0, axis=1)
-                            ).reshape(-1)
+    sparse_vcols = np.array(~np.all(stripe.todense() == 0, axis=1)).reshape(-1)
     # strip stripe to the inclusive nonzero rows
     stripe = np.array(stripe.todense()[sparse_vcols])
     # strip other sparse matricies similarily
@@ -1071,22 +1362,22 @@ def _optimal_extraction_single_stripe_old( stripe=None, flat_stripe=None,
         # if column is slit height (not edge of chip)
         if np.nonzero((stripe != 0).T[i])[0].shape[0] == data.shape[0]:
             # if the flat stripe aka profile is defined in that column
-            if box_extracted_flat_stripe[i] > 1E-12:
+            if box_extracted_flat_stripe[i] > 1e-12:
                 # limit the column to the nonzero data points
                 data[:, i] = stripe[np.nonzero((stripe != 0).T[i])[0], i]
                 new_mask[:, i] = mask[np.nonzero((stripe != 0).T[i])[0], i]
-                new_back_var[:, i] = back_var[np.nonzero(
-                    (stripe != 0).T[i])[0], i]
-                profile[:, i] = flat_stripe[np.nonzero(
-                    (stripe != 0).T[i])[0], i] / box_extracted_flat_stripe[
-                    i]
+                new_back_var[:, i] = back_var[np.nonzero((stripe != 0).T[i])[0], i]
+                profile[:, i] = (
+                    flat_stripe[np.nonzero((stripe != 0).T[i])[0], i]
+                    / box_extracted_flat_stripe[i]
+                )
         else:
             # cancel iteration on column
             new_mask[:, i] = 0
             new_back_var[:, i] = 0
 
     # if sum is less than zero, whole column is cancelled for this stripe
-    new_mask[:, stand_spec0 < 1E-12] = 0
+    new_mask[:, stand_spec0 < 1e-12] = 0
     # update original variables
     mask = new_mask.copy()
     back_var = new_back_var.copy() * mask
@@ -1120,39 +1411,43 @@ def _optimal_extraction_single_stripe_old( stripe=None, flat_stripe=None,
         actual = stripe[:, h] * mask[:, h]
         diff = actual - expected
 
-        data_var[:, h] = abs(stand_spec[h] * profile[:, h]) / gain + \
-                            back_var[:, h] + read_noise
+        data_var[:, h] = (
+            abs(stand_spec[h] * profile[:, h]) / gain + back_var[:, h] + read_noise
+        )
         noise_rev = 1 / np.sqrt(data_var[:, h])
         diff_save[:, h] = diff * noise_rev
         # track rejected mismatch between profiles based on s_clip value
-        reject_index = np.nonzero(((np.abs(diff) - np.abs(diff_aver[:, h]))
-                                    * noise_rev) >= s_clip)[0]
+        reject_index = np.nonzero(
+            ((np.abs(diff) - np.abs(diff_aver[:, h])) * noise_rev) >= s_clip
+        )[0]
 
         while len(reject_index) > 0:
             # find and remove the worst mismatch
-            worst = np.argmax((np.abs(diff) - np.abs(diff_aver[:, h]))
-                                * noise_rev)
+            worst = np.argmax((np.abs(diff) - np.abs(diff_aver[:, h])) * noise_rev)
             reject_tracker[h] = reject_tracker[h] + 1
             mask[worst, h] = 0
             # (re-)calculate the optimal extraction
-            denom = np.sum(profile[:, h] * profile[:, h] * mask[:, h]
-                            / data_var[:, h])
-            stand_spec[h] = np.sum(profile[:, h] * mask[:, h] * stripe[:, h]
-                                    / data_var[:, h]) / denom
+            denom = np.sum(profile[:, h] * profile[:, h] * mask[:, h] / data_var[:, h])
+            stand_spec[h] = (
+                np.sum(profile[:, h] * mask[:, h] * stripe[:, h] / data_var[:, h])
+                / denom
+            )
 
             expected = profile[:, h] * mask[:, h] * stand_spec[h]
             actual = stripe[:, h] * mask[:, h]
             diff = actual - expected
 
-            data_var[:, h] = abs(stand_spec[h] * profile[:, h]) / gain + \
-                                back_var[:, h] + read_noise
+            data_var[:, h] = (
+                abs(stand_spec[h] * profile[:, h]) / gain + back_var[:, h] + read_noise
+            )
             noise_rev = 1 / np.sqrt(data_var[:, h])
             # diff_save[:,h] = diff*noise_rev
-            reject_index = np.nonzero(((np.abs(diff) - np.abs(
-                diff_aver[:, h])) * noise_rev) >= s_clip)[0]
+            reject_index = np.nonzero(
+                ((np.abs(diff) - np.abs(diff_aver[:, h])) * noise_rev) >= s_clip
+            )[0]
             # if more than half the pixels in a column have been rejected,
             # reject the whole column
-            if np.count_nonzero(actual[3:-5]) < len(profile[3:-5, h]) / 2.:
+            if np.count_nonzero(actual[3:-5]) < len(profile[3:-5, h]) / 2.0:
                 reject_index = np.array([])
                 mask[:, h] = 0
                 flux[h] = 0
@@ -1160,10 +1455,11 @@ def _optimal_extraction_single_stripe_old( stripe=None, flat_stripe=None,
         # if the column is still considered good after all the rejections
         # are complete, calculate a final optimal extraction
         if np.count_nonzero(mask[:, h]) > 0:
-            denom = np.sum(profile[:, h] * profile[:, h] * mask[:, h] /
-                            data_var[:, h])
-            flux[h] = np.sum(profile[:, h] * mask[:, h] * stripe[:, h] /
-                                data_var[:, h]) / denom
+            denom = np.sum(profile[:, h] * profile[:, h] * mask[:, h] / data_var[:, h])
+            flux[h] = (
+                np.sum(profile[:, h] * mask[:, h] * stripe[:, h] / data_var[:, h])
+                / denom
+            )
             var[h] = np.sum(profile[:, h] * mask[:, h]) / denom
     # from the optimal extraction, values of 0 in the flux are bad pixels
     flux[flux == 0] = np.nan
@@ -1173,34 +1469,48 @@ def _optimal_extraction_single_stripe_old( stripe=None, flat_stripe=None,
     total_count = np.sum(reject_tracker > 0)
     # rejection fraction limit, found by instrument team
     substantial_count = np.sum(
-        np.abs(stand_spec0 - stand_spec)[reject_tracker > 0] > 0.005 *
-        (stand_spec0[reject_tracker > 0]))
+        np.abs(stand_spec0 - stand_spec)[reject_tracker > 0]
+        > 0.005 * (stand_spec0[reject_tracker > 0])
+    )
     irrelevant_count = total_count - substantial_count
 
     if total_count > 0:
         log.fullinfo(
-            f'Rejected {np.sum(reject_tracker):.0f} pixels in ' +
-            f'{total_count} columns during optimal extraction.')
+            f'Rejected {np.sum(reject_tracker):.0f} pixels in '
+            + f'{total_count} columns during optimal extraction.'
+        )
         irrelevant_count_percentage = irrelevant_count / total_count * 100
         if irrelevant_count_percentage > 30:
             log.warning(
-                f'Rejections with flux changes < 0.5%: {irrelevant_count}' +
-                f'({irrelevant_count_percentage:.0f}%)')
+                f'Rejections with flux changes < 0.5%: {irrelevant_count}'
+                + f'({irrelevant_count_percentage:.0f}%)'
+            )
         else:
             log.info(
-                f'Rejections with flux changes < 0.5%: {irrelevant_count}' +
-                f'({irrelevant_count_percentage:.0f}%)')
+                f'Rejections with flux changes < 0.5%: {irrelevant_count}'
+                + f'({irrelevant_count_percentage:.0f}%)'
+            )
     else:
         log.info('No rejections')
 
     # return all intermediate results for debugging/testing
     if full_output:
-        return flux, var, stand_spec0, stand_spec_err, \
-            {'noise': var, 'acceptancemask': mask, "stripe": stripe,
-                                        "initial_sigma": diff_save}
+        return (
+            flux,
+            var,
+            stand_spec0,
+            stand_spec_err,
+            {
+                'noise': var,
+                'acceptancemask': mask,
+                'stripe': stripe,
+                'initial_sigma': diff_save,
+            },
+        )
     return flux, var, stand_spec0, stand_spec_err, {'noise': var}
 
-#@staticmethod
+
+# @staticmethod
 def _box_extract_single_stripe(stripe=None, mask=None):
     """
     Box extraction of a single stripe.
@@ -1217,5 +1527,5 @@ def _box_extract_single_stripe(stripe=None, mask=None):
     """
     if mask is None:
         mask = stripe.copy()
-        mask.data[:] = 1.
+        mask.data[:] = 1.0
     return np.array(np.sum(stripe.multiply(mask), axis=0).T).flatten()
