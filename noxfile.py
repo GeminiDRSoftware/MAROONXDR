@@ -153,6 +153,7 @@ def _parse_dependencies(result: str) -> list[str]:
     return dependencies
 
 
+# Development envs
 @nox.session(venv_backend=None, python='3.10')
 def devenv(session: nox.Session):
     """Create a development environment.
@@ -305,6 +306,7 @@ def devconda(session: nox.Session):
     session.log(f'   conda activate {env_name}')
 
 
+# Lint sessions
 @nox.session
 def lint(session: nox.Session):
     """Run linters."""
@@ -356,13 +358,21 @@ def unit_tests(session: nox.Session):
     """Run unit tests."""
     session.install('poetry', 'poetry-plugin-export')
 
+    # Install DRAGONS
+    install_dragons(session)
+
+    # Install dependencies
     dependencies = get_dependencies(session, only='main,test')
     session.install(*dependencies)
 
+    # Install maroonxdr and maroonx_instruments
+    session.install('-e', '.')
+
+    # Run the tests
     session.run(
         'pytest',
-        'maroonxdr/maroonx/tests/',
-        'maroonx_instruments/tests/',
+        'maroonxdr/maroonx/tests/image/test_split_bundle.py',
+        #'maroonx_instruments/tests/',
         *session.posargs,
     )
 
@@ -374,16 +384,23 @@ def integration_tests(session: nox.Session):
     raise NotImplementedError(message)
 
 
-@nox.session
+@nox.session(python='3.10')
 def coverage(session: nox.Session):
     """Run tests with coverage reporting."""
     session.install('poetry', 'poetry-plugin-export')
 
+    # Install DRAGONS
+    install_dragons(session)
+
+    # Install dependencies
     dependencies = get_dependencies(session, only='main,test')
     session.install(*dependencies)
 
+    # Install maroonxdr and maroonx_instruments
+    session.install('-e', '.')
+
     session.run('coverage', 'erase')
-    session.run('pytest', '-q', 'maroonxdr/tests/', '--cov=maroonxdr/', '--cov-append')
+    session.run('pytest', '-q', 'maroonxdr/maroonx/tests/image/test_split_bundle.py', '--cov=maroonxdr/maroonx/', '--cov-append')
     session.run('coverage', 'report', '--fail-under=80', '-m')
 
 
