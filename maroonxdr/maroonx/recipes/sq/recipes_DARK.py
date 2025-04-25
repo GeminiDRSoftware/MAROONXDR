@@ -33,7 +33,11 @@ def makeProcessedDark(p):
     p.checkArm()
     p.checkND()
     p.addDQ()
+    
     p.overscanCorrect()
+    # p.subtractOverscan()  # TODO: cross-check lookup overscan section with og code
+    # p.trimOverscan()
+    
     p.correctImageOrientation()
     p.addVAR(read_noise=True,poisson_noise=True)
     p.stackDarks()  # see parameters file for sig-clip choices and overwrites
