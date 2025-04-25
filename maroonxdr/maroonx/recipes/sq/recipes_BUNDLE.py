@@ -18,8 +18,5 @@ def processBundle(p):
     p.splitBundle()
     p.writeOutputs()
 
-    # for ad in p.streams['main']:
-    #     ad.write(ad.phu['ORIGNAME'])
-
 
 _default = processBundle
