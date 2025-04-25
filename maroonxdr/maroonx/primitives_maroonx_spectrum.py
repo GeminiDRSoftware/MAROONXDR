@@ -56,7 +56,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         self._param_update(parameters_maroonx_spectrum)
 
     def getPeaksAndPolynomials(self, adinputs=None, guess_file=None,
-                            fibers=None, orders=None, degree_sigma=4, degree_width=2,
+                            fibers=(), orders=(), degree_sigma=4, degree_width=2,
                             use_sigma_lr=True, show_plots=False,
                             plot_path="", multithreading=False,
                             iterations = 5, **params):
