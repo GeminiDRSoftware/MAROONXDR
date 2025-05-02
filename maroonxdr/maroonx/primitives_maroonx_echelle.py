@@ -729,7 +729,7 @@ class MAROONXEchelle(MAROONX, Spect):
 # Below are the helper functions for the primitives in this module           #
 ##############################################################################
 
-#@staticmethod
+
 def _extract_single_stripe(data=None, polynomials=None, slit_height=10):
     """
     Extracts single stripe from 2d image.
