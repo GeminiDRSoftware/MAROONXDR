@@ -33,14 +33,11 @@ def makeProcessedDark(p):
     p.checkArm()
     p.checkND()
     p.addDQ()
-    
-    p.overscanCorrect()
-    # p.subtractOverscan()  # TODO: cross-check lookup overscan section with og code
-    # p.trimOverscan()
-    
+    p.subtractOverscan()
+    p.trimOverscan()
     p.correctImageOrientation()
-    p.addVAR(read_noise=True,poisson_noise=True)
-    p.stackDarks()  # see parameters file for sig-clip choices and overwrites
+    p.addVAR(read_noise=True, poisson_noise=True)
+    p.stackDarks(scale_mode='first_frame', lsigma=2.0, hsigma=2.0)
     p.storeProcessedDark()
 
     return
@@ -63,7 +60,34 @@ def testVARDark(p):
     p.checkArm()
     p.checkND()
     p.addDQ()
-    p.overscanCorrect()
+    p.subtractOverscan()
+    p.trimOverscan()
     p.correctImageOrientation()
-    p.addVAR(read_noise=True,poisson_noise=True)
+    p.addVAR(read_noise=True, poisson_noise=True)
     p.storeProcessedDark(suffix='_varAdded')
+
+
+def testRegressionDark(p):
+    """
+    This recipe is used to test the dark frame of the legacy pipeline can be reproduced.
+    It is a simplified version of the makeProcessedDark recipe, it does not
+    include overscan trimming nor image orientation correction.
+
+    Parameters
+    ----------
+    p : PrimitivesCORE object
+        A primitive set matching the recipe_tags.
+    """
+
+
+    p.prepare()
+    p.checkArm()
+    p.checkND()
+    p.addDQ()
+    p.subtractOverscan()
+    # No trim overscan and no correct image orientation
+    p.addVAR(read_noise=True, poisson_noise=True)
+    p.stackDarks(scale_mode='first_frame', lsigma=2.0, hsigma=2.0)
+    p.storeProcessedDark(suffix='_regressionDark')
+
+    return

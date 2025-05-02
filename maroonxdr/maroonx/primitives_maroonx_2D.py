@@ -11,7 +11,7 @@ import pandas as pd
 from astrodata.fits import windowedOp
 from astrodata.provenance import add_provenance
 from astropy.io import fits
-from astropy.stats import SigmaClip
+from astropy.stats import SigmaClip, sigma_clipped_stats
 from astropy.table import Table, vstack
 from geminidr.core import CCD, NearIR
 from geminidr.gemini.lookups import DQ_definitions as DQ
@@ -500,6 +500,53 @@ class MAROONX(Gemini, CCD, NearIR):
             return adinputs
         return adoutputs
 
+    def subtractOverscan(self, adinputs=None, **params):
+        """
+        MX specific primitive to subtract the overscan level from the image.
+
+
+        Parameters
+        ----------
+        suffix: str
+            suffix to be added to output files
+        """
+        log = self.log
+        log.debug(gt.log_message("primitive", self.myself(), "starting"))
+        timestamp_key = self.timestamp_keys[self.myself()]
+
+        for ad in adinputs:
+            if ad.phu.get(timestamp_key):
+                log.warning(f"No changes will be made to {ad.filename}, since it has "
+                            "already been processed by subtractOverscan")
+                continue
+
+            # get the overscan section used for bias subtraction
+            # and the array section where the correction is applied
+            # MX has only one extension (red or blue), use index 0
+            osec = ad.subtract_overscan_section()[0]
+            asec = ad.array_subtract_overscan_section()[0]
+            
+            if len(osec) != len(asec):
+                raise ValueError('Overscan and array sections for bias subtraction ' \
+                'do not match.')
+
+            # get data as float32
+            ad[0].data = ad[0].data.astype(np.float32)
+            data = ad[0].data
+
+            # Subtract the mean overscan level from the array region
+            for osec_, asec_ in zip(osec, asec):
+                oslice = osec_.asslice()
+                aslice = asec_.asslice()
+                data[aslice] -= np.mean(data[oslice])   # TODO: use nanmean
+
+            # Timestamp, and update filename
+            gt.mark_history(ad, primname=self.myself(), keyword=timestamp_key)
+            ad.update_filename(suffix=params['suffix'], strip=True)
+
+        return adinputs
+
+
     def stackFramesMXCal(self, adinputs=None, **params):
         """
         MX-specific version of stackFrames for calibration frames - changes
@@ -825,6 +872,119 @@ class MAROONX(Gemini, CCD, NearIR):
         """
         MX-specific version of stack darks allowing scaling for etalon
         intensity drift that is in MX 'darks'
+        
+        Parameters
+        ----------
+        adinputs : list of AstroData
+            Input frames to be combined
+        suffix : str
+            Suffix to be added to output files
+        scale_mode : str
+            Scaling mode for the input frames. Options are 'mean_frame' or 'first_frame'.
+        lsigma : float
+            Lower sigma clipping threshold for the rejection method
+        hsigma : float
+            Upper sigma clipping threshold for the rejection method
+        max_iters : int
+            Maximum number of iterations for the rejection method
+        reject_method : str
+            Rejection method to be used. Currently only 'sigclip' is supported.
+            
+        Returns
+        -------
+        list of AstroData
+            Combined output frame
+        """
+        log = self.log
+        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
+        timestamp_key = self.timestamp_keys['stackFrames']
+
+        # Check that all inputs are DARKs and have the same exposure time - not MX specific
+        if not all('DARK' in dark.tags for dark in adinputs):
+            raise ValueError('Not all inputs have DARK tag')
+
+        if not all(
+            dark.exposure_time() == adinputs[0].exposure_time() for dark in adinputs[1:]
+        ):
+            raise ValueError('Darks are not of equal exposure time')
+        
+        if len(adinputs) <= 1:
+            log.stdinfo("No stacking will be performed, since at least two "
+                        "input AstroData objects are required for stackFrames")
+            return adinputs
+
+        sfx = params["suffix"]
+        scale_mode = params["scale_mode"]
+        lsigma = params["lsigma"]
+        hsigma = params["hsigma"]
+        max_iters = params["max_iters"]
+        reject_method = params["reject_method"]
+
+
+        # Create output frame structure
+        ad_out = deepcopy(adinputs[0])
+        
+        # STACKING BEGINS ================================================
+        # Stack frames into a data cube
+        data_cube = np.dstack([ad[0].data.astype(np.float32) for ad in adinputs])
+
+        # Scale frames
+        data_cube = _scaleCube(data_cube, scale_mode=scale_mode)
+
+        # Combine frames using the specified operation
+        if reject_method != 'sigclip':
+            raise ValueError(f"Unsupported rejection method: {reject_method}")
+        
+        data_mean, data_median, data_stddev = sigma_clipped_stats(
+            data_cube, 
+            axis=2, 
+            sigma_lower=lsigma, 
+            sigma_upper=hsigma, 
+            maxiters=max_iters)
+
+        # Further bad pixel filtering
+        # this logic is inherited from the legacy code
+        data_min = np.min(data_cube, axis=2)
+        diff = data_mean - data_min
+        bad_pixels = np.where(
+            (diff > 2 * np.nanmedian(data_mean)) & 
+            (diff > np.abs(0.3 * data_min)) & 
+            (data_mean > 10) & 
+            (diff > 10)
+        )
+        n_bad = np.shape(bad_pixels)[1]
+        if n_bad > 0:
+            data_mean[bad_pixels] = data_min[bad_pixels]
+
+        # Set the output data
+        ad_out[0].data = data_mean
+        # ================================================================
+
+        # Add suffix to datalabel to distinguish from the reference frame
+        if sfx[0] == '_':
+            extension = sfx.replace('_', '-', 1).upper()
+        else:
+            extension = '-' + sfx.upper()
+        ad_out.phu.set('DATALAB', "{}{}".format(ad_out.data_label(), extension),
+                       self.keyword_comments['DATALAB'])
+
+        # Add other keywords to the PHU about the stacking inputs
+        ad_out.orig_filename = ad_out.phu.get('ORIGNAME')
+        ad_out.phu.set('NCOMBINE', len(adinputs), self.keyword_comments['NCOMBINE'])
+        for i, ad in enumerate(adinputs, start=1):
+            ad_out.phu.set('IMCMB{:03d}'.format(i), ad.phu.get('ORIGNAME', ad.filename))
+
+        # Timestamp and update filename and prepare to return single output
+        gt.mark_history(ad_out, primname=self.myself(), keyword=timestamp_key)
+        ad_out.update_filename(suffix=sfx, strip=True)
+        
+        return [ad_out]
+
+
+    def stackDarksOld(self, adinputs=None, **params):
+        """
+        MX-specific version of stack darks allowing scaling for etalon
+        intensity drift that is in MX 'darks'
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
@@ -848,7 +1008,7 @@ class MAROONX(Gemini, CCD, NearIR):
 
         return adinputs
 
-    def stackFlats(self, adinputs=None, **params):
+    def stackFlatsOld(self, adinputs=None, **params):
         """
         MaroonX-specific version of stack flats to call correct stackframes
         for the flats.
@@ -861,6 +1021,101 @@ class MAROONX(Gemini, CCD, NearIR):
         stack_params.update({'zero': False})
         adinputs = self.stackFramesMXCal(adinputs, **stack_params)
         return adinputs
+
+    def stackFlats(self, adinputs=None, **params):
+        """
+        A simplified DRAGONS primitive that reproduces the legacy make_master_flat.py
+        
+        Parameters
+        ----------
+        adinputs : list of AstroData
+            Input frames to be combined
+        operation : str
+            Combine method (default: 'mean')
+        reject_method : str
+            Rejection method (default: 'sigclip')
+        scale : bool
+            Whether to scale images (default: True)
+        
+        Returns
+        -------
+        list of AstroData
+            Combined output frame
+        """
+        log = self.log
+        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
+        timestamp_key = self.timestamp_keys['stackFrames']
+
+        sfx = params["suffix"]
+        stream = params["stream"]
+        scale_mode = params["scale_mode"]
+        lsigma = params["lsigma"]
+        hsigma = params["hsigma"]
+        max_iters = params["max_iters"]
+        reject_method = params["reject_method"]
+
+        # Take the flat stream from the input parameters
+        if stream not in self.streams:
+            raise ValueError(f"Invalid stream: {stream}. Valid flta streams are: {self.streams.keys()}")
+        ad_stream = self.streams[stream]
+        
+        if len(ad_stream) <= 1:
+            log.stdinfo("No stacking will be performed, since at least two "
+                        "input AstroData objects are required for stackFrames")
+            return ad_stream
+
+        # Check that all inputs are FLAT and have the same exposure time - not MX specific
+        if not all('FLAT' in ad.tags for ad in ad_stream):
+            raise ValueError('Not all inputs have FLAT tag')        
+
+        # STACKING BEGINS ================================================
+        # Create output frame structure
+        ad_out = deepcopy(ad_stream[0])
+        
+        # Stack frames into a data cube
+        data_cube = np.dstack([ad[0].data.astype(np.float32) for ad in ad_stream])
+
+        # Scale frames
+        data_cube = _scaleCube(data_cube, scale_mode=scale_mode)
+
+        # Combine frames using the specified operation
+        if reject_method != 'sigclip':
+            raise ValueError(f"Unsupported rejection method: {reject_method}")
+        
+        data_mean, data_median, data_stddev = sigma_clipped_stats(
+            data_cube, 
+            axis=2, 
+            sigma_lower=lsigma, 
+            sigma_upper=hsigma, 
+            maxiters=max_iters)
+
+        # Further bad pixel filtering
+        # this logic is inherited from the legacy code
+        data_mean[data_mean<0] = 0
+
+        # Set the output data
+        ad_out[0].data = data_mean
+        # ================================================================
+
+        # Add suffix to datalabel to distinguish from the reference frame
+        if sfx[0] == '_':
+            extension = sfx.replace('_', '-', 1).upper()
+        else:
+            extension = '-' + sfx.upper()
+        ad_out.phu.set('DATALAB', "{}{}".format(ad_out.data_label(), extension),
+                       self.keyword_comments['DATALAB'])
+
+        # Add other keywords to the PHU about the stacking inputs
+        ad_out.orig_filename = ad_out.phu.get('ORIGNAME')
+        ad_out.phu.set('NCOMBINE', len(ad_stream), self.keyword_comments['NCOMBINE'])
+        for i, ad in enumerate(ad_stream, start=1):
+            ad_out.phu.set('IMCMB{:03d}'.format(i), ad.phu.get('ORIGNAME', ad.filename))
+
+        # Timestamp and update filename and prepare to return single output
+        gt.mark_history(ad_out, primname=self.myself(), keyword=timestamp_key)
+        ad_out.update_filename(suffix=sfx, strip=True)
+        
+        return [ad_out]
 
     def findStripes(
         self,
@@ -1551,3 +1806,50 @@ class MAROONX(Gemini, CCD, NearIR):
                 adoutputs.append(arm_ad)
 
         return adoutputs
+
+
+##############################################################################
+# Below are the helper functions for the primitives in this module           #
+##############################################################################
+
+def _scaleCube(cube, scale_mode='first_frame'):
+    """
+    Scale a data cube by normalizing each frame to a scale factor.
+    The scaling can be done relative to the first frame or the
+    mean of all frames.
+    
+    Parameters
+    ----------
+    cube : numpy.ndarray
+        3D array of shape (height, width, n_frames) containing the frames to combine
+    scale_mode : str
+        Mode of scaling. Options are 'first_frame' or 'mean_frame'.
+        - 'first_frame': Scale each frame to match the total flux of the first frame.
+        - 'mean_frame': Scale each frame to match the mean total flux of all frames.
+
+    Returns
+    -------
+    numpy.ndarray
+        Scaled data cube with the same shape as the input
+    """
+ 
+    # Determine reference value based on scale_mode
+    if scale_mode == 'first_frame':
+        for i in range(cube.shape[-1]):
+            a = np.sum(cube[:, :, i])
+            cube[:, :, i] = cube[:, :, i] / a * np.sum(cube[:, :, 0])
+
+    elif scale_mode == 'mean_frame':
+        sums = []
+        for i in range(cube.shape[-1]):
+            a = np.sum(cube[:, :, i])
+            sums = np.append(sums,a)
+
+        total = (np.sum(sums)/cube.shape[-1])
+        for i in range(cube.shape[-1]):
+            cube[:, :, i] = cube[:, :, i] / sums[i] * total
+
+    else:
+        raise ValueError(f"Unknown scale_mode: {scale_mode}. Use 'first_frame' or 'mean_frame'")
+    
+    return cube
