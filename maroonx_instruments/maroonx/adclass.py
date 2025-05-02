@@ -249,6 +249,39 @@ class AstroDataMAROONX(AstroDataGemini):
         return allext
 
     @astro_data_descriptor
+    def subtract_overscan_section(self, pretty=False):
+        """
+        Returns the overscan (or bias) section used for overscan subtraction.
+
+        Returns
+        -------
+        list of stings
+            Position of the overscan sections using 0-based coordinates.
+        """
+        bs_section = lookup.bias_subtraction_section
+        
+        # amp names are the keys of the dictionary
+        ampname = [list(bs_section.keys()) for _ in self.indices]
+        
+        if pretty:
+            if self.is_single:
+                return [bs_section[amp] for amp in ampname[0]]
+            allext = []
+            for extampname in ampname:
+                allext.append([bs_section[amp] for amp in extampname])
+            return allext
+
+        if self.is_single:
+            return [Section.from_string(bs_section[amp]) for amp in ampname[0]]
+
+        allext = []
+        for extampname in ampname:
+            allext.append(
+                [Section.from_string(bs_section[amp]) for amp in extampname]
+            )
+        return allext
+
+    @astro_data_descriptor
     def data_section(self, pretty=False):
         """
         Returns the sky-exposable data pixels (or bias) section.
@@ -304,6 +337,39 @@ class AstroDataMAROONX(AstroDataGemini):
                 [Section.from_string(lookup.array_section[amp]) for amp in extampname]
             )
         return allext
+
+    @astro_data_descriptor
+    def array_subtract_overscan_section(self, pretty=False):
+        """
+        Returns the array sections that will be corrected by overscan.  A
+        list of strings of 0-based coordinates is returned.
+
+        Returns
+        -------
+            list of stings
+            Position of the array sections using 0-based coordinates.
+        """
+        as_section = lookup.array_subtraction_section
+        
+        # amp names are the keys of the dictionary
+        ampname = [list(as_section.keys()) for _ in self.indices]
+
+        if pretty:
+            if self.is_single:
+                return [as_section[amp] for amp in ampname[0]]
+            allext = []
+            for extampname in ampname:
+                allext.append([as_section[amp] for amp in extampname])
+            return allext
+        if self.is_single:
+            return [Section.from_string(as_section[amp]) for amp in ampname[0]]
+        allext = []
+        for extampname in ampname:
+            allext.append(
+                [Section.from_string(as_section[amp]) for amp in extampname]
+            )
+        return allext
+
 
     @astro_data_descriptor
     def detector_section(
