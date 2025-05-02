@@ -25,7 +25,8 @@ def makeProcessedFlat(p):
     p.checkArm()
     p.checkND()
     p.addDQ()
-    p.overscanCorrect()
+    p.subtractOverscan()
+    p.trimOverscan()
     p.correctImageOrientation()
     p.addVAR(read_noise=True,poisson_noise=True)
     p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
@@ -70,7 +71,8 @@ def makeStrayLightCheck(p):
     p.checkArm()
     p.checkND()
     p.addDQ()
-    p.overscanCorrect()
+    p.subtractOverscan()
+    p.trimOverscan()
     p.correctImageOrientation()
     p.addVAR(read_noise=True,poisson_noise=True)
     p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
@@ -105,7 +107,8 @@ def makeFlatVarCheck(p):
     p.checkArm()
     p.checkND()
     p.addDQ()
-    p.overscanCorrect()
+    p.subtractOverscan()
+    p.trimOverscan()
     p.correctImageOrientation()
     p.addVAR(read_noise=True,poisson_noise=True)
     p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
@@ -132,11 +135,12 @@ def makeProcessedFlatDFFFF(p):
     p.checkArm()
     p.checkND()
     p.addDQ()
-    p.overscanCorrect()
+    p.subtractOverscan()
+    p.trimOverscan()
     p.correctImageOrientation()
     p.addVAR(read_noise=True,poisson_noise=True)
     p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
-    p.stackFlats(suffix='FDDDF_flats')
+    p.stackFlats(stream='main', scale_mode='mean_frame', suffix='FDDDF_flats')
     p.stackFlats(stream='DFFFD_flats',suffix='DFFFD')
     p.findStripes()  # define stripe info to ultimately remove stray light in each stream
     p.findStripes(stream='DFFFD_flats')
