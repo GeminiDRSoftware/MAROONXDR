@@ -1047,33 +1047,27 @@ class MAROONX(Gemini, CCD, NearIR):
         timestamp_key = self.timestamp_keys['stackFrames']
 
         sfx = params["suffix"]
-        stream = params["stream"]
         scale_mode = params["scale_mode"]
         lsigma = params["lsigma"]
         hsigma = params["hsigma"]
         max_iters = params["max_iters"]
         reject_method = params["reject_method"]
-
-        # Take the flat stream from the input parameters
-        if stream not in self.streams:
-            raise ValueError(f"Invalid stream: {stream}. Valid flta streams are: {self.streams.keys()}")
-        ad_stream = self.streams[stream]
-        
-        if len(ad_stream) <= 1:
+       
+        if len(adinputs) <= 1:
             log.stdinfo("No stacking will be performed, since at least two "
                         "input AstroData objects are required for stackFrames")
-            return ad_stream
+            return adinputs
 
         # Check that all inputs are FLAT and have the same exposure time - not MX specific
-        if not all('FLAT' in ad.tags for ad in ad_stream):
+        if not all('FLAT' in ad.tags for ad in adinputs):
             raise ValueError('Not all inputs have FLAT tag')        
 
         # STACKING BEGINS ================================================
         # Create output frame structure
-        ad_out = deepcopy(ad_stream[0])
+        ad_out = deepcopy(adinputs[0])
         
         # Stack frames into a data cube
-        data_cube = np.dstack([ad[0].data.astype(np.float32) for ad in ad_stream])
+        data_cube = np.dstack([ad[0].data.astype(np.float32) for ad in adinputs])
 
         # Scale frames
         data_cube = _scaleCube(data_cube, scale_mode=scale_mode)
@@ -1107,8 +1101,8 @@ class MAROONX(Gemini, CCD, NearIR):
 
         # Add other keywords to the PHU about the stacking inputs
         ad_out.orig_filename = ad_out.phu.get('ORIGNAME')
-        ad_out.phu.set('NCOMBINE', len(ad_stream), self.keyword_comments['NCOMBINE'])
-        for i, ad in enumerate(ad_stream, start=1):
+        ad_out.phu.set('NCOMBINE', len(adinputs), self.keyword_comments['NCOMBINE'])
+        for i, ad in enumerate(adinputs, start=1):
             ad_out.phu.set('IMCMB{:03d}'.format(i), ad.phu.get('ORIGNAME', ad.filename))
 
         # Timestamp and update filename and prepare to return single output
@@ -1161,9 +1155,9 @@ class MAROONX(Gemini, CCD, NearIR):
         timestamp_key = self.timestamp_keys[self.myself()]
 
         for ad in adinputs:
-            npix_y, npix_x = ad.data[0].shape
+            npix_y, npix_x = ad[0].data.shape
             # first smooth frame to improve algorithm stability
-            filtered_ad = median_filter(ad.data[0], med_filter)
+            filtered_ad = median_filter(ad[0].data, med_filter)
             filtered_ad = gaussian_filter(filtered_ad, gauss_filter_sigma)
 
             # find peaks in center column
