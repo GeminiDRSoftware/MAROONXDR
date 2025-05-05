@@ -40,7 +40,7 @@ isort = "^5.13.2"
 pre-commit = "^3.6.2"
 ipython = "^8.34.0"
 ipdb = "^0.13.13"
-
+h5py = "^3.13.0"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^7.2.6"
