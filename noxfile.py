@@ -264,28 +264,45 @@ def devconda(session: nox.Session):
 
     env_python = env_path / 'bin' / 'python'
 
-
     # Install dependencies from pyproject.toml without version constraints
     for dependency in dependencies:
-        dep = dependency #.split('==')[0]
+        dep = dependency  # .split('==')[0]
         session.run(
             'conda', 'install', f'--name={env_name}', '--yes', dep, external=True
         )
 
     # Install DRAGONS conda dependencies as stated in its README
     session.run(
-        'conda', 
-        'install', 
-        f'--name={env_name}', 
+        'conda',
+        'install',
+        f'--name={env_name}',
         '--yes',
         '--no-update-deps',
-        '-c', 
+        '-c',
         'conda-forge',
-        'astropy=6', 'matplotlib', 'numpy', 'psutil', 'python-dateutil',
-        'requests', 'scikit-image', 'scipy', 'sextractor', 'sqlalchemy', 'ds9', 
-        'gwcs', 'specutils', 'sphinx', 'sphinx_rtd_theme', 'bokeh', 'holoviews', 
-        'cython', 'future', 'astroscrappy=1.1', 'fitsverify', 'imexam',
-        external=True
+        'astropy=6',
+        'matplotlib',
+        'numpy',
+        'psutil',
+        'python-dateutil',
+        'requests',
+        'scikit-image',
+        'scipy',
+        'sextractor',
+        'sqlalchemy',
+        'ds9',
+        'gwcs',
+        'specutils',
+        'sphinx',
+        'sphinx_rtd_theme',
+        'bokeh',
+        'holoviews',
+        'cython',
+        'future',
+        'astroscrappy=1.1',
+        'fitsverify',
+        'imexam',
+        external=True,
     )
 
     # Install DRAGONS
@@ -400,7 +417,13 @@ def coverage(session: nox.Session):
     session.install('-e', '.')
 
     session.run('coverage', 'erase')
-    session.run('pytest', '-q', 'maroonxdr/maroonx/tests/image/test_split_bundle.py', '--cov=maroonxdr/maroonx/', '--cov-append')
+    session.run(
+        'pytest',
+        '-q',
+        'maroonxdr/maroonx/tests/image/test_split_bundle.py',
+        '--cov=maroonxdr/maroonx/',
+        '--cov-append',
+    )
     session.run('coverage', 'report', '--fail-under=80', '-m')
 
 
