@@ -3,9 +3,16 @@ MAROONX Utils file.  Contains functions used to load data from reference files.
 '''
 import os
 import logging
-import astrodata
+
 import numpy as np
-from .lookups import siddb, maskdb, refwavelengthdb
+from astropy.io import fits
+from astropy.table import Table
+
+from lmfit import Parameters
+
+import astrodata
+
+from .lookups import siddb, maskdb, wavelengthdb
 
 def load_recordings(ad, guess_file, fibers, orders):
     """
@@ -174,14 +181,165 @@ def get_refwavelength_filename(ad):
     logging.basicConfig(level=logging.DEBUG)
     log = logging.getLogger(__name__)
     arm = ('b' if 'BLUE' in ad.tags else 'r') #Get appropriate arm
-    refwavelength_dir = os.path.join(os.path.dirname(refwavelengthdb.__file__), 'REFWAVELENGTH')
-    db_matches = sorted((k, v) for k, v in refwavelengthdb.refwavelength_dict.items()\
+    wavelength_dir = os.path.join(os.path.dirname(wavelengthdb.__file__), 'WLS')
+    db_matches = sorted((k, v) for k, v in wavelengthdb.refwavelength_dict.items()\
     if arm in k) #Check if there is a reference wavelength file for the given arm
     if db_matches:
-        refwavelength = db_matches[-1][1]
+        wavelength = db_matches[-1][1]
     else:
         log.warning(f'No reference wavelength file found for {ad.filename}')
         return None
-    return refwavelength if refwavelength.startswith(os.path.sep) else \
-        os.path.join(refwavelength_dir, refwavelength)
+    return wavelength if wavelength.startswith(os.path.sep) else \
+        os.path.join(wavelength_dir, wavelength)
 
+def get_statwavelength_filename(ad):
+    """
+    Gets static wavelength file for input MX science frame.
+    Static wavelength files are not caldb compliant as they are instrument specific.
+
+    Returns
+    -------
+    str/None: Filename of the appropriate wavelength file
+    """
+    logging.basicConfig(level=logging.DEBUG)
+    log = logging.getLogger(__name__)
+    arm = ('b' if 'BLUE' in ad.tags else 'r') #Get appropriate arm
+    wavelength_dir = os.path.join(os.path.dirname(wavelengthdb.__file__), 'WLS')
+    db_matches = sorted((k, v) for k, v in wavelengthdb.statwavelength_dict.items()\
+    if arm in k) #Check if there is a reference wavelength file for the given arm
+    if db_matches:
+        wavelength = db_matches[-1][1]
+    else:
+        log.warning(f'No static wavelength file found for {ad.filename}')
+        return None
+    return wavelength if wavelength.startswith(os.path.sep) else \
+        os.path.join(wavelength_dir, wavelength)
+
+def load_params_from_fits(file, ext_name='PARAMETERS'):
+    """
+    Load lmfit parameters from a FITS file.
+
+    The file is first retrieved with get_refwavelength_filename(ad) for the
+    specific arm.
+    
+    Parameters
+    ----------
+    file : str or Path
+        Path to the FITS file
+    ext_name : str, optional
+        Name of the FITS extension containing parameters, default is 'PARAMETERS'
+        
+    Returns
+    -------
+    lmfit.Parameters
+        The loaded parameters object
+    """
+    with fits.open(file) as hdul:
+        if ext_name not in [hdu.name for hdu in hdul]:
+            raise KeyError(f"Extension {ext_name} not found in {file}")
+        
+        # Get the parameters HDU
+        param_hdu = hdul[ext_name]
+        
+        # Convert HDU data to Table
+        param_table = Table.read(param_hdu)
+        
+        # Create a new Parameters object
+        params = Parameters()
+        
+        # Add each parameter to the Parameters object
+        for i in range(len(param_table)):           
+            params.add(
+                name=param_table['Name'][i], 
+                value=float(param_table['Value'][i]),
+                min=float(param_table['Min'][i]),
+                max=float(param_table['Max'][i]),
+                vary=bool(param_table['Vary'][i]),
+                )
+        
+        return params
+
+def load_refwls_from_fits(file, ext_name=None):
+    """
+    Load wavelength solution for a specific fiber from a FITS file.
+
+    The file is first retrieved with get_refwavelength_filename(ad) for the
+    specific arm.
+
+    Parameters
+    ----------
+    file : str or Path
+        Path to the FITS file
+    ext_name : str
+        Name of the FITS extension with wavelength solution,
+        e.g. 'FIBER_2', 'FIBER_3', etc.
+        
+    Returns
+    -------
+    dict
+        Dictionary containing wavelength solution attributes
+    """
+        
+    with fits.open(file) as hdul:
+        # Check if the fiber extension exists
+        if ext_name not in [hdu.name for hdu in hdul]:
+            raise KeyError(f"Extension {ext_name} not found in {file}")
+        
+        # Get the extension
+        wls_ext = hdul[ext_name]
+              
+        # Initialize result dictionary
+        res = {
+            # scalar values
+            'maxx': wls_ext.header['MAXX'],
+            'poly_deg_x': wls_ext.header['POLYDEGX'],
+            'poly_deg_y': wls_ext.header['POLYDEGY'],
+            # array values
+            'orders': wls_ext.data['ORDERS'].flatten(),
+            'weights': wls_ext.data['WEIGHTS'].flatten(),
+            'wavelengths': wls_ext.data['WAVELEN'].flatten(),
+            'x_norm': wls_ext.data['X_NORM'].flatten(),
+        }
+        
+        return res
+
+def load_statwls_from_fits(file, ext_name=None, orders=None):
+    """
+    Load wavelength solution for a specific fiber from a FITS file.
+
+    The file is first retrieved with get_refwavelength_filename(ad) for the
+    specific arm.
+
+    Parameters
+    ----------
+    file : str or Path
+        Path to the FITS file
+    ext_name : str
+        Name of the FITS extension with wavelength solution,
+        e.g. 'FIBER_2', 'FIBER_3', etc.
+    orders : list, optional
+        List of orders to load. If None, all orders are loaded.
+
+    Returns
+    -------
+    dict
+        Dictionary containing wavelength solution attributes
+    """
+        
+    with fits.open(file) as hdul:
+        # Check if the fiber extension exists
+        if ext_name not in [hdu.name for hdu in hdul]:
+            raise KeyError(f"Extension {ext_name} not found in {file}")
+        
+        # Get the extension
+        wls_ext = hdul[ext_name]
+              
+        # Initialize result dictionary
+        if orders is None:
+            all_orders = wls_ext.data.columns.names
+            res = {o: wls_ext.data[o] for o in all_orders}
+        else:
+            orders = [str(int(o)) for o in orders]
+            res = {o: wls_ext.data[o] for o in orders}
+        
+        return res

@@ -49,15 +49,21 @@ class EchelleSpectrum:
         self.orders = orders
         min_order = np.min(orders)
         max_order = np.max(orders)
-
         # normalized orders
         self.norm_orders = self.normalize_orders(orders, min_order, max_order)
+
+        self.box_data = box_data
+        self.wavelenght = wavelength_data
+        self.box_error = box_error
+        self.opt_data = opt_data
+        self.opt_error = opt_error
 
         self.etalon_parameters = None
         self.model = None
 
         self.fiber = fiber
         self.pm = pm
+
         self.log = gt.logutils.get_logger(__name__)
 
     def normalize_orders(self, order, min_order, max_order):
@@ -432,6 +438,7 @@ class EchelleSpectrum:
         """
         log = self.log
         log.info('Applying wavelength solution')
-        for o in self.orders:
-            x = np.arange(len(self.data.loc[o]['box_intesity']))
-            self.data.loc[o]["wavelength"] = wavelength_solution.get_wavelength(x, o)
+
+        for i, order in enumerate(self.orders):
+            x = np.arange(self.box_data.shape[1])
+            self.wavelenght[i, :] = wavelength_solution.get_wavelength(x, order)

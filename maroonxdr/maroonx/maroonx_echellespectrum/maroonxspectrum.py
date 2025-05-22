@@ -32,7 +32,7 @@ def load_wavelength_solution(adinput, ext_name = "wavelength_solution"):
     """
     pass
 
-class MXSpectrum(object):
+class MXSpectrum:
     '''
     This class is used to read in a MaroonX spectrum and apply the wavelength solution.
     '''
@@ -55,17 +55,13 @@ class MXSpectrum(object):
             logger.utils("Using symmetric etalon peaks")
 
         # Check the fibers
-        fibers = [adinput.phu.get('HIERARCH FIBER1'),
-                      adinput.phu.get('HIERARCH FIBER2'),
-                      adinput.phu.get('HIERARCH FIBER3'),
-                      adinput.phu.get('HIERARCH FIBER4'),
-                      adinput.phu.get('HIERARCH FIBER5')]
+        fibers = adinput.fiber_setup()
 
+        poly_data = adinput[0].POLY
         peak_data = adinput[0].PEAKS
         # Convert peak_data to pandas dataframe
         peak_df = peak_data.to_pandas()
-        poly_data = adinput[0].POLY
-        fiber_number = 0
+        
         self.spectra = {}
         self.echellogram = None
         '''
@@ -76,65 +72,26 @@ class MXSpectrum(object):
         And then we would apply a 30 knot spline to the peaks to get the wavelength solution
         '''
 
-        for fiber in fibers:
-            fiber_number += 1
-            if fiber_number == 1:
-                reduced_orders = adinput[0].REDUCED_ORDERS_FIBER_1
-                '''
-                box_reduced_fiber = adinput[0].BOX_REDUCED_FIBER_1
-                # box_reduced_err = adinput[0].BOX_REDUCED_FIBER_1_ERR
-                # opt_reduced_fiber = adinput[0].OPTIMAL_REDUCED_FIBER_1
-                # opt_reduced_err = adinput[0].OPTIMAL_REDUCED_FIBER_1_ERR
-                # wavelengths = adinput[0].FIBER_1
-                '''
-            if fiber_number == 2:
-                reduced_orders = adinput[0].REDUCED_ORDERS_FIBER_2
-                '''
-                box_reduced_fiber = adinput[0].BOX_REDUCED_FIBER_2
-                # box_reduced_err = adinput[0].BOX_REDUCED_FIBER_2_ERR
-                opt_reduced_fiber = adinput[0].OPTIMAL_REDUCED_FIBER_2
-                opt_reduced_err = adinput[0].OPTIMAL_REDUCED_FIBER_2_ERR
-                wavelengths = adinput[0].FIBER_2
-                '''
-            if fiber_number == 3:
-                reduced_orders = adinput[0].REDUCED_ORDERS_FIBER_3
-                '''
-                box_reduced_fiber = adinput[0].BOX_REDUCED_FIBER_3
-                box_reduced_err = adinput[0].BOX_REDUCED_FIBER_3_ERR
-                opt_reduced_fiber = adinput[0].OPTIMAL_REDUCED_FIBER_3
-                opt_reduced_err = adinput[0].OPTIMAL_REDUCED_FIBER_3_ERR
-                wavelengths = adinput[0].FIBER_3
-                '''
-            if fiber_number == 4:
-                reduced_orders = adinput[0].REDUCED_ORDERS_FIBER_4
-                '''
-                box_reduced_fiber = adinput[0].BOX_REDUCED_FIBER_4
-                box_reduced_err = adinput[0].BOX_REDUCED_FIBER_4_ERR
-                opt_reduced_fiber = adinput[0].OPTIMAL_REDUCED_FIBER_4
-                opt_reduced_err = adinput[0].OPTIMAL_REDUCED_FIBER_4_ERR
-                wavelengths = adinput[0].FIBER_4
-                '''
-            if fiber_number == 5:
-                reduced_orders = adinput[0].REDUCED_ORDERS_FIBER_5
-                '''
-                box_reduced_fiber = adinput[0].BOX_REDUCED_FIBER_5
-                box_reduced_err = adinput[0].BOX_REDUCED_FIBER_5_ERR
-                opt_reduced_fiber = adinput[0].OPTIMAL_REDUCED_FIBER_5
-                opt_reduced_err = adinput[0].OPTIMAL_REDUCED_FIBER_5_ERR
-                wavelengths = adinput[0].FIBER_5
-                '''
+        for fiber_number, fiber in enumerate(fibers, start=1):
 
+            reduced_orders = getattr(adinput[0], f'REDUCED_ORDERS_FIBER_{fiber_number}')
+            box_data = getattr(adinput[0], f'BOX_REDUCED_FIBER_{fiber_number}')
+            peak_data = peak_df.loc[peak_df['FIBER'] == fiber_number]
+            
             if fiber == 'Etalon':
                 # Create the EtalonSpectrum object
-                self.spectra[fiber_number] = EtalonSpectrum(orders = reduced_orders,
-                                                            peak_data = peak_df.loc[peak_df['FIBER'] == fiber_number],
-                                                            poly_data = poly_data,
-                                                            pm = pm,
-                                                            etalon_peaks_symmetric = etalon_peaks_symmetric)
+                self.spectra[fiber_number] = EtalonSpectrum(
+                    box_data = box_data,
+                    orders = reduced_orders,
+                    peak_data = peak_data,
+                    poly_data = poly_data,
+                    pm = pm,
+                    etalon_peaks_symmetric = etalon_peaks_symmetric)
             elif fiber == 'Flat':
                 # Create the FlatSpectrum object
-                self.spectra[fiber_number] = FlatSpectrum(orders = reduced_orders,
-                                                          peak_data = peak_df.loc[peak_df['FIBER'] == fiber_number],
+                self.spectra[fiber_number] = FlatSpectrum(box_data = box_data,
+                                                          orders = reduced_orders,
+                                                          peak_data = peak_data,
                                                           poly_data = poly_data,
                                                           pm = pm)
 
@@ -143,7 +100,8 @@ class MXSpectrum(object):
 
             else:
                 # Treat as regular Echelle spectrum
-                self.spectra[fiber_number] = EchelleSpectrum(orders=reduced_orders,
-                                                             peak_data = peak_df.loc[peak_df['FIBER'] == fiber_number],
+                self.spectra[fiber_number] = EchelleSpectrum(box_data = box_data,
+                                                             orders=reduced_orders,
+                                                             peak_data = peak_data,
                                                              pm = pm)
 

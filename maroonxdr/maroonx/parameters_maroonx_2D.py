@@ -92,7 +92,7 @@ class removeStrayLightConfig(config.Config):
     suffix = config.Field('Filename suffix', str, '')
     snapshot = config.Field('save difference', bool, False)
     box_size = config.Field('Photutils box size', int, 20)
-    filter_size = config.Field('Photutilz filter size', int, 20)
+    filter_size = config.Field('Photutils filter size', int, 19)
 
 
 class separateFlatStreamsConfig(config.Config):

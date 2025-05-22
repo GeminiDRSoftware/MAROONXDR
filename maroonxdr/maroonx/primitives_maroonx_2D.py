@@ -1,6 +1,4 @@
-"""
-This module contains the MAROON-X specific primitives that reduce 2D spectra themselves.
-"""
+"""Maroon-X primitives to reduce 2D spectra."""
 
 # ------------------------------------------------------------------------------
 from copy import deepcopy
@@ -31,15 +29,12 @@ from .lookups import timestamp_keywords as maroonx_stamps
 
 @parameter_override
 class MAROONX(Gemini, CCD, NearIR):
-    """
-    This class inherits from the level above.  Any primitives specific
-    to MAROON-X can go here.
-    """
+    """Any primitives specific to MAROON-X can go here."""
 
     tagset = {'GEMINI', 'MAROONX'}
 
     def __init__(self, adinputs, **kwargs):
-        super(MAROONX, self).__init__(adinputs, **kwargs)
+        super().__init__(adinputs, **kwargs)
         self._param_update(parameters_maroonx_2D)
         # Add MAROON-X specific timestamp keywords
         self.timestamp_keys.update(maroonx_stamps.timestamp_keys)
@@ -254,7 +249,7 @@ class MAROONX(Gemini, CCD, NearIR):
 
         return adinputs
 
-    def validateData(self, adinputs=None, suffix=None, require_wcs=False):
+    def validateData(self, adinputs=None, **params):
         """
         MAROON-X-specific version of validateData to ignore the invalid WCS
         exception.
@@ -272,16 +267,17 @@ class MAROONX(Gemini, CCD, NearIR):
         adinputs : List of checked AstroData objects
         """
         try:
-            super().validateData(adinputs, suffix=suffix, require_wcs=require_wcs)
+            super().validateData(
+                adinputs, 
+                suffix=params['suffix'], 
+                require_wcs=params['require_wcs'])
         except ValueError as e:
             if 'valid WCS' not in str(e):
                 raise
         return adinputs
 
-    def standardizeWCS(self, adinputs=None, suffix=None, **params):
-        """
-        MAROONXDR-specific version of standarizeWCS to ignore WCS processing.
-        """
+    def standardizeWCS(self, adinputs=None, **params):
+        """MAROONXDR version of standarizeWCS to skip WCS processing."""
         log = self.log
         log.stdinfo('Skipping standarizeWCS() primitive.')
         return adinputs
@@ -311,8 +307,9 @@ class MAROONX(Gemini, CCD, NearIR):
             else 'UNDEFINED'
         )
         if arm_set == 'UNDEFINED':
-            log.error(f'{adinputs[0].filename} has no defined camera arm')
-            raise OSError
+            error_msg = f'{adinputs[0].filename} has no defined camera arm'
+            log.error(error_msg)
+            raise OSError(error_msg)
         adoutputs = []
         if len(adinputs) == 1:
             log.warning('Only one file passed to checkArm')
@@ -325,7 +322,8 @@ class MAROONX(Gemini, CCD, NearIR):
                     'Not all frames taken with the same camera arm, '
                     'restricting set to first arm used in list'
                 )
-                log.warning(f'Tossing frame: {ad.filename}')
+                warning_msg = f'Tossing frame: {ad.filename}'
+                log.warning(warning_msg)
             else:
                 ad.update_filename(suffix=params['suffix'], strip=True)
                 adoutputs.append(ad)
@@ -367,7 +365,7 @@ class MAROONX(Gemini, CCD, NearIR):
                 adout[0].data = np.fliplr(np.flipud(ad[0].data))
                 try:
                     adout[0].mask = np.fliplr(np.flipud(ad[0].mask))
-                except:
+                except Exception:
                     log.warning(f'DQ not found for {ad.filename} while orienting image')
 
             # If it is not from the blue arm, then check if it is from the red arm by looking
@@ -377,8 +375,9 @@ class MAROONX(Gemini, CCD, NearIR):
 
             # In any other case, something has gone wrong- return an error
             else:
-                log.error(f'{ad.filename} has no defined orientation')
-                raise OSError
+                error_msg = f'{ad.filename} has no defined orientation'
+                log.error(error_msg)
+                raise OSError(error_msg)
             adout.update_filename(suffix=params['suffix'], strip=True)
             adoutputs.append(adout)
 
@@ -1469,7 +1468,7 @@ class MAROONX(Gemini, CCD, NearIR):
         return adinputs
 
     def removeStrayLight(
-        self, adinputs=None, box_size=21, filter_size=21, snapshot=False, **params
+        self, adinputs=None, box_size=20, filter_size=19, snapshot=False, **params
     ):
         """
         Removes stray light from full frame images for more accurate fiber flux
@@ -1732,21 +1731,21 @@ class MAROONX(Gemini, CCD, NearIR):
             )
             return adinputs
 
-        # Provided the stream lengths are as expected, we can proceed with the combination
-        adoutputs = []
         adout = deepcopy(adinputs[0])
+        adinputs_2 = self.streams[stream_2]
+        
         # Combine the data from the two streams by taking the max at each pixel
         adout[0].data = np.max(
-            [adinputs[0].data[0], self.streams[stream_2][0].data[0]], axis=0
+            [adinputs[0][0].data, adinputs_2[0][0].data], axis=0
         )
         # Do the same for the variance
         adout[0].variance = np.max(
-            [adinputs[0].variance[0], self.streams[stream_2][0].variance[0]], axis=0
+            [adinputs[0][0].variance, adinputs_2[0][0].variance], axis=0
         )
-        adoutputs.append(adout)
+
         # For the rest of the extensions, we do not need to do this because we
         # will rerun id'ing on combined image frame
-        return adoutputs
+        return [adout]
 
     def splitBundle(self, adinputs=None, **params):
         """

@@ -6,6 +6,20 @@ defined in the primitive_maroonx_spectrum.py file.
 from gempy.library import config
 
 
+class staticWavelengthSolutionConfig(config.Config):
+    """
+    This parameter set controls the staticWavelengthSolution primitive for MAROON-X.
+    """
+
+    fibers = config.ListField(
+        'List of fibers to process.',
+        int,
+        None,
+        optional=True,
+        single=True,
+    )
+
+
 class getPeaksAndPolynomialsConfig(config.Config):
     """
     This parameter set controls the getPeaksAndPolynomials primitive for MAROON-X.
