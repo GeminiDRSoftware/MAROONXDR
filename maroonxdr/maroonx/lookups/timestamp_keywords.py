@@ -10,5 +10,6 @@ timestamp_keys = {
     "removeStrayLight": "STRAYLIGHT_REMOVED",
     "extractStripes": "SCIENCE_STRIPES_PULLED",
     "optimalExtraction": "SCIENCE_STRIPES_EXTRACTED",
-    "darkSubtraction": "SCIENCE_DARK_EXTENSION_SUBTRACTED"
+    "darkSubtraction": "SCIENCE_DARK_EXTENSION_SUBTRACTED",
+    "staticWavelengthSolution": "STATIC_WAVELENGTH_APPLIED"
 }
