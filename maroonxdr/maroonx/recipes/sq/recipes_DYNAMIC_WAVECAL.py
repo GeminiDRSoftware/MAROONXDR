@@ -36,14 +36,14 @@ def makeDynamicWavecal(p):
     p.addDQ()  # just placeholder until MX is in caldb
     p.overscanCorrect()
     p.correctImageOrientation()
-    p.addVAR(read_noise=True,poisson_noise=True)
+    p.addVAR(read_noise=True, poisson_noise=True)
     # # get and save wavelength solution (either static reference or frame's unique sim cal solved)
     # first perform echelle extraction of fibers
     p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
-    #p.boxExtraction() # extracts spectra from stripes
-    #p.getPeaksAndPolynomials(fibers=(2,3,4,5)) # fits etalon peaks and polynomials
+    p.boxExtraction() # extracts spectra from stripes
+    p.getPeaksAndPolynomials(fibers=(2, 3, 4, 5)) # fits etalon peaks and polynomials
     
-    p.storeProcessedArc(suffix='_dynamic_wavecal')  # save reduced 1D spectra
+    p.writeOutputs(suffix='_dynamic_wavecal')  # save reduced 1D spectra
     return
 
 _default = makeDynamicWavecal
