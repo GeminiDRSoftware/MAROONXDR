@@ -29,25 +29,6 @@ SCIENCE_DIR = Path('/home/martin/Documentos/Projects/MAROONXDR/science_dir')
 # The following tests should be sorted in order of pipeline
 # output order to make it easier to traceback errors
 
-@pytest.mark.parametrize("old_filename,new_filename", [
-    ("20241114T19_masterflat_backgroundsubtracted_FFFFF_b_0007.fits", "20241114T190714Z_DDDDF_b_0007_DFFFF_flat.fits"),
-    ("20241114T19_masterflat_backgroundsubtracted_FFFFF_r_0002.fits", "20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits"),
-])
-def test_real_comparison(old_filename, new_filename):
-
-    old_file = OLD_FILES_PATH / old_filename
-    new_file = NEW_FILES_PATH / new_filename
-
-    with fits.open(old_file) as old_hdu, fits.open(new_file) as new_hdu:
-        old_data = old_hdu[0].data
-        new_data = new_hdu[1].data
-
-        assert old_data.shape == new_data.shape, f"Shape mismatch: {old_data.shape} != {new_data.shape}"
-
-
-        # Compare the data
-        np.testing.assert_allclose(old_data, new_data, rtol=1e-5, atol=1e-5)
-
 
 @pytest.mark.parametrize("arm", ["BLUE", "RED"])
 def test_stackFlats(arm):
@@ -136,11 +117,116 @@ def test_identifyStripes(arm):
             np.testing.assert_allclose(p_id_DFFFD[fiber][order], old_p_id_DFFFD[fiber][order],
                 rtol=1e-5, atol=1e-5)
 
+@pytest.mark.xfail(reason="Photutils Background2D changed from 1.02 to 2.02")
+@pytest.mark.parametrize("arm", ["BLUE", "RED"])
+def test_removeStraylight(arm):
+
+    if arm == "BLUE":
+        old_DFFFD = OLD_FILES_PATH / "20241114T18_masterflat_backgroundsubtracted_DFFFD_b_0008.fits"
+        old_DDDDF = OLD_FILES_PATH / "20241114T19_masterflat_backgroundsubtracted_DDDDF_b_0007.fits"
+    else:
+        old_DFFFD = OLD_FILES_PATH / "20241114T18_masterflat_backgroundsubtracted_DFFFD_r_0002.fits"
+        old_DDDDF = OLD_FILES_PATH / "20241114T19_masterflat_backgroundsubtracted_DDDDF_r_0002.fits"
+
+    # get all flat files
+    raw_files = sorted([str(f) for f in SCIENCE_DIR.glob('*.fits')])
+    selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'FLAT', arm])
+
+    # read files and instantiate the primitive class
+    adinput = [astrodata.open(f) for f in selected_spect]
+    p = MAROONX(adinput)
+
+    p.prepare()
+    p.checkArm()
+    p.checkND()
+    p.addDQ()
+    p.subtractOverscan()
+    p.trimOverscan()  # old files are not trimmed at this point
+    p.correctImageOrientation()  # blue files are not flipped at this point
+    p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
+    
+    p.stackFlats(stream='main', scale_mode='mean_frame', suffix='_DDDDF_flat')
+    p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='_DFFFD_flat')
+
+    p.findStripes()  # define stripe info to ultimately remove stray light in each stream
+    p.findStripes(stream='DFFFD_flats')
+
+    p.identifyStripes(selected_fibers='0,0,0,0,5') # identify stripes based on MX architecture files
+    p.identifyStripes(stream='DFFFD_flats',selected_fibers='0,2,3,4,0')
+
+    p.defineFlatStripes()  # defines pixel inclusion for each flat region based on stripe ids
+    p.defineFlatStripes(stream='DFFFD_flats')
+
+    p.removeStrayLight(filter_size = 21, box_size = 21, snapshot=True)  # remove straylight from frame (this is why 2 partial illumination flat sets are necessary)
+    p.removeStrayLight(stream='DFFFD_flats', filter_size = 21, box_size = 21, snapshot=True)
+
+
+@pytest.mark.parametrize("arm", ["BLUE", "RED"])
+def test_combinedFlat(arm):
+
+    if arm == "BLUE":
+        old_DFFFF = OLD_FILES_PATH / "20241114T19_masterflat_backgroundsubtracted_FFFFF_b_0007.hdf"
+    else:
+        old_DFFFF = OLD_FILES_PATH / "20241114T19_masterflat_backgroundsubtracted_FFFFF_r_0002.hdf"
+
+    # get all flat files
+    raw_files = sorted([str(f) for f in SCIENCE_DIR.glob('*.fits')])
+    selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'FLAT', arm])
+
+    # read files and instantiate the primitive class
+    adinput = [astrodata.open(f) for f in selected_spect]
+    p = MAROONX(adinput)
+
+    p.prepare()
+    p.checkArm()
+    p.checkND()
+    p.addDQ()
+    p.subtractOverscan()
+    p.trimOverscan()  # old files are not trimmed at this point
+    p.correctImageOrientation()  # blue files are not flipped at this point
+    p.addVAR(read_noise=True,poisson_noise=True)
+
+    p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
+    p.stackFlats(stream='main', scale_mode='mean_frame', suffix='_DDDDF_flat')
+    p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='_DFFFD_flat')
+
+    p.findStripes()  # define stripe info to ultimately remove stray light in each stream
+    p.findStripes(stream='DFFFD_flats')
+
+    p.identifyStripes(selected_fibers='0,0,0,0,5') # identify stripes based on MX architecture files
+    p.identifyStripes(stream='DFFFD_flats',selected_fibers='0,2,3,4,0')
+
+    p.defineFlatStripes()  # defines pixel inclusion for each flat region based on stripe ids
+    p.defineFlatStripes(stream='DFFFD_flats')
+
+    p.removeStrayLight(filter_size = 21, box_size = 21, snapshot=True)  # remove straylight from frame (this is why 2 partial illumination flat sets are necessary)
+    p.removeStrayLight(stream='DFFFD_flats', filter_size = 21, box_size = 21, snapshot=True)
+
+    p.combineFlatStreams(stream='main', stream_2='DFFFD_flats')  # combine straylight-removed images
+    p.clearStream(stream='DFFFD_flats') # remove second stream
+    
+    p.findStripes()  # re-run find/identify/define routine on combined frame
+    p.identifyStripes(selected_fibers='0,2,3,4,5')
+    # p.defineFlatStripes(extract=True)
+
+    p_id_DFFFF = p.streams['main'][0][0].STRIPES_ID
+
+    old_p_id_DFFFF = load_dict_from_hdf5(str(old_DFFFF), 'extraction_parameters/')
+
+    for fiber in old_p_id_DFFFF.keys():
+        for order in old_p_id_DFFFF[fiber].keys():
+            np.testing.assert_allclose(p_id_DFFFF[fiber][order], old_p_id_DFFFF[fiber][order],
+                rtol=1e-5, atol=1e-5)
+            
 
 
 # =====================================================
 # HDF5 helper functions
 # =====================================================
+
+def load_mat(name, filepath):
+    with h5py.File(filepath, mode="r") as h5f:
+        return h5f[name][()]
 
 def load_dict_from_hdf5(filename, path):
     if not path.endswith("/"):

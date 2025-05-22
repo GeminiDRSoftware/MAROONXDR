@@ -33,6 +33,6 @@ for arm in ['r', 'b']:
     myreduce.drpkg= 'maroonxdr'
     
     # coment out this line for default reduction
-    myreduce.recipename = 'makeStripeExtractionCheck'
+    # myreduce.recipename = 'makeStripeExtractionCheck'
 
     myreduce.runr()
