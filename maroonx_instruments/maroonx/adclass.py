@@ -99,6 +99,11 @@ class AstroDataMAROONX(AstroDataGemini):
             if self[0].hdr.get('ARM') == 'BLUE' and self[1].hdr.get('ARM') == 'RED':
                 return TagSet(['BUNDLE'])
         elif len(self.indices) == 1:
+            if not self.filename[0].isdigit():
+                # some files have a single arm extension and should
+                # be tagged as BUNDLE for the debundle recipe
+                return TagSet(['BUNDLE'])
+            
             if self[0].hdr.get('ARM') == 'BLUE':
                 return TagSet(['BLUE'])
             if self[0].hdr.get('ARM') == 'RED':
