@@ -45,7 +45,8 @@ class MXSpectrum:
         adinput: AstroData object
             the AstroData object to process
         pm: float
-            the wavelength solution is shifted by this amount
+            Fit model for peaks. If given, it will be used when fitting lines. 
+            Otherwise a Gaussian model will be used.
         etalon_peaks_symmetric: bool
             if True, the etalon peaks are assumed to be symmetric around the central peak
         """
@@ -57,10 +58,9 @@ class MXSpectrum:
         # Check the fibers
         fibers = adinput.fiber_setup()
 
-        poly_data = adinput[0].POLY
-        peak_data = adinput[0].PEAKS
-        # Convert peak_data to pandas dataframe
-        peak_df = peak_data.to_pandas()
+        # poly_data = adinput[0].POLY
+        peak_data = adinput[0].PEAKS.to_pandas()
+        peak_data = peak_data.sort_values(by=['FIBER', 'ORDER', 'CENTER'])
         
         self.spectra = {}
         self.echellogram = None
@@ -72,36 +72,33 @@ class MXSpectrum:
         And then we would apply a 30 knot spline to the peaks to get the wavelength solution
         '''
 
+        # Define the spectra classes based on fiber type
+        spectra_classes = {
+            'Echelle': EchelleSpectrum,
+            'Etalon': EtalonSpectrum,
+            'Flat lamp': FlatSpectrum,
+        }
+
         for fiber_number, fiber in enumerate(fibers, start=1):
+
+            if fiber == 'Dark':
+                # Skip Dark fiber
+                self.spectra[fiber_number] = None
+                continue
 
             reduced_orders = getattr(adinput[0], f'REDUCED_ORDERS_FIBER_{fiber_number}')
             box_data = getattr(adinput[0], f'BOX_REDUCED_FIBER_{fiber_number}')
-            peak_data = peak_df.loc[peak_df['FIBER'] == fiber_number]
-            
-            if fiber == 'Etalon':
-                # Create the EtalonSpectrum object
-                self.spectra[fiber_number] = EtalonSpectrum(
-                    box_data = box_data,
-                    orders = reduced_orders,
-                    peak_data = peak_data,
-                    poly_data = poly_data,
-                    pm = pm,
-                    etalon_peaks_symmetric = etalon_peaks_symmetric)
-            elif fiber == 'Flat':
-                # Create the FlatSpectrum object
-                self.spectra[fiber_number] = FlatSpectrum(box_data = box_data,
-                                                          orders = reduced_orders,
-                                                          peak_data = peak_data,
-                                                          poly_data = poly_data,
-                                                          pm = pm)
+            peaks = peak_data.loc[peak_data['FIBER'] == fiber_number]
+            wls_static_data = getattr(adinput[0], f'WLS_STATIC_FIBER_{fiber_number}')
 
-            elif fiber == 'Dark':
-                self.spectra[fiber_number] = None
-
-            else:
-                # Treat as regular Echelle spectrum
-                self.spectra[fiber_number] = EchelleSpectrum(box_data = box_data,
-                                                             orders=reduced_orders,
-                                                             peak_data = peak_data,
-                                                             pm = pm)
+            # If the fiber is not in the spectra_classes, default to EchelleSpectrum
+            spectra_cls = spectra_classes.get(fiber, EchelleSpectrum)
+            self.spectra[fiber_number] = spectra_cls(
+                box_data=box_data,
+                orders=reduced_orders,
+                peak_data=peaks,
+                wavelength_data=wls_static_data,
+                fiber=fiber_number,
+                pm=pm,
+            )
 

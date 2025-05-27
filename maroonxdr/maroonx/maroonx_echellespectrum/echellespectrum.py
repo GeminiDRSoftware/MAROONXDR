@@ -45,18 +45,27 @@ class EchelleSpectrum:
             Filename of raw file.  Used for book-keeping.
         """
 
+        self.box_data = box_data
+        self.box_error = box_error
+        self.opt_data = opt_data
+        self.opt_error = opt_error
+        self.wavelenght_data = wavelength_data
+
+        self._data = pd.DataFrame({
+            'box_data': box_data.tolist(),
+            'box_error': box_error.tolist(),
+            'opt_data': opt_data.tolist(),
+            'opt_error': opt_error.tolist(),
+            'wavelength': wavelength_data.tolist(),
+        }, index=orders)
+        self._data.sort_index(axis=0, inplace=True)
+
         # physical orders - sorted like the index
-        self.orders = orders
+        self._orders = np.sort(orders)
         min_order = np.min(orders)
         max_order = np.max(orders)
         # normalized orders
         self.norm_orders = self.normalize_orders(orders, min_order, max_order)
-
-        self.box_data = box_data
-        self.wavelenght = wavelength_data
-        self.box_error = box_error
-        self.opt_data = opt_data
-        self.opt_error = opt_error
 
         self.etalon_parameters = None
         self.model = None
@@ -65,6 +74,26 @@ class EchelleSpectrum:
         self.pm = pm
 
         self.log = gt.logutils.get_logger(__name__)
+
+    @property
+    def data(self):
+        """
+        Returns the data.
+
+        Returns:
+            data (dataframe): Data.
+        """
+        return self._data
+
+    @property
+    def orders(self):
+        """
+        Returns the orders.
+
+        Returns:
+            orders (list): Orders.
+        """
+        return self._orders
 
     def normalize_orders(self, order, min_order, max_order):
         '''
@@ -84,7 +113,6 @@ class EchelleSpectrum:
         norm_order : float
             Normalized order.
         '''
-
         norm_order = (order - min_order)/(max_order - min_order) * 2. - 1.
         return norm_order
 
@@ -106,30 +134,8 @@ class EchelleSpectrum:
         norm_pixel : float
             Normalized pixel.
         '''
-
         norm_pixel = (pixel - min_pixel)/(max_pixel - min_pixel) * 2. - 1.
         return norm_pixel
-
-    '''
-    @property
-    def data(self):
-        """
-        Returns the data.
-
-        Returns:
-            data (dataframe): Data.
-        """
-        return self.data
-    '''
-    @property
-    def orders(self):
-        """
-        Returns the orders.
-
-        Returns:
-            orders (list): Orders.
-        """
-        return self.orders
 
     def data_flattened(self, box_data=False):
         '''
@@ -425,7 +431,7 @@ class EchelleSpectrum:
             deblazed_int = []
             for o in self.orders:
                 deblazed_int.append(self.data.loc[o][data_selection] / flat_spectrum.spectra[self.fiber].blaze[o])
-            self.data["blaze_corrected_"+data_selection] = deblazed_int
+            self._data["blaze_corrected_"+data_selection] = deblazed_int
         except:
             log.error('Blaze correction failed.  Flat spectrum may not have been loaded.')
 
@@ -439,6 +445,6 @@ class EchelleSpectrum:
         log = self.log
         log.info('Applying wavelength solution')
 
-        for i, order in enumerate(self.orders):
-            x = np.arange(self.box_data.shape[1])
-            self.wavelenght[i, :] = wavelength_solution.get_wavelength(x, order)
+        for o in self.orders:
+            x = np.arange(len(self.data.loc[o]['box_data']))
+            self._data.loc[o]["wavelength"] = wavelength_solution.get_wavelength(x, o)

@@ -30,15 +30,13 @@ class FlatSpectrum(EchelleSpectrum):
             blaze (1D array): Blaze function.
         """
         log = self.log
-        if n_knots is None:
-            n_knots = 50
         if spline_kwargs is None:
             spline_kwargs = {}
         for o in self.orders:
             try:
-                xx = np.arange(len(self.data.loc[o]['box_intensity']))
+                xx = np.arange(len(self.data.loc[o]['box_data']))
                 t = np.rint(np.linspace(0, len(xx), n_knots))[1:-1]
-                intensity = self.data.loc[o]['box_intensity'].copy()
+                intensity = self.data.loc[o]['box_data'].copy()
                 w = np.any((np.isnan(intensity), (intensity == 0)), axis=0)  # weights where the data are NAN or truly zero
                 intensity[w] = 0
                 t_start = time()
@@ -63,7 +61,7 @@ class FlatSpectrum(EchelleSpectrum):
             if debug > 2:
                 plt.figure()
                 plt.title(f'Order: {o}')
-                plt.plot(self.data.loc[o]["box_intensity"], label='original data')
+                plt.plot(self.data.loc[o]["box_data"], label='original data')
                 intensity[intensity == 0] = np.nan
                 plt.plot(intensity, label='data with outliers masked')
                 plt.plot(self.blaze[o]*self.blaze_norm[o], label='Blaze fit')

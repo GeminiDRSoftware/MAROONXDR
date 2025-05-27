@@ -10,7 +10,7 @@ class EtalonSpectrum(EchelleSpectrum):
     """
     Describes an etalon spectrum.  Inherits from EchelleSpectrum.
     """
-    def __init__(self, peak_data, poly_data,  etalon_peaks_symmetric = False, **kwargs):
+    def __init__(self, peak_data, poly_data=None,  etalon_peaks_symmetric = False, **kwargs):
         """
         Initializes the EtalonSpectrum object.
         """
@@ -129,9 +129,9 @@ class EtalonSpectrum(EchelleSpectrum):
         """
         if self.peak_data is not None:
             if data == "all":
-                return self.peak_data.loc[order, :]
+                return self.peak_data.loc[self.peak_data['ORDER']==order, :]
             else:
-                return self.peak_data.loc[order, data].values
+                return self.peak_data.loc[self.peak_data['ORDER']==order, data].values
 
     def apply_wavelength_solution(self, wavelength_solution):
         """
@@ -149,12 +149,15 @@ class EtalonSpectrum(EchelleSpectrum):
                     correction = wavelength_solution.order_means[order]
                 else:
                     correction = 0
-                self.peak_data.loc[order, "wavelength_by_thar"] = wavelength_solution.get_wavelength(
-                    self.peak_data.loc[order, "center"], order) * (1.0 + correction/3e8)
+                order_mask = self.peak_data["ORDER"] == order
+                peak_centers = self.peak_data.loc[order_mask, "CENTER"].values
+                # Get the wavelength for the peak centers
+                wls = wavelength_solution.get_wavelength(peak_centers, order)
+                self.peak_data.loc[order_mask, "wavelength_by_thar"] = wls * (1.0 + correction/3e8)
             except KeyError:
                 log.warning("No data for order {}".format(order))
 
-    def apply_wavelength_vector(self, debug = 0):
+    def apply_wavelength_vector(self, debug=0):
         """
         Assign wavelengths to each Etalon peak based on a cubic spline interpolation of the wavelength vector
         in the data.
@@ -166,14 +169,16 @@ class EtalonSpectrum(EchelleSpectrum):
             None
         """
         # Calculate the wavelength for peaks:
-        for order in self.orders:
+        for i, order in enumerate(self.orders):
             try:
-                x = np.arange(len(self.data.loc[order]['wavelength']))
-                y = self.data.loc[order]['wavelength']
+                y = self.wavelength_data[i]
+                x = np.arange(len(y))
                 if y[0] > y[-1]:
                     y = y[::-1]
                 spl = UnivariateSpline(x, y, k=3, s=0)
-                self.peak_data.loc[order, "wavelength_by_spline"] = spl(self.peak_data.loc[order, "center"])
+                order_mask = self.peak_data["ORDER"] == order
+                peak_centers = self.peak_data.loc[order_mask, "CENTER"].values
+                self.peak_data.loc[order_mask, "wavelength_by_spline"] = spl(peak_centers)
             except KeyError:
                 self.log.warning("No data for order {}".format(order))
 
