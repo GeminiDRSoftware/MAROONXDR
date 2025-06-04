@@ -8,8 +8,8 @@ import time
 import traceback
 
 from astropy.table import Table
-from matplotlib.backends.backend_pdf import PdfPages
 import numpy as np
+import scipy
 
 from geminidr.core import Spect
 from gempy.gemini import gemini_tools as gt
@@ -19,7 +19,6 @@ from . import parameters_maroonx_spectrum
 from .maroonx_fit import maroonx_fit
 from . import maroonx_utils
 from .primitives_maroonx_echelle import MAROONXEchelle
-from .maroonx_echellespectrum.maroonxspectrum import MXSpectrum
 from .maroonx_echellespectrum.maroonxspectrum import MXSpectrum
 from .maroonx_echellespectrum.wavelengthsolution import WavelengthSolution
 # ------------------------------------------------------------------------------
@@ -64,7 +63,10 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         
         Parameters:
         -----------
-        adinputs: list of AstroData objects with 1D box extracted spectra
+        adinputs: list 
+            AstroData objects with 1D box extracted spectra
+        fibers: list or tuple
+            Fibers containing Etalon spectra to process
 
         Returns:
         --------
@@ -100,7 +102,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 setattr(ad[0], f'WLS_STATIC_FIBER_{fiber}', wls_data)
 
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
-        return
+        return adinputs
 
     def getPeaksAndPolynomials(self, adinputs=None, guess_file=None,
                             fibers=(), orders=(), degree_sigma=4, degree_width=2,
@@ -434,7 +436,7 @@ def fitAndApplyEtalonWlsNEW(self, adinputs=None, fibers=None,
         # Determine fibers to process if not provided
         if fibers is None:
             fibers = []
-            for fiber_num, fiber_type in enumerate(ad.fiber_setup()):
+            for fiber_num, fiber_type in enumerate(ad.fiber_setup(), start=1):
                 if fiber_type == 'Etalon':
                     fibers.append(fiber_num)
             log.info(f'Found etalon fibers: {fibers}')
@@ -474,189 +476,141 @@ def fitAndApplyEtalonWlsNEW(self, adinputs=None, fibers=None,
 
         # ========================================================= OK line
 
-        # Create wavelength solutions dict to store results
-        wavelength_solutions = {}
+        # Guess the order #s of the etalon peak positions in the measured spectrum
 
-        # Process each fiber
+        pd = None  # TODO: Change variable name to peak_data, pd isually used for pandas
+        wl = None
+        m  = None
+        mf = None
+        o  = None
+        x  = None
+
+        inst_drift = None
+
+        drifts=[]
+
         for fiber in fibers:
-            etalon_spec = mx_spectrum.spectra[fiber]
-            log.info(f'Processing fiber {fiber}')
-            
-            # Load the reference wavelength solution for this fiber
-            ref_wls = None
-            try:
-                # Access the appropriate extension from the reference file
-                from astropy.io import fits
-                with fits.open(wavelength_file) as hdul:
-                    ext_name = f'FIBER_{fiber}'
-                    if ext_name in [hdu.name for hdu in hdul]:
-                        ext = hdul[ext_name]
-                        
-                        # Create WavelengthSolution object
-                        ref_wls = WavelengthSolution(
-                            x_norm=ext.data['X_NORM'][0],
-                            orders=ext.data['ORDERS'][0],
-                            weights=ext.data['WEIGHTS'][0],
-                            wavelengths=ext.data['WAVELEN'][0],
-                            poly_deg_x=ext.header['POLYDEGX'],
-                            poly_deg_y=ext.header['POLYDEGY'],
-                            max_x=ext.header['MAXX']
-                        )
-                        log.info(f'Loaded reference wavelength solution for fiber {fiber}')
-                    else:
-                        log.warning(f'No wavelength solution found for fiber {fiber} in {wavelength_file}')
-            except Exception as e:
-                log.warning(f'Error loading reference wavelength solution for fiber {fiber}: {str(e)}')
-            
-            # Apply wavelength solution to spectrum
-            if ref_wls is not None:
-                log.info(f'Applying reference wavelength solution to fiber {fiber}')
-                etalon_spec.apply_wavelength_solution(ref_wls)
+            log.info(f'Guess Etalon peak numbers for fiber {fiber}')
+            pd = mx_spectrum.spectra[fiber].guess_peak_numbers(debug=0)
+
+            if wl is not None:
+                wl = np.concatenate((wl, pd["WAVELENGTH_BY_THAR"].values))
+                m  = np.concatenate((m, pd["M"].values))
+                mf = np.concatenate((mf, pd["M_FRACTION"].values))
+                o  = np.concatenate((o, pd["ORDER"].values))
+                x  = np.concatenate((x, pd["CENTER"].values))
             else:
-                # Fall back to wavelength vector method
-                log.info(f'Using wavelength vector for fiber {fiber}')
-                etalon_spec.apply_wavelength_vector()
-            
-            # Guess etalon peak numbers
-            log.info(f'Guessing etalon peak numbers for fiber {fiber}')
-            peak_data = etalon_spec.guess_peak_numbers()
-            
-            # Create spline-based wavelength solutions for each order
-            fiber_wavelengths = {}
-            
-            for order in etalon_spec.orders:
-                try:
-                    # Get peak data for this order
-                    if order not in peak_data.index.levels[0]:
-                        log.warning(f'No peak data for fiber {fiber} order {order}')
-                        continue
-                        
-                    # Extract centers and wavelengths
-                    centers = peak_data.loc[order, 'center'].values
-                    wavelengths = peak_data.loc[order, 'wavelength'].values
-                    
-                    # Ensure data is sorted by center (important for spline fitting)
-                    sort_idx = np.argsort(centers)
-                    centers = centers[sort_idx]
-                    wavelengths = wavelengths[sort_idx]
-                    
-                    # Create knots for spline
-                    knots = np.linspace(np.min(centers) + 1, np.max(centers) - 1, n_knots)[1:-1]
-                    
-                    # Fit initial spline
-                    from scipy.interpolate import LSQUnivariateSpline
-                    spline = LSQUnivariateSpline(centers, wavelengths, knots, k=3)
-                    
-                    # Calculate residuals
-                    residuals = wavelengths - spline(centers)
-                    residuals_ms = residuals / wavelengths * 3.0e8  # Convert to m/s
-                    
-                    # Sigma clip outliers
-                    std_residuals = np.nanstd(residuals_ms)
-                    good_idx = np.abs(residuals_ms) < n_sigma_clip * std_residuals
-                    
-                    # Refit with outliers removed
-                    if np.sum(good_idx) < len(centers):
-                        log.info(f'Removed {np.sum(~good_idx)} outliers from fiber {fiber} order {order}')
-                        spline = LSQUnivariateSpline(centers[good_idx], wavelengths[good_idx], knots, k=3)
-                    
-                    # Create full wavelength vector for all pixels
-                    pixels = np.arange(len(etalon_spec.data.loc[order, 'wavelength']))
-                    order_wavelengths = spline(pixels)
-                    
-                    # Handle extrapolation at edges if needed
-                    # If spline returns values outside the expected range, use linear extrapolation
-                    from scipy.interpolate import interp1d
-                    
-                    # Check if the first or last few values need extrapolation
-                    edge_extrap_needed = False
-                    if np.min(pixels) < np.min(centers) or np.max(pixels) > np.max(centers):
-                        edge_extrap_needed = True
-                        
-                    if edge_extrap_needed:
-                        # Create extrapolation function using the first/last few points
-                        extrap_fn = interp1d(
-                            np.concatenate([centers[:2], centers[-2:]]), 
-                            np.concatenate([wavelengths[:2], wavelengths[-2:]]),
-                            fill_value="extrapolate"
-                        )
-                        
-                        # Apply extrapolation to edge pixels
-                        left_mask = pixels < np.min(centers)
-                        right_mask = pixels > np.max(centers)
-                        if np.any(left_mask):
-                            order_wavelengths[left_mask] = extrap_fn(pixels[left_mask])
-                        if np.any(right_mask):
-                            order_wavelengths[right_mask] = extrap_fn(pixels[right_mask])
-                    
-                    # Store wavelength solution for this order
-                    fiber_wavelengths[str(order)] = order_wavelengths
-                    log.info(f'Created wavelength solution for fiber {fiber} order {order}')
-                    
-                except Exception as e:
-                    log.warning(f'Error creating wavelength solution for fiber {fiber} order {order}: {str(e)}')
-            
-            # Store all wavelengths for this fiber
-            wavelength_solutions[f'fiber_{fiber}'] = fiber_wavelengths
-        
-        # Calculate any instrumental drifts
-        drift_values = {}
-        for fiber in fibers:
-            try:
-                etalon_spec = mx_spectrum.spectra[fiber]
-                residuals = []
-                
-                # Collect all residuals for this fiber
-                for order in etalon_spec.orders:
-                    if order in peak_data.index.levels[0]:
-                        m_values = peak_data.loc[order, 'm'].values
-                        thar_wl = peak_data.loc[order, 'wavelength_by_thar'].values
-                        
-                        # Calculate residuals from model
-                        res = (etalon_spec.peak_to_wavelength(m_values) - thar_wl) / thar_wl * 3.0e8
-                        residuals.extend(res)
-                
-                if residuals:
-                    # Filter out outliers before calculating mean drift
-                    residuals = np.array(residuals)
-                    good_idx = np.abs(residuals - np.nanmedian(residuals)) < 4.0 * np.nanstd(residuals)
-                    drift = np.nanmean(residuals[good_idx])
-                    drift_values[fiber] = drift
-                    log.info(f'Calculated instrument drift for fiber {fiber}: {drift:.1f} m/s')
-            except Exception as e:
-                log.warning(f'Error calculating drift for fiber {fiber}: {str(e)}')
-        
-        # Save wavelength solutions and drift values to the AstroData object
-        # Create wavelength extension
-        from astropy.table import Table
-        
-        # Save wavelength solutions for each fiber
-        for fiber, fiber_wavelengths in wavelength_solutions.items():
-            fiber_num = int(fiber.split('_')[1])
-            
-            # Convert to table format
-            wl_data = []
-            for order, wavelengths in fiber_wavelengths.items():
-                wl_data.append({'ORDER': int(order), 'WAVELENGTH': wavelengths})
-            
-            # Create table
-            wl_table = Table(wl_data)
-            
-            # Add to AstroData
-            extname = f'WAVELENGTH_FIBER_{fiber_num}'
-            ad[0].append(wl_table, extname=extname)
-            log.info(f'Added wavelength solution for fiber {fiber_num} to {ad.filename}')
-        
-        # Save drift values
-        if drift_values:
-            drift_data = [{'FIBER': fiber, 'DRIFT': drift} for fiber, drift in drift_values.items()]
-            drift_table = Table(drift_data)
-            ad[0].append(drift_table, extname='DRIFT')
-            log.info(f'Added drift measurements to {ad.filename}')
-        
-        # Mark the file as having a dynamic wavelength solution
-        ad.phu['DYNWVSOL'] = (True, 'Dynamic wavelength solution applied')
-            
+                wl = pd["WAVELENGTH_BY_THAR"].values
+                m  = pd["M"].values
+                mf = pd["M_FRACTION"].values
+                o  = pd["ORDER"].values
+                x  = pd["CENTER"].values
 
+            if fiber == 5:
+                residuals = _fc2min(parameters, pd["M"].values, pd["WAVELENGTH_BY_THAR"].values) / pd[
+                    "WAVELENGTH_BY_THAR"].values * 3e8
+                bad = np.where(np.abs(residuals-np.nanmedian(residuals)) > 4.0 * np.nanstd(residuals))
+                residuals[bad] = np.nan
+                inst_drift = np.nanmean(residuals)
+            else:
+                residuals = _fc2min(parameters, pd["M"].values, pd["WAVELENGTH_BY_THAR"].values) / pd[
+                    "WAVELENGTH_BY_THAR"].values * 3e8
+                bad = np.where(np.abs(residuals-np.nanmedian(residuals)) > 4.0 * np.nanstd(residuals))
+                residuals[bad] = np.nan
+                drift = np.nanmean(residuals)
+                drifts = np.append(drifts, drift)
+            
+        # ============================================================== OK line
+
+
+        # Create new wls from etalon peaks based on the fitted etalon gap size and dispersion model.
+
+        wave = {}
+
+        peak_data = []
+
+        for fiber in fibers:
+            log.info(f'Spline fit for fiber {fiber}')
+            wavelengths_all = []
+            residuals_all = []
+            orders_all = []
+            xs_all = []
+
+            # get fiber spectra and orders
+            spectra = mx_spectrum.spectra[fiber]
+            for o in spectra.orders:
+
+                order_mask = spectra.peak_data["ORDER"] == o
+                center = spectra.peak_data["CENTER"][order_mask]
+
+                if center.values[0] < center.values[10]:
+                    x = (center.values)
+                    y = (_peak_to_wavelength_spline(spectra.peak_data["M"][order_mask],
+                                                   spectra.etalon_pars).values)
+                else:
+                    x = (center.values)[::-1]
+                    y = (_peak_to_wavelength_spline(spectra.peak_data["M"][order_mask],
+                                                   spectra.etalon_pars).values)[::-1]
+                knots = np.linspace(np.min(x) + 1, np.max(x) - 1, n_knots)
+                lsq = scipy.interpolate.LSQUnivariateSpline(x, y, knots, k=3)
+                r = (y - lsq(x))/y * 3e8
+                good = np.where(np.abs(r) < 3.5 * np.nanstd(r))
+                lsq = scipy.interpolate.LSQUnivariateSpline(x[good], y[good], knots, k=3, ext=3)
+
+                xs_all          = np.append(xs_all,x[good],axis=0)
+                orders_all      = np.append(orders_all,np.ones_like(x[good])*o,axis=0)
+                wavelengths_all = np.append(wavelengths_all,lsq(x[good]),axis=0)
+                residuals_all   = np.append(residuals_all,y[good] - lsq(x[good]),axis=0)
+
+                xx = np.arange(len(spectra.data.wavelength[92]))
+                wavelengths = lsq(xx)
+
+                f = scipy.interpolate.interp1d(x[good][-2:], y[good][-2:],fill_value='extrapolate')
+                wavelengths[wavelengths==np.max(wavelengths)] = f(xx[wavelengths==np.max(wavelengths)])
+                f = scipy.interpolate.interp1d(x[good][:2], y[good][:2], fill_value='extrapolate')
+                wavelengths[wavelengths == np.min(wavelengths)] = f(xx[wavelengths == np.min(wavelengths)])
+
+                f = f'fiber_{fiber}'
+                if f in wave:
+                    wave[f].update({str(o): wavelengths})
+                else:
+                    wave[f] = {str(o): wavelengths}
+
+            peak_data.append(spectra.peak_data)
+
+        # Collect and reformat updated peak data
     
     return adinputs
+
+
+
+##############################################################################
+# Below are the helper functions for the primitives in this module           #
+##############################################################################
+
+def _make_b_spline_from_pars(p, kind=5):
+    disp_params = []
+    for par in p:
+        if "disp_" in par:
+            disp_params.append(p[par].value)
+    disp_params = np.array(disp_params, dtype=float)
+    t = []
+    for par in p:
+        if "knot_" in par:
+            t.append(p[par].value)
+    knots = np.array(t, dtype=float)
+
+    return scipy.interpolate.BSpline(knots, disp_params, kind)
+
+def _peak_to_wavelength(m, pars):
+    return (2.0 * (pars["l"]) * np.cos(pars["theta"]) * pars["n"] / m) * 1e6
+
+def _peak_to_wavelength_spline(mm, pars):
+    spl = _make_b_spline_from_pars(pars)
+    return (
+        2.0 * (pars["l"]  - spl(1 / mm)*pars["l"]) * np.cos(pars["theta"]) * pars["n"] / mm
+    ) * 1e6
+
+def _fc2min(p, m, etalonwl):
+    # residuals are in 'nm' not m/s. Good? bad? Should we normalize?
+    return _peak_to_wavelength_spline(m, p) - etalonwl

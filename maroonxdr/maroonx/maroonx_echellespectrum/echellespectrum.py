@@ -49,14 +49,15 @@ class EchelleSpectrum:
         self.box_error = box_error
         self.opt_data = opt_data
         self.opt_error = opt_error
-        self.wavelenght_data = wavelength_data
+        self.wavelength_data = wavelength_data
 
+        _tolist = lambda x: None if x is None else x.tolist()
         self._data = pd.DataFrame({
-            'box_data': box_data.tolist(),
-            'box_error': box_error.tolist(),
-            'opt_data': opt_data.tolist(),
-            'opt_error': opt_error.tolist(),
-            'wavelength': wavelength_data.tolist(),
+            'box_data': _tolist(box_data),
+            'box_error': _tolist(box_error),
+            'opt_data': _tolist(opt_data),
+            'opt_error': _tolist(opt_error),
+            'wavelength': _tolist(wavelength_data),
         }, index=orders)
         self._data.sort_index(axis=0, inplace=True)
 

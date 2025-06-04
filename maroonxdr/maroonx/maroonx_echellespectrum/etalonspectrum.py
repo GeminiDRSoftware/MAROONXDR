@@ -85,7 +85,7 @@ class EtalonSpectrum(EchelleSpectrum):
         if 'knot_0' in parameters:
             return self.peak_to_wavelength_spline(mm)
         else:
-            return (2.0 * (parameters["l"]) * np.cos(["theta"]) * parameters["n"] / mm) * 1e6
+            return (2.0 * (parameters["l"]) * np.cos(parameters["theta"]) * parameters["n"] / mm) * 1e6
 
     def peak_to_wavelength_nodispersion(self, mm):
         '''
@@ -109,11 +109,11 @@ class EtalonSpectrum(EchelleSpectrum):
             m0 = np.array(np.rint(2.0 * parameters['l'] * np.cos(parameters['theta']) *  parameters['n'] / (wl / 1e6)), dtype=int)
             m_float  = np.array(2.0 * (parameters['l']- spl(1/m0)*parameters['l']) * \
                                 np.cos(parameters['theta']) *  parameters['n'] / (wl / 1e6))
-            m_int = np.rint(m_float).astype(np.int)
+            m_int = np.rint(m_float).astype(int)
             return m_int, m_float-m_int
         else:
             m_float = np.array(2.0 * parameters['l'] * np.cos(parameters['theta']) * parameters['n'] / (wl / 1e6))
-            m_int = np.rint(m_float).astype(np.int)
+            m_int = np.rint(m_float).astype(int)
             return m_int, m_float-m_int
 
     def get_peak_data(self, order, data="all"):
@@ -153,7 +153,7 @@ class EtalonSpectrum(EchelleSpectrum):
                 peak_centers = self.peak_data.loc[order_mask, "CENTER"].values
                 # Get the wavelength for the peak centers
                 wls = wavelength_solution.get_wavelength(peak_centers, order)
-                self.peak_data.loc[order_mask, "wavelength_by_thar"] = wls * (1.0 + correction/3e8)
+                self.peak_data.loc[order_mask, "WAVELENGTH_BY_THAR"] = wls * (1.0 + correction/3e8)
             except KeyError:
                 log.warning("No data for order {}".format(order))
 
@@ -175,10 +175,24 @@ class EtalonSpectrum(EchelleSpectrum):
                 x = np.arange(len(y))
                 if y[0] > y[-1]:
                     y = y[::-1]
+
+                # Create a cubic spline for the wavelength data
                 spl = UnivariateSpline(x, y, k=3, s=0)
                 order_mask = self.peak_data["ORDER"] == order
                 peak_centers = self.peak_data.loc[order_mask, "CENTER"].values
-                self.peak_data.loc[order_mask, "wavelength_by_spline"] = spl(peak_centers)
+                wls_vector = spl(peak_centers)
+
+                # Calculate the dispersion in m/s
+                splder = spl.derivative()
+                dispersion = splder(peak_centers)
+                dispersion[0] = dispersion[1]
+                dispersion[-1] = dispersion[-2]
+                dispersion_mps = dispersion * 3e8 / wls_vector
+
+                # Assign wavelengths and dispersion to the peak data
+                self.peak_data.loc[order_mask, "WAVELENGTH_BY_THAR"] = wls_vector
+                self.peak_data.loc[order_mask, 'DISPERSION_MPS'] = dispersion_mps
+
             except KeyError:
                 self.log.warning("No data for order {}".format(order))
 
@@ -196,41 +210,49 @@ class EtalonSpectrum(EchelleSpectrum):
         log = self.log
         # guess peak numbers based on wavelength and etalon model:
         for order in self.orders:
-            try:
-                self.peak_data.loc[order, 'm'],self.peak_data.loc[order, 'm_fraction'] = \
-                    self.guess_m(self.peak_data.loc[order, 'wavelength_by_thar'])
 
-                # correct for inter-order jumps
-                self.peak_data.sort_values("wavelength_by_thar", inplace=True, ascending=False)
-                wl_peaks_by_thar = self.peak_data.loc[order, 'wavelength_by_thar'].values
-                wl_by_etaloneq = self.peak_to_wavelength(self.peak_data.loc[order, 'm'].values)
-                y = (wl_peaks_by_thar - wl_by_etaloneq) / wl_peaks_by_thar * c
-                m = self.peak_data.loc[order, 'm'].values
-                residuals_flattened = y - medfilt(y, 11)
-                bad = np.abs(residuals_flattened) > 5.0 * np.nanstd(residuals_flattened)
-                if np.count_nonzero(bad) > 0:
-                    if np.count_nonzero(bad) < 5:
-                        log.info(f'{np.count_nonzero(bad)} bad lines removed in order {order}')
-                    else:
-                        log.warning(f'{np.count_nonzero(bad)} bad lines removed in order {order}')
-                    dropindex = list((self.peak_data.loc[order].iloc[np.where(bad)].center.values))
-                    for do in dropindex:
-                        self.peak_data.drop(index=(order,do),inplace=True)
-            except:
+            order_mask = self.peak_data["ORDER"] == order
+            if np.count_nonzero(order_mask) == 0:
                 log.warning(f"No data for order {order}")
+                continue
+
+            self.peak_data.loc[order_mask, 'M'],self.peak_data.loc[order_mask, 'M_FRACTION'] = \
+                self.guess_m(self.peak_data.loc[order_mask, 'WAVELENGTH_BY_THAR'])
+
+            # correct for inter-order jumps
+            self.peak_data.sort_values("WAVELENGTH_BY_THAR", inplace=True, ascending=False)
+            wl_peaks_by_thar = self.peak_data.loc[order_mask, 'WAVELENGTH_BY_THAR'].values
+            wl_by_etaloneq = self.peak_to_wavelength(self.peak_data.loc[order_mask, 'M'].values)
+            y = (wl_peaks_by_thar - wl_by_etaloneq) / wl_peaks_by_thar * c
+            # m = self.peak_data.loc[order_mask, 'M'].values
+            residuals_flattened = y - medfilt(y, 11)
+            bad = np.abs(residuals_flattened) > 5.0 * np.nanstd(residuals_flattened)
+
+            if np.count_nonzero(bad) > 0:
+                if np.count_nonzero(bad) < 5:
+                    log.info(f'{np.count_nonzero(bad)} bad lines removed in order {order}')
+                else:
+                    log.warning(f'{np.count_nonzero(bad)} bad lines removed in order {order}')
+
+                dropindex = self.peak_data.loc[order_mask].iloc[np.where(bad)].index
+                print(dropindex)
+                self.peak_data.drop(index=dropindex, inplace=True)
 
         # correct jumps between orders
         for order in (self.orders[1:])[::-1]:
-            wl_peaks_by_thar = self.peak_data.loc[order-1, 'wavelength_by_thar'].values
-            wl_by_etaloneq = self.peak_to_wavelength(self.peak_data.loc[order-1, 'm'].values)
+            order_mask = self.peak_data["ORDER"] == order
+            order_m1_mask = self.peak_data["ORDER"] == order - 1
+
+            wl_peaks_by_thar = self.peak_data.loc[order_m1_mask, 'WAVELENGTH_BY_THAR'].values
+            wl_by_etaloneq = self.peak_to_wavelength(self.peak_data.loc[order_m1_mask, 'M'].values)
 
             y2 = np.median((wl_peaks_by_thar - wl_by_etaloneq) / wl_peaks_by_thar * c)
 
-            wl_peaks_by_thar = self.peak_data.loc[order, 'wavelength_by_thar'].values
-            wl_by_etaloneq = self.peak_to_wavelength(self.peak_data.loc[order, 'm'].values)
+            wl_peaks_by_thar = self.peak_data.loc[order_mask, 'WAVELENGTH_BY_THAR'].values
+            wl_by_etaloneq = self.peak_to_wavelength(self.peak_data.loc[order_mask, 'M'].values)
             y1 = np.median((wl_peaks_by_thar - wl_by_etaloneq) / wl_peaks_by_thar * c)
 
-            oldvalues = self.peak_data.loc[order-1, 'm'].values
+            oldvalues = self.peak_data.loc[order_m1_mask, 'M'].values
 
             jump = 0
 
@@ -253,10 +275,10 @@ class EtalonSpectrum(EchelleSpectrum):
 
             if jump !=0:
                 log.warning(f'Jump by {jump} IOs found and corrected between order {order-1} and order {order}')
-                self.peak_data.loc[order - 1, 'm'] = oldvalues + jump
+                self.peak_data.loc[order_m1_mask, 'M'] = oldvalues + jump
 
-            for order in self.orders:
-                self.peak_data.loc[order, 'wavelength'] = self.peak_to_wavelength(self.peak_data.loc[order, 'm'].values)
+            # for order in self.orders:
+            #     self.peak_data.loc[order_mask, 'wavelength'] = self.peak_to_wavelength(self.peak_data.loc[order_mask, 'M'].values)
 
         if debug > 0:
             fig = self.plot_etalon_dispersion(plot_title)

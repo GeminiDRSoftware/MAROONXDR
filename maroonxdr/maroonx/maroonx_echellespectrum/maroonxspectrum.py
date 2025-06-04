@@ -94,9 +94,9 @@ class MXSpectrum:
             # If the fiber is not in the spectra_classes, default to EchelleSpectrum
             spectra_cls = spectra_classes.get(fiber, EchelleSpectrum)
             self.spectra[fiber_number] = spectra_cls(
+                peak_data=peaks,
                 box_data=box_data,
                 orders=reduced_orders,
-                peak_data=peaks,
                 wavelength_data=wls_static_data,
                 fiber=fiber_number,
                 pm=pm,
