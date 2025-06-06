@@ -39,7 +39,13 @@ class getPeaksAndPolynomialsConfig(config.Config):
         optional=True,
         single=True,
     )
-    orders = config.ListField('Orders to fit.', int, None, optional=True)
+    orders = config.ListField(
+        'List of orders to process.', 
+        int, 
+        None, 
+        optional=True, 
+        single=True,
+    )
     degree_sigma = config.Field('Degree of the sigma polynomial', int, 4)
     degree_width = config.Field('Degree of the width polynomial', int, 2)
     use_sigma_lr = config.Field(
@@ -56,8 +62,24 @@ class fitAndApplyEtalonWlsConfig(config.Config):
     """
     This parameter set controls the fitAndApplyEtalonWls primitive for MAROON-X.
     """
-
-    #plot_path = config.Field('Path to save plots', str, '')
-    ref_file = config.Field('Reference file', str, None, optional=True)
-    ref_fiber = config.Field('Reference fiber', int, 5)
+    fibers = config.ListField(
+        'List of fibers to process.',
+        int,
+        None,
+        optional=True,
+        single=True,
+    )
     symmetric_linefits = config.Field('Symmetric line fits', bool, False)
+    n_knots = config.Field(
+        'Number of knots for the cubic spline fit',
+        int,
+        30,
+    )
+    thar = config.Field(
+        'Whether to apply ThAr wavelength solution to Etalon frames',
+        bool,
+        False,
+    )
+    ref_file = config.Field('Reference file', str, None, optional=True)
+    ref_fiber = config.Field('Reference fiber', int, None, optional=True)
+    #plot_path = config.Field('Path to save plots', str, '')

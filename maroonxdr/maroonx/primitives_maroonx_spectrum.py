@@ -308,10 +308,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
         return adinputs
 
-
-    def fitAndApplyEtalonWls(self, adinputs=None, fibers=None, 
-                            ref_file=None, ref_fiber=None, thar=False,
-                            symmetric_linefits=False, n_knots=30, n_sigma_clip=4.0):
+    def fitAndApplyEtalonWls(self, adinputs=None, **params):
         """
         Computes a new spline-based dynamical wavelength solution for each fiber 
         using etalon parameters from a config file and an initial wavelength solution.
@@ -322,18 +319,16 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             AstroData objects with 1D extracted spectra (PEAKS and POLY extensions)
         fibers: list or tuple
             Fibers containing Etalon spectra to process
-        ref_file: str
-            Reference file with previously reduced etalon spectra (for drift correction)
-        ref_fiber: int
-            Fiber to use as reference when ref_file is provided
-        thar: bool
-            Whether to apply ThAr wavelength solution to etalon frame
         symmetric_linefits: bool
             Whether to use symmetric line fitting
         n_knots: int
             Number of knots for the spline fit (default: 30)
-        n_sigma_clip: float
-            Sigma clipping threshold for outlier rejection (default: 4.0)
+        thar: bool
+            Whether to apply ThAr wavelength solution to etalon frame
+        ref_file: str
+            Reference file with previously reduced etalon spectra (for drift correction)
+        ref_fiber: int
+            Fiber to use as reference when ref_file is provided
             
         Returns:
         --------
@@ -344,9 +339,14 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
         timestamp_key = self.timestamp_keys[self.myself()]
 
-        # Process each input file
+        # get the parameters from the config
+        fibers = params.get('fibers')
+        symmetric_linefits = params.get('symmetric_linefits')
+        n_knots = params.get('n_knots')
+        thar = params.get('thar')
+        ref_file = params.get('ref_file')
+
         for ad in adinputs:
-            
             # Load the etalon spectrum
             mx_spectrum = MXSpectrum(ad, etalon_peaks_symmetric=symmetric_linefits)
             log.info(f'Processing etalon file: {ad.filename}')
@@ -360,8 +360,9 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 log.info(f'Found etalon fibers: {fibers}')
             
             if ref_file is not None:
-                # ref_peaks = ref_file[0].PEAKS[ref_file[0].PEAKS['FIBER'] == ref_fiber]
-                # peak_centers = ref_peaks["CENTER"]
+                # If a reference file and reference fiber is given, offset the etalon
+                # position on all fibers by the offset found in the reference fiber.
+                # ref_fiber = params.get('ref_fiber')
                 # TODO: Ask Andreas what this is supposed to do because currently
                 # we do not know how this works in the old pipeline
                 raise NotImplementedError("Reference file not implemented yet")
