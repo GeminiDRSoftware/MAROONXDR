@@ -57,7 +57,7 @@ class fitAndApplyEtalonWlsConfig(config.Config):
     This parameter set controls the fitAndApplyEtalonWls primitive for MAROON-X.
     """
 
-    plot_path = config.Field('Path to save plots', str, '')
-    ref_file = config.Field('Reference file', str, '')
+    #plot_path = config.Field('Path to save plots', str, '')
+    ref_file = config.Field('Reference file', str, None, optional=True)
     ref_fiber = config.Field('Reference fiber', int, 5)
     symmetric_linefits = config.Field('Symmetric line fits', bool, False)

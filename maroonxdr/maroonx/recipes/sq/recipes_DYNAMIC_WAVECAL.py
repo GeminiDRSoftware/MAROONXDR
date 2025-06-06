@@ -43,6 +43,8 @@ def makeDynamicWavecal(p):
     p.boxExtraction() # extracts spectra from stripes
     p.getPeaksAndPolynomials(fibers=(2, 3, 4, 5)) # fits etalon peaks and polynomials
     
+    p.staticWavelengthSolution()
+    
     p.writeOutputs(suffix='_dynamic_wavecal')  # save reduced 1D spectra
     return
 
