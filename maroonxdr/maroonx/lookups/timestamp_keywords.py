@@ -11,5 +11,6 @@ timestamp_keys = {
     "extractStripes": "SCIENCE_STRIPES_PULLED",
     "optimalExtraction": "SCIENCE_STRIPES_EXTRACTED",
     "darkSubtraction": "SCIENCE_DARK_EXTENSION_SUBTRACTED",
-    "staticWavelengthSolution": "STATIC_WAVELENGTH_APPLIED"
+    "staticWavelengthSolution": "STATIC_WAVELENGTH_APPLIED",
+    "fitAndApplyEtalonWls": "DYNAMIC_WAVELENGTH_APPLIED",
 }
