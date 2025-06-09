@@ -78,16 +78,24 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
         timestamp_key = self.timestamp_keys[self.myself()]
 
+        # requested fibers
         fibers = params['fibers']
+        
+        all_fibers = [1, 2, 3, 4, 5]
         if fibers is None:
-            fibers = [1, 2, 3, 4, 5]
+            fibers = all_fibers
 
         for ad in adinputs:
             # Load static wavelength solution from the config
             statwavelength_file = maroonx_utils.get_statwavelength_filename(ad)
             log.info(f'Loading static wavelength file: {statwavelength_file}')
 
+            for fiber in all_fibers:
+                # Set up an initial value for all fibers
+                setattr(ad[0], f'WLS_STATIC_FIBER_{fiber}', np.zeros((1, 1)))
+                    
             for fiber in fibers:
+                # Check if the fiber is present in the data
                 orders = getattr(ad[0], f'REDUCED_ORDERS_FIBER_{fiber}')
                 if orders.size == 1:
                     # Save an empty array for this fiber
@@ -499,6 +507,10 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 # Concatenate wavelengths arrays for each fiber and save them
                 wave_arrays = [wave[fiber][o] for o in wave[fiber].keys()]
                 setattr(ad[0], f'WLS_DYNAMIC_FIBER_{fiber}', np.stack(wave_arrays))
+
+            for fiber in {1, 2, 3, 4, 5} - set(fibers):
+                # If fiber is not in the list of fibers, save an empty array
+                setattr(ad[0], f'WLS_DYNAMIC_FIBER_{fiber}', np.zeros((1, 1)))
 
             # Collect and reformat updated peak data
             new_peak_data = pd.concat(new_peak_data, ignore_index=True)
