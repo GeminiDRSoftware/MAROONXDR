@@ -46,8 +46,8 @@ def test_stray_light_removal(caplog, DFFFD_file, FDDDF_file):
     p.identifyStripes(stream='DFFFD_flats', selected_fibers='0,2,3,4,0')
     p.defineFlatStripes()  # defines pixel inclusion for each flat region based on stripe ids
     p.defineFlatStripes(stream='DFFFD_flats')
-    FDDDF_out = p.removeStrayLight(box_size = 21, filter_size = 21)  # remove straylight from frame (this is why 2 partial illumination flat sets are necessary)
-    DFFFD_out = p.removeStrayLight(stream='DFFFD_flats', box_size=21, filter_size=21)
+    FDDDF_out = p.removeStrayLight(box_size = 20, filter_size = 19)  # remove straylight from frame (this is why 2 partial illumination flat sets are necessary)
+    DFFFD_out = p.removeStrayLight(stream='DFFFD_flats', box_size=20, filter_size=19)
     
     assert (ad_FDDDF[0].STRAYLIGHT_DIFFERENCE == FDDDF_out[0].data - ad_FDDDF[0].data).all()
     assert (ad_DFFFD[0].STRAYLIGHT_DIFFERENCE == DFFFD_out[0].data - ad_DFFFD[0].data).all()

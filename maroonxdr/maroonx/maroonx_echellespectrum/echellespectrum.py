@@ -44,7 +44,9 @@ class EchelleSpectrum:
         filename : str
             Filename of raw file.  Used for book-keeping.
         """
-
+        # Convert orders to integers if needed
+        orders = np.asarray(orders, dtype=int)
+        
         self.box_data = box_data
         self.box_error = box_error
         self.opt_data = opt_data

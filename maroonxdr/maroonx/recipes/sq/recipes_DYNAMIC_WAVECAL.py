@@ -31,7 +31,6 @@ def makeDynamicWavecal(p):
     p.prepare()
     p.checkArm()
     
-    #p.fitAndApplyEtalonWls()
     
     p.addDQ()  # just placeholder until MX is in caldb
     p.overscanCorrect()
@@ -44,6 +43,7 @@ def makeDynamicWavecal(p):
     p.getPeaksAndPolynomials(fibers=(2, 3, 4, 5)) # fits etalon peaks and polynomials
     
     p.staticWavelengthSolution()
+    #p.fitAndApplyEtalonWls()
     
     p.writeOutputs(suffix='_dynamic_wavecal')  # save reduced 1D spectra
     return

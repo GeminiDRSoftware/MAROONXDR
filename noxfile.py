@@ -154,7 +154,7 @@ def _parse_dependencies(result: str) -> list[str]:
 
 
 # Development envs
-@nox.session(venv_backend=None, python='3.10')
+@nox.session(venv_backend=None, python='3.12')
 def devenv(session: nox.Session):
     """Create a development environment.
 
@@ -171,7 +171,7 @@ def devenv(session: nox.Session):
 
     env_name = 'mx_dev'
     session.run(
-        'python3.10',
+        'python3.12',
         '-m',
         'venv',
         'venv/',
@@ -217,10 +217,10 @@ def devenv(session: nox.Session):
         f'     source {venv_activate}\n'
     )
 
-    session.notify('initialize_commit_hooks')
+    # session.notify('initialize_commit_hooks')
 
 
-@nox.session(venv_backend=None)
+@nox.session(venv_backend=None, python='3.12')
 def devconda(session: nox.Session):
     """Create a conda development environment."""
     session.install('poetry', 'poetry-plugin-export')
@@ -234,9 +234,10 @@ def devconda(session: nox.Session):
         '--force',
         '-n',
         env_name,
-        '-c',
-        'conda-forge',
-        'python=3.10',
+        '-c', 'http://astroconda.gemini.edu/public',
+        '-c', 'conda-forge', 
+        '-c', 'defaults',
+        'python=3.12',
         external=True,
     )
 
@@ -278,29 +279,31 @@ def devconda(session: nox.Session):
         f'--name={env_name}',
         '--yes',
         '--no-update-deps',
-        '-c',
-        'conda-forge',
-        'astropy=6',
+        # '-c',
+        # 'conda-forge',
+        'astropy>=6',
+        'astroquery',
         'matplotlib',
-        'numpy',
+        'numpy<2',
         'psutil',
         'python-dateutil',
         'requests',
         'scikit-image',
         'scipy',
         'sextractor',
-        'sqlalchemy',
+        'sqlalchemy>=2.0.0',
         'ds9',
-        'gwcs',
+        'gwcs>=0.15,<=0.22.1',
         'specutils',
         'sphinx',
         'sphinx_rtd_theme',
-        'bokeh',
+        'bokeh>=3',
         'holoviews',
         'cython',
         'future',
-        'astroscrappy=1.1',
+        'astroscrappy>=1.1',
         'fitsverify',
+        'jsonschema',
         'imexam',
         external=True,
     )

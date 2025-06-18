@@ -4,8 +4,14 @@ import pytest
 from pathlib import Path
 
 from astropy.io import fits
+import h5py
 
-# from test_utils import compare_npz_files, compare_fits_files, compare_functions
+import astrodata
+from gempy.adlibrary import dataselect
+
+import maroonx_instruments  # noqa : important to load adclass tags
+from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
+from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 
 
 # =========================================================
@@ -17,77 +23,43 @@ from astropy.io import fits
 # COEFF_REFERENCE_PATH = Path("/home/martin/Documentos/Projects/MaroonX/resources/Martín_setup/darks/")
 
 # Paths to real masterdarks files
-OLD_FILES_PATH = Path("/home/martin/Documentos/Projects/MaroonX/maroonx_base/data2/MaroonX_spectra_reduced/Maroonx_masterframes/202411xx/darks")
-NEW_FILES_PATH = Path("/home/martin/Documentos/Projects/MAROONXDR/calibrations/processed_dark")
+OLD_FILES_PATH = Path("/home/martin/Projects/MaroonX/legacy/maroonx_base/data2/MaroonX_spectra_reduced/Maroonx_masterframes/202411xx/darks")
+NEW_FILES_PATH = Path("/home/martin/Projects/MaroonX/MAROONXDR/calibrations/processed_dark")
 
-# Paths to synth masterdarks files
-# SYNTH_OUTPUT_PATH = Path("/home/martin/Documentos/Projects/MaroonX/maroonx_base/data2/MaroonX_spectra_reduced/Maroonx_masterframes/202411xx/darks/")
-# SYNTH_REFERENCE_PATH = Path("/home/martin/Documentos/Projects/MaroonX/resources/Martín_setup/darks/202411xx_synth_darks/darks/")
-
-# Lists of all file names produced by the reduction process
-# COEFF_FILES = [
-#     "masterdarks_202411xx_blue.npz",
-#     "masterdarks_202411xx_red.npz",
-#     "masterdarks_coeffs_202411xx_blue.npz",
-#     "masterdarks_coeffs_202411xx_red.npz"
-# ]
-
-# REAL_MASTERDARK_FILES = [
-#     "20241115T19_masterdark_mean_DDDDE_b_0060.fits",
-#     "20241115T19_masterdark_mean_DDDDE_b_0120.fits",
-#     "20241115T19_masterdark_mean_DDDDE_b_0300.fits",
-#     "20241115T19_masterdark_mean_DDDDE_r_0060.fits",
-#     "20241115T19_masterdark_mean_DDDDE_r_0120.fits",
-#     "20241115T19_masterdark_mean_DDDDE_r_0300.fits",
-#     "20241115T20_masterdark_mean_DDDDE_b_0600.fits",
-#     "20241115T20_masterdark_mean_DDDDE_r_0600.fits",
-#     "20241115T21_masterdark_mean_DDDDE_b_0900.fits",
-#     "20241115T21_masterdark_mean_DDDDE_r_0900.fits",
-#     "20241115T22_masterdark_mean_DDDDE_b_1200.fits",
-#     "20241115T22_masterdark_mean_DDDDE_r_1200.fits",
-#     "20241116T00_masterdark_mean_DDDDE_b_1800.fits",
-#     "20241116T00_masterdark_mean_DDDDE_r_1800.fits",
-# ]
-
-# SYNTH_MASTERDARK_FILES = [
-#     "202411xx_masterdark_mean_DDDDE_b_0120.fits",
-#     "202411xx_masterdark_mean_DDDDE_b_0300.fits",
-#     "202411xx_masterdark_mean_DDDDE_b_0600.fits",
-#     "202411xx_masterdark_mean_DDDDE_b_0900.fits",
-#     "202411xx_masterdark_mean_DDDDE_b_1800.fits",
-#     "202411xx_masterdark_mean_DDDDE_r_0120.fits",
-#     "202411xx_masterdark_mean_DDDDE_r_0300.fits",
-#     "202411xx_masterdark_mean_DDDDE_r_0600.fits",
-#     "202411xx_masterdark_mean_DDDDE_r_0900.fits",
-#     "202411xx_masterdark_mean_DDDDE_r_1800.fits"    
-# ]
-# =========================================================
-# HELPER FUNCTIONS
-# =========================================================
-
+SCIENCE_DIR = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir')
 
 # =========================================================
 # TESTS
 # =========================================================
 
+def test_masterdark():
 
-# The following tests should be sorted in order of pipeline
-# output order to make it easier to traceback errors
+    old_file = OLD_FILES_PATH / "20241115T19_masterdark_mean_DDDDE_b_0300.fits"
+    
+    # get all flat files
+    raw_files = sorted([str(f) for f in SCIENCE_DIR.glob('*.fits')])
+    selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'DARK', 'BLUE', '300s'])
 
-@pytest.mark.parametrize("old_filename", ["20241115T19_masterdark_mean_DDDDE_b_0300.fits"])
-@pytest.mark.parametrize("new_filename", ["20241115T193254Z_DDDDE_b_0300_regressionDark.fits"])
-def test_real_comparison(old_filename, new_filename):
+    # read files and instantiate the primitive class
+    adinput = [astrodata.open(f) for f in selected_spect]
+    p = MAROONX(adinput)
 
-    is_blue = "_b_" in old_filename
+    p.prepare()
+    p.checkArm()
+    p.checkND()
+    p.addDQ()
+    p.subtractOverscan()
+    # No trim overscan and no correct image orientation
+    p.addVAR(read_noise=True, poisson_noise=True)
+    adouts = p.stackDarks(scale_mode='first_frame', lsigma=2.0, hsigma=2.0)
 
-    old_file = OLD_FILES_PATH / old_filename
-    new_file = NEW_FILES_PATH / new_filename
 
-    with fits.open(old_file) as old_hdu, fits.open(new_file) as new_hdu:
+    with fits.open(old_file) as old_hdu:
         old_data = old_hdu[0].data
-        new_data = new_hdu[1].data
+        new_data = adouts[0][0].data
 
         assert old_data.shape == new_data.shape, f"Shape mismatch: {old_data.shape} != {new_data.shape}"
 
         # Compare the data
-        np.testing.assert_allclose(old_data, new_data, rtol=1e-5, atol=1e-5)
+        np.testing.assert_allclose(old_data, new_data, rtol=1e-5, atol=1e-5, 
+            err_msg='Data mismatch')

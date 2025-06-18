@@ -16,7 +16,7 @@ os.chdir(science_dir)
 
 
 
-@pytest.mark.parametrize("filename", ["20241114T190714Z_DDDDF_r_0002_FFFFF_flat.fits"])
+@pytest.mark.parametrize("filename", ["20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits"])
 def test_find_stripes(caplog, filename):
     """
     Test that the findStripe routine works to identify all stripes that have
@@ -50,7 +50,7 @@ def test_find_stripes(caplog, filename):
     assert missing_stripes == 0
 
 
-@pytest.mark.parametrize("filename", ["20241114T190714Z_DDDDF_r_0002_FFFFF_flat.fits"])
+@pytest.mark.parametrize("filename", ["20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits"])
 def test_identify_stripes(caplog, filename):
     """
     Test that the identifyStripe routine works to give order and number
@@ -77,22 +77,24 @@ def test_identify_stripes(caplog, filename):
     p.prepare()
     p.findStripes()
     adtest = p.identifyStripes(selected_fibers=(',').join(selected_fibers))
-    for ifib in selected_fibers:
-        fiber = 'fiber_'+ifib
-        idx = (int(ifib)-1)*6  # in the final output full order is joined
+    for ifib, fib in enumerate(selected_fibers):
+        fiber = 'fiber_'+fib
+        idx = ifib * 6
         assert fiber in adtest[0][0].STRIPES_ID.keys()
+
         for order in ad[0].STRIPES_ID.keys():
             if np.isnan(ad[0].STRIPES_ID[order][idx:idx+6].data).all():
                 assert order not in adtest[0][0].STRIPES_ID[fiber]
             else:
                 assert (adtest[0][0].STRIPES_ID[fiber][order] ==
                         ad[0].STRIPES_ID[order][idx:idx+6].data).all()
+    
     assert len(caplog.records) > 0
     assert sum("could not be identified" in r.message for r in caplog.records) \
            == len(ad[0].REMOVED_STRIPES)
 
 
-@pytest.mark.parametrize("filename", ["20241114T190714Z_DDDDF_r_0002_FFFFF_flat.fits"])
+@pytest.mark.parametrize("filename", ["20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits"])
 def test_full_stripe_definition(caplog, filename):
     """
     Test that the same exact stripes are found in reference masterflat frame

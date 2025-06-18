@@ -18,10 +18,10 @@ from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 # FILES TO COMPARE
 # =========================================================
 
-OLD_FILES_PATH = Path("/home/martin/Documentos/Projects/MaroonX/maroonx_base/data2/MaroonX_spectra_reduced/Maroonx_masterframes/202411xx/flats")
-NEW_FILES_PATH = Path("/home/martin/Documentos/Projects/MAROONXDR/calibrations/processed_flat")
+OLD_FILES_PATH = Path("/home/martin/Projects/MaroonX/legacy/maroonx_base/data2/MaroonX_spectra_reduced/Maroonx_masterframes/202411xx/flats")
+NEW_FILES_PATH = Path("/home/martin/Projects/MaroonX/MAROONXDR/calibrations/processed_flat")
 
-SCIENCE_DIR = Path('/home/martin/Documentos/Projects/MAROONXDR/science_dir')
+SCIENCE_DIR = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir')
 
 # =========================================================
 # TESTS
@@ -157,8 +157,19 @@ def test_removeStraylight(arm):
     p.defineFlatStripes()  # defines pixel inclusion for each flat region based on stripe ids
     p.defineFlatStripes(stream='DFFFD_flats')
 
-    p.removeStrayLight(filter_size = 21, box_size = 21, snapshot=True)  # remove straylight from frame (this is why 2 partial illumination flat sets are necessary)
-    p.removeStrayLight(stream='DFFFD_flats', filter_size = 21, box_size = 21, snapshot=True)
+    p.removeStrayLight(filter_size=19, box_size=20, snapshot=True)  # remove straylight from frame (this is why 2 partial illumination flat sets are necessary)
+    p.removeStrayLight(stream='DFFFD_flats', filter_size=19, box_size=20, snapshot=True)
+
+    ad_DDDDF = p.streams['main'][0]
+    ad_DFFFD = p.streams['DFFFD_flats'][0]
+
+    # Compare with old masterflats
+    with fits.open(old_DDDDF) as hdu_DDDDF, fits.open(old_DFFFD) as hdu_DFFFD:
+
+        np.testing.assert_allclose(ad_DDDDF[0].data, hdu_DDDDF[0].data,
+            rtol=1e-5, atol=1e-5)
+        np.testing.assert_allclose(ad_DFFFD[0].data, hdu_DFFFD[0].data,
+            rtol=1e-5, atol=1e-5)
 
 
 @pytest.mark.parametrize("arm", ["BLUE", "RED"])
@@ -199,8 +210,8 @@ def test_combinedFlat(arm):
     p.defineFlatStripes()  # defines pixel inclusion for each flat region based on stripe ids
     p.defineFlatStripes(stream='DFFFD_flats')
 
-    p.removeStrayLight(filter_size = 21, box_size = 21, snapshot=True)  # remove straylight from frame (this is why 2 partial illumination flat sets are necessary)
-    p.removeStrayLight(stream='DFFFD_flats', filter_size = 21, box_size = 21, snapshot=True)
+    p.removeStrayLight(filter_size=19, box_size=20, snapshot=True)  # remove straylight from frame (this is why 2 partial illumination flat sets are necessary)
+    p.removeStrayLight(stream='DFFFD_flats', filter_size=19, box_size=20, snapshot=True)
 
     p.combineFlatStreams(stream='main', stream_2='DFFFD_flats')  # combine straylight-removed images
     p.clearStream(stream='DFFFD_flats') # remove second stream

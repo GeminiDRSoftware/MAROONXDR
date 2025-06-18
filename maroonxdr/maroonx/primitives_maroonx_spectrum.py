@@ -489,7 +489,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     wavelengths_all = np.append(wavelengths_all,lsq(x[good]),axis=0)
                     residuals_all   = np.append(residuals_all,y[good] - lsq(x[good]),axis=0)
 
-                    xx = np.arange(len(spectra.data.wavelength[92]))
+                    xx = np.arange(len(spectra.data.wavelength.iloc[0]))
                     wavelengths = lsq(xx)
 
                     f = scipy.interpolate.interp1d(x[good][-2:], y[good][-2:],fill_value='extrapolate')

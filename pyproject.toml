@@ -17,9 +17,9 @@ packages = [
 
 
 [tool.poetry.dependencies]
-python = "^3.10"
-numpy = "^1.23"
-pandas = "^1.5"
+python = "^3.12"
+numpy = "^1.26"
+pandas = "^2.3"
 astropy = "^6.0"
 photutils = ">=2.0.2,<2.1.0"
 numba = "^0.61.0"
@@ -118,6 +118,7 @@ select = [
 ignore = [
   "TD",      # TODO statements | Covered by .github/workflows/todo.yml
   "ISC001",  # String concatenation | Conflicts with linter
+  "RUF012",  # Avoid mandatory type annotations
 ]
 
 [tool.ruff.lint.per-file-ignores]
