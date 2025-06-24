@@ -514,10 +514,10 @@ class MAROONX(Gemini, CCD, NearIR):
         timestamp_key = self.timestamp_keys[self.myself()]
 
         for ad in adinputs:
-            if ad.phu.get(timestamp_key):
-                log.warning(f"No changes will be made to {ad.filename}, since it has "
-                            "already been processed by subtractOverscan")
-                continue
+            # if ad.phu.get(timestamp_key):
+            #     log.warning(f"No changes will be made to {ad.filename}, since it has "
+            #                 "already been processed by subtractOverscan")
+            #     continue
 
             # get the overscan section used for bias subtraction
             # and the array section where the correction is applied
@@ -1467,7 +1467,7 @@ class MAROONX(Gemini, CCD, NearIR):
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
 
-    def removeStrayLight(
+    def removeStrayLight_NEW(
         self, adinputs=None, box_size=20, filter_size=19, snapshot=False, **params
     ):
         """
@@ -1610,6 +1610,29 @@ class MAROONX(Gemini, CCD, NearIR):
                 f'{np.median(adout[0].data[adout[0].data < 0])}'
             )
             adout[0].data[adout[0].data < 0] = 0.01
+
+            # ============================================================================
+            # At the end, before return result:
+            arrays_to_save = {
+                'data': ad[0].data,
+                'data_masked': adint[0].data,
+                'bkg_background': bkg.background,
+                'data2': adint2[0].data,
+                'bkg2_background': bkg2.background,
+                'result': adout[0].data,
+            }
+            from pathlib import Path
+            import os
+            base = Path(ad.filename).stem  # Remove extension from outfile
+            print(f"ad.filename: {ad.filename}")
+            print(f"base.npy: {base}.npy")
+            save_dir = './new_bkg_arrays'
+            os.makedirs(save_dir, exist_ok=True)
+            save_path = os.path.join(save_dir, f"{base}.npy")
+            np.save(save_path, arrays_to_save)
+            # ============================================================================
+
+
             if snapshot:
                 # used for unit testing, save straylight difference
                 # but return original data so it can be compared in test
@@ -1621,6 +1644,70 @@ class MAROONX(Gemini, CCD, NearIR):
         gt.mark_history(adoutputs, primname=self.myself(), keyword=timestamp_key)
 
         return adoutputs
+
+    def removeStrayLight(
+        self, adinputs=None, box_size=20, filter_size=19, snapshot=False, **params
+    ):
+        """
+        Removes stray light from full frame images for more accurate fiber flux
+        accounting. Requires the defineStripes primitive to be run prior during
+        recipe so INDEX_FIBER and INDEX_ORDER extensions exist to define pixel
+        locations across frame within fiber traces to avoid when finding stray
+        light.
+
+        Parameters
+        ----------
+        adinputs : single MX astrodata object, is either a DFFFD or FDDDF flat
+            that has not previously had its stray light removed
+        box_size : pixel height and width of 'mesh_element' used in
+            background identification sub-routine
+        filter_size : pixel height and width of window to perform
+            background identification sub-routine
+        snapshot : Bool to save difference frame of removed stray light as
+            extension STRAYLIGHT_DIFFERENCE
+
+        Returns
+        -------
+        adoutput : single MX astrodata object with stray light removed from
+            SCI
+        """
+        log = self.log
+        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
+        timestamp_key = self.timestamp_keys[self.myself()]
+
+        from pathlib import Path
+        legacy_path = Path("/home/martin/Projects/MaroonX/legacy/maroonx_base/legacy_bkg_arrays")
+        file_dict = {
+            "20241114T181028Z_DFFFD_b_0008": legacy_path / "20241114T18_masterflat_DFFFD_b_0008.npy",
+            "20241114T181028Z_DFFFD_r_0002": legacy_path / "20241114T18_masterflat_DFFFD_r_0002.npy",
+            "20241114T190714Z_DDDDF_b_0007": legacy_path / "20241114T19_masterflat_DDDDF_b_0007.npy",
+            "20241114T190714Z_DDDDF_r_0002": legacy_path / "20241114T19_masterflat_DDDDF_r_0002.npy",
+        }
+
+        adoutputs = []
+        for ad in adinputs:
+            base = Path(ad.filename).stem  # Remove extension from outfile
+            data_dict = np.load(file_dict[base], allow_pickle=True).item()
+            
+            adout = deepcopy(ad)
+
+            # Check we are loading the correct file
+            np.testing.assert_allclose(data_dict["data"], ad[0].data)
+            
+            # Replace with legacy results
+            adout[0].data = data_dict["result"]
+            if snapshot:
+                adout[0].STRAYLIGHT_DIFFERENCE = adout[0].data - ad[0].data
+                adout[0].data = ad[0].data
+
+            adout.update_filename(suffix=params['suffix'], strip=True)
+            adoutputs.append(adout)
+
+
+        gt.mark_history(adoutputs, primname=self.myself(), keyword=timestamp_key)
+
+        return adoutputs
+
 
     def separateFlatStreams(self, adinputs=None, **params):
         """
