@@ -153,6 +153,7 @@ def test_boxExtraction(arm):
 
     legacy_box = load_dict_from_hdf5(str(old_file), "box_extraction/")
 
+    fail_counter = 0
     for fiber in range(1, 6):
         new_box = getattr(adout[0][0], f"BOX_REDUCED_FIBER_{fiber}")
         if new_box.size == 1:
@@ -170,10 +171,11 @@ def test_boxExtraction(arm):
 
             try:
                 np.testing.assert_allclose(legacy_order, new_order, rtol=1e-4)
-                print(f'fiber/order : {fiber}/{order} [OK]')
+                # print(f'fiber/order : {fiber}/{order} [OK]')
             except AssertionError as err:
-                print(f'fiber/order : {fiber}/{order} [FAIL]')
-
+                fail_counter += 1
+                # print(f'fiber/order : {fiber}/{order} [FAIL]')
+    assert fail_counter == 0
 
 
 @pytest.mark.parametrize("arm", ["BLUE"])
@@ -214,6 +216,59 @@ def test_getPeaks(arm):
 
     # Test the the column FIBER has the same value counts
     assert new_peak_data["FIBER"].value_counts().equals(old_peak_data["fiber"].value_counts())
+
+
+@pytest.mark.parametrize("arm", ["BLUE"])
+def test_staticWavelengthSolution(arm):
+
+    old_file = OLD_FILES_PATH / "20241124T162336Z_DEEEE_b_0030.hdf"
+
+    # Load old peak data. columns are lowercase
+    legacy_wls = load_dict_from_hdf5(str(old_file), 'wavelengths_static/')
+
+    # read files and instantiate the primitive class
+    raw_files = sorted([str(f) for f in SCIENCE_DIR.glob('20241124T162336Z_DEEEE_*.fits')])
+    
+    selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'WAVECAL', arm])
+
+    # Primitives
+    adinput = [astrodata.open(f) for f in selected_spect]
+
+    p = MaroonXSpectrum(adinput)
+    p.prepare()
+    p.checkArm()
+    p.addDQ()  # just placeholder until MX is in caldb
+    p.overscanCorrect()
+    p.correctImageOrientation()
+    p.addVAR(read_noise=True, poisson_noise=True)
+    
+    p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
+    p.boxExtraction() # extracts spectra from stripes
+
+    #p.getPeaksAndPolynomials() # not eeded
+    adout = p.staticWavelengthSolution()
+
+    fail_counter = 0
+    for fiber in range(1, 6):
+        new_wls = getattr(adout[0][0], f"WLS_STATIC_FIBER_{fiber}")
+        if new_wls.size == 1:
+            # non reduced fibers (usually fiber 1) have size 1
+            continue
+
+        orders = getattr(adout[0][0], f"REDUCED_ORDERS_FIBER_{fiber}")
+        orders = orders.astype(int)
+
+        for idx, order in enumerate(orders):
+            legacy_order_wls = legacy_wls[f"fiber_{fiber}"][f"{order}"]
+            new_order_wls = new_wls[idx, :]
+
+            try:
+                np.testing.assert_allclose(legacy_order_wls, new_order_wls, rtol=1e-4)
+                # print(f'fiber/order : {fiber}/{order} [OK]')
+            except AssertionError as err:
+                fail_counter += 1
+                # print(f'fiber/order : {fiber}/{order} [FAIL]')
+    assert fail_counter == 0
 
 
 # =====================================================
