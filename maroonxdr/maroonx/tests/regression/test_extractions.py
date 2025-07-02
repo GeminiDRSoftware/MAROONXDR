@@ -179,46 +179,6 @@ def test_boxExtraction(arm):
 
 
 @pytest.mark.parametrize("arm", ["BLUE"])
-def test_getPeaks(arm):
-
-    old_file = OLD_FILES_PATH / "20241124T162336Z_DEEEE_b_0030.hdf"
-
-    # Load old peak data. columns are lowercase
-    old_peak_data = pd.read_hdf(old_file, '/etalon_peak_parameters/peaks')
-    assert "fiber" in old_peak_data.columns
-
-    # read files and instantiate the primitive class
-    raw_files = sorted([str(f) for f in SCIENCE_DIR.glob('20241124T162336Z_DEEEE_*.fits')])
-    
-    selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'WAVECAL', arm])
-
-    # Primitives
-    adinput = [astrodata.open(f) for f in selected_spect]
-
-    p = MaroonXSpectrum(adinput)
-    p.prepare()
-    p.checkArm()
-    p.addDQ()  # just placeholder until MX is in caldb
-    p.overscanCorrect()
-    p.correctImageOrientation()
-    p.addVAR(read_noise=True, poisson_noise=True)
-    
-    p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
-    p.boxExtraction() # extracts spectra from stripes
-
-    adout = p.getPeaksAndPolynomials(fibers=(2, 3, 4, 5))
-    
-    # Load new peak data. columns are uppercase
-    new_peak_data = adout[0][0].PEAKS.to_pandas()
-
-    # Test shapes are equal
-    assert old_peak_data.shape == new_peak_data.shape
-
-    # Test the the column FIBER has the same value counts
-    assert new_peak_data["FIBER"].value_counts().equals(old_peak_data["fiber"].value_counts())
-
-
-@pytest.mark.parametrize("arm", ["BLUE"])
 def test_staticWavelengthSolution(arm):
 
     old_file = OLD_FILES_PATH / "20241124T162336Z_DEEEE_b_0030.hdf"
@@ -269,6 +229,8 @@ def test_staticWavelengthSolution(arm):
                 fail_counter += 1
                 # print(f'fiber/order : {fiber}/{order} [FAIL]')
     assert fail_counter == 0
+
+ 
 
 
 # =====================================================

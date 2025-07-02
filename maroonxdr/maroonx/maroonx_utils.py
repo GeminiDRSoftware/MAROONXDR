@@ -92,44 +92,25 @@ def load_recordings(ad, guess_file, fibers, orders):
     else:
         if fibers is None:
             fibers = [1, 2, 3, 4, 5]
-        for fiber_number in fibers:
-            # Access the data from the input file
-            if fiber_number == 1:
-                reduced_orders = ad[0].REDUCED_ORDERS_FIBER_1
-                reduced_fiber = ad[0].BOX_REDUCED_FIBER_1
-                reduced_err = ad[0].BOX_REDUCED_ERR_1
-                reduced_flat = ad[0].BOX_REDUCED_FLAT_1
-            if fiber_number == 2:
-                reduced_orders = ad[0].REDUCED_ORDERS_FIBER_2
-                reduced_fiber = ad[0].BOX_REDUCED_FIBER_2
-                reduced_err = ad[0].BOX_REDUCED_ERR_2
-                reduced_flat = ad[0].BOX_REDUCED_FLAT_2
-            if fiber_number == 3:
-                reduced_orders = ad[0].REDUCED_ORDERS_FIBER_3
-                reduced_fiber = ad[0].BOX_REDUCED_FIBER_3
-                reduced_err = ad[0].BOX_REDUCED_ERR_3
-                reduced_flat = ad[0].BOX_REDUCED_FLAT_3
-            if fiber_number == 4:
-                reduced_orders = ad[0].REDUCED_ORDERS_FIBER_4
-                reduced_fiber = ad[0].BOX_REDUCED_FIBER_4
-                reduced_err = ad[0].BOX_REDUCED_ERR_4
-                reduced_flat = ad[0].BOX_REDUCED_FLAT_4
-            if fiber_number == 5:
-                reduced_orders = ad[0].REDUCED_ORDERS_FIBER_5
-                reduced_fiber = ad[0].BOX_REDUCED_FIBER_5
-                reduced_err = ad[0].BOX_REDUCED_ERR_5
-                reduced_flat = ad[0].BOX_REDUCED_FLAT_5
+        for fiber in fibers:
 
-            i = 0
-            for order in reduced_orders:
-            # REDUCED_ORDERS_FIBER_X is a list of order keys
-                if orders and order not in orders:
-                    # Check if any orders were specified and if the current order is one of them
-                    i += 1
-                    continue
-                # Get each individual 4036 pixel row
-                data = reduced_fiber[i] / reduced_flat[i] #Normalize according to flat
-                yield fiber_number, order, data, None
+            # Access the data from the input file
+            reduced_fiber = getattr(ad[0], f"BOX_REDUCED_FIBER_{fiber}")
+            reduced_orders = getattr(ad[0], f"REDUCED_ORDERS_FIBER_{fiber}")
+            reduced_err = getattr(ad[0], f"BOX_REDUCED_ERR_{fiber}")
+            reduced_flat = getattr(ad[0], f"BOX_REDUCED_FLAT_{fiber}")
+            
+            if reduced_fiber.size == 1:
+                logging.warning(f"Fiber {fiber} not found in {ad.filename}")
+                continue
+
+            if orders is None:
+                orders = reduced_orders
+            
+            for order in orders:
+                i = list(reduced_orders.astype(int)).index(int(order))
+                data = reduced_fiber[i] / reduced_flat[i] # Normalize according to flat
+                yield fiber, order, data, None
 
 def get_sid_filename(ad):
     """

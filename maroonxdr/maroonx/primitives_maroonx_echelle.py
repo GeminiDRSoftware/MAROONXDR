@@ -659,6 +659,7 @@ class MAROONXEchelle(MAROONX, Spect):
             for f in stripes:
                 for o, stripe in stripes[f].items():
                     log.fullinfo(f'Box extraction in {f}, order {o}')
+                    
                     stand_spec = _box_extract_single_stripe(stripe, mask[f][o])
                     stand_err = np.sqrt(stand_spec/gain)
                     stand_flat = _box_extract_single_stripe(flat_stripes[f][o], mask[f][o])
@@ -682,7 +683,7 @@ class MAROONXEchelle(MAROONX, Spect):
                 box_reduced_single_err = np.array(list(
                         box_reduced_err[f].values()), dtype=float)
                 box_reduced_flat = np.array(list(
-                        box_reduced_flats[f].values()), dtype=int)
+                        box_reduced_flats[f].values()), dtype=float)
                 bpm_single_fiber = np.array(list(extracted_bpms[f].values()), dtype=int)
 
                 # Update the extensions based on which fiber we have

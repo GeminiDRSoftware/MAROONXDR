@@ -195,6 +195,7 @@ def test_identifyStripes_legacyOrder(arm):
 #@pytest.mark.xfail(reason="Photutils Background2D changed from 1.02 to 2.02")
 @pytest.mark.parametrize("arm", ["BLUE", "RED"])
 def test_removeStraylight(arm):
+    # This test does not subtract overscan twice as test_removeStraylight_legacyOrder does.
 
     if arm == "BLUE":
         old_DFFFD = OLD_FILES_PATH / "20241114T18_masterflat_backgroundsubtracted_DFFFD_b_0008.fits"
@@ -221,8 +222,8 @@ def test_removeStraylight(arm):
     p.correctImageOrientation()  # blue files are not flipped at this point
     p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
     
-    p.stackFlats(stream='main', scale_mode='mean_frame', suffix='_DDDDF_flat')
-    p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='_DFFFD_flat')
+    p.stackFlats(stream='main', scale_mode='mean_frame', suffix='_flat')
+    p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='_flat')
 
     p.findStripes()  # define stripe info to ultimately remove stray light in each stream
     p.findStripes(stream='DFFFD_flats')
@@ -275,8 +276,8 @@ def test_removeStraylight_legacyOrder(arm):
 
     p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
 
-    p.stackFlats(stream='main', scale_mode='mean_frame', suffix='_DDDDF_flat')
-    p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='_DFFFD_flat')
+    p.stackFlats(stream='main', scale_mode='mean_frame', suffix='_flat')
+    p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='_flat')
     
     # Subtract overscan is run again in backgroundfit.py on the stacked flats
     p.subtractOverscan(stream='main')
@@ -337,8 +338,8 @@ def test_combinedFlat(arm):
     p.subtractOverscan()
     p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
 
-    p.stackFlats(stream='main', scale_mode='mean_frame', suffix='_DDDDF_flat')
-    p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='_DFFFD_flat')
+    p.stackFlats(stream='main', scale_mode='mean_frame', suffix='_flat')
+    p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='_flat')
     
     # Subtract overscan is run again in backgroundfit.py on the stacked flats
     p.subtractOverscan(stream='main')
