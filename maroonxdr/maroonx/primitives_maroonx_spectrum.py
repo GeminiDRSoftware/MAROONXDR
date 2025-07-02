@@ -276,6 +276,9 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                         log.warning(f'Removed first 400 pixels in truncated order 94 of fiber 5')
                     ############################
 
+                    # if f=='fiber_2' and int(o)==100:
+                    #     import ipdb; ipdb.set_trace()                    
+
                     # Run iterative fit using the data yielded by the generator function in serial
                     output = maroonx_fit.iterative_fit(
                             input_spectrum = data,
@@ -431,18 +434,15 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     o  = peak_data["ORDER"].values
                     x  = peak_data["CENTER"].values
 
+                # Calculate drift for this fiber
+                residuals = _fc2min(parameters, peak_data["M"].values, peak_data["WAVELENGTH_BY_THAR"].values) / peak_data[
+                    "WAVELENGTH_BY_THAR"].values * 3e8
+                bad = np.where(np.abs(residuals-np.nanmedian(residuals)) > 4.0 * np.nanstd(residuals))
+                residuals[bad] = np.nan
                 if fiber == 5:
-                    residuals = _fc2min(parameters, peak_data["M"].values, peak_data["WAVELENGTH_BY_THAR"].values) / peak_data[
-                        "WAVELENGTH_BY_THAR"].values * 3e8
-                    bad = np.where(np.abs(residuals-np.nanmedian(residuals)) > 4.0 * np.nanstd(residuals))
-                    residuals[bad] = np.nan
                     inst_drift = np.nanmean(residuals)
                     drifts[fiber] = inst_drift
                 else:
-                    residuals = _fc2min(parameters, peak_data["M"].values, peak_data["WAVELENGTH_BY_THAR"].values) / peak_data[
-                        "WAVELENGTH_BY_THAR"].values * 3e8
-                    bad = np.where(np.abs(residuals-np.nanmedian(residuals)) > 4.0 * np.nanstd(residuals))
-                    residuals[bad] = np.nan
                     drift = np.nanmean(residuals)
                     drifts[fiber] = drift
                     #drifts = np.append(drifts, drift)
@@ -465,18 +465,21 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
                 # get fiber spectra and orders
                 spectra = mx_spectrum.spectra[fiber]
+
+                speactra_peaks = spectra.peak_data
+
                 for o in spectra.orders:
 
-                    order_mask = spectra.peak_data["ORDER"] == o
-                    center = spectra.peak_data["CENTER"][order_mask]
+                    order_mask = speactra_peaks["ORDER"] == o
+                    center = speactra_peaks["CENTER"][order_mask]
 
                     if center.values[0] < center.values[10]:
                         x = (center.values)
-                        y = (_peak_to_wavelength_spline(spectra.peak_data["M"][order_mask],
+                        y = (_peak_to_wavelength_spline(speactra_peaks["M"][order_mask],
                                                     spectra.etalon_pars).values)
                     else:
                         x = (center.values)[::-1]
-                        y = (_peak_to_wavelength_spline(spectra.peak_data["M"][order_mask],
+                        y = (_peak_to_wavelength_spline(speactra_peaks["M"][order_mask],
                                                     spectra.etalon_pars).values)[::-1]
                     knots = np.linspace(np.min(x) + 1, np.max(x) - 1, n_knots)
                     lsq = scipy.interpolate.LSQUnivariateSpline(x, y, knots, k=3)
@@ -502,7 +505,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     else:
                         wave[fiber] = {str(int(o)): wavelengths}
 
-                new_peak_data.append(spectra.peak_data)
+                new_peak_data.append(speactra_peaks.copy())
 
                 # Concatenate wavelengths arrays for each fiber and save them
                 wave_arrays = [wave[fiber][o] for o in wave[fiber].keys()]
@@ -511,6 +514,10 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             for fiber in {1, 2, 3, 4, 5} - set(fibers):
                 # If fiber is not in the list of fibers, save an empty array
                 setattr(ad[0], f'WLS_DYNAMIC_FIBER_{fiber}', np.zeros((1, 1)))
+
+            # Reset indices before concatenating to avoid conflicts
+            for peak_df in new_peak_data:
+                peak_df.reset_index(drop=True, inplace=True)
 
             # Collect and reformat updated peak data
             new_peak_data = pd.concat(new_peak_data, ignore_index=True)
