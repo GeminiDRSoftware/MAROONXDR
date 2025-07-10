@@ -27,8 +27,6 @@ def makeProcessedDark(p):
     p : PrimitivesCORE object
         A primitive set matching the recipe_tags.
     """
-
-
     p.prepare()
     p.checkArm()
     p.checkND()
@@ -39,7 +37,6 @@ def makeProcessedDark(p):
     p.addVAR(read_noise=True, poisson_noise=True)
     p.stackDarks(scale_mode='first_frame', lsigma=2.0, hsigma=2.0)
     p.storeProcessedDark()
-
     return
 
 _default = makeProcessedDark
@@ -79,7 +76,6 @@ def testRegressionDark(p):
         A primitive set matching the recipe_tags.
     """
 
-
     p.prepare()
     p.checkArm()
     p.checkND()
@@ -89,5 +85,4 @@ def testRegressionDark(p):
     p.addVAR(read_noise=True, poisson_noise=True)
     p.stackDarks(scale_mode='first_frame', lsigma=2.0, hsigma=2.0)
     p.storeProcessedDark(suffix='_regressionDark')
-
     return

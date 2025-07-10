@@ -73,10 +73,10 @@ def test_extractStripes(arm):
             
             try:
                 np.testing.assert_allclose(legacy_stripe, new_stripe)
-                # print(f'fiber/order : {f}/{o} [OK]')
+                print(f'fiber/order : {f}/{o} [OK]')
             except AssertionError as err:
                 fail_counter += 1
-                # print(f'fiber/order : {f}/{o} [FAIL]')
+                print(f'fiber/order : {f}/{o} [FAIL]')
     assert fail_counter == 0
 
 
@@ -119,10 +119,10 @@ def test_extractStripes_fromFlat(arm):
             
             try:
                 np.testing.assert_allclose(legacy_flat_stripe, new_flat_stripe)
-                # print(f'fiber/order : {f}/{o} [OK]')
+                print(f'fiber/order : {f}/{o} [OK]')
             except AssertionError as err:
                 fail_counter += 1
-                # print(f'fiber/order : {f}/{o} [FAIL]')
+                print(f'fiber/order : {f}/{o} [FAIL]')
     assert fail_counter == 0
 
 
