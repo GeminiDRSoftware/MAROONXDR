@@ -28,8 +28,6 @@ OLD_BASE_PATH = Path("/home/martin/Projects/MaroonX/legacy/maroonx_base/data2/")
 OLD_FILES_PATH = OLD_BASE_PATH / Path("MaroonX_spectra_reduced/20241124")
 OLD_FLAT_FILES_PATH = OLD_BASE_PATH / Path("MaroonX_spectra_reduced/Maroonx_masterframes/202411xx/flats")
 
-NEW_FILES_PATH = Path("/home/martin/Projects/MaroonX/MAROONXDR/science_dir")
-
 SCIENCE_DIR = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir')
 
 # =========================================================
@@ -136,7 +134,7 @@ def test_fitAndApplyEtalonWls(arm):
     old_file = OLD_FILES_PATH / "20241124T162336Z_DEEEE_b_0030.hdf"
 
     # Load old peak data. columns are lowercase
-    old_peak_data = pd.read_hdf(old_file, '/etalon_peak_parameters/peaks')
+    old_peak_data = pd.read_hdf(old_file, '/peak_data').reset_index()
     assert "fiber" in old_peak_data.columns
 
     # read files and instantiate the primitive class
@@ -163,20 +161,75 @@ def test_fitAndApplyEtalonWls(arm):
     adout = p.fitAndApplyEtalonWls()
 
     # Load new peak data. columns are uppercase
-    new_peak_data = adout[0][0].PEAKS.to_pandas()
+    new_peak_data = adout[0][0].NEW_PEAKS.to_pandas()
 
-    # Test shapes are equal
-    assert old_peak_data.shape == new_peak_data.shape
+    # Test relevant columns are present
+    # Old table has an extra wavelength column, shapes will be different
+    new_cols = {c.lower() for c in new_peak_data.columns}
+    old_cols = {c.lower() for c in old_peak_data.columns}
+    assert new_cols.issubset(old_cols)
 
     # Test the the column FIBER has the same value counts
-    assert new_peak_data["FIBER"].value_counts().equals(old_peak_data["fiber"].value_counts())   
+    assert new_peak_data["FIBER"].value_counts().equals(old_peak_data["fiber"].value_counts())
+
+
+@pytest.mark.parametrize("arm", ["BLUE"])
+def test_dynamicWavelengthSolution(arm):
+
+    old_file = OLD_FILES_PATH / "20241124T162336Z_DEEEE_b_0030.hdf"
+
+    # Load old peak data. columns are lowercase
+    legacy_wls = load_dict_from_hdf5(str(old_file), 'wavelengths_dynamic/')
+
+    # read files and instantiate the primitive class
+    raw_files = sorted([str(f) for f in SCIENCE_DIR.glob('20241124T162336Z_DEEEE_*.fits')])
+    
+    selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'WAVECAL', arm])
+
+    # Primitives
+    adinput = [astrodata.open(f) for f in selected_spect]
+
+    p = MaroonXSpectrum(adinput)
+    p.prepare()
+    p.checkArm()
+    p.addDQ()  # just placeholder until MX is in caldb
+    p.overscanCorrect()
+    p.correctImageOrientation()
+    p.addVAR(read_noise=True, poisson_noise=True)
+    
+    p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
+    p.boxExtraction() # extracts spectra from stripes
+
+    p.getPeaksAndPolynomials(fibers=(2, 3, 4, 5))
+    p.staticWavelengthSolution()
+    adout = p.fitAndApplyEtalonWls()
+
+    fail_counter = 0
+    for fiber in range(1, 6):
+        new_wls = getattr(adout[0][0], f"WLS_DYNAMIC_FIBER_{fiber}")
+        if new_wls.size == 1:
+            # non reduced fibers (usually fiber 1) have size 1
+            continue
+
+        orders = getattr(adout[0][0], f"REDUCED_ORDERS_FIBER_{fiber}")
+        orders = orders.astype(int)
+
+        for idx, order in enumerate(orders):
+            legacy_order_wls = legacy_wls[f"fiber_{fiber}"][f"{order}"]
+            new_order_wls = new_wls[idx, :]
+
+            try:
+                np.testing.assert_allclose(legacy_order_wls, new_order_wls, rtol=1e-5)
+                print(f'fiber/order : {fiber}/{order} [OK]')
+            except AssertionError as err:
+                fail_counter += 1
+                print(f'fiber/order : {fiber}/{order} [FAIL]')
+    assert fail_counter == 0
 
 
 # =====================================================
 # HDF5 helper functions
 # =====================================================
-
-
 
 
 def load_recordings_legacy(f_data, f_flat, f_guess, fibers, orders, use_sigma_lr):
@@ -239,3 +292,26 @@ def load_recordings_legacy(f_data, f_flat, f_guess, fibers, orders, use_sigma_lr
                 
                 yield fiber, order, data, None
                 #yield fiber, order, np.array(node) , np.array(flat), None
+
+
+def load_mat(name, filepath):
+    with h5py.File(filepath, mode="r") as h5f:
+        return h5f[name][()]
+
+def load_dict_from_hdf5(filename, path):
+    if not path.endswith("/"):
+        path += "/"
+    if isinstance(filename, str):
+        with h5py.File(filename, 'r', libver='latest') as h5file:
+            return recursively_load_dict_contents_from_group(h5file, path)
+    else:
+        return recursively_load_dict_contents_from_group(filename, path)
+
+def recursively_load_dict_contents_from_group(h5file, path):
+    ans = {}
+    for key, item in h5file[path].items():
+        if isinstance(item, h5py._hl.dataset.Dataset):
+            ans[key] = item[()]
+        elif isinstance(item, h5py._hl.group.Group):
+            ans[key] = recursively_load_dict_contents_from_group(h5file, path + key + '/')
+    return ans
