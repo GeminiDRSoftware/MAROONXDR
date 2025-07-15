@@ -30,10 +30,10 @@ selected_bundles = dataselect.select_data(get_files(), tags=['BUNDLE'])
 
 # Run reduce on all selected files
 # Dragons will choose the correct recipe based on the tags
-# myreduce = Reduce()
-# myreduce.files.extend(selected_bundles)
-# myreduce.drpkg = 'maroonxdr'
-# myreduce.runr()
+myreduce = Reduce()
+myreduce.files.extend(selected_bundles)
+myreduce.drpkg = 'maroonxdr'
+myreduce.runr()
 
 # Step 2 - Master Flats
 # Flats should be run for red and blue arms separately
@@ -71,7 +71,7 @@ for exptime, arm in it.product(exptime_tags, arm_tags):
 arm_tags = ['RED', 'BLUE']
 for arm in arm_tags:
 
-    selected_spect = dataselect.select_data(get_files(), tags=['RAW', 'WAVECAL', arm], xtags=['LFC'])
+    selected_spect = dataselect.select_data(get_files(), tags=['RAW', 'ETALON', arm])
 
     # Run reduce on all selected files
     myreduce = Reduce()

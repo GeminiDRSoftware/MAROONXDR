@@ -51,9 +51,11 @@ ETALON_FIBER_SETUPS = [
 LFC_FIBER_SETUPS = [
     [DARK, LFC, LFC, LFC, LFC],
     [DARK, LFC, LFC, LFC, ETALON],
+    [DARK, LFC, LFC, LFC, DARK],
     [DARK, ETALON, ETALON, ETALON, LFC],
 ]
 
+WAVECAL_FIBER_SETUPS = THAR_FIBER_SETUPS + ETALON_FIBER_SETUPS + LFC_FIBER_SETUPS
 
 
 class AstroDataMAROONX(AstroDataGemini):
@@ -133,13 +135,18 @@ class AstroDataMAROONX(AstroDataGemini):
         if self.fiber_setup() in SCIENCE_FIBER_SETUPS:
             return TagSet(['SCI', 'SPECT'])
 
+    # @astro_data_tag
+    # def _tag_wavecal(self):
+    #     # if self.phu.get('FIBER1') == 'Etalon' or self.phu.get('FIBER2') == 'Etalon':
+    #     #     if self.phu.get('FIBER5') == 'Etalon':
+    #     #         return TagSet(['WAVECAL', 'SPECT', 'CAL'])
+    #     if self.fiber_setup() in WAVECAL_FIBER_SETUPS:
+    #         return TagSet(['WAVECAL', 'SPECT', 'CAL'])
+
     @astro_data_tag
-    def _tag_wavecal(self):
-        # if self.phu.get('FIBER1') == 'Etalon' or self.phu.get('FIBER2') == 'Etalon':
-        #     if self.phu.get('FIBER5') == 'Etalon':
-        #         return TagSet(['WAVECAL', 'SPECT', 'CAL'])
+    def _tag_etalon(self):
         if self.fiber_setup() in ETALON_FIBER_SETUPS:
-            return TagSet(['WAVECAL', 'SPECT', 'CAL'])
+            return TagSet(['WAVECAL', 'SPECT', 'ETALON', 'CAL'])        
 
     @astro_data_tag
     def _tag_thar(self):
