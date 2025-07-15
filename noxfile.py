@@ -15,7 +15,7 @@ from pathlib import Path
 import nox
 
 nox.options.sessions = []
-nox.options.default_venv_backend = 'conda'
+# nox.options.default_venv_backend = 'conda'
 nox.options.error_on_external_run = True
 
 # Dragons installation resources
