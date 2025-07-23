@@ -10,6 +10,10 @@ from scipy import signal
 from gempy.utils import logutils
 from scipy.special import erf
 
+from . import get_logger
+#logutils.config(file_name="maroonx_fit.log", mode="debug", stomp=False)
+
+
 PLOT_KWARGS = dict(dpi=300, bbox_inches="tight", pad_inches=0.25)
 
 def change_ext(filename, new_ext):
@@ -256,7 +260,8 @@ def fit_peak_centers(fitrange, data, param_obj, parameter_bounds, iteration = No
         list of fit results
     """
 
-    log = logutils.get_logger(__name__)
+    # log = logutils.get_logger(__name__)
+    log = get_logger()
     # Extract necessary parameters
 
     parameters = param_obj.parameters
@@ -336,7 +341,8 @@ def find_peaks(data, order=2, savgol_window_length=3, savgol_polyorder=1):
         indices of local extrema: (maxima, minima)
     """
 
-    log = logutils.get_logger(__name__)
+    # log = logutils.get_logger(__name__)
+    log = get_logger()
     # get rid of noise
     # TODO: maybe improve noise rejection
 
@@ -348,7 +354,7 @@ def find_peaks(data, order=2, savgol_window_length=3, savgol_polyorder=1):
     data[np.array([e>(1.5*cleanmax) if ~np.isnan(e) else False for e in data], dtype=bool) ] = np.nan
 
     if np.count_nonzero(np.isnan(data)) - nancount > 0:
-        log.info("Removed %d positive outliers 50%% higher than %.3f",\
+        log.fullinfo("Removed %d positive outliers 50%% higher than %.3f",\
              np.count_nonzero(np.isnan(data)) - nancount, cleanmax)
 
     # Clean nan values since they get otherwise smeared out by the filter
@@ -356,7 +362,7 @@ def find_peaks(data, order=2, savgol_window_length=3, savgol_polyorder=1):
     mask = np.isnan(data)
     data_clean[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), data[~mask])
 
-    log.info(f"Found {np.count_nonzero(np.isnan(data_clean))} nan values in the data")
+    log.fullinfo(f"Found {np.count_nonzero(np.isnan(data_clean))} nan values in the data")
 
     # Apply a savgol filter to smooth the data and get rid of noise
     d = signal.savgol_filter(
@@ -366,7 +372,7 @@ def find_peaks(data, order=2, savgol_window_length=3, savgol_polyorder=1):
         mode="interp",
     )
 
-    log.info("Applied savgol filter to data")
+    log.fullinfo("Applied savgol filter to data")
 
     # use <= and >= for extrema. Sometimes necessary, if signal is 0
     # between peaks over a few pixels. In that case,
@@ -424,7 +430,7 @@ def find_peaks(data, order=2, savgol_window_length=3, savgol_polyorder=1):
             f"Found inconsistent number of peaks: {len(minima)} minima and {len(maxima)} maxima"
             ,(maxima, minima))
 
-    log.info(f"Found {len_minima} minima and {len_maxima} maxima")
+    log.fullinfo(f"Found {len_minima} minima and {len_maxima} maxima")
     return maxima, minima
 
 def plot_peaks(data, minima, maxima, ax=None, filename=None):

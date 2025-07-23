@@ -17,7 +17,7 @@ from gempy.gemini import gemini_tools as gt
 from recipe_system.utils.decorators import parameter_override
 
 from . import parameters_maroonx_spectrum
-from .maroonx_fit import maroonx_fit
+from .maroonx_fit import maroonx_fit, set_logger, get_logger
 from . import maroonx_utils
 from .primitives_maroonx_echelle import MAROONXEchelle
 from .maroonx_echellespectrum.maroonxspectrum import MXSpectrum
@@ -177,21 +177,15 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             log.fullinfo(f"Extracting etalon lines from {len(adinputs)} files")
 
         for ad in adinputs:
+            log.fullinfo(f"Extracting peaks from {ad.filename}")
+
             # See which fibers and orders we are extracting
             if fibers is None:
-                log.warning("No fibers specified.  Finding all etalon fibers and extracting those.")
+                log.warning("No fibers specified.  Finding all Etalon and LFC fibers and extracting those.")
                 fibers_list = []
-                # Read the HIERARCH FIBER keywords from the phu
-                if ad.phu['FIBER1'] == 'Etalon':
-                    fibers_list.append(1)
-                if ad.phu['FIBER2'] == 'Etalon':
-                    fibers_list.append(2)
-                if ad.phu['FIBER3'] == 'Etalon':
-                    fibers_list.append(3)
-                if ad.phu['FIBER4'] == 'Etalon':
-                    fibers_list.append(4)
-                if ad.phu['FIBER5'] == 'Etalon':
-                    fibers_list.append(5)
+                for fiber_num, fiber_type in enumerate(ad.fiber_setup(), start=1):
+                    if fiber_type in ['Etalon', 'LFC']:
+                        fibers_list.append(fiber_num)
                 fibers = tuple(fibers_list)
 
             if orders is None:
@@ -204,7 +198,11 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
             errors = []
             results = []
-            log.fullinfo(f"Extracting fibers {fibers}")
+            log.fullinfo(f"Extracting fibers {fibers} from {ad.filename}")
+
+            # Set logger for iterative fit
+            #maroonx_fit.set_logger(log)
+            set_logger(log)
 
             # Create worker pools for multithreading
             if multithreading:
@@ -212,7 +210,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 log.fullinfo(f"Using {pool._processes} processes for extraction")
                 for fiber, order, data, guess in maroonx_utils.load_recordings(
                 ad, guess_file, fibers, orders):
-                    log.fullinfo(f"Fitting fiber {fiber} order {order}")
+                    log.fullinfo(f"{ad.filename} - Fitting fiber {fiber} order {order}")
 
                     # Remove pixels that are known to be bad
                     ############################
@@ -235,7 +233,11 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
                     def error_callback(exc, fiber=fiber, order=order):
                         errors.append((fiber, order, str(exc)))
-                        log.warning(f"Error extracting fiber {fiber} order {order}: {exc}")
+                        log.warning(f"{ad.filename} - Error extracting fiber {fiber} order {order}: {exc}")
+
+                    if not (np.nanmedian(data) > 0.005):
+                        log.warning(f'Skipped order {order} for fiber {fiber} for insufficient flux')
+                        continue
 
                     # Asynchronously run iterative fit using the data yielded by the generator function
                     pool.apply_async(
@@ -262,7 +264,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 log.fullinfo("Using single process for extraction")
                 for fiber, order, data, guess in maroonx_utils.load_recordings(
                 ad, guess_file, fibers, orders):
-                    log.fullinfo(f"Fitting fiber {fiber} order {order}")
+                    log.fullinfo(f"{ad.filename} - Fitting fiber {fiber} order {order}")
 
                     # Remove pixels that are known to be bad
                     ############################
@@ -275,33 +277,40 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                         data[0:399] = 0
                         log.warning(f'Removed first 400 pixels in truncated order 94 of fiber 5')
                     ############################
-
-                    # if f=='fiber_2' and int(o)==100:
-                    #     import ipdb; ipdb.set_trace()                    
+                    
+                    if not (np.nanmedian(data) > 0.005):
+                        log.warning(f'Skipped order {order} for fiber {fiber} for insufficient flux')
+                        continue
 
                     # Run iterative fit using the data yielded by the generator function in serial
-                    output = maroonx_fit.iterative_fit(
-                            input_spectrum = data,
-                            degree_sigma = degree_sigma,
-                            degree_width = degree_width,
-                            iterations = iterations,
-                            guess_spectrum = guess,
-                            fiber="{}_{}".format(fiber, order),
-                            plot_path=plot_path,
-                            use_sigma_lr = use_sigma_lr,
-                            show_plots = show_plots)
+                    try:
+                        output = maroonx_fit.iterative_fit(
+                                input_spectrum = data,
+                                degree_sigma = degree_sigma,
+                                degree_width = degree_width,
+                                iterations = iterations,
+                                guess_spectrum = guess,
+                                fiber="{}_{}".format(fiber, order),
+                                plot_path=plot_path,
+                                use_sigma_lr = use_sigma_lr,
+                                show_plots = show_plots
+                                )
 
-                    # Save the results in a manner anologoous to the save_results callback function
-                    output.fiber = fiber
-                    output.order = order
-                    output.recording_time = 0.0  # TODO extract from data set
-                    results.append(output)
+                        # Save the results in a manner anologoous to the save_results callback function
+                        output.fiber = fiber
+                        output.order = order
+                        output.recording_time = 0.0  # TODO extract from data set
+                        results.append(output)
+                    except Exception as exc:
+                        errors.append((fiber, order, str(exc)))
+                        log.warning(f"{ad.filename} - Error extracting fiber {fiber} order {order}: {exc}")
+
 
             # Record the time taken
             end_time = time.time()
             log.fullinfo(f"Finished extracting etalon lines in {end_time - start_time:.2f} seconds")
 
-            if results is not []:
+            if results:
                 # Add the results to adinputs
                 log.fullinfo(f"Adding peaks extension to {ad.filename}")
                 peaks = maroonx_fit.insert_peak_parameters(results)

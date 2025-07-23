@@ -14,11 +14,13 @@ from astropy.io import fits
 import h5py
 
 from gempy.adlibrary import dataselect
+from gempy.utils import logutils
 
 import maroonx_instruments  # noqa : important to load adclass tags
 from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
 from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 from maroonxdr.maroonx.maroonx_utils import load_recordings
+from maroonxdr.maroonx.maroonx_fit import maroonx_fit, set_logger, get_logger
 
 # =========================================================
 # FILES TO COMPARE
@@ -29,6 +31,12 @@ OLD_FILES_PATH = OLD_BASE_PATH / Path("MaroonX_spectra_reduced/20241124")
 OLD_FLAT_FILES_PATH = OLD_BASE_PATH / Path("MaroonX_spectra_reduced/Maroonx_masterframes/202411xx/flats")
 
 SCIENCE_DIR = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir')
+
+
+# Set logger
+logutils.config(file_name="test_fitting.log", mode="debug", stomp=True)
+log = logutils.get_logger("test_fitting")
+log.setLevel("DEBUG")
 
 # =========================================================
 # TESTS
@@ -86,7 +94,116 @@ def test_load_recordings():
         assert old_data.shape == new_data.shape
         # Test data values are equal
         np.testing.assert_allclose(old_data, new_data, rtol=1e-4, atol=1e-4)
-        
+    
+
+
+def test_iterative_fit_legacy():
+    # Load old peak data. columns are lowercase
+    old_file = OLD_FILES_PATH / "20241124T162336Z_DEEEE_b_0030.hdf"
+    old_peak_data = pd.read_hdf(old_file, '/etalon_peak_parameters/peaks')
+    old_mask = (old_peak_data["fiber"]==2) & (old_peak_data["order"]==111)
+
+    old_file_inputs = OLD_FILES_PATH / "20241124T162336Z_DEEEE_b_0030_2_111_iterative_fit.npy"
+    old_input = np.load(old_file_inputs, allow_pickle=True).item()
+
+    # Get the old iterative fit function
+    import sys
+    import os
+
+    MOD_PATH = "/home/martin/Projects/MaroonX/legacy/maroonx_base/reduce/"
+    sys.path.append(MOD_PATH)
+    from etalon_fit import iterative_fit as legacy_iterative_fit
+
+    # Calculate expected results
+    output = legacy_iterative_fit(
+        spectrum_ = old_input['data'],
+        degree_sigma = old_input['degree_sigma'],
+        degree_width = old_input['degree_width'],
+        iterations = old_input['iterations'],
+        initial_parameters = old_input['initial_parameters'],
+        fiber = old_input['fiber'],
+        plot_path = old_input['plot_path'],
+        use_sigma_lr = old_input['use_sigma_lr'],
+        show_plots = old_input['show_plots']
+        )
+
+def test_iterative_fit_ETALON():
+    # Load old peak data. columns are lowercase
+    old_file = OLD_FILES_PATH / "20241124T162336Z_DEEEE_b_0030.hdf"
+    old_peak_data = pd.read_hdf(old_file, '/etalon_peak_parameters/peaks')
+    old_mask = (old_peak_data["fiber"]==2) & (old_peak_data["order"]==111)
+
+    old_file_inputs = OLD_FILES_PATH / "20241124T162336Z_DEEEE_b_0030_2_111_iterative_fit.npy"
+    old_input = np.load(old_file_inputs, allow_pickle=True).item()
+
+    set_logger(log)
+
+    # Calculate expected results
+    output = maroonx_fit.iterative_fit(
+        input_spectrum = old_input['data'],
+        degree_sigma = old_input['degree_sigma'],
+        degree_width = old_input['degree_width'],
+        iterations = old_input['iterations'],
+        guess_spectrum = old_input['initial_parameters'],
+        fiber = old_input['fiber'],
+        plot_path = old_input['plot_path'],
+        use_sigma_lr = old_input['use_sigma_lr'],
+        show_plots = old_input['show_plots']
+        )
+    output.fiber = 2
+    output.order = 111
+    output.recording_time = 0.0
+    results = [output]
+
+    peaks = maroonx_fit.insert_peak_parameters(results)
+
+    assert peaks.shape == old_peak_data[old_mask].shape, "Peak data shape mismatch"
+
+    # Test the peaks center
+    pd.testing.assert_series_equal(
+        peaks['CENTER'],
+        old_peak_data[old_mask]['center'],
+        atol=1e-5, check_index=False)
+
+
+def test_iterative_fit_LFC():
+    # Load old peak data. columns are lowercase
+    old_file = OLD_FILES_PATH / "20241124T030436Z_DLLLL_b_0005.hdf"
+    old_peak_data = pd.read_hdf(old_file, '/etalon_peak_parameters/peaks')
+    old_mask = (old_peak_data["fiber"]==2) & (old_peak_data["order"]==111)
+
+    old_file_inputs = OLD_FILES_PATH / "20241124T030436Z_DLLLL_b_0005_2_111_iterative_fit.npy"
+    old_input = np.load(old_file_inputs, allow_pickle=True).item()
+
+    set_logger(log)
+
+    # Calculate expected results
+    output = maroonx_fit.iterative_fit(
+        input_spectrum = old_input['data'],
+        degree_sigma = old_input['degree_sigma'],
+        degree_width = old_input['degree_width'],
+        iterations = old_input['iterations'],
+        guess_spectrum = old_input['initial_parameters'],
+        fiber = old_input['fiber'],
+        plot_path = old_input['plot_path'],
+        use_sigma_lr = old_input['use_sigma_lr'],
+        show_plots = old_input['show_plots']
+        )
+    output.fiber = 2
+    output.order = 111
+    output.recording_time = 0.0
+    results = [output]
+
+    peaks = maroonx_fit.insert_peak_parameters(results)
+
+    assert peaks.shape == old_peak_data[old_mask].shape, "Peak data shape mismatch"
+
+    # Test the peaks center
+    pd.testing.assert_series_equal(
+        peaks['CENTER'],
+        old_peak_data[old_mask]['center'],
+        atol=1e-5, check_index=False)
+
 
 @pytest.mark.parametrize("arm", ["BLUE"])
 def test_getPeaksAndPolynomials(arm):
@@ -156,7 +273,7 @@ def test_fitAndApplyEtalonWls(arm):
     p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
     p.boxExtraction() # extracts spectra from stripes
 
-    p.getPeaksAndPolynomials(fibers=(2, 3, 4, 5))
+    p.getPeaksAndPolynomials(fibers=(2, 3, 4, 5), multithreading=True)
     p.staticWavelengthSolution()
     adout = p.fitAndApplyEtalonWls()
 

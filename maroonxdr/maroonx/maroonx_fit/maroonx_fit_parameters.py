@@ -11,6 +11,9 @@ from collections import namedtuple
 from gempy.utils import logutils
 import numpy as np
 
+#logutils.config(file_name="maroonx_fit.log", mode="debug", stomp=False)
+from . import get_logger
+
 MetaParameterBase = namedtuple(
         "MetaParameterBase",
         [
@@ -213,7 +216,8 @@ class Parameter(object):
             concatenated fit parameters
         """
 
-        self.log = logutils.get_logger(__name__)
+        # self.log = logutils.get_logger(__name__)
+        self.log = get_logger()
 
         if not meta_parameters.use_sigma_lr:
             assert np.all(p_sigma_left == p_sigma_right)

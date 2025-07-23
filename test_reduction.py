@@ -2,10 +2,14 @@ from pathlib import Path
 import itertools as it
 
 from gempy.adlibrary import dataselect
+from gempy.utils import logutils
 from recipe_system.reduction.coreReduce import Reduce
 
 import astrodata
 import maroonx_instruments  # noqa : important to load adclass tags
+
+# Configure logging
+logutils.config(file_name="test_reduction.log", mode="debug", stomp=True)
 
 # Get all files in the science_dir.  Change the path here to suit your installation.
 science_dir = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir')

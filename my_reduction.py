@@ -8,6 +8,9 @@ from recipe_system.reduction.coreReduce import Reduce
 import astrodata
 import maroonx_instruments  # noqa : important to load adclass tags
 
+from gempy.utils import logutils
+logutils.config(file_name="test.log", mode="debug", stomp=True)
+
 # Get all files in the science_dir.  Change the path here to suit your installation.
 science_dir = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir')
 def get_files(path=None):
@@ -50,8 +53,8 @@ for arm in ['RED', 'BLUE']:
 
 
 # Step 3 - Master Darks
-#exptime_tags = ['300s']
-exptime_tags = ['60s', '120s', '300s', '600s', '900s', '1200s', '1800s']
+exptime_tags = ['300s']
+#exptime_tags = ['60s', '120s', '300s', '600s', '900s', '1200s', '1800s']
 arm_tags = ['BLUE', 'RED']
 
 for exptime, arm in it.product(exptime_tags, arm_tags):
@@ -154,23 +157,23 @@ from copy import deepcopy
 selected_spect = dataselect.select_data(get_files(), tags=['RAW', 'WAVECAL', 'BLUE', 'LFC'])
 #selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'WAVECAL', 'RED'], xtags=['LFC'])
 
-selected_spect = dataselect.select_data(get_files(), tags=['PROCESSED'])  # all_files used
+# selected_spect = dataselect.select_data(get_files(), tags=['PROCESSED'])  # all_files used
 
 # read files and instantiate the primitive class
-adinput = [astrodata.open(f) for f in selected_spect]
+adinput = [astrodata.open(f) for f in selected_spect[:1]]
 p = MaroonXSpectrum(adinput)
 
-# p.prepare()
-# p.checkArm()
-# p.addDQ()  # just placeholder until MX is in caldb
-# p.overscanCorrect()
-# p.correctImageOrientation()
-# p.addVAR(read_noise=True, poisson_noise=True)
-# # # get and save wavelength solution (either static reference or frame's unique sim cal solved)
-# # first perform echelle extraction of fibers
-# p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
-# p.boxExtraction() # extracts spectra from stripes
-# p.getPeaksAndPolynomials(fibers=(2, 3, 4, 5)) # fits etalon peaks and polynomials
+p.prepare()
+p.checkArm()
+p.addDQ()  # just placeholder until MX is in caldb
+p.overscanCorrect()
+p.correctImageOrientation()
+p.addVAR(read_noise=True, poisson_noise=True)
+# # get and save wavelength solution (either static reference or frame's unique sim cal solved)
+# first perform echelle extraction of fibers
+p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
+p.boxExtraction() # extracts spectra from stripes
+p.getPeaksAndPolynomials(fibers=(2,), multithreading=False) # fits etalon peaks and polynomials
 # p.writeOutputs(suffix='_dynamic_wavecal')  # save reduced 1D spectra
 
 p.staticWavelengthSolution()

@@ -9,11 +9,30 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import pandas as pd
-from gempy.utils import logutils
 
 from .maroon_x_fit_object import MaroonXFit, FitResult
 
+#from gempy.utils import logutils
+from . import get_logger
+
 PLOT_FORMAT = "png"
+
+# # Module-level logger variable
+# _logger = None
+
+# def set_logger(logger):
+#     """Set the logger for this module"""
+#     global _logger
+#     _logger = logger
+
+# def get_logger():
+#     """Get the configured logger"""
+#     global _logger
+#     if _logger is None:
+#         logutils.config(file_name="maroonx_fit.log", mode="debug")
+#         _logger = logutils.get_logger(__name__)
+#     return _logger
+
 
 def insert_peak_parameters(results):
     """
@@ -174,32 +193,34 @@ def insert_polynomial_parameters(results):
 
     return poly
 
-def calculate_residuals(observed, predicted, sigma = 3, bad_flag = True):
+def calculate_residuals(observed, predicted, clip_range=None, clip_sigma=3, bad_flag=True):
     """
     A small helper function used in the iterative code to calculate residuals,
     It then normalizes the residuals by the number of samples.
     """
+    log = get_logger()
 
-    log = logutils.get_logger(__name__)
-    residuals = np.abs((predicted-observed)/predicted)
+    residuals = np.abs((predicted - observed) / predicted)
 
     # If bad = True, clip extreme outliers immediately
     if bad_flag:
         bad = np.where(residuals > 2)
-
-    residuals = np.clip(residuals,0,2)
-    residuals[np.where(residuals >  sigma * np.nanstd(residuals))] = np.nan
+    
+    if clip_range is not None:
+        clip_min, clip_max = clip_range
+        residuals = np.clip(residuals, clip_min, clip_max)    
+    residuals[np.where(residuals >  clip_sigma * np.nanstd(residuals))] = np.nan
 
     if bad_flag:
-        observed[bad] = np.nan
+        #observed[bad] = np.nan
         num_bad = np.count_nonzero(bad)
         log.info(f"Clip {num_bad} datapoints as outliers when calculating residuals")
 
-    residuals = np.nansum(residuals)
+    resis = np.nansum(residuals)
     samples = np.sum(~np.isnan(residuals))
-    norm_residuals = residuals/samples
+    norm_residuals = resis / samples
 
-    return residuals, norm_residuals
+    return resis, norm_residuals
 
 def iterative_fit(
         input_spectrum,
@@ -210,7 +231,8 @@ def iterative_fit(
         fiber="",
         plot_path="",
         use_sigma_lr=True,
-        show_plots=False
+        show_plots=False,
+        log=None
     ):
     """
     Fits model to etalon spectrum.
@@ -251,18 +273,27 @@ def iterative_fit(
         debug plots and for log messages
     plot_path: str
         Generate debug plots and save them at the given location
+    use_sigma_lr: bool
+        Use left and right sigma asymetrically, or use a single sigma
+    show_plots: bool
+        Show the plots after each iteration
+    log: Logger
+        Logger to use for logging messages. If None, a default logger is created.
 
     Returns
     -------
     FitResult: namedtuple
     """
-
-    log = logutils.get_logger(__name__)
     t0 = time.time()
+
+    if log is None:
+        # If no logger is provided, create a default logger
+        log = get_logger()
+    
     # If there is a guess spectrum, use this for the first iteration of fitting data
     if guess_spectrum is not None:
         fit_spectrum = guess_spectrum
-        log.info("Use guess spectrum for initial fit")
+        log.fullinfo("Use guess spectrum for initial fit")
     else:
         # Otherwise use the input spectrum for the first iteration
         fit_spectrum = input_spectrum
@@ -289,11 +320,11 @@ def iterative_fit(
         fit_results = fit_object.fit_peak_centers(iteration=0, fiber=fiber)
 
     shw = fit_object.eval_polynomials()[2, :] #shw is slit half width
-    log.info(f"Slit half-width on {fiber} (0. iteration): {shw[0]:.3f} - {shw[-1]:.3f}")
+    log.fullinfo(f"Slit half-width on {fiber} (0. iteration): {shw[0]:.3f} - {shw[-1]:.3f}")
 
     amplitudes_sorted = np.sort(fit_object.eval_polynomials_at_centers()[1, :])
 
-    log.info(f"Flat-relative amplitudes on {fiber} (0. iteration):\
+    log.fullinfo(f"Flat-relative amplitudes on {fiber} (0. iteration):\
             min: {amplitudes_sorted[10]}, {amplitudes_sorted[-10]}, median: {np.median(amplitudes_sorted)}")
 
     #Get the required data to calculate residuals
@@ -301,11 +332,12 @@ def iterative_fit(
     data = fit_object.data
 
     # Calculate residuals
-    residuals, norm_residuals = calculate_residuals(data, spectrum_values, 5, True)
+    residuals, norm_residuals = calculate_residuals(
+        data, spectrum_values, clip_range=(0, 2), clip_sigma=5, bad_flag=True)
 
-    log.info(f"Fit residuals on {fiber} (0. iteration): {residuals:.1f} ({norm_residuals:.3f})")
-    log.info(f"Degree sigma: {degree_sigma}, degree width: {degree_width}")
-    log.info(f"Created fit parameters for {fiber} in {time.time() - t0:.2f} s")
+    log.fullinfo(f"Fit residuals on {fiber} (0. iteration): {residuals:.1f} ({norm_residuals:.3f})")
+    # log.fullinfo(f"Degree sigma: {degree_sigma}, degree width: {degree_width}")
+    log.debug(f"Created fit parameters for {fiber} in {time.time() - t0:.2f} s")
 
     if show_plots:
         fit_object.plot_fit()
@@ -321,44 +353,48 @@ def iterative_fit(
         t_i = time.time()
 
         # Save the parameters from the previous iterations in a list.
-        # This is used mostly for saving plots
         parameter_list.append(np.copy(fit_object.param_obj.parameters))
 
         resf = fit_object.fit_polynomials()
         shw = fit_object.eval_polynomials()[2, :]
         amplitudes_sorted = np.sort(fit_object.eval_polynomials_at_centers()[1,:])
 
-        log.info(f"Fitted polynomials ({i}. iteration) on {fiber} in: {time.time() - t_i:.2f} s")
-        log.info(f"Slit half-width on {fiber} ({i}. iteration): {shw[0]:.3f} - {shw[-1]:.3f}")
-        log.info(f"Flat-relative amplitudes on {fiber} ({i}. iteration):\
+        log.debug(f"Fitted polynomials ({i+1}. iteration) on {fiber} in: {time.time() - t_i:.2f} s")
+        log.fullinfo(f"Slit half-width on {fiber} ({i}. iteration): {shw[0]:.3f} - {shw[-1]:.3f}")
+        log.fullinfo(f"Flat-relative amplitudes on {fiber} ({i}. iteration):\
                  min: {amplitudes_sorted[10]:.2f}, max: {amplitudes_sorted[-10]:.2f},\
                       median: {np.median(amplitudes_sorted):.2f}")
 
         t_i = time.time()
         fit_results = fit_object.fit_peak_centers(iteration=i, fiber=fiber)
 
-        log.debug("Fitted centers (%d. iteration) on %s in: %.2f s", i, fiber, time.time() - t_i)
+        log.debug(f"Fitted centers ({i+1}. iteration) on {fiber} in: {time.time() - t_i:.2f} s")
 
         spectrum_values = fit_object.spectrum_val()
-        residuals, resis_norm = calculate_residuals(data, spectrum_values, 3, False)
 
-        log.debug(f"Fit residuals on {fiber} ({i}. iteration):\
+        residuals, resis_norm = calculate_residuals(
+            data, spectrum_values, clip_range=(0, 1), clip_sigma=3, bad_flag=False)
+
+        log.fullinfo(f"Fit residuals on {fiber} ({i}. iteration):\
                  {residuals:.1f} ({resis_norm:.3f})")
 
             # If new residuals differ less than 5% from old residuals, stop iterating
-        if np.abs(resis_norm - old_resis_norm) < 0.05:
+        if np.abs(resis_norm - old_resis_norm) < 0.05 * old_resis_norm:
             converged = True
             if resis_norm < old_resis_norm:
                 # if we see an improvement, keep the new parameters and increment the iterator
                 i = i + 1
-            else:
-                # If we see no improvement, revert to old parameters
-                fit_object.param_obj.update_parameters(parameter_list[-1])
+                parameter_list.append(np.copy(fit_object.param_obj.parameters))
+            # else:
+            #     # If we see no improvement, revert to old parameters
+            #     fit_object.param_obj.update_parameters(parameter_list[-1])
             break
+        else:
+            parameter_list.append(np.copy(fit_object.param_obj.parameters))
         old_resis_norm = resis_norm
 
     if converged:
-        log.info(f"No more improvement for {fiber} after {i-1} iteration, finished")
+        log.fullinfo(f"No more improvement for {fiber} after {i-1} iteration, finished")
     else:
         log.warning(f"Global fit did not converge for {fiber} after {i+1} iteration")
 
@@ -377,5 +413,5 @@ def iterative_fit(
             pickle.dump(fit_object.param_obj.meta_parameters, f)
 
     t_total = time.time() - t0
-    log.info(f"Fitting {fiber} done in {t_total:.2f} s")
+    log.fullinfo(f"Fitting {fiber} done in {t_total:.2f} s")
     return FitResult(fit_object, t_total, iterations, resf, fit_results)
