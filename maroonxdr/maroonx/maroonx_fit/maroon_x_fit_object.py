@@ -220,7 +220,7 @@ class MaroonXFit(object):
         #Update the parameters for the fit
         result = optimize.least_squares(
             spectrum.residual_polynomials,
-            param_obj.parameters[:-2*idx],
+            parameters[:-2*idx],
             args = (self,),
             bounds=parameter_bounds[:, :-2*idx],
             jac= spectrum.fit_polynomials_jac,
@@ -230,6 +230,7 @@ class MaroonXFit(object):
         #     print(param_obj.parameters[:-2*idx])
         #     import ipdb; ipdb.set_trace()
 
+
         if not result.success:
             raise FitError("Error fitting polynomials.", result)
         # The values for the polynomials for each peak should be larger than 0
@@ -238,8 +239,8 @@ class MaroonXFit(object):
             raise FitError("Error fitting polynomials: Amplitudes, sigma or width was < 0", result)
 
         parameters = np.concatenate([result.x, parameters[-2*idx:]])
-        updated_param_obj = param_obj.update_parameters(parameters=parameters)
-        self.update_maroonxfit(param_obj=updated_param_obj)
+        self.param_obj.update_parameters(parameters=parameters)
+        self.update_maroonxfit(param_obj=self.param_obj)
         return result
 
     def plot_fit(self, ax1=None, ax2=None, filename=None):
@@ -355,7 +356,7 @@ class MaroonXFit(object):
         if data is not None:
             self.data = data
         if param_obj is not None:
-            self.param_obj = param_obj.copy()
+            self.param_obj = param_obj
         if param_bounds is not None:
             self.parameters_bounds = param_bounds
 

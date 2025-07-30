@@ -330,7 +330,7 @@ class Parameter(object):
             amplitudes=None,
     ):
         """
-        Returns a copy of the parameter vector with updated parameters
+        Updates in place the parameter vector with new parameters
         Parameters
         ----------
         parameters: ndarray
@@ -354,10 +354,9 @@ class Parameter(object):
         p : ndarray
             updated parameter vector
         """
-        p = self.parameters.copy()
         values = [offset, p_sigma_l, p_sigma_r, p_width, centers, amplitudes]
         for idx, v in zip(self.meta_parameters.indices, values):
             if v is not None:
-                p[idx] = v
+                self.parameters[idx] = v
         if parameters is not None:
             self.parameters = parameters.copy()

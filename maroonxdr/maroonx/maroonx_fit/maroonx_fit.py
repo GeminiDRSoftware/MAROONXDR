@@ -323,7 +323,6 @@ def iterative_fit(
     log.fullinfo(f"Slit half-width on {fiber} (0. iteration): {shw[0]:.3f} - {shw[-1]:.3f}")
 
     amplitudes_sorted = np.sort(fit_object.eval_polynomials_at_centers()[1, :])
-
     log.fullinfo(f"Flat-relative amplitudes on {fiber} (0. iteration):\
             min: {amplitudes_sorted[10]}, {amplitudes_sorted[-10]}, median: {np.median(amplitudes_sorted)}")
 
@@ -359,7 +358,7 @@ def iterative_fit(
         shw = fit_object.eval_polynomials()[2, :]
         amplitudes_sorted = np.sort(fit_object.eval_polynomials_at_centers()[1,:])
 
-        log.debug(f"Fitted polynomials ({i+1}. iteration) on {fiber} in: {time.time() - t_i:.2f} s")
+        log.debug(f"Fitted polynomials ({i}. iteration) on {fiber} in: {time.time() - t_i:.2f} s")
         log.fullinfo(f"Slit half-width on {fiber} ({i}. iteration): {shw[0]:.3f} - {shw[-1]:.3f}")
         log.fullinfo(f"Flat-relative amplitudes on {fiber} ({i}. iteration):\
                  min: {amplitudes_sorted[10]:.2f}, max: {amplitudes_sorted[-10]:.2f},\
@@ -368,8 +367,8 @@ def iterative_fit(
         t_i = time.time()
         fit_results = fit_object.fit_peak_centers(iteration=i, fiber=fiber)
 
-        log.debug(f"Fitted centers ({i+1}. iteration) on {fiber} in: {time.time() - t_i:.2f} s")
-
+        log.debug(f"Fitted centers ({i}. iteration) on {fiber} in: {time.time() - t_i:.2f} s")
+        
         spectrum_values = fit_object.spectrum_val()
 
         residuals, resis_norm = calculate_residuals(
@@ -378,7 +377,8 @@ def iterative_fit(
         log.fullinfo(f"Fit residuals on {fiber} ({i}. iteration):\
                  {residuals:.1f} ({resis_norm:.3f})")
 
-            # If new residuals differ less than 5% from old residuals, stop iterating
+
+        # If new residuals differ less than 5% from old residuals, stop iterating
         if np.abs(resis_norm - old_resis_norm) < 0.05 * old_resis_norm:
             converged = True
             if resis_norm < old_resis_norm:

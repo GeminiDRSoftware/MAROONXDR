@@ -177,6 +177,7 @@ def spectrum_partial_jacobian(bins, fitobj = None, meta_parameters = None):
         for ii in range(meta_parameters.width, -1, -1):
             jac[idx, l:r] += c ** ii * sum_gauss
             idx += 1
+
     return jac.T
 
 def residual_polynomials(p, fit_obj):
@@ -189,16 +190,26 @@ def residual_polynomials(p, fit_obj):
     center_parameters = fit_obj.param_obj.parameters[-2 * idx:]
     assert len(center_parameters) == 2*idx, str(p) + str(meta)
     assert len(np.concatenate([p, center_parameters])) == meta.total
+
     res = spectrum_val(x = x, parameters= np.concatenate([p, center_parameters]),\
         meta_parameters = meta) - y
 
     # Limit the residuals so that outliers in the data are
     # not forcing the solution into a wrong direction
-    p = np.clip(res,np.nanmean(res)-3*np.nanstd(res),np.nanmean(res)+3*np.nanstd(res))
-    return np.nan_to_num(p)
+    res = np.clip(res,np.nanmean(res)-3*np.nanstd(res),np.nanmean(res)+3*np.nanstd(res))
+    return np.nan_to_num(res)
 
-def fit_polynomials_jac(_, fitobj):
+def fit_polynomials_jac(p, fitobj):
     "Jacobian for fit_polynomials function"
+    # Get the fixed center parameters
+    meta = fitobj.param_obj.meta_parameters
+    idx = meta.number_of_peaks
+    center_parameters = fitobj.param_obj.parameters[-2 * idx:]
+    
+    # Reconstruct new parameter vector
+    new_parameters = np.concatenate([p, center_parameters])
+    fitobj.param_obj.update_parameters(parameters=new_parameters)
+
     return spectrum_partial_jacobian(fitobj.fitrange, fitobj)
 
 def residual_centers(parameters, x, y, poly_parameters, meta):
