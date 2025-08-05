@@ -474,5 +474,31 @@ class AstroDataMAROONX(AstroDataGemini):
     def detector_y_bin(self):
         return 1
 
-    # For a list of expected descriptors, see the appendix in the Astrodata
-    # User Manual.
+    # =================================================================
+    # Post processing descriptors
+    # =================================================================
+    # The following descriptors are used to extract information
+    # from the processed data that is populated by specific primitives.
+
+    @astro_data_descriptor
+    def fiber_drifts(self):
+        """
+        Returns the 5 fiber drift values as a list of float.
+        Drift values are in m/s.
+
+        Note:
+        Currently drifts values are calculated for ETALON frames by
+        the fitAndApplyEtalonWls primitive.
+
+        Returns
+        -------
+        list of float
+            The drift values for each fiber.
+        """
+        return [
+            self.hdr.get('DRIFT_FIBER_1')[0],
+            self.hdr.get('DRIFT_FIBER_2')[0],
+            self.hdr.get('DRIFT_FIBER_3')[0],
+            self.hdr.get('DRIFT_FIBER_4')[0],
+            self.hdr.get('DRIFT_FIBER_5')[0],
+        ]
