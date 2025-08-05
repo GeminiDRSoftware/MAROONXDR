@@ -75,7 +75,7 @@ for exptime, arm in it.product(exptime_tags, arm_tags):
 arm_tags = ['RED', 'BLUE']
 for arm in arm_tags:
 
-    selected_spect = dataselect.select_data(get_files(), tags=['RAW', 'ETALON', arm])
+    selected_spect = dataselect.select_data(get_files(), tags=['RAW', 'WAVECAL', arm])
 
     # Run reduce on all selected files
     myreduce = Reduce()

@@ -154,13 +154,13 @@ from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
 from copy import deepcopy
 
 
-selected_spect = dataselect.select_data(get_files(), tags=['RAW', 'WAVECAL', 'BLUE', 'LFC'])
+selected_spect = dataselect.select_data(get_files(), tags=['RAW', 'WAVECAL', 'BLUE'])
 #selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'WAVECAL', 'RED'], xtags=['LFC'])
 
 # selected_spect = dataselect.select_data(get_files(), tags=['PROCESSED'])  # all_files used
 
 # read files and instantiate the primitive class
-adinput = [astrodata.open(f) for f in selected_spect[:1]]
+adinput = [astrodata.open(f) for f in selected_spect[3:6]]
 p = MaroonXSpectrum(adinput)
 
 p.prepare()
@@ -178,3 +178,44 @@ p.getPeaksAndPolynomials(fibers=(2,), multithreading=False) # fits etalon peaks 
 
 p.staticWavelengthSolution()
 p.fitAndApplyEtalonWls()
+
+
+# =============================================================================
+# Spectrum reduction
+# =============================================================================
+# Reduction fragments for testing on ipython
+
+from maroonxdr.maroonx import parameters_maroonx_spectrum
+from maroonxdr.maroonx.maroonx_fit import maroonx_fit
+from maroonxdr.maroonx import maroonx_utils
+from maroonxdr.maroonx.primitives_maroonx_echelle import MAROONXEchelle
+from maroonxdr.maroonx.maroonx_echellespectrum.maroonxspectrum import MXSpectrum
+from maroonxdr.maroonx.maroonx_echellespectrum.wavelengthsolution import WavelengthSolution
+
+from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
+from copy import deepcopy
+
+
+selected_spect = dataselect.select_data(get_files(), tags=['RAW', 'SCI', 'BLUE', '300s'])
+#selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'WAVECAL', 'RED'], xtags=['LFC'])
+
+# selected_spect = dataselect.select_data(get_files(), tags=['PROCESSED'])  # all_files used
+
+# read files and instantiate the primitive class
+adinput = [astrodata.open(f) for f in selected_spect]
+p = MaroonXSpectrum(adinput)
+
+p.prepare()
+p.checkArm()
+p.addDQ()  # just placeholder until MX is in caldb
+p.overscanCorrect()
+p.correctImageOrientation()
+p.addVAR(read_noise=True,poisson_noise=True)
+# get and save wavelength solution (either static reference or frame's unique sim cal solved)
+p.darkSubtraction()
+p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra TODO Skip dark for fiber 5
+p.optimalExtraction()  # does 2D to 1D conversion of cut out spectra (only for fibers 2,3,4)
+# TODO: perform echelle peak fitting on fiber 5
+# TODO: Get wavelength solution from dynamic wavecal recipe
+# TODO: Take Fiber 5 peak positions and 
+p.storeProcessedScience(suffix='_reduced')
