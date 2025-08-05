@@ -40,12 +40,12 @@ def makeDynamicWavecal(p):
     # first perform echelle extraction of fibers
     p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
     p.boxExtraction() # extracts spectra from stripes
-    p.getPeaksAndPolynomials(fibers=(2, 3, 4, 5)) # fits etalon peaks and polynomials
+    p.getPeaksAndPolynomials(fibers=(2, 3, 4, 5), multithreading=True) # fits etalon peaks and polynomials
     
     p.staticWavelengthSolution()
-    #p.fitAndApplyEtalonWls()
+    p.fitAndApplyEtalonWls()
     
-    p.writeOutputs(suffix='_dynamic_wavecal')  # save reduced 1D spectra
+    p.writeOutputs(suffix='_wavecal')  # save reduced 1D spectra
     return
 
 _default = makeDynamicWavecal
