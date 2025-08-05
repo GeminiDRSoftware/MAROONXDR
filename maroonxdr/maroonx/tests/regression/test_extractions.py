@@ -13,6 +13,7 @@ from astropy.io import fits
 import h5py
 
 from gempy.adlibrary import dataselect
+from gempy.utils import logutils
 
 import maroonx_instruments  # noqa : important to load adclass tags
 from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
@@ -27,13 +28,22 @@ OLD_BASE_PATH = Path("/home/martin/Projects/MaroonX/legacy/maroonx_base/data2/")
 OLD_FILES_PATH = OLD_BASE_PATH / Path("MaroonX_spectra_reduced/20241124")
 OLD_FLAT_FILES_PATH = OLD_BASE_PATH / Path("MaroonX_spectra_reduced/Maroonx_masterframes/202411xx/flats")
 
-NEW_FILES_PATH = Path("/home/martin/Projects/MaroonX/MAROONXDR/science_dir")
-
 SCIENCE_DIR = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir')
+
+# Set logger
+logutils.config(file_name="test_extractions.log", mode="debug", stomp=True)
+log = logutils.get_logger("test_extractions")
+log.setLevel("DEBUG")
 
 # =========================================================
 # TESTS
 # =========================================================
+USE_CACHE = True
+
+SCIENCE_FILES = [
+    '20241124T041907Z_SOOOE_b_0300',
+]
+
 
 @pytest.mark.parametrize("arm", ["BLUE"])
 def test_extractStripes(arm):
@@ -158,7 +168,7 @@ def test_boxExtraction(arm):
         new_box = getattr(adout[0][0], f"BOX_REDUCED_FIBER_{fiber}")
         if new_box.size == 1:
             # only fiber 1 should be empty
-            assert fiber == 1
+            assert fiber == 1, "Only fiber 1 should be empty in box extraction"
             continue
 
         orders = getattr(adout[0][0], f"REDUCED_ORDERS_FIBER_{fiber}")
@@ -175,6 +185,70 @@ def test_boxExtraction(arm):
             except AssertionError as err:
                 fail_counter += 1
                 # print(f'fiber/order : {fiber}/{order} [FAIL]')
+    assert fail_counter == 0
+
+@pytest.mark.parametrize("science_filename", SCIENCE_FILES)
+def test_optimalExtraction(science_filename):
+    """
+    This test is not implemented yet, as the optimal extraction is not yet implemented in MaroonX.
+    """
+
+    old_file = OLD_FILES_PATH / (science_filename + ".hdf")
+
+    if USE_CACHE:
+        # Use previously saved data on science_dir
+        adout = [astrodata.open(SCIENCE_DIR / (science_filename + "_reduced.fits"))]
+    else:
+        # Primitives
+        adinput = [astrodata.open(SCIENCE_DIR / (science_filename + ".fits"))]
+
+        p = MaroonXSpectrum(adinput)
+        p.prepare()
+        p.checkArm()
+        p.addDQ()  # just placeholder until MX is in caldb
+        p.overscanCorrect()
+        p.correctImageOrientation()
+        p.addVAR(read_noise=True, poisson_noise=True)
+        # get and save wavelength solution (either static reference or frame's unique sim cal solved)
+        p.darkSubtraction()
+        p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra TODO Skip dark for fiber 5
+        
+        adout = p.optimalExtraction() # extracts spectra from stripes
+
+    legacy_box = load_dict_from_hdf5(str(old_file), "box_extraction/")
+    legacy_opt = load_dict_from_hdf5(str(old_file), "optimal_extraction/")
+    legacy_var = load_dict_from_hdf5(str(old_file), "optimal_var/")
+
+    fail_counter = 0
+    for fiber in range(1, 6):
+        new_box = getattr(adout[0][0], f"BOX_REDUCED_FIBER_{fiber}")
+        new_opt = getattr(adout[0][0], f"OPTIMAL_REDUCED_FIBER_{fiber}")
+        if new_opt.size == 1:
+            assert fiber in [1, 5], "Only fibers 1 and 5 should be empty in optimal extraction"
+            continue
+
+        orders = getattr(adout[0][0], f"REDUCED_ORDERS_FIBER_{fiber}")
+        orders = orders.astype(int)
+
+        for idx, order in enumerate(orders):
+            legacy_order = legacy_opt[f"fiber_{fiber}"][f"{order}"]
+            new_order = new_opt[idx, :]
+            #np.testing.assert_allclose(legacy_order, new_order, rtol=1e-4)
+            try:
+                np.testing.assert_allclose(legacy_order, new_order, rtol=1e-4)
+                print(f'fiber/order : {fiber}/{order} [OK]')
+            except AssertionError as err:
+                fail_counter += 1
+                print(f'fiber/order : {fiber}/{order} [FAIL]')
+
+            legacy_order = legacy_box[f"fiber_{fiber}"][f"{order}"]
+            new_order = new_box[idx, :]
+            try:
+                np.testing.assert_allclose(legacy_order, new_order, rtol=1e-4)
+                print(f'fiber/order [box]: {fiber}/{order} [OK]')
+            except AssertionError as err:
+                fail_counter += 1
+                print(f'fiber/order [box]: {fiber}/{order} [FAIL]')
     assert fail_counter == 0
 
 
