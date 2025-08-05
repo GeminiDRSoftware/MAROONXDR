@@ -393,42 +393,14 @@ class MAROONXEchelle(MAROONX, Spect):
             # For each fiber, we need extensions for the reduced orders, the optimal reduced fiber,
             # the error of the optimal reduced fiber, the box reduced fiber, the error of the box
             # reduced fiber, and the bad pixel mask.
-
-            # Fiber 1
-            ad[0].REDUCED_ORDERS_FIBER_1 = np.zeros(shape=[1, 1])
-            ad[0].OPTIMAL_REDUCED_FIBER_1 = np.zeros(shape=[1, 1])
-            ad[0].OPTIMAL_REDUCED_ERR_1 = np.zeros(shape=[1, 1])
-            ad[0].BOX_REDUCED_FIBER_1 = np.zeros(shape=[1, 1])
-            ad[0].BOX_REDUCED_ERR_1 = np.zeros(shape=[1, 1])
-            ad[0].BPM_FIBER_1 = np.zeros(shape=[1, 1])
-            # Fiber 2
-            ad[0].REDUCED_ORDERS_FIBER_2 = np.zeros(shape=[1, 1])
-            ad[0].OPTIMAL_REDUCED_FIBER_2 = np.zeros(shape=[1, 1])
-            ad[0].OPTIMAL_REDUCED_ERR_2 = np.zeros(shape=[1, 1])
-            ad[0].BOX_REDUCED_FIBER_2 = np.zeros(shape=[1, 1])
-            ad[0].BOX_REDUCED_ERR_2 = np.zeros(shape=[1, 1])
-            ad[0].BPM_FIBER_2 = np.zeros(shape=[1, 1])
-            # Fiber 3
-            ad[0].REDUCED_ORDERS_FIBER_3 = np.zeros(shape=[1, 1])
-            ad[0].OPTIMAL_REDUCED_FIBER_3 = np.zeros(shape=[1, 1])
-            ad[0].OPTIMAL_REDUCED_ERR_3 = np.zeros(shape=[1, 1])
-            ad[0].BOX_REDUCED_FIBER_3 = np.zeros(shape=[1, 1])
-            ad[0].BOX_REDUCED_ERR_3 = np.zeros(shape=[1, 1])
-            ad[0].BPM_FIBER_3 = np.zeros(shape=[1, 1])
-            # Fiber 4
-            ad[0].REDUCED_ORDERS_FIBER_4 = np.zeros(shape=[1, 1])
-            ad[0].OPTIMAL_REDUCED_FIBER_4 = np.zeros(shape=[1, 1])
-            ad[0].OPTIMAL_REDUCED_ERR_4 = np.zeros(shape=[1, 1])
-            ad[0].BOX_REDUCED_FIBER_4 = np.zeros(shape=[1, 1])
-            ad[0].BOX_REDUCED_ERR_4 = np.zeros(shape=[1, 1])
-            ad[0].BPM_FIBER_4 = np.zeros(shape=[1, 1])
-            # Fiber 5
-            ad[0].REDUCED_ORDERS_FIBER_5 = np.zeros(shape=[1, 1])
-            ad[0].OPTIMAL_REDUCED_FIBER_5 = np.zeros(shape=[1, 1])
-            ad[0].OPTIMAL_REDUCED_ERR_5 = np.zeros(shape=[1, 1])
-            ad[0].BOX_REDUCED_FIBER_5 = np.zeros(shape=[1, 1])
-            ad[0].BOX_REDUCED_ERR_5 = np.zeros(shape=[1, 1])
-            ad[0].BPM_FIBER_5 = np.zeros(shape=[1, 1])
+            for f in range(1, 6):
+                setattr(ad[0], f"REDUCED_ORDERS_FIBER_{f}", np.zeros(shape=[1, 1]))
+                setattr(ad[0], f"OPTIMAL_REDUCED_FIBER_{f}", np.zeros(shape=[1, 1]))
+                setattr(ad[0], f"OPTIMAL_REDUCED_ERR_{f}", np.zeros(shape=[1, 1]))
+                setattr(ad[0], f"BOX_REDUCED_FIBER_{f}", np.zeros(shape=[1, 1]))
+                setattr(ad[0], f"BOX_REDUCED_ERR_{f}", np.zeros(shape=[1, 1]))
+                setattr(ad[0], f"BOX_REDUCED_FLAT_{f}", np.zeros(shape=[1, 1]))
+                setattr(ad[0], f"BPM_FIBER_{f}", np.zeros(shape=[1, 1]))
 
             # Creating sparse matrices that we end up deleting
             stripes = ad[0].STRIPES
@@ -444,7 +416,7 @@ class MAROONXEchelle(MAROONX, Spect):
                     # if last item of the key is in opt_extraction, we do optimal extraction
                     for o, stripe in stripes[f].items():
                         log.fullinfo(f'Optimum extraction in {f}, order {o}')
-                        flux, var, stand_spec, stand_err, fo = _optimal_extraction_single_stripe_old(
+                        flux, var, stand_spec, stand_err, fo = _optimal_extraction_single_stripe(
                             stripe, flat_stripes[f][o], gain=gain,
                             read_noise=read_noise, back_var=back_var,
                             mask=mask[f][o], s_clip=s_clip,
@@ -503,46 +475,18 @@ class MAROONXEchelle(MAROONX, Spect):
                     bpm_single_fiber = np.array(list(
                         extracted_bpms[f].values()), dtype=int)
 
-                    # Update the extensions depending on the fiber.
-                    if f == 'fiber_1':
-                        ad[0].REDUCED_ORDERS_FIBER_1 = optimal_reduced_single_fiber_order_key
-                        ad[0].OPTIMAL_REDUCED_FIBER_1 = optimal_reduced_single_fiber
-                        ad[0].OPTIMAL_REDUCED_ERR_1 = optimal_reduced_single_fiber_err
-                        ad[0].BOX_REDUCED_FIBER_1 = box_reduced_single_fiber
-                        ad[0].BOX_REDUCED_ERR_1 = box_reduced_single_err
-                        ad[0].BPM_FIBER_1 = bpm_single_fiber
-                    if f == 'fiber_2':
-                        ad[0].REDUCED_ORDERS_FIBER_2 = optimal_reduced_single_fiber_order_key
-                        ad[0].OPTIMAL_REDUCED_FIBER_2 = optimal_reduced_single_fiber
-                        ad[0].OPTIMAL_REDUCED_ERR_2 = optimal_reduced_single_fiber_err
-                        ad[0].BOX_REDUCED_FIBER_2 = box_reduced_single_fiber
-                        ad[0].BOX_REDUCED_ERR_2 = box_reduced_single_err
-                        ad[0].BPM_FIBER_2 = bpm_single_fiber
-                    if f == 'fiber_3':
-                        ad[0].REDUCED_ORDERS_FIBER_3 = optimal_reduced_single_fiber_order_key
-                        ad[0].OPTIMAL_REDUCED_FIBER_3 = optimal_reduced_single_fiber
-                        ad[0].OPTIMAL_REDUCED_ERR_3 = optimal_reduced_single_fiber_err
-                        ad[0].BOX_REDUCED_FIBER_3 = box_reduced_single_fiber
-                        ad[0].BOX_REDUCED_ERR_3 = box_reduced_single_err
-                        ad[0].BPM_FIBER_3 = bpm_single_fiber
-                    if f == 'fiber_4':
-                        ad[0].REDUCED_ORDERS_FIBER_4 = optimal_reduced_single_fiber_order_key
-                        ad[0].OPTIMAL_REDUCED_FIBER_4 = optimal_reduced_single_fiber
-                        ad[0].OPTIMAL_REDUCED_ERR_4 = optimal_reduced_single_fiber_err
-                        ad[0].BOX_REDUCED_FIBER_4 = box_reduced_single_fiber
-                        ad[0].BOX_REDUCED_ERR_4 = box_reduced_single_err
-                        ad[0].BPM_FIBER_4 = bpm_single_fiber
-                    if f == 'fiber_5':
-                        ad[0].REDUCED_ORDERS_FIBER_5 = optimal_reduced_single_fiber_order_key
-                        ad[0].OPTIMAL_REDUCED_FIBER_5 = optimal_reduced_single_fiber
-                        ad[0].OPTIMAL_REDUCED_ERR_5 = optimal_reduced_single_fiber_err
-                        ad[0].BOX_REDUCED_FIBER_5 = box_reduced_single_fiber
-                        ad[0].BOX_REDUCED_ERR_5 = box_reduced_single_err
-                        ad[0].BPM_FIBER_5 = bpm_single_fiber
+                    # Update the extensions based on which fiber we have
+                    f_num = int(f[-1]) 
+                    setattr(ad[0], f"REDUCED_ORDERS_FIBER_{f_num}", optimal_reduced_single_fiber_order_key)
+                    setattr(ad[0], f"OPTIMAL_REDUCED_FIBER_{f_num}", optimal_reduced_single_fiber)
+                    setattr(ad[0], f"OPTIMAL_REDUCED_ERR_{f_num}", optimal_reduced_single_fiber_err)
+                    setattr(ad[0], f"BOX_REDUCED_FIBER_{f_num}", box_reduced_single_fiber)
+                    setattr(ad[0], f"BOX_REDUCED_ERR_{f_num}", box_reduced_single_err)
+                    # setattr(ad[0], f"BOX_REDUCED_FLAT_{f_num}", np.zeros(shape=[1, 1]))
+                    setattr(ad[0], f"BPM_FIBER_{f_num}", bpm_single_fiber)
                 else:
                     # Dealing with the case that we have no optimal extraction, so the reduced order
                     # is the box extraction as opposed to the optimal extraction.
-
                     box_reduced_single_fiber_order_key = np.array(list(
                         box_reduced_stripes[f].keys()), dtype=float)
                     box_reduced_single_fiber = np.array(list(
@@ -551,32 +495,14 @@ class MAROONXEchelle(MAROONX, Spect):
                         box_reduced_err[f].values()), dtype=float)
                     bpm_single_fiber = np.array(list(
                         extracted_bpms[f].values()), dtype=int)
+
                     # Update the extensions based on which fiber we have.
-                    if f == 'fiber_1':
-                        ad[0].REDUCED_ORDERS_FIBER_1 = box_reduced_single_fiber_order_key
-                        ad[0].BOX_REDUCED_FIBER_1 = box_reduced_single_fiber
-                        ad[0].BOX_REDUCED_ERR_1 = box_reduced_single_err
-                        ad[0].BPM_FIBER_1 = bpm_single_fiber
-                    if f == 'fiber_2':
-                        ad[0].REDUCED_ORDERS_FIBER_2 = box_reduced_single_fiber_order_key
-                        ad[0].BOX_REDUCED_FIBER_2 = box_reduced_single_fiber
-                        ad[0].BOX_REDUCED_ERR_2 = box_reduced_single_err
-                        ad[0].BPM_FIBER_2 = bpm_single_fiber
-                    if f == 'fiber_3':
-                        ad[0].REDUCED_ORDERS_FIBER_3 = box_reduced_single_fiber_order_key
-                        ad[0].BOX_REDUCED_FIBER_3 = box_reduced_single_fiber
-                        ad[0].BOX_REDUCED_ERR_3 = box_reduced_single_err
-                        ad[0].BPM_FIBER_3 = bpm_single_fiber
-                    if f == 'fiber_4':
-                        ad[0].REDUCED_ORDERS_FIBER_4 = box_reduced_single_fiber_order_key
-                        ad[0].BOX_REDUCED_FIBER_4 = box_reduced_single_fiber
-                        ad[0].BOX_REDUCED_ERR_4 = box_reduced_single_err
-                        ad[0].BPM_FIBER_4 = bpm_single_fiber
-                    if f == 'fiber_5':
-                        ad[0].REDUCED_ORDERS_FIBER_5 = box_reduced_single_fiber_order_key
-                        ad[0].BOX_REDUCED_FIBER_5 = box_reduced_single_fiber
-                        ad[0].BOX_REDUCED_ERR_5 = box_reduced_single_err
-                        ad[0].BPM_FIBER_5 = bpm_single_fiber
+                    f_num = int(f[-1]) 
+                    setattr(ad[0], f"REDUCED_ORDERS_FIBER_{f_num}", box_reduced_single_fiber_order_key)
+                    setattr(ad[0], f"BOX_REDUCED_FIBER_{f_num}", box_reduced_single_fiber)
+                    setattr(ad[0], f"BOX_REDUCED_ERR_{f_num}", box_reduced_single_err)
+                    # setattr(ad[0], f"BOX_REDUCED_FLAT_{f_num}", box_reduced_flat)
+                    setattr(ad[0], f"BPM_FIBER_{f_num}", bpm_single_fiber)
 
             # Delete the sparse matrices from the ad object
             del ad[0].STRIPES
@@ -615,43 +541,17 @@ class MAROONXEchelle(MAROONX, Spect):
             # For each fiber, we need extensions for the reduced orders,
             # the box reduced fiber, the error of the boxreduced fiber,
             # and the bad pixel mask.
-
-            # Fiber 1
-            ad[0].REDUCED_ORDERS_FIBER_1 = np.zeros(shape=[1, 1])
-            ad[0].BOX_REDUCED_FIBER_1 = np.zeros(shape=[1, 1])
-            ad[0].BOX_REDUCED_ERR_1 = np.zeros(shape=[1, 1])
-            ad[0].BOX_REDUCED_FLAT_1 = np.zeros(shape=[1, 1])
-            ad[0].BPM_FIBER_1 = np.zeros(shape=[1, 1])
-            # Fiber 2
-            ad[0].REDUCED_ORDERS_FIBER_2 = np.zeros(shape=[1, 1])
-            ad[0].BOX_REDUCED_FIBER_2 = np.zeros(shape=[1, 1])
-            ad[0].BOX_REDUCED_ERR_2 = np.zeros(shape=[1, 1])
-            ad[0].BOX_REDUCED_FLAT_2 = np.zeros(shape=[1, 1])
-            ad[0].BPM_FIBER_2 = np.zeros(shape=[1, 1])
-            # Fiber 3
-            ad[0].REDUCED_ORDERS_FIBER_3 = np.zeros(shape=[1, 1])
-            ad[0].BOX_REDUCED_FIBER_3 = np.zeros(shape=[1, 1])
-            ad[0].BOX_REDUCED_ERR_3 = np.zeros(shape=[1, 1])
-            ad[0].BOX_REDUCED_FLAT_3 = np.zeros(shape=[1, 1])
-            ad[0].BPM_FIBER_3 = np.zeros(shape=[1, 1])
-            # Fiber 4
-            ad[0].REDUCED_ORDERS_FIBER_4 = np.zeros(shape=[1, 1])
-            ad[0].BOX_REDUCED_FIBER_4 = np.zeros(shape=[1, 1])
-            ad[0].BOX_REDUCED_ERR_4 = np.zeros(shape=[1, 1])
-            ad[0].BOX_REDUCED_FLAT_4 = np.zeros(shape=[1, 1])
-            ad[0].BPM_FIBER_4 = np.zeros(shape=[1, 1])
-            # Fiber 5
-            ad[0].REDUCED_ORDERS_FIBER_5 = np.zeros(shape=[1, 1])
-            ad[0].BOX_REDUCED_FIBER_5 = np.zeros(shape=[1, 1])
-            ad[0].BOX_REDUCED_ERR_5 = np.zeros(shape=[1, 1])
-            ad[0].BOX_REDUCED_FLAT_5 = np.zeros(shape=[1, 1])
-            ad[0].BPM_FIBER_5 = np.zeros(shape=[1, 1])
+            for f in range(1, 6):
+                setattr(ad[0], f"REDUCED_ORDERS_FIBER_{f}", np.zeros(shape=[1, 1]))
+                setattr(ad[0], f"BOX_REDUCED_FIBER_{f}", np.zeros(shape=[1, 1]))
+                setattr(ad[0], f"BOX_REDUCED_ERR_{f}", np.zeros(shape=[1, 1]))
+                setattr(ad[0], f"BOX_REDUCED_FLAT_{f}", np.zeros(shape=[1, 1]))
+                setattr(ad[0], f"BPM_FIBER_{f}", np.zeros(shape=[1, 1]))
 
             # Creating sparse matrices
             stripes = ad[0].STRIPES
             mask = ad[0].STRIPES_MASKS
             flat_stripes = ad[0].F_STRIPES
-
 
             gain = ad.gain()[0][0]  # fix for different channels
             read_noise = ad.read_noise()[0][0]  # Each chip has a different read noise
@@ -687,40 +587,14 @@ class MAROONXEchelle(MAROONX, Spect):
                 bpm_single_fiber = np.array(list(extracted_bpms[f].values()), dtype=int)
 
                 # Update the extensions based on which fiber we have
-                if f == 'fiber_1':
-                    ad[0].REDUCED_ORDERS_FIBER_1 = box_reduced_single_fiber_order_key
-                    ad[0].BOX_REDUCED_FIBER_1 = box_reduced_single_fiber
-                    ad[0].BOX_REDUCED_ERR_1 = box_reduced_single_err
-                    ad[0].BOX_REDUCED_FLAT_1 = box_reduced_flat
-                    ad[0].BPM_FIBER_1 = bpm_single_fiber
-                if f == 'fiber_2':
-                    ad[0].REDUCED_ORDERS_FIBER_2 = box_reduced_single_fiber_order_key
-                    ad[0].BOX_REDUCED_FIBER_2 = box_reduced_single_fiber
-                    ad[0].BOX_REDUCED_ERR_2 = box_reduced_single_err
-                    ad[0].BOX_REDUCED_FLAT_2 = box_reduced_flat
-                    ad[0].BPM_FIBER_2 = bpm_single_fiber
-                if f == 'fiber_3':
-                    ad[0].REDUCED_ORDERS_FIBER_3 = box_reduced_single_fiber_order_key
-                    ad[0].BOX_REDUCED_FIBER_3 = box_reduced_single_fiber
-                    ad[0].BOX_REDUCED_ERR_3 = box_reduced_single_err
-                    ad[0].BOX_REDUCED_FLAT_3 = box_reduced_flat
-                    ad[0].BPM_FIBER_3 = bpm_single_fiber
-                if f == 'fiber_4':
-                    ad[0].REDUCED_ORDERS_FIBER_4 = box_reduced_single_fiber_order_key
-                    ad[0].BOX_REDUCED_FIBER_4 = box_reduced_single_fiber
-                    ad[0].BOX_REDUCED_ERR_4 = box_reduced_single_err
-                    ad[0].BOX_REDUCED_FLAT_4 = box_reduced_flat
-                    ad[0].BPM_FIBER_4 = bpm_single_fiber
-                if f == 'fiber_5':
-                    ad[0].REDUCED_ORDERS_FIBER_5 = box_reduced_single_fiber_order_key
-                    ad[0].BOX_REDUCED_FIBER_5 = box_reduced_single_fiber
-                    ad[0].BOX_REDUCED_ERR_5 = box_reduced_single_err
-                    ad[0].BOX_REDUCED_FLAT_5 = box_reduced_flat
-                    ad[0].BPM_FIBER_5 = bpm_single_fiber
+                f_num = int(f[-1])  # get the fiber number from the key    
+                setattr(ad[0], f"REDUCED_ORDERS_FIBER_{f_num}", box_reduced_single_fiber_order_key)
+                setattr(ad[0], f"BOX_REDUCED_FIBER_{f_num}", box_reduced_single_fiber)
+                setattr(ad[0], f"BOX_REDUCED_ERR_{f_num}", box_reduced_single_err)
+                setattr(ad[0], f"BOX_REDUCED_FLAT_{f_num}", box_reduced_flat)
+                setattr(ad[0], f"BPM_FIBER_{f_num}", bpm_single_fiber)
 
-            del ad[0].STRIPES
-            del ad[0].F_STRIPES
-            del ad[0].STRIPES_MASKS
+            del ad[0].STRIPES, ad[0].F_STRIPES, ad[0].STRIPES_MASKS
             ad.update_filename(suffix=params["suffix"], strip=False)
             log.fullinfo(f"frame {ad.filename} extracted")
         return adinputs
@@ -891,16 +765,27 @@ def _optimal_extraction_single_stripe(stripe, flat_stripe, gain=1, read_noise=1.
     # box extracted spectrum
     stand_spec0 = _box_extract_single_stripe(stripe, mask)  # direct box extraction,
     stand_spec = stand_spec0.copy()
+    stand_err = np.sqrt(stand_spec / gain)  # error of box extracted spectrum
 
     # flat data
     box_extracted_flat_stripe = _box_extract_single_stripe(flat_stripe, mask)  # spatial sums for flat along disp
 
+    print(f"stripe shape: {stripe.shape}, flat stripe shape: {flat_stripe.shape}, mask shape: {mask.shape}"
+          f", back_var shape: {back_var.shape}, box_extracted_flat_stripe shape: {box_extracted_flat_stripe.shape}")
+    # print the types
+    print(f"stripe type: {type(stripe)}, flat stripe type: {type(flat_stripe)}, mask type: {type(mask)}"
+            f", back_var type: {type(back_var)}, box_extracted_flat_stripe type: {type(box_extracted_flat_stripe)}")
     # cut stripe sparse matrix into numpy array
     # find the spatial columns utilized along entire stripe (greater than slit height because of stripe path)
     sparse_vcols = np.array(~np.all(stripe.todense() == 0, axis=1)).reshape(-1)
     stripe       = np.array(stripe.todense()[sparse_vcols])  # strip stripe to the inclusive nonzero rows
-    mask         = mask[sparse_vcols]  # strip mask similarly
-    back_var     = back_var[sparse_vcols] #strip background variance map similarly
+
+    # mask         = mask[sparse_vcols]  # strip mask similarly
+    # back_var     = back_var[sparse_vcols] #strip background variance map similarly
+        
+    mask         = np.array(mask.todense()[sparse_vcols])  # strip mask similarly
+    back_var     = np.array(back_var.todense()[sparse_vcols]) #strip background variance map similarly
+    
     flat_stripe  = np.array(flat_stripe.todense()[sparse_vcols])
     sparse_vrows = np.count_nonzero((stripe != 0).T[1500])  # use ~middle column slit height as slit height pass
     data         = np.zeros((sparse_vrows, stripe.shape[1]))
@@ -908,8 +793,29 @@ def _optimal_extraction_single_stripe(stripe, flat_stripe, gain=1, read_noise=1.
     new_mask     = data.copy()  # create actual limit numpy arrays
     new_back_var = data.copy()  # create actual limit numpy arrays
     profile      = data.copy()
-    rectify_and_reshape(back_var, box_extracted_flat_stripe, data, flat_stripe, mask, new_back_var, new_mask, profile,
-                    stripe)
+    
+    print(f"stripe shape: {stripe.shape}, flat stripe shape: {flat_stripe.shape}, mask shape: {mask.shape}"
+          f", back_var shape: {back_var.shape}")
+    # print the types
+    print(f"stripe type: {type(stripe)}, flat stripe type: {type(flat_stripe)}, mask type: {type(mask)}"
+            f", back_var type: {type(back_var)}")
+    #import ipdb; ipdb.set_trace()
+
+    # legacy code that could be optimized
+    for i in np.arange(stripe.shape[1]):
+        if np.nonzero((stripe != 0).T[i])[0].shape[0] == data.shape[0]:  # if column is slit height (not edge of chip)
+            if box_extracted_flat_stripe[i] > 1E-12:
+                data[:, i]        = stripe[np.nonzero((stripe != 0).T[i])[0], i]  # write data
+                new_mask[:, i]    = mask[np.nonzero((stripe != 0).T[i])[0], i]
+                new_back_var[:,i] =  back_var[np.nonzero((stripe != 0).T[i])[0], i]
+                profile[:, i]     = flat_stripe[np.nonzero((stripe != 0).T[i])[0], i] / box_extracted_flat_stripe[i]
+        else:
+            new_mask[:, i]     = 0  # could be optimized
+            new_back_var[:, i] = 0  # could be optimized
+    
+    # TODO: possible optimization, refacter after regression tests pass
+    # rectify_and_reshape(back_var, box_extracted_flat_stripe, data, flat_stripe, mask, new_back_var, new_mask, profile, stripe)
+
     new_mask[:, stand_spec0 < 1E-12] = 0  # if sum is less than zero, whole column is cancelled for this stripe
     mask = new_mask.copy()
     back_var = new_back_var.copy() * mask
@@ -934,267 +840,78 @@ def _optimal_extraction_single_stripe(stripe, flat_stripe, gain=1, read_noise=1.
     # # avoid already caught bad pixels (whole column is zero in bpm or stripe is too small)
     good_disp = np.nonzero(np.array(~np.any(mask == 0, axis=0)))[0]
     reject_tracker = np.zeros_like(stand_spec0)
-    reject_step(back_var, data_var, debug_level, diff_aver, diff_save, flux, gain, good_disp, mask, profile, read_noise,
-            reject_tracker, s_clip, stand_spec, stripe, var)
 
-    flux[flux == 0] = np.nan
-    var[var == 0] = np.nan
-
-    stand_spec0[stand_spec0 == 0] = np.nan
-    total_count = np.sum(reject_tracker > 0)
-    substantial_count = np.sum(np.abs(stand_spec0 - stand_spec)[reject_tracker > 0] > 0.005 * (stand_spec0[reject_tracker > 0]))
-    irrelevant_count = total_count - substantial_count
-
-    if total_count > 0:
-        log.info(f'Rejected {np.sum(reject_tracker):.0f} pixels in {total_count} columns during optimal extraction.')
-        irrelevant_count_percentage = irrelevant_count/total_count*100
-        if irrelevant_count_percentage > 30:
-            log.warning(f'Rejections with flux changes < 0.5%: {irrelevant_count} ({irrelevant_count_percentage:.0f}%)')
-        else:
-            log.info(f'Rejections with flux changes < 0.5%: {irrelevant_count} ({irrelevant_count_percentage:.0f}%)')
-    else:
-        log.info('No rejections')
-
-    if debug_level >= 2:
-        #fig, ax = plt.subplots(3, 1)
-        fig, ax = plt.subplots(3, 1, sharex='all')
-        ax[0].imshow(np.vstack((stripe,np.zeros_like(stripe),profile*flux)),interpolation='none')
-        ax[0].scatter(np.where(mask==0)[1],np.where(mask==0)[0],c='r',marker='+')
-        ax[0].set_title('2D spectra before (top) and after (bottom) masking of outliers')
-        ax[1].set_ylabel('Stripe pixel')
-
-        ax[1].plot(stand_spec0, 'b', label='Box extraction')
-        ax[1].plot(flux, 'g', label='Optimal extraction')
-        ax[1].set_ylabel('Flux (DN)')
-        ax[1].set_title('Optimal and Box extraction')
-
-        ax[2].plot(flux - stand_spec0,'r',label='Difference box vs optimal')
-        ax[2].set_xlabel('Detector Pixel')
-        ax[2].set_ylabel('Flux difference (DN)')
-        ax[2].set_title('Difference between Optimal and Box extraction')
-
-        ax[1].legend()
-
-        plt.show()
-
-    # return all intermediate results for debugging/testing
-    if full_output:
-        return flux, var, stand_spec0, {'noise': var, 'acceptancemask': mask, "stripe": stripe,
-                                    "initial_sigma": diff_save}  # {'noise': var, 'profile': profile, 'rejectionmask': sparse.csr_matrix(mask),
-    # 'expected': expected, 'actual': actual}
-    return flux, var, stand_spec0, {'noise': var}
-
-def _optimal_extraction_single_stripe_old( stripe=None, flat_stripe=None,
-                                        gain=2.7, read_noise=1.23,
-                                        back_var=None, mask=None,
-                                        full_output=False,
-                                        s_clip=5.0, penalty=1.0, log=None):
-    """
-    Performs optimal extraction of a single stripe.
-    Based on the algorithm described by Horne et al. 1986, PASP, 98, 609.
-
-    Parameters
-    ----------
-        stripe (scipy.sparse.spmatrix): sparse matrix stripe from science
-            frame to be extracted
-        flat_stripe (scipy.sparse.spmatrix): sparse matrix stripe from
-            flat frame to be used as profile
-        gain (float): detector gain factor (conversion photons -> DN,
-            given in e-/DN )
-        read_noise (float): typical detector read noise given as the
-            variance in DN
-        back_var (np.ndarray): background variance (from scattered light
-            model or dark, otherwise 0)
-        mask (np.ndarray): bad pixel mask. Note: the mask will be modified
-        by iterative algorithm that looks for outliers during optimal
-            extraction
-        full_output (bool): if True, returns all intermediate
-            results for debugging/testing
-        s_clip (float): sigma clipping value for optimal extraction
-        penalty (float): scaling factor for global per-order profile
-            mismatch correction between expected (flat) and found (science).
-            Set 0 for no correction
-
-    Returns
-    -------
-        tuple(np.ndarray, np.ndarray, dict): (optimal extracted spectrum,
-        box extracted spectrum, dict of additional intermediate results
-        if full_output was True)
-
-    """
-    #log = self.log
-    # fix back_var
-    if mask is None:
-        mask = stripe.copy()
-        mask[:, :] = 1
-        back_var = stripe.copy()
-        back_var[:, :] = 0
-    else:
-        # copy mask, because it will be modified
-        mask = mask.copy()
-        back_var = stripe.copy()
-        back_var[:, :] = 0  # back_var.copy()
-
-    # box extracted spectrum
-    stand_spec0 = _box_extract_single_stripe(stripe, mask)
-    stand_spec_err = np.sqrt(stand_spec0/gain)
-    stand_spec = stand_spec0.copy()
-
-    # flat data
-    box_extracted_flat_stripe = _box_extract_single_stripe(
-        flat_stripe, mask)  # spatial sums for flat along disp
-
-    # cut stripe sparse matrix into numpy array
-    # find the spatial columns utilized along entire stripe
-    # (greater than slit height because of stripe path)
-    sparse_vcols = np.array(~np.all(stripe.todense() == 0, axis=1)
-                            ).reshape(-1)
-    # strip stripe to the inclusive nonzero rows
-    stripe = np.array(stripe.todense()[sparse_vcols])
-    # strip other sparse matricies similarily
-    mask = np.array(mask.todense()[sparse_vcols])
-    back_var = np.array(back_var.todense()[sparse_vcols])
-    flat_stripe = np.array(flat_stripe.todense()[sparse_vcols])
-    # use ~middle column slit height as slit height pass
-    sparse_vrows = np.count_nonzero((stripe != 0).T[1500])
-    data = np.zeros((sparse_vrows, stripe.shape[1]))
-    diff_save = data.copy()
-    new_mask = data.copy()  # create actual limit numpy arrays
-    new_back_var = data.copy()  # create actual limit numpy arrays
-    profile = data.copy()
-    # for column in stripe
-    for i in np.arange(stripe.shape[1]):
-        # if column is slit height (not edge of chip)
-        if np.nonzero((stripe != 0).T[i])[0].shape[0] == data.shape[0]:
-            # if the flat stripe aka profile is defined in that column
-            if box_extracted_flat_stripe[i] > 1E-12:
-                # limit the column to the nonzero data points
-                data[:, i] = stripe[np.nonzero((stripe != 0).T[i])[0], i]
-                new_mask[:, i] = mask[np.nonzero((stripe != 0).T[i])[0], i]
-                new_back_var[:, i] = back_var[np.nonzero(
-                    (stripe != 0).T[i])[0], i]
-                profile[:, i] = flat_stripe[np.nonzero(
-                    (stripe != 0).T[i])[0], i] / box_extracted_flat_stripe[
-                    i]
-        else:
-            # cancel iteration on column
-            new_mask[:, i] = 0
-            new_back_var[:, i] = 0
-
-    # if sum is less than zero, whole column is cancelled for this stripe
-    new_mask[:, stand_spec0 < 1E-12] = 0
-    # update original variables
-    mask = new_mask.copy()
-    back_var = new_back_var.copy() * mask
-    stripe = data
-    data_var = abs(stripe.copy()) / gain + back_var + read_noise
-
-    # final output
-    flux = np.zeros(len(stand_spec0))
-    var = flux.copy()
-
-    # Calculate a first guess of the difference between stripe and profile
-    expected = profile * mask * stand_spec
-    actual = stripe * mask
-    diff = actual - expected
-
-    # Calculate the median of the difference along the order.
-    # Represents the 'global' mismatch between flat and science profiles
-    # and helps correct for the 'drift' problem in x-dispersion.
-    diff_aver = penalty * np.abs(median_filter(diff, size=(1, 201)))
-
-    # avoid already caught bad pixels
-    # aka where whole column is zero in bpm or stripe is too small
-    good_disp = np.nonzero(np.array(~np.any(mask == 0, axis=0)))[0]
-    reject_tracker = np.zeros_like(stand_spec0)
-
+    # legacy code that could be optimized
     for h in good_disp:
-        # in good columns
-        # flat column with mask scaled to data total
-        expected = profile[:, h] * mask[:, h] * stand_spec[h]
-        # actual column data with mask
-        actual = stripe[:, h] * mask[:, h]
+        expected = profile[:, h] * mask[:, h] * stand_spec[h]  # flat column with mask scaled to data total
+        actual = stripe[:, h] * mask[:, h]  # actual column data with mask
         diff = actual - expected
 
-        data_var[:, h] = abs(stand_spec[h] * profile[:, h]) / gain + \
-                            back_var[:, h] + read_noise
+        data_var[:, h] = abs(stand_spec[h] * profile[:, h]) / gain + back_var[:, h] + read_noise
         noise_rev = 1 / np.sqrt(data_var[:, h])
         diff_save[:, h] = diff * noise_rev
-        # track rejected mismatch between profiles based on s_clip value
-        reject_index = np.nonzero(((np.abs(diff) - np.abs(diff_aver[:, h]))
-                                    * noise_rev) >= s_clip)[0]
+        reject_index = np.nonzero(((np.abs(diff) - np.abs(diff_aver[:, h])) * noise_rev) >= s_clip)[0]
 
         while len(reject_index) > 0:
-            # find and remove the worst mismatch
-            worst = np.argmax((np.abs(diff) - np.abs(diff_aver[:, h]))
-                                * noise_rev)
+
+            worst = np.argmax((np.abs(diff) - np.abs(diff_aver[:, h])) * noise_rev)
             reject_tracker[h] = reject_tracker[h] + 1
+
             mask[worst, h] = 0
-            # (re-)calculate the optimal extraction
-            denom = np.sum(profile[:, h] * profile[:, h] * mask[:, h]
-                            / data_var[:, h])
-            stand_spec[h] = np.sum(profile[:, h] * mask[:, h] * stripe[:, h]
-                                    / data_var[:, h]) / denom
+
+            denom = np.sum(profile[:, h] * profile[:, h] * mask[:, h] / data_var[:, h])
+
+            stand_spec[h] = np.sum(profile[:, h] * mask[:, h] * stripe[:, h] / data_var[:, h]) / denom
 
             expected = profile[:, h] * mask[:, h] * stand_spec[h]
             actual = stripe[:, h] * mask[:, h]
             diff = actual - expected
 
-            data_var[:, h] = abs(stand_spec[h] * profile[:, h]) / gain + \
-                                back_var[:, h] + read_noise
+            data_var[:, h] = abs(stand_spec[h] * profile[:, h]) / gain + back_var[:, h] + read_noise
             noise_rev = 1 / np.sqrt(data_var[:, h])
             # diff_save[:,h] = diff*noise_rev
-            reject_index = np.nonzero(((np.abs(diff) - np.abs(
-                diff_aver[:, h])) * noise_rev) >= s_clip)[0]
-            # if more than half the pixels in a column have been rejected,
-            # reject the whole column
-            if np.count_nonzero(actual[3:-5]) < len(profile[3:-5, h]) / 2.:
+            reject_index = np.nonzero(((np.abs(diff) - np.abs(diff_aver[:, h])) * noise_rev) >= s_clip)[0]
+
+            if np.count_nonzero(actual[3:-5]) < len(profile[3:-5, h]) /2.:
                 reject_index = np.array([])
                 mask[:, h] = 0
                 flux[h] = 0
                 log.warning(f'Too many bad pixels in column {h}, reject column')
-        # if the column is still considered good after all the rejections
-        # are complete, calculate a final optimal extraction
         if np.count_nonzero(mask[:, h]) > 0:
-            denom = np.sum(profile[:, h] * profile[:, h] * mask[:, h] /
-                            data_var[:, h])
-            flux[h] = np.sum(profile[:, h] * mask[:, h] * stripe[:, h] /
-                                data_var[:, h]) / denom
+            denom = np.sum(profile[:, h] * profile[:, h] * mask[:, h] / data_var[:, h])
+            flux[h] = np.sum(profile[:, h] * mask[:, h] * stripe[:, h] / data_var[:, h]) / denom
             var[h] = np.sum(profile[:, h] * mask[:, h]) / denom
-    # from the optimal extraction, values of 0 in the flux are bad pixels
+
+    # TODO: possible optimization, refacter after regression tests pass
+    # reject_step(back_var, data_var, debug_level, diff_aver, diff_save, flux, gain, good_disp, mask, profile, read_noise,
+    #         reject_tracker, s_clip, stand_spec, stripe, var)
+
     flux[flux == 0] = np.nan
     var[var == 0] = np.nan
+
     stand_spec0[stand_spec0 == 0] = np.nan
-    # check to see if the total rejected pixels in a stripe is significant
+    stand_err[stand_err == 0] = np.nan
+
     total_count = np.sum(reject_tracker > 0)
-    # rejection fraction limit, found by instrument team
-    substantial_count = np.sum(
-        np.abs(stand_spec0 - stand_spec)[reject_tracker > 0] > 0.005 *
-        (stand_spec0[reject_tracker > 0]))
+    substantial_count = np.sum(np.abs(stand_spec0 - stand_spec)[reject_tracker > 0] > 0.005 * (stand_spec0[reject_tracker > 0]))
     irrelevant_count = total_count - substantial_count
 
     if total_count > 0:
-        log.fullinfo(
-            f'Rejected {np.sum(reject_tracker):.0f} pixels in ' +
-            f'{total_count} columns during optimal extraction.')
-        irrelevant_count_percentage = irrelevant_count / total_count * 100
+        log.fullinfo(f'Rejected {np.sum(reject_tracker):.0f} pixels in {total_count} columns during optimal extraction.')
+        irrelevant_count_percentage = irrelevant_count/total_count*100
         if irrelevant_count_percentage > 30:
-            log.warning(
-                f'Rejections with flux changes < 0.5%: {irrelevant_count}' +
-                f'({irrelevant_count_percentage:.0f}%)')
+            log.warning(f'Rejections with flux changes < 0.5%: {irrelevant_count} ({irrelevant_count_percentage:.0f}%)')
         else:
-            log.info(
-                f'Rejections with flux changes < 0.5%: {irrelevant_count}' +
-                f'({irrelevant_count_percentage:.0f}%)')
+            log.fullinfo(f'Rejections with flux changes < 0.5%: {irrelevant_count} ({irrelevant_count_percentage:.0f}%)')
     else:
-        log.info('No rejections')
+        log.fullinfo('No rejections')
 
     # return all intermediate results for debugging/testing
     if full_output:
-        return flux, var, stand_spec0, stand_spec_err, \
-            {'noise': var, 'acceptancemask': mask, "stripe": stripe,
-                                        "initial_sigma": diff_save}
-    return flux, var, stand_spec0, stand_spec_err, {'noise': var}
+        return flux, var, stand_spec0, stand_err, {'noise': var, 'acceptancemask': mask, "stripe": stripe,
+                                    "initial_sigma": diff_save}  # {'noise': var, 'profile': profile, 'rejectionmask': sparse.csr_matrix(mask),
+    # 'expected': expected, 'actual': actual}
+    return flux, var, stand_spec0, stand_err, {'noise': var}
 
 #@staticmethod
 def _box_extract_single_stripe(stripe=None, mask=None):
