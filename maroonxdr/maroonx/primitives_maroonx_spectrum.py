@@ -367,6 +367,10 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         ref_file = params.get('ref_file')
 
         for ad in adinputs:
+            if "ETALON" not in ad.tags:
+                log.warning(f"File {ad.filename} is not ETALON. Skipping dynamic wavelength solution fitting.")
+                continue
+
             # Load the etalon spectrum
             mx_spectrum = MXSpectrum(ad, etalon_peaks_symmetric=symmetric_linefits)
             log.info(f'Processing etalon file: {ad.filename}')
@@ -456,11 +460,10 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     drifts[fiber] = drift
                     #drifts = np.append(drifts, drift)
                 
-            # ============================================================== OK line
-
+            # ==============================================================
+            # This should probably be splitted into a separate primitive
 
             # Create new wls from etalon peaks based on the fitted etalon gap size and dispersion model.
-
             wave = {}
 
             new_peak_data = []
@@ -535,8 +538,8 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
             # Save meassured drift in header entries
             for fiber in fibers:
-                ad[0].hdr[f'DRIFT_FIBER_{fiber}'] = (drifts[fiber], "Drift in m/s")
-                log.info(f"Drift for fiber {fiber}: {drifts[fiber]} m/s")
+                ad[0].hdr[f'DRIFT_FIBER_{fiber}'] = (round(drifts[fiber], 2), "Drift in m/s")
+                log.info(f"Drift for fiber {fiber}: {round(drifts[fiber], 2)} m/s")
 
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
@@ -574,88 +577,4 @@ def _peak_to_wavelength_spline(mm, pars):
 def _fc2min(p, m, etalonwl):
     # residuals are in 'nm' not m/s. Good? bad? Should we normalize?
     return _peak_to_wavelength_spline(m, p) - etalonwl
-
-# ============================================================================================================================
-# ============================================================================================================================
-
-def fitAndApplyEtalonWlsOLD(self, adinputs, plot_path=None, ref_file=None, ref_fiber=None, symmetric_linefits=False):
-    """
-    This step computes a new spline-based dynamical wavelength solution for each fiber using etalon paramters that
-    are provided as a config file, and a initial solution generated from a DTTTE file.  The lines in the spectra
-    are identified based on the initial spectrum, which assigns a corresponding wavelength to each pixel.  Then
-    this is fitted to a 30 knot spline to find the new dynamic wavelength solution.
-
-    Parameters:
-    -----------
-    adinputs: list of AstroData objects with 1D box extracted spectra (PEAKS and POLY extensions)
-    fibers: list of ints
-        Fibers containing Etalon spectra
-    plot_path: str
-        If path is not none, save plots to this path.
-    ref_file: str
-        Absolute path and filename containing reduced and fitted etalon spectra.
-        This input is only used for the drift correction step.
-    ref_fiber: int
-        Which fiber to use as the reference fiber if a reference spectrum was provided.
-        This input is only used for the drift correction step.
-
-    Returns:
-    --------
-    adinputs with a new extension containing the spline based wavelength solution
-    """
-    log = self.log
-    log.debug(gt.log_message("primitive", self.myself(), "starting"))
-
-    # Determine tag for log and plot filename
-    if symmetric_linefits:
-        tag  = '_spline_symmetrical'
-    else:
-        tag = '_spline'
-    if ref_file is not None:
-        tag = tag + '_ref'
-
-    for adinput in adinputs:
-        # Create pdf for plots
-        filename = adinput.filename
-        pp = PdfPages(filename[:-4] + tag + '.pdf')
-        try:
-            # Load etalon spectrum
-            mx_obj = MXSpectrum(adinput, etalon_peaks_symmetric=symmetric_linefits)
-
-            log.info(f'Etalon file: {filename}')
-            fiber2_obj = mx_obj.spectra[2]
-            fiber3_obj = mx_obj.spectra[3]
-            fiber4_obj = mx_obj.spectra[4]
-            fiber5_obj = mx_obj.spectra[5]
-            
-            fiber2_peak_data = fiber2_obj.peak_data
-            print(fiber2_peak_data)
-        except Exception as e:
-            log.error(f'Error processing file: {filename}')
-            log.error(f'Exception: {e}')
-            continue
-
-    if ref_file is not None:
-        ref_peaks = ref_file[0].PEAKS[ref_file[0].PEAKS['FIBER'] == ref_fiber]
-        peak_centers = ref_peaks["CENTER"]
-        # TODO: Ask Andreas what this is supposed to do because currently
-        # we do not know how this works in the old pipeline
-
-    for ad in adinputs:
-        # Set the location of the plot file
-        if plot_path is not None:
-            plot_file = plot_path + '/' + adinputs[0].filename + tag + '.png'
-            
-        # Load the reference spectrum from config
-        wavelength_file = maroonx_utils.get_refwavelength_filename(ad)
-        wave_dict = ad.open(wavelength_file)
-        log.fullinfo(f"Using reference file {wavelength_file} for wavelength solution")
-        if symmetric_linefits:
-            etalon = MXSpectrum(ad, etalon_peaks_symmetric=True)
-        else:
-            etalon = MXSpectrum(ad)
-        for fiber in fibers:
-            # Guess the peak numbers in the measured spectrum
-            peak_numbers = guess_peak_numbers(self, reduced_fiber, peak_data, poly_data)
-        return adinputs
 
