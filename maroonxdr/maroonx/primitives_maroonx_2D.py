@@ -329,6 +329,50 @@ class MAROONX(Gemini, CCD, NearIR):
                 adoutputs.append(ad)
         return adoutputs
 
+    def checkMaster(self, adinputs=None, **params):
+        """
+        Check that MX frames are processed master frames.
+
+        Parameters
+        ----------
+        adinputs - list of un-checked MX frames
+
+        Returns
+        -------
+        adoutputs - set of list that passes test,  always at least first frame
+        """
+        log = self.log
+
+        # find first object's MX-camera
+        master_type = (
+            'DARK'
+            if 'DARK' in adinputs[0].tags
+            else 'FLAT'
+            if 'FLAT' in adinputs[0].tags
+            else 'UNDEFINED'
+        )
+        if master_type == 'UNDEFINED':
+            error_msg = f'{adinputs[0].filename} unknown master type'
+            log.error(error_msg)
+            raise ValueError(error_msg)
+
+        # these tags should define a master frame unique set of tags
+        required_tags = {master_type, "PROCESSED"}
+
+        # include other objects in list with required tags
+        # Warn user and toss frame if not all frames comply
+        adoutputs = []
+        for ad in adinputs:
+
+            if not required_tags.issubset(ad.tags):
+                warning_msg = f'Tossing non-master {master_type} frame: {ad.filename}.'
+                log.warning(warning_msg)
+                continue
+
+            ad.update_filename(suffix=params['suffix'], strip=True)
+            adoutputs.append(ad)
+        return adoutputs
+
     def correctImageOrientation(self, adinputs=None, **params):
         """
         Correct image orientation to proper echelle format for MAROON-X.
@@ -1682,6 +1726,7 @@ class MAROONX(Gemini, CCD, NearIR):
             "20241114T181028Z_DFFFD_r_0002": legacy_path / "20241114T18_masterflat_DFFFD_r_0002.npy",
             "20241114T190714Z_DDDDF_b_0007": legacy_path / "20241114T19_masterflat_DDDDF_b_0007.npy",
             "20241114T190714Z_DDDDF_r_0002": legacy_path / "20241114T19_masterflat_DDDDF_r_0002.npy",
+            "20241124T041907Z_SOOOE_b_0300": legacy_path / "20241124T041907Z_SOOOE_b_0300_backgroundfit_straylight.npy",
         }
 
         adoutputs = []
@@ -1887,6 +1932,113 @@ class MAROONX(Gemini, CCD, NearIR):
 
         return adoutputs
 
+    def fitDarkCoefficients(self, adinputs=None, **params):
+        """
+        Construct coefficients for a log-linear fit of flux in master darks vs. exposure time.
+        
+        Parameters
+        ----------
+        adinputs : list of AstroData
+            Input frames to be combined
+        suffix : str
+            Suffix to be added to output files
+            
+        Returns
+        -------
+        list of AstroData
+            Combined output frame
+        """
+        log = self.log
+        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
+        timestamp_key = self.timestamp_keys[self.myself()]
+
+        # Validate inputs
+        if len(adinputs) < 5:
+            raise ValueError(f"Need at least 5 dark frames for fitting, got {len(adinputs)}")
+        
+       
+        # Extract data and metadata from AstroData objects
+        framelist = []
+        exposuretimes = []
+        ndfilter = []
+        filenames = []
+        
+        for ad in adinputs:
+            # Get the data as float32
+            frame = ad[0].data.astype(np.float32)
+            framelist.append(frame)
+            
+            # Get exposure time
+            exptime = ad.exposure_time()
+            exposuretimes.append(float(exptime))
+            
+            # Get ND filter position
+            nd_pos = float(ad[0].hdr['HIERARCH MAROONX ND POSITION'])
+            ndfilter.append(nd_pos)
+            
+            filenames.append(ad.filename)
+        
+        # Sort by exposure time (convert to lists with indices to maintain correspondence)
+        sorted_indices = sorted(range(len(exposuretimes)), key=lambda i: exposuretimes[i])
+        
+        framelist = [framelist[i] for i in sorted_indices]
+        exposuretimes = [exposuretimes[i] for i in sorted_indices]
+        ndfilter = [ndfilter[i] for i in sorted_indices]
+        filenames = [filenames[i] for i in sorted_indices]
+        
+        log.debug("Input files sorted by exposure time:")
+        for filename, exptime in zip(filenames, exposuretimes):
+            log.debug(f"  {filename}: {exptime}s")
+        
+        # Create data cube
+        log.fullinfo("Creating data cube from individual frames")
+        cube = np.dstack(tuple(framelist))
+        
+        # Convert to log space for fitting
+        exposuretimes = np.array(exposuretimes)
+        logexptime = np.log10(exposuretimes)
+        
+        log.fullinfo("Fitting log-linear coefficients")
+        # Initialize coefficient arrays
+        z0 = np.empty(cube.shape[0:2], dtype=float)
+        z1 = np.empty(cube.shape[0:2], dtype=float)
+        
+        # Fit polynomials
+        for x in range(z0.shape[0]):
+            for y in range(z0.shape[1]):
+                z = np.polyfit(logexptime, cube[x, y, :], 1)
+                z0[x, y] = z[0]
+                z1[x, y] = z[1]
+        
+        log.fullinfo("Polynomial fitting completed")
+        
+        # Create output AstroData object based on first input
+        ad_out = deepcopy(adinputs[0])
+
+        # Main data array is emptied
+        ad_out[0].data = np.zeros((1, 1))
+
+        # Store coefficient arrays as extensions
+        ad_out[0].DARK_COEFF_Z0 = z0
+        ad_out[0].DARK_COEFF_Z1 = z1  
+
+        # Create table for exposure time information
+        exptime_table = Table()
+        exptime_table['logexptime'] = logexptime
+        exptime_table['exptime'] = exposuretimes
+        exptime_table['filenames'] = filenames
+        ad_out[0].DARK_LOGEXPTIME = exptime_table
+        
+        # Update metadata
+        ad_out.phu.set('NCOMBINE', len(adinputs), 'Number of darks used for coefficients')
+                
+        # Timestamp and update filename
+        gt.mark_history(ad_out, primname=self.myself(), keyword=timestamp_key)
+        ad_out.update_filename(suffix=params['suffix'], strip=False)
+        
+        log.fullinfo(f"Dark coefficient arrays written to {ad_out.filename}")
+        
+        return [ad_out]
 
 ##############################################################################
 # Below are the helper functions for the primitives in this module           #

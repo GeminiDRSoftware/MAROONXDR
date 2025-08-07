@@ -13,4 +13,5 @@ timestamp_keys = {
     "darkSubtraction": "SCIENCE_DARK_EXTENSION_SUBTRACTED",
     "staticWavelengthSolution": "STATIC_WAVELENGTH_APPLIED",
     "fitAndApplyEtalonWls": "DYNAMIC_WAVELENGTH_APPLIED",
+    "fitDarkCoefficients": "DARK_COEFFICIENTS_FITTED",
 }

@@ -23,6 +23,13 @@ class checkArmConfig(config.Config):
     suffix = config.Field('Filename suffix', str, '')
 
 
+class checkMasterConfig(config.Config):
+    """
+    This parameter set controls the checkMaster primitive for MAROON-X.
+    """
+
+    suffix = config.Field('Filename suffix', str, '')
+
 class checkNDConfig(config.Config):
     """
     This parameter set controls the checkND primitive for MAROON-X.
@@ -176,6 +183,14 @@ class validateDataConfig(parameters_standardize.validateDataConfig):
 class splitBundleConfig(config.Config):
     """
     This parameter set controls the splitBundle primitive for MAROON-X.
+    """
+
+    suffix = config.Field('Filename suffix', str, '')
+
+
+class fitDarkCoefficientsConfig(config.Config):
+    """
+    This parameter set controls the fitDarkCoefficients primitive for MAROON-X.
     """
 
     suffix = config.Field('Filename suffix', str, '')

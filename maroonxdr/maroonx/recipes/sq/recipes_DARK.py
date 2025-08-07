@@ -41,6 +41,24 @@ def makeProcessedDark(p):
 
 _default = makeProcessedDark
 
+def makeDarkCoefficients(p):
+    """
+    This recipe produces the coefficient arrays 'z0' and 'z1' from a 
+    pixel-by-pixel fit of the relationship F = z1 + z0 * log10(Texp). The input 
+    is a list of MASTER darks created from raw dark files. The input should 
+    cover a wide range of exposure times and can have multiple master dark 
+    files with the same exposure time. Master darks with non-standard ND filter 
+    settings should be avoided (they will not fit the same relationship as 
+    the other frames).
+    """
+    p.prepare()
+    p.checkArm()
+    p.checkMaster()
+    # p.checkND()
+    p.fitDarkCoefficients()
+    p.storeProcessedDark(suffix="_darkCoefficients")
+
+
 def testVARDark(p):
     """
     This recipe produces a dark frame with an additional variance plane added to it.
