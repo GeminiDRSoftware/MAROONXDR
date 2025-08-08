@@ -15,37 +15,25 @@ from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 
 
 # =========================================================
-# FILES TO COMPARE
-# =========================================================
-
-OLD_FILES_PATH = Path("/home/martin/Projects/MaroonX/legacy/maroonx_base/data2/MaroonX_spectra_reduced/Maroonx_masterframes/202411xx/flats")
-NEW_FILES_PATH = Path("/home/martin/Projects/MaroonX/MAROONXDR/calibrations/processed_flat")
-
-SCIENCE_DIR = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir')
-
-# =========================================================
 # TESTS
 # =========================================================
-# The following tests should be sorted in order of pipeline
-# output order to make it easier to traceback errors
 
 
-@pytest.mark.parametrize("arm", ["BLUE", "RED"])
-def test_stackFlats(arm):
+def test_stackFlats(arm, legacy_flats_path, science_dir):
     """
     Needs legacy output of step 1, create master flats: 
     reduce/recipes/make_master_flats.py
     """
 
     if arm == "BLUE":
-        old_DFFFD = OLD_FILES_PATH / "20241114T18_masterflat_DFFFD_b_0008.fits"
-        old_DDDDF = OLD_FILES_PATH / "20241114T19_masterflat_DDDDF_b_0007.fits"
+        old_DFFFD = legacy_flats_path / "20241114T18_masterflat_DFFFD_b_0008.fits"
+        old_DDDDF = legacy_flats_path / "20241114T19_masterflat_DDDDF_b_0007.fits"
     else:
-        old_DFFFD = OLD_FILES_PATH / "20241114T18_masterflat_DFFFD_r_0002.fits"
-        old_DDDDF = OLD_FILES_PATH / "20241114T19_masterflat_DDDDF_r_0002.fits"
+        old_DFFFD = legacy_flats_path / "20241114T18_masterflat_DFFFD_r_0002.fits"
+        old_DDDDF = legacy_flats_path / "20241114T19_masterflat_DDDDF_r_0002.fits"
 
     # get all flat files
-    raw_files = sorted([str(f) for f in SCIENCE_DIR.glob('*.fits')])
+    raw_files = sorted([str(f) for f in science_dir.glob('*.fits')])
     selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'FLAT', arm])
 
     # read files and instantiate the primitive class
@@ -72,22 +60,20 @@ def test_stackFlats(arm):
         np.testing.assert_allclose(ad_DFFFD[0].data, hdu_DFFFD[0].data,
             rtol=1e-5, atol=1e-5)
 
-
-@pytest.mark.parametrize("arm", ["BLUE", "RED"])
-def test_identifyStripes(arm):
+def test_identifyStripes(arm, legacy_flats_path, science_dir):
     """
     Needs legacy output of step 1, create master flats: 
     reduce/extraction.py
     """
     if arm == "BLUE":
-        old_DFFFD = OLD_FILES_PATH / "20241114T18_masterflat_DFFFD_b_0008.hdf"
-        old_DDDDF = OLD_FILES_PATH / "20241114T19_masterflat_DDDDF_b_0007.hdf"
+        old_DFFFD = legacy_flats_path / "20241114T18_masterflat_DFFFD_b_0008.hdf"
+        old_DDDDF = legacy_flats_path / "20241114T19_masterflat_DDDDF_b_0007.hdf"
     else:
-        old_DFFFD = OLD_FILES_PATH / "20241114T18_masterflat_DFFFD_r_0002.hdf"
-        old_DDDDF = OLD_FILES_PATH / "20241114T19_masterflat_DDDDF_r_0002.hdf"
+        old_DFFFD = legacy_flats_path / "20241114T18_masterflat_DFFFD_r_0002.hdf"
+        old_DDDDF = legacy_flats_path / "20241114T19_masterflat_DDDDF_r_0002.hdf"
 
     # get all flat files
-    raw_files = sorted([str(f) for f in SCIENCE_DIR.glob('*.fits')])
+    raw_files = sorted([str(f) for f in science_dir.glob('*.fits')])
     selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'FLAT', arm])
 
     # read files and instantiate the primitive class
@@ -124,21 +110,20 @@ def test_identifyStripes(arm):
             np.testing.assert_allclose(p_id_DFFFD[fiber][order], old_p_id_DFFFD[fiber][order],
                 rtol=1e-5, atol=1e-5)
 
-@pytest.mark.parametrize("arm", ["BLUE", "RED"])
-def test_identifyStripes_legacyOrder(arm):
+def test_identifyStripes_legacyOrder(arm, legacy_flats_path, science_dir):
     """
     Needs legacy output of step 1, create master flats: 
     reduce/extraction.py
     """
     if arm == "BLUE":
-        old_DFFFD = OLD_FILES_PATH / "20241114T18_masterflat_DFFFD_b_0008.hdf"
-        old_DDDDF = OLD_FILES_PATH / "20241114T19_masterflat_DDDDF_b_0007.hdf"
+        old_DFFFD = legacy_flats_path / "20241114T18_masterflat_DFFFD_b_0008.hdf"
+        old_DDDDF = legacy_flats_path / "20241114T19_masterflat_DDDDF_b_0007.hdf"
     else:
-        old_DFFFD = OLD_FILES_PATH / "20241114T18_masterflat_DFFFD_r_0002.hdf"
-        old_DDDDF = OLD_FILES_PATH / "20241114T19_masterflat_DDDDF_r_0002.hdf"
+        old_DFFFD = legacy_flats_path / "20241114T18_masterflat_DFFFD_r_0002.hdf"
+        old_DDDDF = legacy_flats_path / "20241114T19_masterflat_DDDDF_r_0002.hdf"
 
     # get all flat files
-    raw_files = sorted([str(f) for f in SCIENCE_DIR.glob('*.fits')])
+    raw_files = sorted([str(f) for f in science_dir.glob('*.fits')])
     selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'FLAT', arm])
 
     # read files and instantiate the primitive class
@@ -191,21 +176,19 @@ def test_identifyStripes_legacyOrder(arm):
             np.testing.assert_allclose(p_id_DFFFD[fiber][order], old_p_id_DFFFD[fiber][order],
                 rtol=1e-5, atol=1e-5)
 
-
 #@pytest.mark.xfail(reason="Photutils Background2D changed from 1.02 to 2.02")
-@pytest.mark.parametrize("arm", ["BLUE", "RED"])
-def test_removeStraylight(arm):
+def test_removeStraylight(arm, legacy_flats_path, science_dir):
     # This test does not subtract overscan twice as test_removeStraylight_legacyOrder does.
 
     if arm == "BLUE":
-        old_DFFFD = OLD_FILES_PATH / "20241114T18_masterflat_backgroundsubtracted_DFFFD_b_0008.fits"
-        old_DDDDF = OLD_FILES_PATH / "20241114T19_masterflat_backgroundsubtracted_DDDDF_b_0007.fits"
+        old_DFFFD = legacy_flats_path / "20241114T18_masterflat_backgroundsubtracted_DFFFD_b_0008.fits"
+        old_DDDDF = legacy_flats_path / "20241114T19_masterflat_backgroundsubtracted_DDDDF_b_0007.fits"
     else:
-        old_DFFFD = OLD_FILES_PATH / "20241114T18_masterflat_backgroundsubtracted_DFFFD_r_0002.fits"
-        old_DDDDF = OLD_FILES_PATH / "20241114T19_masterflat_backgroundsubtracted_DDDDF_r_0002.fits"
+        old_DFFFD = legacy_flats_path / "20241114T18_masterflat_backgroundsubtracted_DFFFD_r_0002.fits"
+        old_DDDDF = legacy_flats_path / "20241114T19_masterflat_backgroundsubtracted_DDDDF_r_0002.fits"
 
     # get all flat files
-    raw_files = sorted([str(f) for f in SCIENCE_DIR.glob('*.fits')])
+    raw_files = sorted([str(f) for f in science_dir.glob('*.fits')])
     selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'FLAT', arm])
 
     # read files and instantiate the primitive class
@@ -249,18 +232,17 @@ def test_removeStraylight(arm):
             rtol=1e-5, atol=1e-5)
 
 #@pytest.mark.xfail(reason="Photutils Background2D changed from 1.02 to 2.02")
-@pytest.mark.parametrize("arm", ["BLUE", "RED"])
-def test_removeStraylight_legacyOrder(arm):
+def test_removeStraylight_legacyOrder(arm, legacy_flats_path, science_dir):
 
     if arm == "BLUE":
-        old_DFFFD = OLD_FILES_PATH / "20241114T18_masterflat_backgroundsubtracted_DFFFD_b_0008.fits"
-        old_DDDDF = OLD_FILES_PATH / "20241114T19_masterflat_backgroundsubtracted_DDDDF_b_0007.fits"
+        old_DFFFD = legacy_flats_path / "20241114T18_masterflat_backgroundsubtracted_DFFFD_b_0008.fits"
+        old_DDDDF = legacy_flats_path / "20241114T19_masterflat_backgroundsubtracted_DDDDF_b_0007.fits"
     else:
-        old_DFFFD = OLD_FILES_PATH / "20241114T18_masterflat_backgroundsubtracted_DFFFD_r_0002.fits"
-        old_DDDDF = OLD_FILES_PATH / "20241114T19_masterflat_backgroundsubtracted_DDDDF_r_0002.fits"
+        old_DFFFD = legacy_flats_path / "20241114T18_masterflat_backgroundsubtracted_DFFFD_r_0002.fits"
+        old_DDDDF = legacy_flats_path / "20241114T19_masterflat_backgroundsubtracted_DDDDF_r_0002.fits"
 
     # get all flat files
-    raw_files = sorted([str(f) for f in SCIENCE_DIR.glob('*.fits')])
+    raw_files = sorted([str(f) for f in science_dir.glob('*.fits')])
     selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'FLAT', arm])
 
     # read files and instantiate the primitive class
@@ -313,17 +295,15 @@ def test_removeStraylight_legacyOrder(arm):
         np.testing.assert_allclose(ad_DFFFD[0].data, hdu_DFFFD[0].data,
             rtol=1e-5, atol=1e-5)
 
-
-@pytest.mark.parametrize("arm", ["BLUE", "RED"])
-def test_combinedFlat(arm):
+def test_combinedFlat(arm, legacy_flats_path, science_dir):
 
     if arm == "BLUE":
-        old_DFFFF = OLD_FILES_PATH / "20241114T19_masterflat_backgroundsubtracted_FFFFF_b_0007.hdf"
+        old_DFFFF = legacy_flats_path / "20241114T19_masterflat_backgroundsubtracted_FFFFF_b_0007.hdf"
     else:
-        old_DFFFF = OLD_FILES_PATH / "20241114T19_masterflat_backgroundsubtracted_FFFFF_r_0002.hdf"
+        old_DFFFF = legacy_flats_path / "20241114T19_masterflat_backgroundsubtracted_FFFFF_r_0002.hdf"
 
     # get all flat files
-    raw_files = sorted([str(f) for f in SCIENCE_DIR.glob('*.fits')])
+    raw_files = sorted([str(f) for f in science_dir.glob('*.fits')])
     selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'FLAT', arm])
 
     # read files and instantiate the primitive class

@@ -1,6 +1,7 @@
 import re
 import numpy as np
 import pytest
+from copy import deepcopy
 from pathlib import Path
 
 from astropy.io import fits
@@ -15,31 +16,15 @@ from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 
 
 # =========================================================
-# FILES TO COMPARE
-# =========================================================
-
-# Paths to masterdarks coefficient files
-# COEFF_OUTPUT_PATH = Path("/home/martin/Documentos/Projects/MaroonX/maroonx_base/data2/MaroonX_spectra_reduced/Maroonx_masterframes/202411xx/darks/")
-# COEFF_REFERENCE_PATH = Path("/home/martin/Documentos/Projects/MaroonX/resources/Martín_setup/darks/")
-
-# Paths to real masterdarks files
-OLD_FILES_PATH = Path("/home/martin/Projects/MaroonX/legacy/maroonx_base/data2/MaroonX_spectra_reduced/Maroonx_masterframes/202411xx/darks")
-NEW_FILES_PATH = Path("/home/martin/Projects/MaroonX/MAROONXDR/calibrations/processed_dark")
-
-SCIENCE_DIR = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir')
-
-PROCESSED_DARK = Path('/home/martin/Projects/MaroonX/MAROONXDR/calibrations/processed_dark')
-
-# =========================================================
 # TESTS
 # =========================================================
 
-def test_masterdark():
+def test_masterdark(legacy_darks_path, science_dir):
 
-    old_file = OLD_FILES_PATH / "20241115T19_masterdark_mean_DDDDE_b_0300.fits"
+    old_file = legacy_darks_path / "20241115T19_masterdark_mean_DDDDE_b_0300.fits"
     
     # get all flat files
-    raw_files = sorted([str(f) for f in SCIENCE_DIR.glob('*.fits')])
+    raw_files = sorted([str(f) for f in science_dir.glob('*.fits')])
     selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'DARK', 'BLUE', '300s'])
 
     # read files and instantiate the primitive class
@@ -67,20 +52,27 @@ def test_masterdark():
             err_msg='Data mismatch')
 
 
-@pytest.mark.parametrize("arm", ["BLUE", "RED"])
-def test_fitDarkCoefficients(arm):
+@pytest.mark.slow
+def test_fitDarkCoefficients(arm, legacy_darks_path, processed_dark_path):
 
-    old_file = OLD_FILES_PATH / f"masterdarks_coeffs_202411xx_{arm.lower()}.npz"
-    old_coeffs = np.load(old_file)
+    legacy_file = legacy_darks_path / f"masterdarks_coeffs_202411xx_{arm.lower()}.npz"
+    legacy_coeffs = np.load(legacy_file)
 
     # get all dark files
-    all_files = sorted([str(f) for f in PROCESSED_DARK.glob('*.fits')])
-    selected_dark = dataselect.select_data(all_files, tags=['PROCESSED', 'DARK', 'BLUE'])
+    all_files = sorted([str(f) for f in processed_dark_path.glob('*.fits')])
+    selected_dark = dataselect.select_data(all_files, tags=['PROCESSED', 'DARK', arm])
 
     # read files and instantiate the primitive class
     adinput = [astrodata.open(f) for f in selected_dark]
-    p = MAROONX(adinput)
+    
+    # copy the file for trimming
+    # need to copy a raw file that does not have the trim overscan keyword applied
+    # legacy_z0_ad = deepcopy(adinput[0])
+    # legacy_z1_ad = deepcopy(adinput[0])
+    # legacy_z0_ad[0].data = legacy_coeffs['z0']
+    # legacy_z1_ad[0].data = legacy_coeffs['z1']
 
+    p = MAROONX(adinput)
     p.prepare()
     p.checkArm()
     p.checkMaster()
@@ -91,15 +83,17 @@ def test_fitDarkCoefficients(arm):
     z1 = adout[0][0].COEFF_Z1
     logexptime = adout[0][0].LOGEXPTIME
 
+    # Trim legacy data
+    legacy_z0 = MAROONX([legacy_z0_ad]).trimOverscan()[0][0].data
+    legacy_z1 = MAROONX([legacy_z1_ad]).trimOverscan()[0][0].data
+
     # Compare the data
-    # np.testing.assert_allclose(z0, old_coeffs['z0'], rtol=1e-5, atol=1e-5, 
+    # np.testing.assert_allclose(z0, legacy_z0, rtol=1e-5, atol=1e-5, 
     #     err_msg='Data mismatch')
-    # np.testing.assert_allclose(z1, old_coeffs['z1'], rtol=1e-5, atol=1e-5, 
+    # np.testing.assert_allclose(z1, legacy_z1, rtol=1e-5, atol=1e-5, 
     #     err_msg='Data mismatch')
     
-    old_coeffs['logexptime']
-    logexptime['logexptime'].value
-    np.testing.assert_allclose(logexptime['logexptime'].value, old_coeffs['logexptime'])
+    np.testing.assert_allclose(logexptime['logexptime'].value, legacy_coeffs['logexptime'])
 
 
 

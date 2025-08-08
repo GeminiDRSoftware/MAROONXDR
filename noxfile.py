@@ -26,6 +26,14 @@ OBSDB_URL = R'https://github.com/GeminiDRSoftware/GeminiObsDB.git@release/1.0.x'
 DRAGONS_BRANCH = 'master'
 DRAGONS_LOCATION = 'DRAGONS/'
 
+PATH = os.path.abspath(os.path.dirname(__file__))
+
+# Define the following paths to be set as environment variables
+NEW_ENV_VARIABLES = {    
+    "MAROONX_LEGACY_TEST": Path("home/martin/Projects/MaroonX/legacy/maroonx_base/data2")
+    "MAROONX_DRAGONS_TEST": Path(PATH)
+}
+
 
 def check_dragons_version(session: nox.Session):
     """Check if dragons is the expected version."""
@@ -209,13 +217,21 @@ def devenv(session: nox.Session):
         external=True,
     )
 
+    # Add environment variables to the activate script
     venv_activate = venv_loc / 'bin' / 'activate'
+        
+    # Append environment variables to the activate script
+    with open(venv_activate, 'a') as f:
+        f.write('\n# Custom environment variables for MAROONXDR\n')
+        for var_name, var_value in NEW_ENV_VARIABLES.items():
+            f.write(f'export {var_name}="{str(var_value)}"\n')
 
     session.log(
         f'Successfully created virtual environment at {venv_loc}! '
         f'To activate your environment, run: \n'
         f'     source {venv_activate}\n'
-    )
+        f'The following env variables are available: \n'
+    )   f'     {list(NEW_ENV_VARIABLES.keys())}'
 
     # session.notify('initialize_commit_hooks')
 
