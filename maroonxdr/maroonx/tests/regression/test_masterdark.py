@@ -28,6 +28,8 @@ NEW_FILES_PATH = Path("/home/martin/Projects/MaroonX/MAROONXDR/calibrations/proc
 
 SCIENCE_DIR = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir')
 
+PROCESSED_DARK = Path('/home/martin/Projects/MaroonX/MAROONXDR/calibrations/processed_dark')
+
 # =========================================================
 # TESTS
 # =========================================================
@@ -63,3 +65,49 @@ def test_masterdark():
         # Compare the data
         np.testing.assert_allclose(old_data, new_data, rtol=1e-5, atol=1e-5, 
             err_msg='Data mismatch')
+
+
+@pytest.mark.parametrize("arm", ["BLUE", "RED"])
+def test_fitDarkCoefficients(arm):
+
+    old_file = OLD_FILES_PATH / f"masterdarks_coeffs_202411xx_{arm.lower()}.npz"
+    old_coeffs = np.load(old_file)
+
+    # get all dark files
+    all_files = sorted([str(f) for f in PROCESSED_DARK.glob('*.fits')])
+    selected_dark = dataselect.select_data(all_files, tags=['PROCESSED', 'DARK', 'BLUE'])
+
+    # read files and instantiate the primitive class
+    adinput = [astrodata.open(f) for f in selected_dark]
+    p = MAROONX(adinput)
+
+    p.prepare()
+    p.checkArm()
+    p.checkMaster()
+    # p.checkND()
+    adout = p.fitDarkCoefficients()
+
+    z0 = adout[0][0].COEFF_Z0
+    z1 = adout[0][0].COEFF_Z1
+    logexptime = adout[0][0].LOGEXPTIME
+
+    # Compare the data
+    # np.testing.assert_allclose(z0, old_coeffs['z0'], rtol=1e-5, atol=1e-5, 
+    #     err_msg='Data mismatch')
+    # np.testing.assert_allclose(z1, old_coeffs['z1'], rtol=1e-5, atol=1e-5, 
+    #     err_msg='Data mismatch')
+    
+    old_coeffs['logexptime']
+    logexptime['logexptime'].value
+    np.testing.assert_allclose(logexptime['logexptime'].value, old_coeffs['logexptime'])
+
+
+
+# =====================================================
+# Helper functions
+# =====================================================
+
+
+def old_trim():
+    # old dark coefficient need trimminig before comparisson
+    ...

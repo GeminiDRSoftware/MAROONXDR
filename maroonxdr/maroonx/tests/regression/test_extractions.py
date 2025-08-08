@@ -137,6 +137,95 @@ def test_extractStripes_fromFlat(arm):
 
 
 @pytest.mark.parametrize("arm", ["BLUE"])
+def test_extractStripes_fromScience(arm):
+
+    # old_flat = OLD_FLAT_FILES_PATH / "20241114T19_masterflat_backgroundsubtracted_FFFFF_b_0007.hdf"
+    
+    old_science = OLD_FILES_PATH / "20241124T041907Z_SOOOE_b_0300.hdf"
+    LEGACY_TEST_NPY_PATH = OLD_BASE_PATH.parent / "legacy_bkg_arrays"
+    legacy_npy = LEGACY_TEST_NPY_PATH / "20241124T041907Z_SOOOE_b_0300_test.npy"
+    legacy_dict = np.load(legacy_npy, allow_pickle=True).item()
+    # legacy_dict.keys() has the following keys:
+    # dict_keys(['raw', 'bias_corrected', 'overscan_removed', 'orientation_corrected', 'dark_science', 'back_var', 'index_fiber', 'index_order', 'mask', 'science_straylight_removed'])
+
+    # read files and instantiate the primitive class
+    raw_files = sorted([str(f) for f in SCIENCE_DIR.glob('20241124T041907Z_SOOOE_*.fits')])
+    
+    selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'SCI', arm])
+
+    # Primitives
+    adinput = [astrodata.open(f) for f in selected_spect]
+
+    p = MaroonXSpectrum(adinput)
+    p.prepare()
+    p.checkArm()
+    p.addDQ()
+
+    # p.addVAR() --> SYNTH DARK VARIANCE ?
+
+    # test raw data is the same as legacy
+    np.testing.assert_allclose(
+        p.streams["main"][0][0].data, 
+        legacy_dict['raw'], 
+        rtol=1e-4, atol=1e-4)
+
+    p.subtractOverscan()
+    # test overscan removed data is the same as legacy
+    np.testing.assert_allclose(
+        p.streams["main"][0][0].data, 
+        legacy_dict['bias_corrected'], 
+        rtol=1e-4, atol=1e-4)
+
+    p.trimOverscan()
+    # test overscan removed data is the same as legacy
+    np.testing.assert_allclose(
+        p.streams["main"][0][0].data, 
+        legacy_dict['overscan_removed'], 
+        rtol=1e-4, atol=1e-4)
+
+    p.correctImageOrientation()
+    # test orientation corrected data is the same as legacy
+    np.testing.assert_allclose(
+        p.streams["main"][0][0].data, 
+        legacy_dict['orientation_corrected'], 
+        rtol=1e-4, atol=1e-4)
+
+    p.removeStraylight()
+    # test straylight corrected data is the same as legacy
+    np.testing.assert_allclose(
+        p.streams["main"][0][0].data, 
+        legacy_dict['science_straylight_removed'], 
+        rtol=1e-4, atol=1e-4)
+    # ====================================================== OK line
+
+    p.extractStripes()
+
+    # STRIPES extension is an intermediate dictionary of fibers and orders
+    new_stripes = p.streams["main"][0][0].STRIPES
+
+    fail_counter = 0
+    for f in new_stripes.keys():
+        for o in new_stripes[f].keys():
+            # this function comes from the legacy pipeline
+            mat = load_sparse_mat(f'extracted_stripes/{f}/{o}', str(old_science))
+            
+            legacy_stripe = mat.toarray()
+
+            new_stripe = new_stripes[f][o].toarray()
+            
+            try:
+                np.testing.assert_allclose(legacy_stripe, new_stripe)
+                print(f'fiber/order : {f}/{o} [OK]')
+            except AssertionError as err:
+                fail_counter += 1
+                print(f'fiber/order : {f}/{o} [FAIL]')
+    assert fail_counter == 0
+
+    # ==============================================================
+
+
+
+@pytest.mark.parametrize("arm", ["BLUE"])
 def test_boxExtraction(arm):
 
     old_file = OLD_FILES_PATH / "20241124T162336Z_DEEEE_b_0030.hdf"

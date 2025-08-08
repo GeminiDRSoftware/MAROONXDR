@@ -2019,15 +2019,15 @@ class MAROONX(Gemini, CCD, NearIR):
         ad_out[0].data = np.zeros((1, 1))
 
         # Store coefficient arrays as extensions
-        ad_out[0].DARK_COEFF_Z0 = z0
-        ad_out[0].DARK_COEFF_Z1 = z1  
+        ad_out[0].COEFF_Z0 = z0
+        ad_out[0].COEFF_Z1 = z1  
 
         # Create table for exposure time information
         exptime_table = Table()
         exptime_table['logexptime'] = logexptime
         exptime_table['exptime'] = exposuretimes
         exptime_table['filenames'] = filenames
-        ad_out[0].DARK_LOGEXPTIME = exptime_table
+        ad_out[0].LOGEXPTIME = exptime_table
         
         # Update metadata
         ad_out.phu.set('NCOMBINE', len(adinputs), 'Number of darks used for coefficients')

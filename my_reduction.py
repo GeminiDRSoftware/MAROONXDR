@@ -67,6 +67,18 @@ for exptime, arm in it.product(exptime_tags, arm_tags):
     myreduce.drpkg = 'maroonxdr'
     myreduce.runr()
 
+# master darks coefficients
+calib_darks = Path('/home/martin/Projects/MaroonX/MAROONXDR/calibrations/processed_dark')
+selected_darks = dataselect.select_data(calib_darks, tags=['DARK', 'PROCESSED', 'BLUE'])
+selected_darks = [str(f) for f in selected_darks]
+
+# Run reduce on all selected files
+myreduce = Reduce()
+myreduce.files.extend(selected_darks)
+myreduce.drpkg = 'maroonxdr'
+myreduce.recipename = 'makeDarkCoefficients'
+myreduce.runr()
+
 
 # Step 4 - Extract flux
 arm_tags = ['RED', 'BLUE']
