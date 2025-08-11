@@ -30,7 +30,7 @@ pytest = "^7.3"
 pytest-cov = "^4.1"
 coverage = "^7.4.4"
 tables = "^3.10.2"
-
+h5py = "^3.13.0"
 
 [tool.poetry.group.dev.dependencies]
 coverage = "^7.4.4"

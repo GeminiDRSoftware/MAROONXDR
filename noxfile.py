@@ -11,6 +11,7 @@ sessions, so running ``nox`` in isolation will do nothing.
 
 import re
 from pathlib import Path
+import os
 
 import nox
 
@@ -30,8 +31,8 @@ PATH = os.path.abspath(os.path.dirname(__file__))
 
 # Define the following paths to be set as environment variables
 NEW_ENV_VARIABLES = {    
-    "MAROONX_LEGACY_TEST": Path("home/martin/Projects/MaroonX/legacy/maroonx_base/data2")
-    "MAROONX_DRAGONS_TEST": Path(PATH)
+    "MAROONX_LEGACY_TEST": Path("home/martin/Projects/MaroonX/legacy/maroonx_base/data2"),
+    "MAROONX_DRAGONS_TEST": Path(PATH),
 }
 
 
@@ -231,8 +232,8 @@ def devenv(session: nox.Session):
         f'To activate your environment, run: \n'
         f'     source {venv_activate}\n'
         f'The following env variables are available: \n'
-    )   f'     {list(NEW_ENV_VARIABLES.keys())}'
-
+        f'     {list(NEW_ENV_VARIABLES.keys())}'
+    )
     # session.notify('initialize_commit_hooks')
 
 
@@ -388,30 +389,72 @@ def initialize_commit_hooks(session: nox.Session):
     )
 
 
-# Testing
-@nox.session(python='3.10')
+
+@nox.session(python='3.12')
 def unit_tests(session: nox.Session):
     """Run unit tests."""
     session.install('poetry', 'poetry-plugin-export')
 
-    # Install DRAGONS
+    # Set environment variables that tests might need
+    for var_name, var_value in NEW_ENV_VARIABLES.items():
+        session.env[var_name] = str(var_value)
+
+    # Install DRAGONS first
     install_dragons(session)
 
     # Install dependencies
     dependencies = get_dependencies(session, only='main,test')
     session.install(*dependencies)
 
-    # Install maroonxdr and maroonx_instruments
+    # Install maroonxdr and maroonx_instruments in editable mode
     session.install('-e', '.')
 
-    # Run the tests
-    session.run(
+    # Run the tests with corrected paths
+    test_args = [
         'pytest',
-        'maroonxdr/maroonx/tests/image/test_split_bundle.py',
-        #'maroonx_instruments/tests/',
-        *session.posargs,
-    )
+        'maroonxdr/maroonx/tests/',
+        '--ignore=maroonxdr/maroonx/tests/complete',
+        '--ignore=maroonxdr/maroonx/tests/regression',
+        '-v',
+        '--tb=no',
+        '--rootdir=.',
+    ]
+    
+    # Add any additional arguments passed via command line
+    test_args.extend(session.posargs)
+    session.run(*test_args)
 
+@nox.session(python='3.12')
+def regression_tests(session: nox.Session):
+    """Run unit tests."""
+    session.install('poetry', 'poetry-plugin-export')
+
+    # Set environment variables that tests might need
+    for var_name, var_value in NEW_ENV_VARIABLES.items():
+        session.env[var_name] = str(var_value)
+
+    # Install DRAGONS first
+    install_dragons(session)
+
+    # Install dependencies
+    dependencies = get_dependencies(session, only='main,test')
+    session.install(*dependencies)
+
+    # Install maroonxdr and maroonx_instruments in editable mode
+    session.install('-e', '.')
+
+    # Run the tests with corrected paths
+    test_args = [
+        'pytest',
+        'maroonxdr/maroonx/tests/regression',
+        '-v',
+        '--tb=no',
+        '--rootdir=.',
+    ]
+    
+    # Add any additional arguments passed via command line
+    test_args.extend(session.posargs)
+    session.run(*test_args)
 
 @nox.session(python='3.10')
 def integration_tests(session: nox.Session):
