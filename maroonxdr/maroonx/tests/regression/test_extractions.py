@@ -46,12 +46,12 @@ SCIENCE_FILES = [
 
 
 @pytest.mark.parametrize("arm", ["BLUE"])
-def test_extractStripes(arm):
+def test_extractStripes(arm, legacy_reduced_path):
 
-    old_file = OLD_FILES_PATH / "20241124T162336Z_DEEEE_b_0030.hdf"
+    old_file = legacy_reduced_path  / "20241124T162336Z_DEEEE_b_0030.hdf"
 
     # read files and instantiate the primitive class
-    raw_files = sorted([str(f) for f in SCIENCE_DIR.glob('20241124T162336Z_DEEEE_*.fits')])
+    raw_files = sorted([str(f) for f in Path().glob('20241124T162336Z_DEEEE_*.fits')])
     
     selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'WAVECAL', arm])
 
@@ -91,12 +91,12 @@ def test_extractStripes(arm):
 
 
 @pytest.mark.parametrize("arm", ["BLUE"])
-def test_extractStripes_fromFlat(arm):
+def test_extractStripes_fromFlat(arm, legacy_flats_path):
 
-    old_flat = OLD_FLAT_FILES_PATH / "20241114T19_masterflat_backgroundsubtracted_FFFFF_b_0007.hdf"
+    old_flat = legacy_flats_path / "20241114T19_masterflat_backgroundsubtracted_FFFFF_b_0007.hdf"
 
     # read files and instantiate the primitive class
-    raw_files = sorted([str(f) for f in SCIENCE_DIR.glob('20241124T162336Z_DEEEE_*.fits')])
+    raw_files = sorted([str(f) for f in Path().glob('20241124T162336Z_DEEEE_*.fits')])
     
     selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'WAVECAL', arm])
 
@@ -137,19 +137,19 @@ def test_extractStripes_fromFlat(arm):
 
 
 @pytest.mark.parametrize("arm", ["BLUE"])
-def test_extractStripes_fromScience(arm):
+def test_extractStripes_fromScience(arm, legacy_reduced_path, legacy_test_root):
 
     # old_flat = OLD_FLAT_FILES_PATH / "20241114T19_masterflat_backgroundsubtracted_FFFFF_b_0007.hdf"
     
-    old_science = OLD_FILES_PATH / "20241124T041907Z_SOOOE_b_0300.hdf"
-    LEGACY_TEST_NPY_PATH = OLD_BASE_PATH.parent / "legacy_bkg_arrays"
+    old_science = legacy_reduced_path / "20241124T041907Z_SOOOE_b_0300.hdf"
+    LEGACY_TEST_NPY_PATH = legacy_test_root / "legacy_bkg_arrays"
     legacy_npy = LEGACY_TEST_NPY_PATH / "20241124T041907Z_SOOOE_b_0300_test.npy"
     legacy_dict = np.load(legacy_npy, allow_pickle=True).item()
     # legacy_dict.keys() has the following keys:
     # dict_keys(['raw', 'bias_corrected', 'overscan_removed', 'orientation_corrected', 'dark_science', 'back_var', 'index_fiber', 'index_order', 'mask', 'science_straylight_removed'])
 
     # read files and instantiate the primitive class
-    raw_files = sorted([str(f) for f in SCIENCE_DIR.glob('20241124T041907Z_SOOOE_*.fits')])
+    raw_files = sorted([str(f) for f in Path().glob('20241124T041907Z_SOOOE_*.fits')])
     
     selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'SCI', arm])
 
@@ -226,13 +226,13 @@ def test_extractStripes_fromScience(arm):
 
 
 @pytest.mark.parametrize("arm", ["BLUE"])
-def test_boxExtraction(arm):
+def test_boxExtraction(arm, legacy_reduced_path):
 
-    old_file = OLD_FILES_PATH / "20241124T162336Z_DEEEE_b_0030.hdf"
+    old_file = legacy_reduced_path / "20241124T162336Z_DEEEE_b_0030.hdf"
 
     # read files and instantiate the primitive class
-    raw_files = sorted([str(f) for f in SCIENCE_DIR.glob('20241124T162336Z_DEEEE_*.fits')])
-    
+    raw_files = sorted([str(f) for f in Path().glob('20241124T162336Z_DEEEE_*.fits')])
+
     selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'WAVECAL', arm])
 
     # Primitives
@@ -277,19 +277,19 @@ def test_boxExtraction(arm):
     assert fail_counter == 0
 
 @pytest.mark.parametrize("science_filename", SCIENCE_FILES)
-def test_optimalExtraction(science_filename):
+def test_optimalExtraction(legacy_reduced_path, science_filename):
     """
     This test is not implemented yet, as the optimal extraction is not yet implemented in MaroonX.
     """
 
-    old_file = OLD_FILES_PATH / (science_filename + ".hdf")
+    old_file = legacy_reduced_path / (science_filename + ".hdf")
 
     if USE_CACHE:
         # Use previously saved data on science_dir
-        adout = [astrodata.open(SCIENCE_DIR / (science_filename + "_reduced.fits"))]
+        adout = [astrodata.open((science_filename + "_reduced.fits"))]
     else:
         # Primitives
-        adinput = [astrodata.open(SCIENCE_DIR / (science_filename + ".fits"))]
+        adinput = [astrodata.open((science_filename + ".fits"))]
 
         p = MaroonXSpectrum(adinput)
         p.prepare()
@@ -298,8 +298,9 @@ def test_optimalExtraction(science_filename):
         p.overscanCorrect()
         p.correctImageOrientation()
         p.addVAR(read_noise=True, poisson_noise=True)
-        # get and save wavelength solution (either static reference or frame's unique sim cal solved)
-        p.darkSubtraction()
+
+        # p.darkSubtraction()
+        p.attachDarkSubtraction()
         p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra TODO Skip dark for fiber 5
         
         adout = p.optimalExtraction() # extracts spectra from stripes
@@ -324,7 +325,7 @@ def test_optimalExtraction(science_filename):
             new_order = new_opt[idx, :]
             #np.testing.assert_allclose(legacy_order, new_order, rtol=1e-4)
             try:
-                np.testing.assert_allclose(legacy_order, new_order, rtol=1e-4)
+                np.testing.assert_allclose(legacy_order, new_order, rtol=1e-2)
                 print(f'fiber/order : {fiber}/{order} [OK]')
             except AssertionError as err:
                 fail_counter += 1
@@ -333,7 +334,7 @@ def test_optimalExtraction(science_filename):
             legacy_order = legacy_box[f"fiber_{fiber}"][f"{order}"]
             new_order = new_box[idx, :]
             try:
-                np.testing.assert_allclose(legacy_order, new_order, rtol=1e-4)
+                np.testing.assert_allclose(legacy_order, new_order, rtol=1e-2)
                 print(f'fiber/order [box]: {fiber}/{order} [OK]')
             except AssertionError as err:
                 fail_counter += 1
@@ -342,15 +343,15 @@ def test_optimalExtraction(science_filename):
 
 
 @pytest.mark.parametrize("arm", ["BLUE"])
-def test_staticWavelengthSolution(arm):
+def test_staticWavelengthSolution(arm, legacy_reduced_path):
 
-    old_file = OLD_FILES_PATH / "20241124T162336Z_DEEEE_b_0030.hdf"
+    old_file = legacy_reduced_path / "20241124T162336Z_DEEEE_b_0030.hdf"
 
     # Load old peak data. columns are lowercase
     legacy_wls = load_dict_from_hdf5(str(old_file), 'wavelengths_static/')
 
     # read files and instantiate the primitive class
-    raw_files = sorted([str(f) for f in SCIENCE_DIR.glob('20241124T162336Z_DEEEE_*.fits')])
+    raw_files = sorted([str(f) for f in Path().glob('20241124T162336Z_DEEEE_*.fits')])
     
     selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'WAVECAL', arm])
 

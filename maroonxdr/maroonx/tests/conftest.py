@@ -5,6 +5,8 @@ import tempfile
 import shutil
 from contextlib import contextmanager
 
+import numpy as np
+
 import astrodata
 from gempy.adlibrary import dataselect
 import maroonx_instruments  # noqa : important to load adclass tags
@@ -43,6 +45,7 @@ def get_maroonx_legacy_test_path():
 # PATH FIXTURES
 # =========================================================
 
+
 @pytest.fixture(scope="session")
 def dragons_test_root():
     """
@@ -78,6 +81,16 @@ def legacy_test_root():
     return root
 
 @pytest.fixture(scope="function")
+def legacy_reduced_path(legacy_test_root):
+    """
+    Fixture providing path to test legacy data directory.
+    """
+    path = legacy_test_root / "MaroonX_spectra_reduced" / "20241124" 
+    if not path.exists():
+        pytest.skip(f"Legacy data directory does not exist: {path}")
+    return path
+
+@pytest.fixture(scope="function")
 def legacy_darks_path(legacy_test_root):
     """
     Fixture providing path to test legacy data directory.
@@ -108,11 +121,38 @@ def science_dir(dragons_test_root):
     return path
 
 @pytest.fixture(scope="function")
-def processed_dark_path(dragons_test_root):
+def science_dir_context(science_dir):
+    """Fixture that provides a context manager to change the working directory"""
+    
+    @contextmanager
+    def change_dir():
+        original_dir = os.getcwd()
+        try:
+            os.chdir(science_dir)
+            yield
+        finally:
+            os.chdir(original_dir)
+    return change_dir
+
+@pytest.fixture(autouse=True)
+def change_to_science_dir(science_dir):
+    """Automatically change to science directory before each test and restore after"""
+    original_dir = os.getcwd()
+    
+    # Change to science directory
+    os.chdir(science_dir)
+    
+    yield science_dir
+    
+    # Restore original directory
+    os.chdir(original_dir)
+
+@pytest.fixture(scope="function")
+def processed_dark_path(science_dir):
     """
     Fixture providing path to test processed dark calibrations.
     """
-    path = dragons_test_root / "calibrations" / "processed_dark"
+    path = science_dir / "calibrations" / "processed_dark"
     if not path.exists():
         pytest.skip(f"Science dir directory does not exist: {path}")
     return path
@@ -121,12 +161,23 @@ def processed_dark_path(dragons_test_root):
 # FIXTURES
 # =========================================================
 
-@pytest.fixture(params=["BLUE", "RED"])
+@pytest.fixture(params=["BLUE", "RED"], scope="function")
 def arm(request):
     """
     Fixture providing color tag name for the arm.
     """    
     return request.param
+
+@pytest.fixture(scope="function")
+def ad_empty_dark(arm, science_dir):
+    """
+    Fixture providing an astrodata object with empty data.
+    """
+    dark_list = dataselect.select_data(science_dir.glob("*.fits"), tags=['RAW', 'DARK', arm])
+    dark_ad = astrodata.open(dark_list[0])
+    dark_ad[0].data = np.zeros((1, 1))
+    return dark_ad
+
 
 # =========================================================
 # CONFIGURATION HOOKS

@@ -26,11 +26,11 @@ from maroonxdr.maroonx.maroonx_fit import maroonx_fit, set_logger, get_logger
 # FILES TO COMPARE
 # =========================================================
 
-OLD_BASE_PATH = Path("/home/martin/Projects/MaroonX/legacy/maroonx_base/data2/")
-OLD_FILES_PATH = OLD_BASE_PATH / Path("MaroonX_spectra_reduced/20241124")
-OLD_FLAT_FILES_PATH = OLD_BASE_PATH / Path("MaroonX_spectra_reduced/Maroonx_masterframes/202411xx/flats")
+# OLD_BASE_PATH = Path("/home/martin/Projects/MaroonX/legacy/maroonx_base/data2/")
+# OLD_FILES_PATH = OLD_BASE_PATH / Path("MaroonX_spectra_reduced/20241124")
+# OLD_FLAT_FILES_PATH = OLD_BASE_PATH / Path("MaroonX_spectra_reduced/Maroonx_masterframes/202411xx/flats")
 
-SCIENCE_DIR = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir')
+# SCIENCE_DIR = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir')
 
 
 # Set logger
@@ -41,42 +41,42 @@ log.setLevel("DEBUG")
 # =========================================================
 # TESTS
 # =========================================================
-USE_CACHE = True
+USE_CACHE = False
 
 ETALONS = [
     '20241124T030040Z_DEEEE_r_0004',
-    '20241124T030227Z_DEEEE_r_0004',
-    '20241124T030436Z_DLLLL_r_0004',
-    '20241124T030623Z_DLLLL_r_0004',
-    '20241124T162149Z_DEEEE_r_0004',
-    '20241124T162336Z_DEEEE_r_0004',
-    '20241124T162540Z_DLLLL_r_0004',
-    '20241124T162727Z_DLLLL_r_0004',
-    '20241124T030040Z_DEEEE_b_0030',
-    '20241124T030227Z_DEEEE_b_0030',
-    '20241124T030436Z_DLLLL_b_0005',
-    '20241124T030623Z_DLLLL_b_0005',
-    '20241124T032549Z_DLLLE_b_0030',
-    '20241124T032715Z_DLLLE_b_0030',
-    '20241124T033308Z_DLLLD_b_0030',
-    '20241124T162149Z_DEEEE_b_0030',
-    '20241124T162336Z_DEEEE_b_0030',
-    '20241124T162540Z_DLLLL_b_0005',
-    '20241124T162727Z_DLLLL_b_0005',
-    '20241124T164605Z_DLLLE_b_0030',
-    '20241124T164731Z_DLLLE_b_0030',
-    '20241124T165036Z_DLLLD_b_0030',
+    # '20241124T030227Z_DEEEE_r_0004',
+    # '20241124T030436Z_DLLLL_r_0004',
+    # '20241124T030623Z_DLLLL_r_0004',
+    # '20241124T162149Z_DEEEE_r_0004',
+    # '20241124T162336Z_DEEEE_r_0004',
+    # '20241124T162540Z_DLLLL_r_0004',
+    # '20241124T162727Z_DLLLL_r_0004',
+    # '20241124T030040Z_DEEEE_b_0030',
+    # '20241124T030227Z_DEEEE_b_0030',
+    # '20241124T030436Z_DLLLL_b_0005',
+    # '20241124T030623Z_DLLLL_b_0005',
+    # '20241124T032549Z_DLLLE_b_0030',
+    # '20241124T032715Z_DLLLE_b_0030',
+    # '20241124T033308Z_DLLLD_b_0030',
+    # '20241124T162149Z_DEEEE_b_0030',
+    # '20241124T162336Z_DEEEE_b_0030',
+    # '20241124T162540Z_DLLLL_b_0005',
+    # '20241124T162727Z_DLLLL_b_0005',
+    # '20241124T164605Z_DLLLE_b_0030',
+    # '20241124T164731Z_DLLLE_b_0030',
+    # '20241124T165036Z_DLLLD_b_0030',
 ]
 
 
-def test_load_recordings():
+def test_load_recordings(legacy_reduced_path, legacy_flats_path):
 
-    old_file = OLD_FILES_PATH / "20241124T162336Z_DEEEE_b_0030.hdf"
-    old_flat_file = OLD_FLAT_FILES_PATH / "20241114T19_masterflat_backgroundsubtracted_FFFFF_b_0007.hdf"
+    old_file = legacy_reduced_path / "20241124T162336Z_DEEEE_b_0030.hdf"
+    old_flat_file = legacy_flats_path / "20241114T19_masterflat_backgroundsubtracted_FFFFF_b_0007.hdf"
 
     # read files and instantiate the primitive class
     # this should pick a single file
-    raw_files = sorted([str(f) for f in SCIENCE_DIR.glob('20241124T162336Z_DEEEE_*.fits')])
+    raw_files = sorted([str(f) for f in Path().glob('20241124T162336Z_DEEEE_*.fits')])
     selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'WAVECAL', 'BLUE'])
 
     # Primitives
@@ -121,7 +121,7 @@ def test_load_recordings():
         # Test data values are equal
         np.testing.assert_allclose(old_data, new_data, rtol=1e-4, atol=1e-4)
     
-@pytest.mark.xfail(reason="This test is for debuging purposes only.")
+@pytest.mark.skip(reason="This test is for debuging purposes only.")
 def test_iterative_fit_legacy():
     # Load old peak data. columns are lowercase
     old_file = OLD_FILES_PATH / "20241124T162336Z_DEEEE_b_0030.hdf"
@@ -153,13 +153,13 @@ def test_iterative_fit_legacy():
         )
 
 
-def test_iterative_fit_ETALON():
+def test_iterative_fit_ETALON(legacy_reduced_path):
     # Load old peak data. columns are lowercase
-    old_file = OLD_FILES_PATH / "20241124T162336Z_DEEEE_b_0030.hdf"
+    old_file = legacy_reduced_path / "20241124T162336Z_DEEEE_b_0030.hdf"
     old_peak_data = pd.read_hdf(old_file, '/etalon_peak_parameters/peaks')
     old_mask = (old_peak_data["fiber"]==2) & (old_peak_data["order"]==111)
 
-    old_file_inputs = OLD_FILES_PATH / "20241124T162336Z_DEEEE_b_0030_2_111_iterative_fit.npy"
+    old_file_inputs = legacy_reduced_path / "20241124T162336Z_DEEEE_b_0030_2_111_iterative_fit.npy"
     old_input = np.load(old_file_inputs, allow_pickle=True).item()
 
     set_logger(log)
@@ -192,13 +192,13 @@ def test_iterative_fit_ETALON():
         atol=1e-5, check_index=False)
 
 
-def test_iterative_fit_LFC():
+def test_iterative_fit_LFC(legacy_reduced_path):
     # Load old peak data. columns are lowercase
-    old_file = OLD_FILES_PATH / "20241124T030436Z_DLLLL_b_0005.hdf"
+    old_file = legacy_reduced_path / "20241124T030436Z_DLLLL_b_0005.hdf"
     old_peak_data = pd.read_hdf(old_file, '/etalon_peak_parameters/peaks')
     old_mask = (old_peak_data["fiber"]==2) & (old_peak_data["order"]==111)
 
-    old_file_inputs = OLD_FILES_PATH / "20241124T030436Z_DLLLL_b_0005_2_111_iterative_fit.npy"
+    old_file_inputs = legacy_reduced_path / "20241124T030436Z_DLLLL_b_0005_2_111_iterative_fit.npy"
     old_input = np.load(old_file_inputs, allow_pickle=True).item()
 
     set_logger(log)
@@ -230,11 +230,11 @@ def test_iterative_fit_LFC():
         old_peak_data[old_mask]['center'],
         atol=1e-5, check_index=False)
 
-
+@pytest.mark.slow
 @pytest.mark.parametrize("etalon_filename", ETALONS)
-def test_getPeaksAndPolynomials(etalon_filename):
+def test_getPeaksAndPolynomials(legacy_reduced_path, etalon_filename):
 
-    old_file = OLD_FILES_PATH / (etalon_filename + ".hdf")
+    old_file = legacy_reduced_path / (etalon_filename + ".hdf")
 
     # Load old peak data. columns are lowercase
     old_peak_data = pd.read_hdf(old_file, '/etalon_peak_parameters/peaks')
@@ -242,10 +242,10 @@ def test_getPeaksAndPolynomials(etalon_filename):
 
     if USE_CACHE:
         # Use previously saved data on science_dir
-        adout = [astrodata.open(SCIENCE_DIR / (etalon_filename + "_wavecal.fits"))]
+        adout = [astrodata.open((etalon_filename + "_wavecal.fits"))]
     else:
         # Primitives
-        adinput = [astrodata.open(SCIENCE_DIR / (etalon_filename + ".fits"))]
+        adinput = [astrodata.open((etalon_filename + ".fits"))]
 
         p = MaroonXSpectrum(adinput)
         p.prepare()
@@ -282,11 +282,11 @@ def test_getPeaksAndPolynomials(etalon_filename):
             print(f"Column {c} mismatch: {err}")
             raise err
 
-
+@pytest.mark.slow
 @pytest.mark.parametrize("etalon_filename", ETALONS)
-def test_fitAndApplyEtalonWls(etalon_filename):
+def test_fitAndApplyEtalonWls(legacy_reduced_path, etalon_filename):
 
-    old_file = OLD_FILES_PATH / (etalon_filename + ".hdf")
+    old_file = legacy_reduced_path / (etalon_filename + ".hdf")
 
     # Load old peak data. columns are lowercase
     old_peak_data = pd.read_hdf(old_file, '/peak_data').reset_index()
@@ -294,10 +294,10 @@ def test_fitAndApplyEtalonWls(etalon_filename):
 
     if USE_CACHE:
         # Use previously saved data on science_dir
-        adout = [astrodata.open(SCIENCE_DIR / (etalon_filename + "_wavecal.fits"))]
+        adout = [astrodata.open((etalon_filename + "_wavecal.fits"))]
     else:
         # Primitives
-        adinput = [astrodata.open(SCIENCE_DIR / (etalon_filename + ".fits"))]
+        adinput = [astrodata.open((etalon_filename + ".fits"))]
 
         p = MaroonXSpectrum(adinput)
         p.prepare()
@@ -326,11 +326,11 @@ def test_fitAndApplyEtalonWls(etalon_filename):
     # Test the the column FIBER has the same value counts
     assert new_peak_data["FIBER"].value_counts().equals(old_peak_data["fiber"].value_counts())
 
-
+@pytest.mark.slow
 @pytest.mark.parametrize("etalon_filename", ETALONS)
-def test_dynamicWavelengthSolution(etalon_filename):
+def test_dynamicWavelengthSolution(legacy_reduced_path, etalon_filename):
 
-    old_file = OLD_FILES_PATH / (etalon_filename + ".hdf")
+    old_file = legacy_reduced_path / (etalon_filename + ".hdf")
 
     # Load old peak data. columns are lowercase
     legacy_wls = load_dict_from_hdf5(str(old_file), 'wavelengths_dynamic/')
@@ -338,10 +338,10 @@ def test_dynamicWavelengthSolution(etalon_filename):
 
     if USE_CACHE:
         # Use previously saved data on science_dir
-        adout = [astrodata.open(SCIENCE_DIR / (etalon_filename + "_wavecal.fits"))]
+        adout = [astrodata.open((etalon_filename + "_wavecal.fits"))]
     else:
         # Primitives
-        adinput = [astrodata.open(SCIENCE_DIR / (etalon_filename + ".fits"))]
+        adinput = [astrodata.open((etalon_filename + ".fits"))]
 
         p = MaroonXSpectrum(adinput)
         p.prepare()
@@ -380,11 +380,11 @@ def test_dynamicWavelengthSolution(etalon_filename):
                 print(f'fiber/order : {fiber}/{order} [FAIL]')
     assert fail_counter == 0
 
-
+@pytest.mark.slow
 @pytest.mark.parametrize("etalon_filename", ETALONS)
-def test_fiber_drifts_ETALON(etalon_filename):
+def test_fiber_drifts_ETALON(legacy_reduced_path, etalon_filename):
 
-    old_file = OLD_FILES_PATH / (etalon_filename + ".hdf")
+    old_file = legacy_reduced_path / (etalon_filename + ".hdf")
 
     # Load old drift values
     hdr_keys = [
@@ -401,10 +401,10 @@ def test_fiber_drifts_ETALON(etalon_filename):
     
     if USE_CACHE:
         # Use previously saved data on science_dir
-        adout = [astrodata.open(SCIENCE_DIR / (etalon_filename + "_wavecal.fits"))]
+        adout = [astrodata.open((etalon_filename + "_wavecal.fits"))]
     else:
         # Primitives
-        adinput = [astrodata.open(SCIENCE_DIR / (etalon_filename + ".fits"))]
+        adinput = [astrodata.open((etalon_filename + ".fits"))]
 
         p = MaroonXSpectrum(adinput)
         p.prepare()

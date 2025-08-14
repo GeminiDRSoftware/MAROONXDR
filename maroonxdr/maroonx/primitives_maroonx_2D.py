@@ -23,12 +23,12 @@ from scipy.ndimage import gaussian_filter, measurements, median_filter
 
 from . import maroonx_utils, parameters_maroonx_2D
 from .lookups import timestamp_keywords as maroonx_stamps
-
+from .primitives_calibdb_maroonx import CalibDBMaroonX
 # ------------------------------------------------------------------------------
 
 
 @parameter_override
-class MAROONX(Gemini, CCD, NearIR):
+class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
     """Any primitives specific to MAROON-X can go here."""
 
     tagset = {'GEMINI', 'MAROONX'}
@@ -1973,7 +1973,7 @@ class MAROONX(Gemini, CCD, NearIR):
             exposuretimes.append(float(exptime))
             
             # Get ND filter position
-            nd_pos = float(ad[0].hdr['HIERARCH MAROONX ND POSITION'])
+            nd_pos = float(ad.filter_orientation()['ND'])
             ndfilter.append(nd_pos)
             
             filenames.append(ad.filename)
@@ -2026,7 +2026,8 @@ class MAROONX(Gemini, CCD, NearIR):
         exptime_table = Table()
         exptime_table['logexptime'] = logexptime
         exptime_table['exptime'] = exposuretimes
-        exptime_table['filenames'] = filenames
+        # exptime_table['ndfilter'] = ndfilter
+        exptime_table['filename'] = filenames
         ad_out[0].LOGEXPTIME = exptime_table
         
         # Update metadata

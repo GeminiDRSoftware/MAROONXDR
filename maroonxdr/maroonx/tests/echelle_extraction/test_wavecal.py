@@ -10,19 +10,16 @@ import pytest
 import maroonx_instruments  # noqa : import is necesary for astrodata
 from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
 
-# Test data should be under science_dir
-science_dir = Path(__file__).parents[4] / 'science_dir'
-os.chdir(science_dir)
 
 
-
-@pytest.mark.parametrize("filename", ["20241124T030227Z_DEEEE_b_0030_dynamic_wavecal.fits"])
-def test_staticWavelengthSolution(caplog, filename):
+@pytest.mark.parametrize("filename", ["20241124T030227Z_DEEEE_b_0030_wavecal.fits"])
+def test_staticWavelengthSolution(caplog, science_dir, filename):
     """
     This test checks that the static wavelength solution is correct.
     """
     caplog.set_level(logging.DEBUG)
-    ad = astrodata.open(filename)
+
+    ad = astrodata.open(str(science_dir / filename))
     p = MaroonXSpectrum([deepcopy(ad)])
 
     requested_fibers = (3, 4)
@@ -42,13 +39,14 @@ def test_staticWavelengthSolution(caplog, filename):
             assert wls.shape == (1, 1), f"Unrequested static solution for fiber {fiber} found"
 
 
-@pytest.mark.parametrize("filename", ["20241124T030227Z_DEEEE_b_0030_dynamic_wavecal.fits"])
-def test_getPeaksAndPolynomials(caplog, filename):
+@pytest.mark.parametrize("filename", ["20241124T030227Z_DEEEE_b_0030_wavecal.fits"])
+def test_getPeaksAndPolynomials(caplog, science_dir, filename):
     """
     This test checks that PEAKS and POLY tables are correct.
     """
     caplog.set_level(logging.DEBUG)
-    ad = astrodata.open(filename)
+
+    ad = astrodata.open(str(science_dir / filename))
     p = MaroonXSpectrum([deepcopy(ad)])
 
     p.getPeaksAndPolynomials(fibers=(4,), orders=(101,))
@@ -58,13 +56,14 @@ def test_getPeaksAndPolynomials(caplog, filename):
     assert hasattr(out_ad[0], 'POLY'), "POLY table should be present"
 
 
-@pytest.mark.parametrize("filename", ["20241124T030227Z_DEEEE_b_0030_dynamic_wavecal.fits"])
-def test_fitAndApplyEtalonWls(caplog, filename):
+@pytest.mark.parametrize("filename", ["20241124T030227Z_DEEEE_b_0030_wavecal.fits"])
+def test_fitAndApplyEtalonWls(caplog, science_dir, filename):
     """
     This test checks that the dynamic wavelength solution is correct.
     """
     caplog.set_level(logging.DEBUG)
-    ad = astrodata.open(filename)
+    
+    ad = astrodata.open(str(science_dir / filename))
     p = MaroonXSpectrum([deepcopy(ad)])
 
 

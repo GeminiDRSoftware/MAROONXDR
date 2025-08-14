@@ -11,13 +11,13 @@ import maroonx_instruments  # noqa : import is necesary for astrodata.instrument
 from maroonxdr.maroonx.primitives_maroonx_echelle import MAROONXEchelle
 
 # Test data should be under science_dir
-science_dir = Path(__file__).parents[4] / 'science_dir'
-os.chdir(science_dir)
+# science_dir = Path(__file__).parents[4] / 'science_dir'
+# os.chdir(science_dir)
 
 
 @pytest.mark.parametrize("filename", ["20241124T041907Z_SOOOE_r_0300_test_stripes.fits",
                                       "20241124T041907Z_SOOOE_b_0300_test_stripes.fits"])
-def test_getting_stripe_locations(caplog, filename):
+def test_getting_stripe_locations(caplog, change_working_dir, science_dir, filename):
     caplog.set_level(logging.DEBUG)
     
     ad = astrodata.open(filename)

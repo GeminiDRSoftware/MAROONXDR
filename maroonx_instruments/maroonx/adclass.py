@@ -123,6 +123,8 @@ class AstroDataMAROONX(AstroDataGemini):
     @astro_data_tag
     def _tag_dark(self):
         if self.fiber_setup() in DARK_FIBER_SETUPS:
+            if hasattr(self[0], 'COEFF_Z0'):
+                return TagSet(['DARK', 'DARK_COEFF', 'CAL'])
             return TagSet(['DARK', 'CAL'])
 
     @astro_data_tag
@@ -453,7 +455,7 @@ class AstroDataMAROONX(AstroDataGemini):
     ):  # this needs to be checked for all analysis utilizing fifth fiber data
         # i.e. dark creation (some value > 0), flat creation (always 0), science extractions (same as dark)
         nd_pos = self.hdr.get('HIERARCH MAROONX ND POSITION')[0]
-        return {'ND': f'{nd_pos:.1f}'}
+        return {'ND': nd_pos}
 
     @astro_data_descriptor
     def image_orientation(self):  # dictionary descriptor

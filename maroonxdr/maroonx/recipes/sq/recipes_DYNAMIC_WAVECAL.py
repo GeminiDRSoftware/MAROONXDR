@@ -32,8 +32,10 @@ def makeDynamicWavecal(p):
     p.checkArm()
     
     p.addDQ()  # just placeholder until MX is in caldb
+
     p.subtractOverscan()
     p.trimOverscan()
+    
     p.correctImageOrientation()
     p.addVAR(read_noise=True, poisson_noise=True)
     # # get and save wavelength solution (either static reference or frame's unique sim cal solved)

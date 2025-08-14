@@ -9,12 +9,14 @@ that focus on the 2D spectra themselves).
 # from geminidr.gemini.lookups import DQ_definitions as DQ
 import copy
 from pathlib import Path
+import os
 
 import astrodata
 import matplotlib.pyplot as plt
 import numba
 import numpy as np
 from geminidr.core import Spect
+from gempy.adlibrary import dataselect
 from gempy.gemini import gemini_tools as gt
 from recipe_system.utils.decorators import parameter_override
 from scipy import sparse
@@ -25,8 +27,49 @@ from .primitives_maroonx_2D import MAROONX
 
 # ------------------------------------------------------------------------------
 
-PROC_DARK = Path(__file__).parents[2] / 'calibrations' / 'processed_dark'
-PROC_FLAT = Path(__file__).parents[2] / 'calibrations' / 'processed_flat'
+def _get_calibration_flat_path():
+    """
+    Get the path for the calibration flat file.
+    Should probably be deprecated when dragons calib is implemented.
+    """
+    cwd = Path(os.getcwd())
+    return cwd / 'calibrations' / 'processed_flat'
+
+def _get_calibration_dark_path():
+    """
+    Get the path for the calibration dark file.
+    Should probably be deprecated when dragons calib is implemented.
+    """
+    cwd = Path(os.getcwd())
+    return cwd / 'calibrations' / 'processed_dark'
+
+def _get_calibration_dark_coeff(arm_tag):
+    """
+    Match and return calibration dark coefficient file as astrodata object.
+    Should probably be deprecated when dragons calib is implemented.
+    """
+    # Get the calibration darks
+    calib_dark_path = _get_calibration_dark_path()
+    files = dataselect.select_data(
+        list(calib_dark_path.glob('*.fits')), tags=['DARK_COEFF', arm_tag])
+
+    if len(files) == 0:
+        raise ValueError(f'No dark coefficient file found for arm tag: {arm_tag}')
+    elif len(files) > 1:
+        raise ValueError(f'Multiple calibration darks found for arm tag: {arm_tag}')
+    return astrodata.open(files[0])
+
+# def _get_calibration_dark(adinputs):
+#     """
+#     Match and return calibration darks as astrodata list.
+#     Should probably be deprecated when dragons calib is implemented.
+#     """
+#     # Get the calibration darks
+#     calib_dark_path = _get_calibration_dark_path()
+#     if "SCI" in adinputs[0].tags:
+#         # need to create a synthetic dark
+#     elif 
+
 
 @parameter_override
 class MAROONXEchelle(MAROONX, Spect):
@@ -44,7 +87,144 @@ class MAROONXEchelle(MAROONX, Spect):
         self.inst_lookups = 'maroonxdr.maroonx.lookups'
         self._param_update(parameters_maroonx_echelle)
 
-    def darkSubtraction(self, adinputs=None, dark=None, individual=False,
+    def _getSyntheticDark(self, adinputs=None, **params):
+        """
+        Get the path for the synthetic dark file.
+        Should probably be deprecated when dragons calib is implemented.
+        """
+        # adouts = []
+        # for ad in adinputs:
+        #     # get the coefficients ad
+        #     # calculate synthetic dark
+        #     # append to adouts
+        return
+
+    def attachSyntheticDark(self, adinputs=None, dark_coeff=None, individual=False, **params):
+        """
+        Finds or creates synthetic dark frames and attaches them to adinputs as SYNTH_DARK extension.
+        
+        Creates synthetic darks with caching behavior controlled by individual parameter.
+        
+        Parameters
+        ----------
+        adinputs: AstroData object(s) to attach darks to
+        dark_coeff: (optional) adinput of dark coefficients file
+        individual: (bool) if True, creates unique dark for each frame (no reuse).
+            If False, reuses darks for frames with same exposure time, ND filter, and arm.
+            
+        Returns
+        -------
+        adinputs with SYNTH_DARK extension added to each frame
+        """
+        log = self.log
+        #log.debug(gt.log_message("primitive", self.myself(), "starting"))
+        #timestamp_key = self.timestamp_keys[self.myself()]
+        
+        # Cache for storing created darks
+        dark_cache = {}
+        
+        for ad in adinputs:
+
+            if hasattr(ad[0], 'SYNTH_DARK'):
+                log.fullinfo(f"Skipped. SYNTH_DARK extension found in {ad.filename}.")
+                continue
+
+            exptime = ad.exposure_time()
+            nd_filter = ad.filter_orientation()['ND']
+            arm_tag = 'BLUE' if 'BLUE' in ad.tags else 'RED'
+            
+            # Create cache key based on individual parameter
+            if individual:
+                cache_key = ad.filename  # Unique key - no reuse
+            else:
+                cache_key = (exptime, nd_filter, arm_tag)  # Grouping key - allows reuse
+            
+            if cache_key not in dark_cache:
+                # Create new synthetic dark
+                if dark_coeff is None:
+                    dark_coeff_ad = _get_calibration_dark_coeff(arm_tag)
+                else:
+                    dark_coeff_ad = dark_coeff
+                
+                if dark_coeff_ad is not None:
+                    synthetic_dark, actual_exptime, actual_nd, factor = create_synthetic_dark(
+                        dark_coeff_ad, exptime_value=exptime, nd_value=nd_filter
+                    )
+                    dark_cache[cache_key] = synthetic_dark
+                    log.fullinfo(f"Created synthetic dark for {ad.filename}: "
+                                f"exptime={actual_exptime:.1f}s, nd={actual_nd:.2f}, factor={factor:.2f}")
+                else:
+                    log.warning(f"No dark coefficients found for {arm_tag} arm, {ad.filename}")
+                    dark_cache[cache_key] = None
+            
+            # Attach the cached dark to this frame
+            if dark_cache[cache_key] is not None:
+                ad[0].SYNTH_DARK = dark_cache[cache_key].copy()
+                # gt.mark_history(ad, primname=self.myself(),
+                #             keyword='SYNTH_DARK',
+                #             comment=f"synthetic_{arm_tag.lower()}_{exptime}s_{nd_filter}")
+            else:
+                ad[0].SYNTH_DARK = None
+                log.warning(f"No synthetic dark attached to {ad.filename}")
+        
+        # gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
+        return adinputs
+
+    def attachDarkSubtraction(self, adinputs=None, **params):
+        """
+        Performs dark subtraction using the SYNTH_DARK extension to create DARK_SUBTRACTED extension.
+        
+        This primitive assumes that attachDark() has already been run to create the SYNTH_DARK extension.
+        It performs pixel-by-pixel subtraction: DARK_SUBTRACTED = data - SYNTH_DARK
+        
+        Parameters
+        ----------
+        adinputs: AstroData object(s) with SYNTH_DARK extension
+        
+        Returns
+        -------
+        adinputs with DARK_SUBTRACTED extension added
+        """
+        log = self.log
+        # log.debug(gt.log_message("primitive", self.myself(), "starting"))
+        # timestamp_key = self.timestamp_keys[self.myself()]
+      
+        dark_type = params.get('dark_type')
+        
+        if dark_type == 'synthetic':
+            self.attachSyntheticDark()
+        else:
+            # self.attachClosestDark()
+            raise NotImplementedError("Only synthetic dark type is supported")
+
+        adoutputs = []
+        
+        for ad in adinputs:
+            adout = copy.deepcopy(ad)
+            
+            
+            # Check if SYNTH_DARK extension exists
+            if hasattr(ad[0], 'SYNTH_DARK') and ad[0].SYNTH_DARK is not None:
+                # Perform pixel-by-pixel subtraction
+                adout[0].DARK_SUBTRACTED = ad[0].data - ad[0].SYNTH_DARK
+                log.fullinfo(f"Dark subtraction completed for {ad.filename}")
+                
+                # Mark history
+                # gt.mark_history(adout, primname=self.myself(),
+                #             keyword='DARK_SUBTRACTED',
+                #             comment="synthetic_dark_subtracted")
+            else:
+                log.warning(f"Dark subtraction skipped. "
+                        f"No SYNTH_DARK extension found for {ad.filename}.")
+                # Copy data without subtraction
+                # adout[0].DARK_SUBTRACTED = ad[0].data.copy()
+            
+            adoutputs.append(adout)
+        
+        # gt.mark_history(adoutputs, primname=self.myself(), keyword=timestamp_key)
+        return adoutputs
+
+    def darkSubtraction_old(self, adinputs=None, dark=None, individual=False,
                         **params):
         """
         Finds the dark frame in association with the adinput and creates a
@@ -99,14 +279,23 @@ class MAROONXEchelle(MAROONX, Spect):
                             if ad.exposure_time() == time and ad.filter_orientation()['ND'] == nd_filter:
                                 cal_list.append(ad)
                         if dark is None:
+
+                            if False:
+                                # brainstorming solutions
+                                arm_tag = 'BLUE' if 'BLUE' in cal_list[0].tags else 'RED'
+                                dark_coeff = _get_calibration_dark_coeff(arm_tag)
+                                dark_ad = create_synthetic_dark(dark_coeff, exptime_value=time, nd_value=nd_filter)
+
                             if 'BLUE' in cal_list[0].tags:
                                 # Find the processed dark for the blue arm
                                 # TODO: replace hardcoded reference with caldb call to processed dark
-                                dark_ad = astrodata.open( str(PROC_DARK / '20241115T193254Z_DDDDE_b_0300_dark.fits') )
+                                calib_dark_dir = _get_calibration_dark_path()
+                                dark_ad = astrodata.open( str(calib_dark_dir / '20241115T193254Z_DDDDE_b_0300_dark.fits') )
                             elif 'RED' in cal_list[0].tags:
                                 # Find the processed dark for the red arm
                                 # TODO: replace hardcoded reference with caldb call to processed dark
-                                dark_ad = astrodata.open( str(PROC_DARK / '20241115T193254Z_DDDDE_r_0300_dark.fits') )
+                                calib_dark_dir = _get_calibration_dark_path()
+                                dark_ad = astrodata.open( str(calib_dark_dir / '20241115T193254Z_DDDDE_r_0300_dark.fits') )
 
                             else:
                                 # This condition should never be reached
@@ -132,11 +321,13 @@ class MAROONXEchelle(MAROONX, Spect):
                     if 'BLUE' in ad.tags:
                         # Find the processed dark for the blue arm
                         # TODO: replace hardcoded reference with caldb call to processed dark
-                        dark_ad = astrodata.open( str(PROC_DARK / '20241115T193254Z_DDDDE_b_0300_dark.fits') )
+                        calib_dark_dir = _get_calibration_dark_path()
+                        dark_ad = astrodata.open( str(calib_dark_dir / '20241115T193254Z_DDDDE_b_0300_dark.fits') )
                     elif 'RED' in ad.tags:
                         # Find the processed dark for the red arm
                         # TODO: replace hardcoded reference with caldb call to processed dark
-                        dark_ad = astrodata.open( str(PROC_DARK / '20241115T193254Z_DDDDE_r_0300_dark.fits') )
+                        calib_dark_dir = _get_calibration_dark_path()
+                        dark_ad = astrodata.open( str(calib_dark_dir / '20241115T193254Z_DDDDE_r_0300_dark.fits') )
 
                     else:
                         # This condition should never be reached
@@ -221,7 +412,8 @@ class MAROONXEchelle(MAROONX, Spect):
                         # call one flat for all blue frames, saves redundant caldb requests as new flats are rarely made
                         # time between flats > 1 year
                         # TODO: replace hardcoded reference with caldb call to processed flat
-                        flat_ad = astrodata.open( str(PROC_FLAT / '20241114T190714Z_DDDDF_b_0007_DFFFF_flat.fits') )
+                        calib_flat_dir = _get_calibration_flat_path()
+                        flat_ad = astrodata.open( str(calib_flat_dir / '20241114T190714Z_DDDDF_b_0007_DFFFF_flat.fits') )
                         log.fullinfo(f"{flat_ad.filename} found as associated flat for all blue frames")
             except IndexError:
                 pass
@@ -231,7 +423,8 @@ class MAROONXEchelle(MAROONX, Spect):
                         # call one flat for all red frames, saves redundant caldb requests as new flats are rarely made
                         # time between flats > 1 year
                         # TODO: replace hardcoded reference with caldb call to processed flat
-                        flat_ad = astrodata.open( str(PROC_FLAT / '20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits') )
+                        calib_flat_dir = _get_calibration_flat_path()
+                        flat_ad = astrodata.open( str(calib_flat_dir / '20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits') )
                         log.fullinfo(f"{flat_ad.filename} found as associated flat for all red frames")
             except IndexError:
                 pass #TODO: Implement what will happen here
@@ -240,11 +433,13 @@ class MAROONXEchelle(MAROONX, Spect):
                 if flat is None:
                     if 'BLUE' in ad.tags:
                         # TODO: replace hardcoded reference with caldb call to processed flat
-                        flat_ad_i = astrodata.open( str(PROC_FLAT / '20241114T190714Z_DDDDF_b_0007_DFFFF_flat.fits') )
+                        calib_flat_dir = _get_calibration_flat_path()
+                        flat_ad_i = astrodata.open( str(calib_flat_dir / '20241114T190714Z_DDDDF_b_0007_DFFFF_flat.fits') )
                         # '20200911T220106Z_FDDDF_b_0002_FFFFF_flat.fits')
                     elif 'RED' in ad.tags:
                         # TODO: replace hardcoded reference with caldb call to processed flat
-                        flat_ad_i = astrodata.open( str(PROC_FLAT / '20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits') )
+                        calib_flat_dir = _get_calibration_flat_path()
+                        flat_ad_i = astrodata.open( str(calib_flat_dir / '20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits') )
                         # '20200911T220106Z_FDDDF_r_0000_FFFFF_flat.fits')
                     else:
                         log.warning(f"No extraction will be made on {ad.filename}, since no "
@@ -603,6 +798,126 @@ class MAROONXEchelle(MAROONX, Spect):
 ##############################################################################
 # Below are the helper functions for the primitives in this module           #
 ##############################################################################
+
+def create_synthetic_dark(ad_coeff, exptime_value=None, nd_value=None):
+    """
+    Create a synthetic dark frame from coefficients file.
+    
+    This function generates a synthetic dark frame using pre-computed coefficients
+    and the log-linear relationship: dark = z1 + z0 * log10(exptime * factor)
+    
+    Parameters
+    ----------
+    ad_coeff : AstroData
+        AstroData object containing coefficient data with extensions:
+        - COEFF_Z0: slope coefficients for each pixel
+        - COEFF_Z1: intercept coefficients for each pixel  
+        - LOGEXPTIME: table with exposure times and ND filter data
+    exptime_value : float, optional
+        Target exposure time in seconds. If None, must provide nd_value.
+    nd_value : float, optional
+        Target ND filter position. If None, will be calculated from exptime_value.
+        
+    Returns
+    -------
+    synthetic_dark : numpy.ndarray
+        2D array containing the synthetic dark frame
+    actual_exptime : float
+        The actual exposure time used (may differ from input due to ND corrections)
+    actual_nd : float
+        The actual ND filter position used
+    factor : float
+        The correction factor applied (1.0 if no correction needed)
+        
+    Raises
+    ------
+    ValueError
+        If neither exptime_value nor nd_value is provided, or if required 
+        extensions are missing from ad_coeff
+    """
+    
+    # Validate inputs
+    if exptime_value is None and nd_value is None:
+        raise ValueError("Either exptime_value or nd_value must be provided")
+    
+    # Check for required extensions
+    required_extensions = ['COEFF_Z0', 'COEFF_Z1', 'LOGEXPTIME']
+    for ext_name in required_extensions:
+        if not hasattr(ad_coeff[0], ext_name):
+            raise ValueError(f"Required extension {ext_name} not found")
+    
+    # Extract coefficient arrays
+    z0 = ad_coeff[0].COEFF_Z0
+    z1 = ad_coeff[0].COEFF_Z1
+    logexptime_table = ad_coeff[0].LOGEXPTIME
+    
+    # Extract calibration data
+    logexptimes = np.array(logexptime_table['logexptime'])
+    exptimes = np.array(logexptime_table['exptime'])
+    
+    # Check if ND filter data is available
+    has_nd_data = 'ndfilter' in logexptime_table.colnames
+    if has_nd_data:
+        ndfilters = np.array(logexptime_table['ndfilter'])
+    else:
+        ndfilters = np.zeros_like(exptimes)  # Default to zero if no ND data
+    
+    # Initialize variables
+    factor = 1.0
+    actual_exptime = exptime_value
+    actual_nd = nd_value
+    
+    # Case 1: Only exposure time provided
+    if exptime_value is not None and nd_value is None:
+        actual_exptime = exptime_value
+        
+        if has_nd_data and len(np.unique(ndfilters)) > 1:
+            # Calculate expected ND position from exposure time
+            z_nd_logt = np.polyfit(logexptimes, ndfilters, 1)
+            f_nd_logt = np.poly1d(z_nd_logt)
+            actual_nd = f_nd_logt(np.log10(exptime_value))
+        else:
+            actual_nd = ndfilters[0] if len(ndfilters) > 0 else 0.0
+    
+    # Case 2: Only ND value provided  
+    elif nd_value is not None and exptime_value is None:
+        actual_nd = nd_value
+        
+        if has_nd_data and len(np.unique(ndfilters)) > 1:
+            # Calculate exposure time from ND position
+            z_logt_nd = np.polyfit(ndfilters, logexptimes, 1)
+            f_logt_nd = np.poly1d(z_logt_nd)
+            actual_exptime = 10**(f_logt_nd(nd_value))
+        else:
+            # Use median exposure time as default
+            actual_exptime = np.median(exptimes)
+    
+    # Case 3: Both exposure time and ND value provided
+    elif exptime_value is not None and nd_value is not None:
+        actual_exptime = exptime_value
+        actual_nd = nd_value
+        
+        # Check for ND filter mismatch and apply correction if needed
+        if has_nd_data and len(np.unique(ndfilters)) > 1:
+            z_nd_logt = np.polyfit(logexptimes, ndfilters, 1)
+            f_nd_logt = np.poly1d(z_nd_logt)
+            z_logt_nd = np.polyfit(ndfilters, logexptimes, 1) 
+            f_logt_nd = np.poly1d(z_logt_nd)
+            
+            expected_nd = f_nd_logt(np.log10(exptime_value))
+            nd_difference = abs(actual_nd - expected_nd)
+            
+            # Apply correction factor if ND mismatch is significant (>0.2)
+            if nd_difference > 0.2:
+                logt_nominal = f_logt_nd(actual_nd)
+                factor = 10**(np.log10(exptime_value) - logt_nominal)
+    
+    # Calculate synthetic dark frame
+    # Formula: dark = z1 + z0 * log10(exptime * factor)
+    effective_logexptime = np.log10(actual_exptime * factor)
+    synthetic_dark = z1 + z0 * effective_logexptime
+    
+    return synthetic_dark.astype(np.float32), actual_exptime, actual_nd, factor
 
 
 def _extract_single_stripe(data=None, polynomials=None, slit_height=10):

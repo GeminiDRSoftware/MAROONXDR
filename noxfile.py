@@ -456,6 +456,38 @@ def regression_tests(session: nox.Session):
     test_args.extend(session.posargs)
     session.run(*test_args)
 
+@nox.session(python='3.12')
+def complete_tests(session: nox.Session):
+    """Run unit tests."""
+    session.install('poetry', 'poetry-plugin-export')
+
+    # Set environment variables that tests might need
+    for var_name, var_value in NEW_ENV_VARIABLES.items():
+        session.env[var_name] = str(var_value)
+
+    # Install DRAGONS first
+    install_dragons(session)
+
+    # Install dependencies
+    dependencies = get_dependencies(session, only='main,test')
+    session.install(*dependencies)
+
+    # Install maroonxdr and maroonx_instruments in editable mode
+    session.install('-e', '.')
+
+    # Run the tests with corrected paths
+    completion_tests = [
+        'maroonxdr/maroonx/tests/complete/bundle_test.py',
+        'maroonxdr/maroonx/tests/complete/dark_test.py',
+        'maroonxdr/maroonx/tests/complete/flat_test.py',
+        'maroonxdr/maroonx/tests/complete/reduced_1D_test.py',
+        'maroonxdr/maroonx/tests/complete/science_test.py',
+    ]
+
+    # Run each script using the session's Python
+    for test_script in completion_tests:
+        session.run('python', test_script) 
+
 @nox.session(python='3.10')
 def integration_tests(session: nox.Session):
     """Run integration tests."""
