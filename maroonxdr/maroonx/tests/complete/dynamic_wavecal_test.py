@@ -18,3 +18,4 @@ myreduce = Reduce()
 myreduce.files.extend(all_files)
 myreduce.drpkg = 'maroonxdr'
 myreduce.runr()
+
