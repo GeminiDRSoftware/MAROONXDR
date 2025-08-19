@@ -526,12 +526,45 @@ def coverage(session: nox.Session):
 def docs(session: nox.Session):
     """Build documentation using Sphinx."""
     session.install('poetry', 'poetry-plugin-export')
-
+    
+    # Install DRAGONS
+    install_dragons(session)
+    
+    # Install dependencies
     dependencies = get_dependencies(session, only='main,docs')
     session.install(*dependencies)
-
-    session.run('sphinx-build', '-b', 'html', 'docs/source', 'docs/build/html')
-
+    
+    # Install maroonxdr and maroonx_instruments
+    session.run(
+        'pip',
+        'install',
+        '-e',
+        '.',
+        external=True,
+    )
+    
+    # Create docs directories if they don't exist
+    docs_source = Path('docs/source')
+    docs_build = Path('docs/build/html')
+    
+    if not docs_source.exists():
+        session.error(
+            f"Documentation source directory {docs_source} does not exist. "
+            "Please create it and add your Sphinx configuration."
+        )
+    
+    # Build the documentation
+    session.run(
+        'sphinx-build', 
+        '-b', 'html',
+        '-W',  # Treat warnings as errors
+        '--keep-going',  # Continue on errors to see all issues
+        str(docs_source), 
+        str(docs_build)
+    )
+    
+    session.log(f"Documentation built successfully in {docs_build}")
+    session.log(f"Open {docs_build}/index.html in your browser to view the docs")
 
 # Building
 @nox.session(venv_backend='virtualenv')
