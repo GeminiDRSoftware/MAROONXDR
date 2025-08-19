@@ -160,6 +160,7 @@ class MAROONXEchelle(MAROONX, Spect):
             # Attach the cached dark to this frame
             if dark_cache[cache_key] is not None:
                 ad[0].SYNTH_DARK = dark_cache[cache_key].copy()
+                log.fullinfo(f"SYNTH_DARK extension attached to {ad.filename}")
                 # gt.mark_history(ad, primname=self.myself(),
                 #             keyword='SYNTH_DARK',
                 #             comment=f"synthetic_{arm_tag.lower()}_{exptime}s_{nd_filter}")
@@ -479,9 +480,6 @@ class MAROONXEchelle(MAROONX, Spect):
                 else:
                     #Make a deepcopy of the dark subtracted fiber
                     adint.data[0] = copy.deepcopy(ad)[0].DARK_SUBTRACTED
-
-                log.fullinfo('skipping all fiber dark subtraction is the '
-                             'default option')
 
                 for o, p in op.items():
                     # extract the stripe, and the flat stripe and the stripe mask

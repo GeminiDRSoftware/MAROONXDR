@@ -10,8 +10,8 @@ import maroonx_instruments  # noqa : import is necesary for astrodata.instrument
 from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 
 # Test data should be under science_dir
-science_dir = Path(__file__).parents[4] / 'science_dir'
-os.chdir(science_dir)
+# science_dir = Path(__file__).parents[4] / 'science_dir'
+# os.chdir(science_dir)
 
 
 
@@ -40,8 +40,7 @@ def test_nd_filter_good_series(caplog, filename):
     adtest = p.checkND()
 
     assert len(caplog.records) > 0
-    assert len(adtest) == sum([test_objects[0].filter_orientation()['ND'] in
-                            ad.filter_orientation()['ND'] for ad in test_objects])
+    assert len(adtest) == len(test_objects)
 
 
 

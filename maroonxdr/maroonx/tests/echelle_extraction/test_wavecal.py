@@ -19,7 +19,7 @@ def test_staticWavelengthSolution(caplog, science_dir, filename):
     """
     caplog.set_level(logging.DEBUG)
 
-    ad = astrodata.open(str(science_dir / filename))
+    ad = astrodata.open(filename)
     p = MaroonXSpectrum([deepcopy(ad)])
 
     requested_fibers = (3, 4)
@@ -40,13 +40,13 @@ def test_staticWavelengthSolution(caplog, science_dir, filename):
 
 
 @pytest.mark.parametrize("filename", ["20241124T030227Z_DEEEE_b_0030_wavecal.fits"])
-def test_getPeaksAndPolynomials(caplog, science_dir, filename):
+def test_getPeaksAndPolynomials(caplog, filename):
     """
     This test checks that PEAKS and POLY tables are correct.
     """
     caplog.set_level(logging.DEBUG)
 
-    ad = astrodata.open(str(science_dir / filename))
+    ad = astrodata.open(filename)
     p = MaroonXSpectrum([deepcopy(ad)])
 
     p.getPeaksAndPolynomials(fibers=(4,), orders=(101,))
@@ -57,13 +57,13 @@ def test_getPeaksAndPolynomials(caplog, science_dir, filename):
 
 
 @pytest.mark.parametrize("filename", ["20241124T030227Z_DEEEE_b_0030_wavecal.fits"])
-def test_fitAndApplyEtalonWls(caplog, science_dir, filename):
+def test_fitAndApplyEtalonWls(caplog, filename):
     """
     This test checks that the dynamic wavelength solution is correct.
     """
     caplog.set_level(logging.DEBUG)
-    
-    ad = astrodata.open(str(science_dir / filename))
+
+    ad = astrodata.open(filename)
     p = MaroonXSpectrum([deepcopy(ad)])
 
 

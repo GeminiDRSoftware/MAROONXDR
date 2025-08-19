@@ -513,13 +513,13 @@ class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
         log = self.log
 
         # Get the simcal ND filter setting for the first file
-        check_val = adinputs[0].filter_orientation()['ND']
+        check_val = round(adinputs[0].filter_orientation()['ND'], 2)
         adoutputs = []
 
         # In case we have multiple files, check that they all have the same ND filter setting
         if len(adinputs) > 1:
             for ad in adinputs:
-                if check_val != ad.filter_orientation()['ND']:
+                if check_val != round(ad.filter_orientation()['ND'], 2):
                     log.warning(
                         'Not all frames have the same simcal ND filter '
                         'setting, restricting set to first seen'

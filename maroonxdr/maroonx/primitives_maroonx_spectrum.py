@@ -544,7 +544,241 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
 
+    def combineFibers(self, adinputs=None, **params):
+        """
+        Combines data from multiple science fibers into one spectrum using weighted averaging.
+        
+        This primitive scales and interpolates fiber data onto a common wavelength grid,
+        performs kappa-sigma clipping to reject outliers, and combines using inverse
+        variance weighting.
+        
+        Parameters
+        ----------
+        adinputs: AstroData object(s) with extracted fiber data
+        combine_fibers: (list) list of fiber numbers to combine
+        symmetric_linefits: (bool) use symmetrical line fits (affects wavelength source)
+        kappa_sigma: (float) sigma clipping threshold for outlier rejection
+        max_clips: (int) maximum pixels to clip per order before increasing kappa_sigma
+        
+        Returns
+        -------
+        adinputs with combined fiber data in new extension with {target_fiber} suffix.
+        """
+        log = self.log
+        log.debug(gt.log_message("primitive", self.myself(), "starting"))
+        timestamp_key = self.timestamp_keys[self.myself()]
+        
+        combine_fibers = params["combine_fibers"]
+        symmetric_linefits = params["symmetric_linefits"]
+        kappa_sigma = params["kappa_sigma"]
+        max_clips = params["max_clips"]
 
+
+        for ad in adinputs:
+            
+            # Get fiber data
+            fiber_data = {}
+            fiber_errors = {}
+            fiber_wls = {}
+            for fib in combine_fibers:
+                fiber_data[fib] = getattr(ad[0], f"OPTIMAL_REDUCED_FIBER_{fib}")
+                fiber_errors[fib] = getattr(ad[0], f"OPTIMAL_REDUCED_ERR_{fib}")
+
+                if symmetric_linefits:
+                    fiber_wls[fib] = getattr(ad[0], f"WAVELENGTH_SYM_FIBER_{fib}")
+                else:
+                    fiber_wls[fib] = getattr(ad[0], f"WAVELENGTH_FIBER_{fib}")
+            
+            # Get orders from one of the fibers, not very relevant which one
+            orders = getattr(ad[0], f"REDUCED_ORDERS_FIBER_{fib}")
+            
+            combined_intensity = {}
+            combined_error = {}
+            combined_wavelength = {}
+            
+            orig_kappa_sigma = kappa_sigma
+            
+            for order_idx, order in enumerate(orders):
+                kappa_sigma = orig_kappa_sigma
+                
+                intensity1 = fiber_data[2][order_idx]
+                intensity2 = fiber_data[3][order_idx]
+                scale1 = np.nansum(intensity1 / np.nansum(intensity2))
+                intensity1 = intensity1 / scale1
+                intensity3 = fiber_data[4][order_idx]
+                scale3 = np.nansum(intensity3 / np.nansum(intensity2))
+                intensity3 = intensity3 / scale3
+
+                error1 = fiber_errors[2][order_idx]
+                error1 = error1 / scale1
+                error2 = fiber_errors[3][order_idx]
+                error3 = fiber_errors[4][order_idx]
+                error3 = error3 / scale3
+
+                wave1 = fiber_wls[2][order_idx]
+                wave2 = fiber_wls[3][order_idx]
+                wave3 = fiber_wls[4][order_idx]
+                
+                # Apply instrument-specific masking
+                if 'BLUE' in ad.tags:
+                    log.fullinfo('Masking additional pixels in blue arm at pixel 196')
+                    intensity1[196] = np.nan
+                    intensity2[196] = np.nan
+                    intensity3[196] = np.nan
+                
+                if 'RED' in ad.tags:
+                    log.fullinfo('Masking additional pixels in red arm at pixels 1793-1794')
+                    intensity1[1793:1794] = np.nan
+                    intensity2[1793:1794] = np.nan
+                    intensity3[1793:1794] = np.nan
+
+                mask1 = np.isnan(intensity1)
+                mask2 = np.isnan(intensity2)
+                mask3 = np.isnan(intensity3)
+
+                try:
+                    m = np.zeros_like(wave1, dtype=bool)
+                    m[np.unique(wave1, return_index=True, return_inverse=True)[1]] = True
+                    mask1[~m] = True
+
+                    f1 = interp1d(wave1[~mask1], intensity1[~mask1], fill_value='extrapolate', kind='slinear')
+                    f1e = interp1d(wave1[~mask1], error1[~mask1], fill_value='extrapolate', kind='slinear')
+                    intensity1_2 = f1(wave2)
+                    error1_2 = np.abs(f1e(wave2))
+                except:
+                    logger.error(f'Interpolation of flux in science fiber 1 of order {order} failed')
+                    intensity1_2 = intensity1
+                    error1_2 = np.abs(error1)*np.nan
+
+                try:
+                    m = np.zeros_like(wave3, dtype=bool)
+                    m[np.unique(wave3, return_index=True, return_inverse=True)[1]] = True
+                    mask3[~m] = True
+
+                    f3 = interp1d(wave3[~mask3], intensity3[~mask3], fill_value='extrapolate', kind='slinear')
+                    f3e = interp1d(wave3[~mask3], error3[~mask3], fill_value='extrapolate', kind='slinear')
+                    intensity3_2 = f3(wave2)
+                    error3_2 = np.abs(f3e(wave2))
+                except:
+                    logger.error(f'Interpolation of flux in science fiber 3 of order {order} failed')
+                    intensity3_2 = intensity3
+                    error3_2 = np.abs(error3)*np.nan
+
+
+                intensity1_2[mask1] = np.nan
+                intensity3_2[mask3] = np.nan
+
+                median_intensity = np.nanmedian([intensity1_2, intensity2, intensity3_2], axis=0)
+
+                weights1_2 = 1.0 / error1_2
+                weights2   = 1.0 / error2
+                weights3_2 = 1.0 / error3_2
+
+                weights1_2[np.isnan(weights1_2)] = 0
+                weights2[np.isnan(weights2)] = 0
+                weights3_2[np.isnan(weights3_2)] = 0
+
+                weights1_2[mask1] = 0
+                weights2[mask2] = 0
+                weights3_2[mask3] = 0
+
+                weights1_2[np.isnan(intensity1_2)] = 0
+                weights2[np.isnan(intensity2)] = 0
+                weights3_2[np.isnan(intensity3_2)] = 0
+
+                clip1 = np.where(np.nan_to_num(np.abs(intensity1_2 - median_intensity)) > kappa_sigma * np.nan_to_num(np.sqrt(error1_2)))
+                clip2 = np.where(np.nan_to_num(np.abs(intensity2 - median_intensity)) > kappa_sigma * np.nan_to_num(np.sqrt(error2)))
+                clip3 = np.where(np.nan_to_num(np.abs(intensity3_2 - median_intensity)) > kappa_sigma * np.nan_to_num(np.sqrt(error3_2)))
+
+                clip1_n = np.size(clip1)
+                clip2_n = np.size(clip2)
+                clip3_n = np.size(clip3)
+
+                while(max([clip1_n,clip2_n,clip3_n]) > max_clips and kappa_sigma<10):
+                    logger.warning(f'Number of maximum clipped pixels exceeded in order {order}')
+                    kappa_sigma = kappa_sigma + 0.5
+
+                    clip1 = np.where(
+                        np.nan_to_num(np.abs(intensity1_2 - median_intensity)) > kappa_sigma * np.nan_to_num(np.sqrt(error1_2)))
+                    clip2 = np.where(
+                        np.nan_to_num(np.abs(intensity2 - median_intensity)) > kappa_sigma * np.nan_to_num(np.sqrt(error2)))
+                    clip3 = np.where(
+                        np.nan_to_num(np.abs(intensity3_2 - median_intensity)) > kappa_sigma * np.nan_to_num(np.sqrt(error3_2)))
+
+                    clip1_n = np.size(clip1)
+                    clip2_n = np.size(clip2)
+                    clip3_n = np.size(clip3)
+
+                logger.info(f'Kappa_sigma in order {order}: {kappa_sigma:.1f}')
+                logger.info(f'Clipped {clip1_n} pixels in fiber 2 of order {order}')
+                logger.info(f'Clipped {clip2_n} pixels in fiber 3 of order {order}')
+                logger.info(f'Clipped {clip3_n} pixels in fiber 4 of order {order}')
+
+                weights1_2[clip1] = 0
+                weights2[clip2] = 0
+                weights3_2[clip3] = 0
+
+                with warnings.catch_warnings():
+                    warnings.filterwarnings('ignore', r'All-NaN slice encountered')
+
+                    weights = np.nansum([weights1_2, weights2, weights3_2], axis=0)
+                    bad = np.where(weights == 0)
+                    weights1_2[bad] = np.nan
+                    weights2[bad] = np.nan
+                    weights3_2[bad] = np.nan
+
+                    intensity = np.average([
+                        np.nan_to_num(intensity1_2), 
+                        np.nan_to_num(intensity2), 
+                        np.nan_to_num(intensity3_2)],
+                        weights=[weights1_2, weights2, weights3_2],
+                        axis=0)
+                    error = np.abs(1.0 / np.sum([weights1_2, weights2, weights3_2], axis=0))
+
+                mask = np.isnan(intensity)
+                if 1000 > np.count_nonzero(mask) >= 0:
+                    logger.info(f'Number of NANs fixed in order {order}: {np.count_nonzero(mask)}')
+                    f = interp1d(wave2[~mask], intensity[~mask], fill_value='extrapolate', kind='slinear')
+                    intensity = f(wave2)
+                else:
+                    logger.warning(f'Too many NANs found in order {order}: {np.count_nonzero(mask)}')
+
+                error[mask] = 1e6
+                error[np.isnan(error)] = 1e6
+
+                combined_wavelength.update({order: wave2})
+                combined_intensity.update({order: intensity})
+                combined_error.update({order: error})
+
+
+            # ===================================================================================
+
+            # Store combined results as new extensions
+            combined_intensity_array = np.vstack([combined_intensity[o] for o in orders])
+            combined_error_array = np.vstack([combined_error[o] for o in orders])
+            combined_wavelength_array = np.vstack([combined_wavelength[o] for o in orders])
+
+            # Define final combined fiber number
+            target_fiber = 6 if not symmetric_linefits else 7
+
+            setattr(ad[0], f"OPTIMAL_REDUCED_FIBER_{target_fiber}", combined_intensity_array)
+            setattr(ad[0], f"OPTIMAL_REDUCED_ERR_{target_fiber}", combined_error_array)
+            if symmetric_linefits:
+                setattr(ad[0], f"WAVELENGTH_SYM_FIBER_{target_fiber}", combined_wavelength_array)
+            else:
+                setattr(ad[0], f"WAVELENGTH_FIBER_{target_fiber}", combined_wavelength_array)
+
+            # Mark history
+            fiber_list = ','.join(map(str, combine_fibers))
+            gt.mark_history(ad, primname=self.myself(),
+                        keyword='FIBER_COMBINATION',
+                        comment=f"combined_fibers_{fiber_list}_to_{target_fiber}")
+            
+            log.info(f"Combined fibers {fiber_list} into fiber {target_fiber} for {ad.filename}")
+            ad.update_filename(suffix=params["suffix"], strip=False)
+        
+        gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
+        return adinputs
 
 
 ##############################################################################

@@ -8,7 +8,7 @@ import maroonx_instruments  # noqa : important to load adclass tags
 
 from gempy.utils import logutils
 logutils.config(file_name="test_reduction.log", stomp=False)
-log = logutils.get_logger(__name__)
+log = logutils.get_logger("test_reduction.log")
 log.setLevel("DEBUG")
 
 

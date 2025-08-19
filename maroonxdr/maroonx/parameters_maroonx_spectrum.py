@@ -83,3 +83,29 @@ class fitAndApplyEtalonWlsConfig(config.Config):
     ref_file = config.Field('Reference file', str, None, optional=True)
     ref_fiber = config.Field('Reference fiber', int, None, optional=True)
     #plot_path = config.Field('Path to save plots', str, '')
+
+class combineFibersConfig(config.Config):
+    """
+    This parameter set controls the combineFibers primitive for MAROON-X.
+    """
+
+    combine_fibers = config.ListField(
+        'List of fibers to combine.',
+        int,
+        [2, 3, 4],
+        optional=True,
+        single=False,
+    )
+    symmetric_linefits = config.Field('Symmetric line fits', bool, False)
+    kappa_sigma = config.Field(
+        'Sigma clipping threshold for outlier rejection',
+        float,
+        5.,
+        optional=True,
+    )
+    max_clips = config.Field(
+        'Maximum pixels to clip per order before increasing kappa_sigma',
+        int,
+        5000,
+        optional=True,
+    )

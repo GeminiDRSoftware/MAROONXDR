@@ -11,8 +11,8 @@ import maroonx_instruments  # noqa : import is necesary for astrodata.instrument
 from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 
 # Test data should be under science_dir
-science_dir = Path(__file__).parents[4] / 'science_dir'
-os.chdir(science_dir)
+# science_dir = Path(__file__).parents[4] / 'science_dir'
+# os.chdir(science_dir)
 
 
 @pytest.mark.parametrize("filename", ["20241114T181815Z_DFFFD_r_0002.fits"])
