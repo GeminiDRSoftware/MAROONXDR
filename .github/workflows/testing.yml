@@ -1,0 +1,55 @@
+# Run tests for the project.
+#
+# Assumes the following testing sessions are defined in the project's
+# noxfile.py.
+# - unit_tests
+# - integration_tests
+# - build_tests
+#
+# This workflow by default runs the tests on macOS, Ubuntu, and Windows.
+# nox controls the python versions used for testing.
+
+name: Testing
+
+on:
+  push:
+    branches:
+      - main
+      - release/*
+      - develop
+  pull_request:
+    branches:
+      - main
+      - release/*
+      - develop
+  workflow_dispatch:
+
+jobs:
+    test:
+        name: ${{ matrix.os }} - ${{ matrix.python-version }} - ${{ matrix.test-session }}
+        runs-on: ${{ matrix.os }}
+        strategy:
+            matrix:
+                os:
+                    - ubuntu-latest
+                    # - macos-latest
+                    # - windows-latest
+                test-session:
+                    - unit_tests
+                python-version:
+                    - "3.12"
+
+        steps:
+        - name: Checkout repository
+          uses: actions/checkout@v2
+
+        - name: Setup nox
+          uses: excitedleigh/setup-nox@v2.0.0
+
+        - name: Setup python
+          uses: actions/setup-python@v2
+          with:
+            python-version: ${{ matrix.python-version }}
+
+        - name: ${{ matrix.os }} - ${{ matrix.python-version }} - ${{ matrix.test-session }}
+          run: nox -s ${{ matrix.test-session }}-${{ matrix.python-version }}
