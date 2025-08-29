@@ -125,6 +125,8 @@ class AstroDataMAROONX(AstroDataGemini):
         if self.fiber_setup() in DARK_FIBER_SETUPS:
             if hasattr(self[0], 'COEFF_Z0'):
                 return TagSet(['DARK', 'DARK_COEFF', 'CAL'])
+            if self.phu.get('OBSTYPE') == 'OBJECT':
+                return TagSet(['DARK', 'DARK_SYNTH', 'CAL'])
             return TagSet(['DARK', 'CAL'])
 
     @astro_data_tag
