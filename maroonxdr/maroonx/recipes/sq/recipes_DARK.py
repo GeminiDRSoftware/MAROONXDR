@@ -33,13 +33,13 @@ def makeProcessedDark(p):
     p.addDQ()
     p.subtractOverscan()
     # legacy dark coefficients dont trim nor flip
-    p.trimOverscan()
-    p.correctImageOrientation()
+    # p.trimOverscan()
+    # p.correctImageOrientation()
 
     p.addVAR(read_noise=True, poisson_noise=True)
     p.stackDarks(scale_mode='first_frame', lsigma=2.0, hsigma=2.0)
     p.storeProcessedDark()
-    return
+
 
 _default = makeProcessedDark
 

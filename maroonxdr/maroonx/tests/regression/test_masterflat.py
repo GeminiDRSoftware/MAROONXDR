@@ -56,9 +56,9 @@ def test_stackFlats(arm, legacy_flats_path):
     with fits.open(old_DDDDF) as hdu_DDDDF, fits.open(old_DFFFD) as hdu_DFFFD:
 
         np.testing.assert_allclose(ad_DDDDF[0].data, hdu_DDDDF[0].data,
-            rtol=1e-5, atol=1e-5)
+            rtol=0, atol=1e-4)
         np.testing.assert_allclose(ad_DFFFD[0].data, hdu_DFFFD[0].data,
-            rtol=1e-5, atol=1e-5)
+            rtol=0, atol=1e-4)
 
 def test_identifyStripes(arm, legacy_flats_path):
     """
@@ -103,12 +103,12 @@ def test_identifyStripes(arm, legacy_flats_path):
     for fiber in old_p_id_DDDDF.keys():
         for order in old_p_id_DDDDF[fiber].keys():
             np.testing.assert_allclose(p_id_DDDDF[fiber][order], old_p_id_DDDDF[fiber][order],
-                rtol=1e-5, atol=1e-5)
+                rtol=0, atol=1e-4)
             
     for fiber in old_p_id_DFFFD.keys():
         for order in old_p_id_DFFFD[fiber].keys():
             np.testing.assert_allclose(p_id_DFFFD[fiber][order], old_p_id_DFFFD[fiber][order],
-                rtol=1e-5, atol=1e-5)
+                rtol=0, atol=1e-4)
 
 def test_identifyStripes_legacyOrder(arm, legacy_flats_path):
     """
@@ -169,12 +169,12 @@ def test_identifyStripes_legacyOrder(arm, legacy_flats_path):
     for fiber in old_p_id_DDDDF.keys():
         for order in old_p_id_DDDDF[fiber].keys():
             np.testing.assert_allclose(p_id_DDDDF[fiber][order], old_p_id_DDDDF[fiber][order],
-                rtol=1e-5, atol=1e-5)
+                rtol=0, atol=1e-4)
             
     for fiber in old_p_id_DFFFD.keys():
         for order in old_p_id_DFFFD[fiber].keys():
             np.testing.assert_allclose(p_id_DFFFD[fiber][order], old_p_id_DFFFD[fiber][order],
-                rtol=1e-5, atol=1e-5)
+                rtol=0, atol=1e-4)
 
 #@pytest.mark.xfail(reason="Photutils Background2D changed from 1.02 to 2.02")
 def test_removeStraylight(arm, legacy_flats_path):
@@ -227,9 +227,9 @@ def test_removeStraylight(arm, legacy_flats_path):
     with fits.open(old_DDDDF) as hdu_DDDDF, fits.open(old_DFFFD) as hdu_DFFFD:
 
         np.testing.assert_allclose(ad_DDDDF[0].data, hdu_DDDDF[0].data,
-            rtol=1e-5, atol=1e-5)
+            rtol=0, atol=1e-4)
         np.testing.assert_allclose(ad_DFFFD[0].data, hdu_DFFFD[0].data,
-            rtol=1e-5, atol=1e-5)
+            rtol=0, atol=1e-4)
 
 #@pytest.mark.xfail(reason="Photutils Background2D changed from 1.02 to 2.02")
 def test_removeStraylight_legacyOrder(arm, legacy_flats_path):
@@ -291,9 +291,9 @@ def test_removeStraylight_legacyOrder(arm, legacy_flats_path):
     with fits.open(old_DDDDF) as hdu_DDDDF, fits.open(old_DFFFD) as hdu_DFFFD:
 
         np.testing.assert_allclose(ad_DDDDF[0].data, hdu_DDDDF[0].data,
-            rtol=1e-5, atol=1e-5)
+            rtol=0, atol=1e-4)
         np.testing.assert_allclose(ad_DFFFD[0].data, hdu_DFFFD[0].data,
-            rtol=1e-5, atol=1e-5)
+            rtol=0, atol=1e-4)
 
 def test_combinedFlat(arm, legacy_flats_path):
 

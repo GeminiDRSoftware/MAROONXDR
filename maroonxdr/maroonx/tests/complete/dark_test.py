@@ -122,6 +122,6 @@ def test_dark_coefficients():
 
 if __name__ == '__main__':
 
-    #test_reduce_dark()
+    test_reduce_dark()
 
     test_dark_coefficients()

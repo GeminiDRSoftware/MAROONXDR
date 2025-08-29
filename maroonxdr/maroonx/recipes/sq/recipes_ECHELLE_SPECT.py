@@ -75,3 +75,18 @@ def makeStripeExtractionCheck(p):
     p.attachDarkSubtraction()
     p.extractStripes(test_extraction=True)  # gets relevant flat and dark to cut out frame's spectra
     p.storeProcessedScience(suffix='_test_stripes')
+
+
+def makeSyntheticDark(p):
+    """
+    This recipe constructs DDDDE master darks from a coefficient file for a 
+    list of science exposures. It uses a linear interpolation of 
+    log(exposure time) vs. flux in empirical master darks to construct interpolated 
+    darks for other expsoure times.
+    """
+    p.prepare()
+    p.checkArm()
+    p.addVAR(read_noise=True, poisson_noise=True)
+    
+    p.createSyntheticDark()
+    p.storeProcessedDark(suffix="_synth_dark")

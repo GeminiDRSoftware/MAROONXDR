@@ -27,6 +27,15 @@ class attachDarkSubtractionConfig(config.Config):
                                          "closest": "Closest in time"},
                                 default="synthetic")
 
+class createSyntheticDarkConfig(config.Config):
+    '''
+    This parameter set controls the createSyntheticDark primitive for MAROON-X.
+    '''
+    suffix = config.Field("Filename suffix", str, "")
+    dark_coeff = config.ListField("Dark coefficient file", (str, AstroData), None,
+                                optional=True, single=True)
+    individual = config.Field("Unique dark for each frame", bool, False)
+
 class extractStripesConfig(config.Config):
     '''
     This parameter set controls the extractStripes primitive for MAROON-X.
@@ -34,6 +43,13 @@ class extractStripesConfig(config.Config):
     suffix = config.Field("Filename suffix", str, "")
     skip_dark = config.ListField(
         'Input fibers for which the dark frame will NOT be subtracted.',
+        int,
+        None,
+        optional=True,
+        single=True,
+    )
+    remove_straylight = config.ListField(
+        'Input fibers for which straylight will be removed.',
         int,
         None,
         optional=True,

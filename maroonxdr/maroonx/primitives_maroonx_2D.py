@@ -1731,7 +1731,7 @@ class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
 
         adoutputs = []
         for ad in adinputs:
-            base = Path(ad.filename).stem  # Remove extension from outfile
+            base = Path(ad.filename).stem.removesuffix('_overscanSubtracted')  # Remove extension from outfile
             data_dict = np.load(file_dict[base], allow_pickle=True).item()
             
             adout = deepcopy(ad)
@@ -2040,6 +2040,9 @@ class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
         log.fullinfo(f"Dark coefficient arrays written to {ad_out.filename}")
         
         return [ad_out]
+
+
+
 
 ##############################################################################
 # Below are the helper functions for the primitives in this module           #

@@ -58,51 +58,10 @@ def test_master_dark(arm, legacy_darks_path, exptime):
         assert old_data.shape == new_data.shape, f"Shape mismatch: {old_data.shape} != {new_data.shape}"
 
         # Compare the data
-        np.testing.assert_allclose(old_data, new_data, rtol=1e-5, atol=1e-5, 
+        np.testing.assert_allclose(old_data, new_data, rtol=0, atol=1e-4, 
             err_msg='Data mismatch')
 
 
-@pytest.mark.parametrize("exptime", ["60", "120", "300", "600", "900", "1200", "1800"])
-def test_master_dark_with_legacy_post_trim(arm, legacy_darks_path, exptime, ad_empty_dark):
-
-    legacy_suffix =  f"masterdark_mean_DDDDE_{arm[0].lower()}_{exptime.zfill(4)}"
-    legacy_file = list(legacy_darks_path.glob(f"202411*T*_{legacy_suffix}.fits"))
-    assert len(legacy_file) == 1, f"Expected 1 file, got {len(legacy_file)}"
-    legacy_file = list(legacy_file)[0]
-
-    # get all flat files
-    raw_files = sorted([str(f) for f in Path().glob('*.fits')])
-    selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'DARK', arm, f'{exptime}s'])
-
-    # read files and instantiate the primitive class
-    adinput = [astrodata.open(f) for f in selected_spect]
-    p = MAROONX(adinput)
-
-    p.prepare()
-    p.checkArm()
-    p.checkND()
-    p.addDQ()
-    p.subtractOverscan()
-    # Trimming and flipping
-    p.trimOverscan()
-    p.correctImageOrientation()
-
-    p.addVAR(read_noise=True, poisson_noise=True)
-    adouts = p.stackDarks(scale_mode='first_frame', lsigma=2.0, hsigma=2.0)
-
-    with fits.open(legacy_file) as old_hdu:
-        old_data = old_hdu[0].data
-        new_data = adouts[0][0].data
-
-        ad_empty_dark[0].data = old_data.copy()     # not empty anymore
-        ad_dark = trim_and_flip_legacy(ad_empty_dark)
-
-        old_data_post_trim = ad_dark[0].data
-        assert old_data_post_trim.shape == new_data.shape, f"Shape mismatch: {old_data_post_trim.shape} != {new_data.shape}"
-
-        # Compare the data
-        np.testing.assert_allclose(old_data_post_trim, new_data, rtol=1e-2, atol=1e-2, 
-            err_msg='Data mismatch')
 
 @pytest.mark.slow
 def test_fitDarkCoefficients(arm, legacy_darks_path, processed_dark_path, ad_empty_dark):
@@ -112,7 +71,7 @@ def test_fitDarkCoefficients(arm, legacy_darks_path, processed_dark_path, ad_emp
 
     # get all dark files
     all_files = sorted([str(f) for f in processed_dark_path.glob('*.fits')])
-    selected_dark = dataselect.select_data(all_files, tags=['PROCESSED', 'DARK', arm])
+    selected_dark = dataselect.select_data(all_files, tags=['PROCESSED', 'DARK', arm], xtags=['DARK_COEFF', 'DARK_SYNTH'])
 
     # read files and instantiate the primitive class
     adinput = [astrodata.open(f) for f in selected_dark]
@@ -127,31 +86,13 @@ def test_fitDarkCoefficients(arm, legacy_darks_path, processed_dark_path, ad_emp
     z0 = adout[0][0].COEFF_Z0
     z1 = adout[0][0].COEFF_Z1
     logexptime = adout[0][0].LOGEXPTIME
-
-    # Load legacy data into an empty astrodata object and trim it
-    # legacy_z0_ad = deepcopy(ad_empty_dark)
-    # legacy_z1_ad = deepcopy(ad_empty_dark)
-    # legacy_z0_ad[0].data = legacy_coeffs['z0']
-    # legacy_z1_ad[0].data = legacy_coeffs['z1']
-    
-    # legacy_z0_p = MAROONX([legacy_z0_ad])
-    # legacy_z1_p = MAROONX([legacy_z1_ad])
-    
-    # legacy_z0_p.trimOverscan()
-    # legacy_z1_p.trimOverscan()
-    
-    # legacy_z0_p.correctImageOrientation()
-    # legacy_z1_p.correctImageOrientation()
-
-    # legacy_z0 = legacy_z0_p.streams['main'][0][0].data
-    # legacy_z1 = legacy_z1_p.streams['main'][0][0].data
     
     legacy_z0 = legacy_coeffs['z0']
     legacy_z1 = legacy_coeffs['z1']
 
     # Compare the data
-    np.testing.assert_allclose(z0, legacy_z0, rtol=1e-2, atol=1e-2, err_msg='Data mismatch')
-    np.testing.assert_allclose(z1, legacy_z1, rtol=1e-2, atol=1e-2, err_msg='Data mismatch')
+    np.testing.assert_allclose(z0, legacy_z0, rtol=0, atol=2e-4, err_msg='Data mismatch')
+    np.testing.assert_allclose(z1, legacy_z1, rtol=0, atol=2e-4, err_msg='Data mismatch')
     np.testing.assert_allclose(logexptime['logexptime'].value, legacy_coeffs['logexptime'])
 
 
@@ -175,6 +116,8 @@ def test_create_synthetic_masterdark(arm, legacy_darks_path, processed_dark_path
     selected_dark = dataselect.select_data(all_files, tags=['DARK_COEFF', arm])
     assert len(selected_dark) == 1, "Expected 1 file with tag DARK_COEFF"
 
+    print(selected_dark)
+
     ad_coeff = astrodata.open(selected_dark[0])
 
     # create synthetic master dark
@@ -184,19 +127,10 @@ def test_create_synthetic_masterdark(arm, legacy_darks_path, processed_dark_path
     with fits.open(legacy_file) as hdul:
         legacy_dark = hdul[0].data
 
-        # check that the synthetic dark frame is within 5% of the legacy dark frame
-        np.testing.assert_allclose(synthetic_dark, legacy_dark, rtol=1e-5)
+        # check that the synthetic dark frame is within tolerance of the legacy dark frame
+        np.testing.assert_allclose(synthetic_dark, legacy_dark, rtol=0, atol=1e-4)
 
 # =========================================================================================
-def trim_and_flip_legacy(ad):
-    """
-    Trim the input AstroData object to a 2D array and flip it vertically.
-    """
-    # Trim the input AstroData object to a 2D array
-    p = MAROONX([ad])
-    p.trimOverscan()
-    p.correctImageOrientation()
-    return p.streams['main'][0].data
 
 def create_synthetic_dark(ad_coeff, exptime_value=None, nd_value=None):
     """

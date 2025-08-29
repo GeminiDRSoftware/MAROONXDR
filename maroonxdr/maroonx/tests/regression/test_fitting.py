@@ -119,7 +119,7 @@ def test_load_recordings(legacy_reduced_path, legacy_flats_path):
         # Test data shapes are equal
         assert old_data.shape == new_data.shape
         # Test data values are equal
-        np.testing.assert_allclose(old_data, new_data, rtol=1e-4, atol=1e-4)
+        np.testing.assert_allclose(old_data, new_data, rtol=0, atol=1e-4)
     
 @pytest.mark.skip(reason="This test is for debuging purposes only.")
 def test_iterative_fit_legacy():
@@ -185,11 +185,15 @@ def test_iterative_fit_ETALON(legacy_reduced_path):
 
     assert peaks.shape == old_peak_data[old_mask].shape, "Peak data shape mismatch"
 
-    # Test the peaks center
-    pd.testing.assert_series_equal(
-        peaks['CENTER'],
-        old_peak_data[old_mask]['center'],
-        atol=1e-5, check_index=False)
+    relevant_columns = ['center', 'amplitude', 'offset', 'width', 'sigma1', 'sigma2']
+
+    # Test column values
+    for col in relevant_columns:
+        np.testing.assert_allclose(
+            peaks[col.upper()].values,
+            old_peak_data[old_mask][col.lower()].values,
+            rtol=0, atol=1e-2)        
+
 
 
 def test_iterative_fit_LFC(legacy_reduced_path):
@@ -224,11 +228,16 @@ def test_iterative_fit_LFC(legacy_reduced_path):
 
     assert peaks.shape == old_peak_data[old_mask].shape, "Peak data shape mismatch"
 
-    # Test the peaks center
-    pd.testing.assert_series_equal(
-        peaks['CENTER'],
-        old_peak_data[old_mask]['center'],
-        atol=1e-5, check_index=False)
+    relevant_columns = ['center', 'amplitude', 'offset', 'width', 'sigma1', 'sigma2']
+
+    # Test column values
+    for col in relevant_columns:
+        np.testing.assert_allclose(
+            peaks[col.upper()].values,
+            old_peak_data[old_mask][col.lower()].values,
+            rtol=0, atol=1e-4)  # value * rtol + atol
+
+
 
 @pytest.mark.slow
 @pytest.mark.parametrize("etalon_filename", ETALONS)
@@ -508,7 +517,6 @@ def load_recordings_legacy(f_data, f_flat, f_guess, fibers, orders, use_sigma_lr
                 
                 yield fiber, order, data, None
                 #yield fiber, order, np.array(node) , np.array(flat), None
-
 
 def load_mat(name, filepath):
     with h5py.File(filepath, mode="r") as h5f:

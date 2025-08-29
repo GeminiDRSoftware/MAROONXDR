@@ -59,17 +59,48 @@ def _get_calibration_dark_coeff(arm_tag):
         raise ValueError(f'Multiple calibration darks found for arm tag: {arm_tag}')
     return astrodata.open(files[0])
 
-# def _get_calibration_dark(adinputs):
-#     """
-#     Match and return calibration darks as astrodata list.
-#     Should probably be deprecated when dragons calib is implemented.
-#     """
-#     # Get the calibration darks
-#     calib_dark_path = _get_calibration_dark_path()
-#     if "SCI" in adinputs[0].tags:
-#         # need to create a synthetic dark
-#     elif 
+def _get_calibration_dark(adinputs):
+    """
+    Match and return calibration synthetic dark file as astrodata object.
+    Should probably be deprecated when dragons calib is implemented.
+    """
+    # Get the calibration darks
+    calib_dark_path = _get_calibration_dark_path()
+    files = dataselect.select_data(
+        list(calib_dark_path.glob('*.fits')), tags=['DARK_SYNTH'])
 
+    adoutputs = []
+    for ad in adinputs:
+        # Match the input science name to list of synth darks
+        name_match = ad.filename.rstrip('.fits')
+        for dark_name in files:
+            if name_match in str(dark_name):
+                dark_ad = astrodata.open(dark_name)
+                adoutputs.append(dark_ad)
+                break
+        else:
+            adoutputs.append(None)
+    return adoutputs
+
+def _get_calibration_flat(adinputs):
+    """
+    Match and return calibration flat file as astrodata object.
+    Should probably be deprecated when dragons calib is implemented.
+    """
+    calib_flat_path = _get_calibration_flat_path()
+    
+    adoutputs = []
+    for ad in adinputs:
+        if 'BLUE' in ad.tags:
+            flat_ad = astrodata.open( str(calib_flat_path / '20241114T190714Z_DDDDF_b_0007_DFFFF_flat.fits') )
+        elif 'RED' in ad.tags:
+            flat_ad = astrodata.open( str(calib_flat_path / '20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits') )
+        else:
+            raise ValueError("Unknown file arm.")
+
+        adoutputs.append(copy.deepcopy(flat_ad))
+
+    return adoutputs
 
 @parameter_override
 class MAROONXEchelle(MAROONX, Spect):
@@ -87,48 +118,35 @@ class MAROONXEchelle(MAROONX, Spect):
         self.inst_lookups = 'maroonxdr.maroonx.lookups'
         self._param_update(parameters_maroonx_echelle)
 
-    def _getSyntheticDark(self, adinputs=None, **params):
-        """
-        Get the path for the synthetic dark file.
-        Should probably be deprecated when dragons calib is implemented.
-        """
-        # adouts = []
-        # for ad in adinputs:
-        #     # get the coefficients ad
-        #     # calculate synthetic dark
-        #     # append to adouts
-        return
 
-    def attachSyntheticDark(self, adinputs=None, dark_coeff=None, individual=False, **params):
+    def createSyntheticDark(self, adinputs=None, **params):
         """
-        Finds or creates synthetic dark frames and attaches them to adinputs as SYNTH_DARK extension.
+        Creates synthetic dark frames from science input files.
         
-        Creates synthetic darks with caching behavior controlled by individual parameter.
+        This primitive generates synthetic dark frames using pre-computed coefficients
+        and the log-linear relationship: dark = z1 + z0 * log10(exptime * factor)
         
         Parameters
         ----------
-        adinputs: AstroData object(s) to attach darks to
-        dark_coeff: (optional) adinput of dark coefficients file
+        adinputs: AstroData object(s) science files to create darks for
+        dark_coeff: (optional) adinput of dark coefficients file  
         individual: (bool) if True, creates unique dark for each frame (no reuse).
             If False, reuses darks for frames with same exposure time, ND filter, and arm.
             
         Returns
         -------
-        adinputs with SYNTH_DARK extension added to each frame
+        adoutputs: list of AstroData objects containing synthetic dark frames
         """
         log = self.log
-        #log.debug(gt.log_message("primitive", self.myself(), "starting"))
-        #timestamp_key = self.timestamp_keys[self.myself()]
+
+        dark_coeff = params['dark_coeff']
+        individual = params['individual']
         
-        # Cache for storing created darks
+        # Cache for storing created darks when individual=False
         dark_cache = {}
+        adoutputs = []
         
         for ad in adinputs:
-
-            if hasattr(ad[0], 'SYNTH_DARK'):
-                log.fullinfo(f"Skipped. SYNTH_DARK extension found in {ad.filename}.")
-                continue
-
             exptime = ad.exposure_time()
             nd_filter = ad.filter_orientation()['ND']
             arm_tag = 'BLUE' if 'BLUE' in ad.tags else 'RED'
@@ -139,6 +157,8 @@ class MAROONXEchelle(MAROONX, Spect):
             else:
                 cache_key = (exptime, nd_filter, arm_tag)  # Grouping key - allows reuse
             
+            synthetic_dark_data = None
+            
             if cache_key not in dark_cache:
                 # Create new synthetic dark
                 if dark_coeff is None:
@@ -147,208 +167,118 @@ class MAROONXEchelle(MAROONX, Spect):
                     dark_coeff_ad = dark_coeff
                 
                 if dark_coeff_ad is not None:
-                    synthetic_dark, actual_exptime, actual_nd, factor = create_synthetic_dark(
-                        dark_coeff_ad, exptime_value=exptime, nd_value=nd_filter
-                    )
-                    dark_cache[cache_key] = synthetic_dark
+                    # Validate inputs
+                    if exptime is None and nd_filter is None:
+                        raise ValueError("Either exptime or nd_filter must be provided")
+                    
+                    # Check for required extensions
+                    required_extensions = ['COEFF_Z0', 'COEFF_Z1', 'LOGEXPTIME']
+                    for ext_name in required_extensions:
+                        if not hasattr(dark_coeff_ad[0], ext_name):
+                            raise ValueError(f"Required extension {ext_name} not found")
+                    
+                    # Extract coefficient arrays
+                    z0 = dark_coeff_ad[0].COEFF_Z0
+                    z1 = dark_coeff_ad[0].COEFF_Z1
+                    logexptime_table = dark_coeff_ad[0].LOGEXPTIME
+                    
+                    # Extract calibration data
+                    logexptimes = np.array(logexptime_table['logexptime'])
+                    exptimes = np.array(logexptime_table['exptime'])
+                    
+                    # Check if ND filter data is available
+                    has_nd_data = 'ndfilter' in logexptime_table.colnames
+                    if has_nd_data:
+                        ndfilters = np.array(logexptime_table['ndfilter'])
+                    else:
+                        ndfilters = np.zeros_like(exptimes)  # Default to zero if no ND data
+                    
+                    # Initialize variables
+                    factor = 1.0
+                    actual_exptime = exptime
+                    actual_nd = nd_filter
+                    
+                    # Case 1: Only exposure time provided
+                    if exptime is not None and nd_filter is None:
+                        actual_exptime = exptime
+                        
+                        if has_nd_data and len(np.unique(ndfilters)) > 1:
+                            # Calculate expected ND position from exposure time
+                            z_nd_logt = np.polyfit(logexptimes, ndfilters, 1)
+                            f_nd_logt = np.poly1d(z_nd_logt)
+                            actual_nd = f_nd_logt(np.log10(exptime))
+                        else:
+                            actual_nd = ndfilters[0] if len(ndfilters) > 0 else 0.0
+                    
+                    # Case 2: Only ND value provided  
+                    elif nd_filter is not None and exptime is None:
+                        actual_nd = nd_filter
+                        
+                        if has_nd_data and len(np.unique(ndfilters)) > 1:
+                            # Calculate exposure time from ND position
+                            z_logt_nd = np.polyfit(ndfilters, logexptimes, 1)
+                            f_logt_nd = np.poly1d(z_logt_nd)
+                            actual_exptime = 10**(f_logt_nd(nd_filter))
+                        else:
+                            # Use median exposure time as default
+                            actual_exptime = np.median(exptimes)
+                    
+                    # Case 3: Both exposure time and ND value provided
+                    elif exptime is not None and nd_filter is not None:
+                        actual_exptime = exptime
+                        actual_nd = nd_filter
+                        
+                        # Check for ND filter mismatch and apply correction if needed
+                        if has_nd_data and len(np.unique(ndfilters)) > 1:
+                            z_nd_logt = np.polyfit(logexptimes, ndfilters, 1)
+                            f_nd_logt = np.poly1d(z_nd_logt)
+                            z_logt_nd = np.polyfit(ndfilters, logexptimes, 1) 
+                            f_logt_nd = np.poly1d(z_logt_nd)
+                            
+                            expected_nd = f_nd_logt(np.log10(exptime))
+                            nd_difference = abs(actual_nd - expected_nd)
+                            
+                            # Apply correction factor if ND mismatch is significant (>0.2)
+                            if nd_difference > 0.2:
+                                logt_nominal = f_logt_nd(actual_nd)
+                                factor = 10**(np.log10(exptime) - logt_nominal)
+                    
+                    # Calculate synthetic dark frame
+                    # Formula: dark = z1 + z0 * log10(exptime * factor)
+                    effective_logexptime = np.log10(actual_exptime * factor)
+                    synthetic_dark_data = (z1 + z0 * effective_logexptime).astype(np.float32)
+                    
+                    dark_cache[cache_key] = synthetic_dark_data
                     log.fullinfo(f"Created synthetic dark for {ad.filename}: "
                                 f"exptime={actual_exptime:.1f}s, nd={actual_nd:.2f}, factor={factor:.2f}")
                 else:
                     log.warning(f"No dark coefficients found for {arm_tag} arm, {ad.filename}")
                     dark_cache[cache_key] = None
-            
-            # Attach the cached dark to this frame
-            if dark_cache[cache_key] is not None:
-                ad[0].SYNTH_DARK = dark_cache[cache_key].copy()
-                log.fullinfo(f"SYNTH_DARK extension attached to {ad.filename}")
-                # gt.mark_history(ad, primname=self.myself(),
-                #             keyword='SYNTH_DARK',
-                #             comment=f"synthetic_{arm_tag.lower()}_{exptime}s_{nd_filter}")
             else:
-                ad[0].SYNTH_DARK = None
-                log.warning(f"No synthetic dark attached to {ad.filename}")
-        
-        # gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
-        return adinputs
-
-    def attachDarkSubtraction(self, adinputs=None, **params):
-        """
-        Performs dark subtraction using the SYNTH_DARK extension to create DARK_SUBTRACTED extension.
-        
-        This primitive assumes that attachDark() has already been run to create the SYNTH_DARK extension.
-        It performs pixel-by-pixel subtraction: DARK_SUBTRACTED = data - SYNTH_DARK
-        
-        Parameters
-        ----------
-        adinputs: AstroData object(s) with SYNTH_DARK extension
-        
-        Returns
-        -------
-        adinputs with DARK_SUBTRACTED extension added
-        """
-        log = self.log
-        # log.debug(gt.log_message("primitive", self.myself(), "starting"))
-        # timestamp_key = self.timestamp_keys[self.myself()]
-      
-        dark_type = params.get('dark_type')
-        
-        if dark_type == 'synthetic':
-            self.attachSyntheticDark()
-        else:
-            # self.attachClosestDark()
-            raise NotImplementedError("Only synthetic dark type is supported")
-
-        adoutputs = []
-        
-        for ad in adinputs:
-            adout = copy.deepcopy(ad)
+                # Use cached dark
+                synthetic_dark_data = dark_cache[cache_key]
             
-            
-            # Check if SYNTH_DARK extension exists
-            if hasattr(ad[0], 'SYNTH_DARK') and ad[0].SYNTH_DARK is not None:
-                # Perform pixel-by-pixel subtraction
-                adout[0].DARK_SUBTRACTED = ad[0].data - ad[0].SYNTH_DARK
-                log.fullinfo(f"Dark subtraction completed for {ad.filename}")
-                
-                # Mark history
-                # gt.mark_history(adout, primname=self.myself(),
-                #             keyword='DARK_SUBTRACTED',
-                #             comment="synthetic_dark_subtracted")
-            else:
-                log.warning(f"Dark subtraction skipped. "
-                        f"No SYNTH_DARK extension found for {ad.filename}.")
-                # Copy data without subtraction
-                # adout[0].DARK_SUBTRACTED = ad[0].data.copy()
-            
-            adoutputs.append(adout)
-        
-        # gt.mark_history(adoutputs, primname=self.myself(), keyword=timestamp_key)
-        return adoutputs
+            # Create AstroData object for synthetic dark
+            if synthetic_dark_data is not None:
+                # Create a copy of the input AstroData structure but with synthetic dark data
+                adout = copy.deepcopy(ad)
+                adout[0].data = synthetic_dark_data
 
-    def darkSubtraction_old(self, adinputs=None, dark=None, individual=False,
-                        **params):
-        """
-        Finds the dark frame in association with the adinput and creates a
-        dark subtracted extension that can be requested during stripe extraction
-
-        TODO: In current format (without caldb assistance) processed darks need to be
-        manually hardcode swapped based on input science xptime and nd_filter values.
-        When MX data is brought into GOA and Caldb, can replace with calls, should
-        use caldb argument to figure out which arm is needed instead of here
-
-        Parameters
-        ----------
-        adinputs: AstroData object(s) for which dark subtraction is to be performed
-        dark: (optional) adinput of relevant processed dark
-        indiviual: (bool) if True, creates a calib call for each individual science frame.
-            If False, groups frames into exposure time and ND_filter and calls one calib per group
-            based on first frame in group.
-
-        Returns
-        -------
-        adinputs with additional image extension of dark subtracted full frame.
-
-        """
-        log = self.log
-        log.debug(gt.log_message("primitive", self.myself(), "starting"))
-        timestamp_key = self.timestamp_keys[self.myself()]
-        adoutputs = []
-        if len(adinputs) > 1: # Logic for multiple inputs
-            if not individual:  # group frames given by unique sets of xptime and nd_filter
-                # saves on redundent caldb requests.
-                # Each daytime-made xptime & nd_filter unique processed dark
-                # only needs to be called once per science series with that xptime & nd_filter
-                exposure_time_list = []
-                nd_filter_list = []
-                for ad in adinputs:
-                    # Create lists of the exposure times and neutral density filters for each image
-                    exposure_time_list.append(ad.exposure_time())
-                    nd_filter_list.append(ad.filter_orientation()['ND'])
-
-                # Convert lists to numpy arrays for easier indexing
-                exposure_time_list = np.array(exposure_time_list)
-                nd_filter_list = np.array(nd_filter_list)
-
-                for time in np.unique(exposure_time_list):
-                    # Loop over unique exposure times
-                    for nd_filter in np.unique(nd_filter_list[exposure_time_list == time]):
-                        # Loop over unique ND filters for each exposure time
-                        cal_list = []
-                        for ad in adinputs:
-                            # Create a list of all images with the current exposure time
-                            # and ND filter
-                            if ad.exposure_time() == time and ad.filter_orientation()['ND'] == nd_filter:
-                                cal_list.append(ad)
-                        if dark is None:
-
-                            if False:
-                                # brainstorming solutions
-                                arm_tag = 'BLUE' if 'BLUE' in cal_list[0].tags else 'RED'
-                                dark_coeff = _get_calibration_dark_coeff(arm_tag)
-                                dark_ad = create_synthetic_dark(dark_coeff, exptime_value=time, nd_value=nd_filter)
-
-                            if 'BLUE' in cal_list[0].tags:
-                                # Find the processed dark for the blue arm
-                                # TODO: replace hardcoded reference with caldb call to processed dark
-                                calib_dark_dir = _get_calibration_dark_path()
-                                dark_ad = astrodata.open( str(calib_dark_dir / '20241115T193254Z_DDDDE_b_0300_dark.fits') )
-                            elif 'RED' in cal_list[0].tags:
-                                # Find the processed dark for the red arm
-                                # TODO: replace hardcoded reference with caldb call to processed dark
-                                calib_dark_dir = _get_calibration_dark_path()
-                                dark_ad = astrodata.open( str(calib_dark_dir / '20241115T193254Z_DDDDE_r_0300_dark.fits') )
-
-                            else:
-                                # This condition should never be reached
-                                log.warning(f"No dark subtraction will be made to {cal_list[0].filename} "
-                                            "group prior to stripe extraction, since no "
-                                            "dark was found/specified")
-
-                        for ad_found in cal_list:
-                            # Loop over all images in the current exposure time and ND filter group
-                            adout = copy.deepcopy(ad_found)
-                            log.fullinfo(f"{dark_ad.filename} found as associated dark")
-                            # Perform a dark subtraction by using numpy to a do pixel-by-pixel subtraction
-                            adout[0].DARK_SUBTRACTED = copy.deepcopy(ad_found)[0].data - copy.deepcopy(dark_ad).data[0]
-                            adoutputs.append(adout)
-                            if dark_ad:
-                                gt.mark_history(ad, primname=self.myself(),
-                                                keyword='REDUCTION_DARK',
-                                                comment=dark_ad.filename)
-        else: # Logic for single input
-            for ad in adinputs:
-                adout = copy.deepcopy(ad)  # don't group frames and make a dark caldb call for each science frame
-                if dark is None:
-                    if 'BLUE' in ad.tags:
-                        # Find the processed dark for the blue arm
-                        # TODO: replace hardcoded reference with caldb call to processed dark
-                        calib_dark_dir = _get_calibration_dark_path()
-                        dark_ad = astrodata.open( str(calib_dark_dir / '20241115T193254Z_DDDDE_b_0300_dark.fits') )
-                    elif 'RED' in ad.tags:
-                        # Find the processed dark for the red arm
-                        # TODO: replace hardcoded reference with caldb call to processed dark
-                        calib_dark_dir = _get_calibration_dark_path()
-                        dark_ad = astrodata.open( str(calib_dark_dir / '20241115T193254Z_DDDDE_r_0300_dark.fits') )
-
-                    else:
-                        # This condition should never be reached
-                        log.warning(f"No dark subtraction will be made to {ad.filename} "
-                                    "prior to stripe extraction, since no "
-                                    "dark was found/specified")
-
-                log.fullinfo(f"{dark_ad.filename} found as associated dark")
-                # Perform a dark subtraction by using numpy to a do pixel-by-pixel subtraction
-                adout[0].DARK_SUBTRACTED = copy.deepcopy(ad)[0].data - copy.deepcopy(dark_ad).data[0]
+                # Rename fiber keywords to match a Dark fiber setup
+                for fiber in [1, 2, 3, 4]:
+                    adout.phu[f'FIBER{fiber}'] = 'Dark'
+                adout.phu['FIBER5'] = 'Etalon'
                 adoutputs.append(adout)
-                if dark_ad:
-                    gt.mark_history(ad, primname=self.myself(),
-                                    keyword='REDUCTION_DARK',
-                                    comment=dark_ad.filename)
-            gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
+            else:
+                log.warning(f"No synthetic dark created for {ad.filename}")
+                # Optionally append None or skip this frame
+                # adoutputs.append(None)
+        
         return adoutputs
 
     def extractStripes(self, adinputs=None, flat=None,
-                       skip_dark=None, slit_height=10,
+                       skip_dark=None, remove_straylight=None,
+                       slit_height=10,
                        test_extraction=False, individual=False, **params):
         """
         Extracts the stripes from the original 2D spectrum to a sparse array,
@@ -387,67 +317,33 @@ class MAROONXEchelle(MAROONX, Spect):
             sparse matrix format
 
         """
+        log = self.log
+        log.debug(gt.log_message("primitive", self.myself(), "starting"))
+        timestamp_key = self.timestamp_keys[self.myself()]
+
+
         if skip_dark is None:
             # skip all dark subtraction by default
             skip_dark = [1, 2, 3, 4, 5]
 
-        log = self.log
-        log.debug(gt.log_message("primitive", self.myself(), "starting"))
-        timestamp_key = self.timestamp_keys[self.myself()]
-        blue_frames = []
-        red_frames = []
-        for ad in adinputs:
-            # create lists of blue and red frames based on tags
-            if 'BLUE' in ad.tags:
-                blue_frames.append(ad)
-            elif 'RED' in ad.tags:
-                red_frames.append(ad)
+        if remove_straylight is None:
+            # skip all
+            remove_straylight = [0, 0, 0, 0, 0]
 
-        for ad in blue_frames+red_frames:
-            if not ad:
-                continue
-            try:
-                #TODO: I think a lot of this can be replaced with caldb calls - Rohan
-                if ad.filename == blue_frames[0].filename:
-                    if flat is None:
-                        # call one flat for all blue frames, saves redundant caldb requests as new flats are rarely made
-                        # time between flats > 1 year
-                        # TODO: replace hardcoded reference with caldb call to processed flat
-                        calib_flat_dir = _get_calibration_flat_path()
-                        flat_ad = astrodata.open( str(calib_flat_dir / '20241114T190714Z_DDDDF_b_0007_DFFFF_flat.fits') )
-                        log.fullinfo(f"{flat_ad.filename} found as associated flat for all blue frames")
-            except IndexError:
-                pass
-            try:
-                if ad.filename == red_frames[0].filename:
-                    if flat is None:
-                        # call one flat for all red frames, saves redundant caldb requests as new flats are rarely made
-                        # time between flats > 1 year
-                        # TODO: replace hardcoded reference with caldb call to processed flat
-                        calib_flat_dir = _get_calibration_flat_path()
-                        flat_ad = astrodata.open( str(calib_flat_dir / '20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits') )
-                        log.fullinfo(f"{flat_ad.filename} found as associated flat for all red frames")
-            except IndexError:
-                pass #TODO: Implement what will happen here
-            if individual:
-                # overwrite flat to be used as requested with an individual call for the specific science frame
-                if flat is None:
-                    if 'BLUE' in ad.tags:
-                        # TODO: replace hardcoded reference with caldb call to processed flat
-                        calib_flat_dir = _get_calibration_flat_path()
-                        flat_ad_i = astrodata.open( str(calib_flat_dir / '20241114T190714Z_DDDDF_b_0007_DFFFF_flat.fits') )
-                        # '20200911T220106Z_FDDDF_b_0002_FFFFF_flat.fits')
-                    elif 'RED' in ad.tags:
-                        # TODO: replace hardcoded reference with caldb call to processed flat
-                        calib_flat_dir = _get_calibration_flat_path()
-                        flat_ad_i = astrodata.open( str(calib_flat_dir / '20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits') )
-                        # '20200911T220106Z_FDDDF_r_0000_FFFFF_flat.fits')
-                    else:
-                        log.warning(f"No extraction will be made on {ad.filename}, since no "
-                                    "flat was found/specified")
-                if flat_ad_i:
-                    log.fullinfo(f"{flat_ad_i.filename} found as associated flat")
-                flat_ad = flat_ad_i
+        flats = _get_calibration_flat(adinputs)
+        darks = _get_calibration_dark(adinputs)
+
+
+        for ad, flat_ad, dark_ad in zip(*gt.make_lists(adinputs, flats, darks)):
+            log.fullinfo(f"{ad.filename} : {flat_ad.filename} : {getattr(dark_ad, 'filename', None)}")
+
+            if dark_ad:
+                dark_ad = self.trimOverscan(adinputs=[dark_ad])[0]
+                dark_ad = self.correctImageOrientation(adinputs=[dark_ad])[0]
+
+            if any(remove_straylight):
+                ad_sl_removed = self.removeStrayLight(adinputs=[copy.deepcopy(ad)])[0]
+
             stripes = {}
             f_stripes = {}
             stripes_masks = {}
@@ -468,27 +364,33 @@ class MAROONXEchelle(MAROONX, Spect):
             log.fullinfo("Flat-Identified pixel associations with fiber/order "
                          "found as polynomial info in association "
                          f"with science frame {ad.filename}")
+            log.fullinfo(f"Skip_dark: {skip_dark}, Remove_straylight: {remove_straylight}")
 
             for f, op in p_id.items():  # extract info into sparse matrices
                 adint = copy.deepcopy(ad)
                 flatint = copy.deepcopy(flat_ad)
                 # dark subtract the frame for the fiber if appropriate
                 # each fiber is independent in its need of the dark subtraction
+                
                 if int(f[-1]) in skip_dark:
                     log.fullinfo(f'No dark subtracted for fiber {f[-1]}')
-                    adint.data[0] = ad.data[0]
+                    adint[0].data = ad[0].data
+
+                    if int(f[-1]) in remove_straylight:
+                        log.fullinfo(f'Use straylight corrected data for fiber {f[-1]}')
+                        adint[0].data = ad_sl_removed[0].data
                 else:
-                    #Make a deepcopy of the dark subtracted fiber
-                    adint.data[0] = copy.deepcopy(ad)[0].DARK_SUBTRACTED
+                    log.fullinfo(f'Dark subtracted for fiber {f[-1]}')
+                    adint[0].data = ad[0].data - dark_ad[0].data
 
                 for o, p in op.items():
                     # extract the stripe, and the flat stripe and the stripe mask
                     stripe = _extract_single_stripe(
-                        adint.data[0], p, slit_height)
+                        adint[0].data, p, slit_height)
                     f_stripe = _extract_single_stripe(
-                        flatint.data[0], p, slit_height)
+                        flatint[0].data, p, slit_height)
                     s_mask = _extract_single_stripe(
-                        np.logical_not(adint.mask[0]).astype(int), p,
+                        np.logical_not(adint[0].mask).astype(int), p,
                         slit_height)
 
                     # Update the stripe, flat stripe and stripe mask
@@ -500,6 +402,7 @@ class MAROONXEchelle(MAROONX, Spect):
                         stripes[f] = {o: stripe}
                         f_stripes[f] = {o: f_stripe}
                         stripes_masks[f] = {o: s_mask}
+                        
             # store the stripe, flat stripe and stripe mask
             ad[0].STRIPES = stripes
             ad[0].F_STRIPES = f_stripes
@@ -528,10 +431,10 @@ class MAROONXEchelle(MAROONX, Spect):
             # fix mark history to give full flat and dark name
             gt.mark_history(ad, primname=self.myself(),
                             keyword='REDUCTION_FLAT', comment=flat_ad.filename)
-            # if dark_ad:
-            #     gt.mark_history(ad, primname=self.myself(),
-            #                     keyword='REDUCTION_DARK',
-            #                     comment=dark_ad.filename)
+            if dark_ad:
+                gt.mark_history(ad, primname=self.myself(),
+                                keyword='REDUCTION_DARK',
+                                comment=dark_ad.filename)
             ad.update_filename(suffix=params['suffix'], strip=True)
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
@@ -582,7 +485,10 @@ class MAROONXEchelle(MAROONX, Spect):
         optimal_reduced_2d_arrays = {}
         extracted_bpms = {}
 
-        for ad in adinputs:
+        darks = _get_calibration_dark(adinputs)        
+
+        for ad, dark_ad in zip(*gt.make_lists(adinputs, darks)):
+
             # For each fiber, we need extensions for the reduced orders, the optimal reduced fiber,
             # the error of the optimal reduced fiber, the box reduced fiber, the error of the box
             # reduced fiber, and the bad pixel mask.
@@ -603,17 +509,54 @@ class MAROONXEchelle(MAROONX, Spect):
             gain = ad.gain()[0][0]  # fix for different channels
             read_noise = ad.read_noise()[0][0]  # Each chip has a different read noise
 
+            if dark_ad:
+                # This should be refactored so it is not repeated as in extractStripes
+                dark_ad = self.trimOverscan(adinputs=[dark_ad])[0]
+                dark_ad = self.correctImageOrientation(adinputs=[dark_ad])[0]
+                back_var = np.abs(dark_ad[0].data) / gain * np.sqrt(2)
+
             for f in stripes.keys():
                 if int(f[-1]) in opt_extraction:
 
                     # if last item of the key is in opt_extraction, we do optimal extraction
                     for o, stripe in stripes[f].items():
-                        log.fullinfo(f'Optimum extraction in {f}, order {o}')
+                        log.fullinfo(f'Optimum extraction in {f}, order {o}, penalty={penalty}, s_clip={s_clip}')
+
                         flux, var, stand_spec, stand_err, fo = _optimal_extraction_single_stripe(
                             stripe, flat_stripes[f][o], gain=gain,
                             read_noise=read_noise, back_var=back_var,
-                            mask=mask[f][o], s_clip=s_clip,
+                            mask=np.logical_not(ad[0].mask).astype(int), #[f][o], 
+                            s_clip=s_clip,
                             penalty=penalty, full_output=full_output, log=log)
+
+                        # =================================================================
+                        if int(f[-1]) == 2 and int(o) == 111:
+                            log.info(f' SAVE: {f}, order {o}')
+                            arrays_to_save = {
+                                'filename': ad.filename.rstrip('.fits'),
+                                'stripe': stripe,
+                                'flat_stripes': flat_stripes[f][o],
+                                'gain': gain,
+                                'read_noise': read_noise,
+                                'back_var': back_var,
+                                'mask': np.logical_not(ad[0].mask).astype(int),
+                                's_clip': s_clip,
+                                'penalty': penalty,
+                                'flux': flux,
+                                'var': var,
+                                'stand_spec': stand_spec,
+                            }
+                            # Use Path from pathlib to extract the filename from outfile and use that
+                            #from pathlib import Path
+                            base = Path().resolve() #.parent 
+                            outfile = f"{ad.filename.rstrip('.fits')}_optimal_{int(f[-1])}_{int(o)}_inputs.npy"
+                            print(f"outfile: {outfile}")
+                            print(f"base: {base}")
+                            save_dir = base #/ 'legacy_bkg_arrays'
+                            os.makedirs(str(base), exist_ok=True)
+                            save_path = os.path.join(save_dir, outfile)
+                            np.save(save_path, arrays_to_save)
+                        # =================================================================
 
                         if f in optimal_reduced_stripes:
                             # Update the extensions we created earlier
@@ -1039,7 +982,7 @@ def rectify_and_reshape(back_var, box_extracted_flat_stripe, data, flat_stripe, 
 
     print(slit_height)
 
-def _optimal_extraction_single_stripe(stripe, flat_stripe, gain=1, read_noise=1.23, back_var=None, mask=None,
+def _optimal_extraction_single_stripe_NEW(stripe, flat_stripe, gain=1, read_noise=1.23, back_var=None, mask=None,
                                     debug_level=0, full_output=False, s_clip=5.0, penalty=1.0, log=None):
     """
     Performs optimal extraction of a single stripe.
@@ -1071,9 +1014,7 @@ def _optimal_extraction_single_stripe(stripe, flat_stripe, gain=1, read_noise=1.
     else:
         # copy mask, because it will be modified
         mask     = mask.copy()
-        #back_var =  back_var.copy()
-        back_var = stripe.copy()
-        back_var[:, :] = 0  # back_var.copy()
+        back_var =  back_var.copy()
 
     # box extracted spectrum
     stand_spec0 = _box_extract_single_stripe(stripe, mask)  # direct box extraction,
@@ -1083,11 +1024,11 @@ def _optimal_extraction_single_stripe(stripe, flat_stripe, gain=1, read_noise=1.
     # flat data
     box_extracted_flat_stripe = _box_extract_single_stripe(flat_stripe, mask)  # spatial sums for flat along disp
 
-    print(f"stripe shape: {stripe.shape}, flat stripe shape: {flat_stripe.shape}, mask shape: {mask.shape}"
-          f", back_var shape: {back_var.shape}, box_extracted_flat_stripe shape: {box_extracted_flat_stripe.shape}")
-    # print the types
-    print(f"stripe type: {type(stripe)}, flat stripe type: {type(flat_stripe)}, mask type: {type(mask)}"
-            f", back_var type: {type(back_var)}, box_extracted_flat_stripe type: {type(box_extracted_flat_stripe)}")
+    # print(f"stripe shape: {stripe.shape}, flat stripe shape: {flat_stripe.shape}, mask shape: {mask.shape}"
+    #       f", back_var shape: {back_var.shape}, box_extracted_flat_stripe shape: {box_extracted_flat_stripe.shape}")
+    # # print the types
+    # print(f"stripe type: {type(stripe)}, flat stripe type: {type(flat_stripe)}, mask type: {type(mask)}"
+    #         f", back_var type: {type(back_var)}, box_extracted_flat_stripe type: {type(box_extracted_flat_stripe)}")
     # cut stripe sparse matrix into numpy array
     # find the spatial columns utilized along entire stripe (greater than slit height because of stripe path)
     sparse_vcols = np.array(~np.all(stripe.todense() == 0, axis=1)).reshape(-1)
@@ -1097,7 +1038,7 @@ def _optimal_extraction_single_stripe(stripe, flat_stripe, gain=1, read_noise=1.
     # back_var     = back_var[sparse_vcols] #strip background variance map similarly
         
     mask         = np.array(mask.todense()[sparse_vcols])  # strip mask similarly
-    back_var     = np.array(back_var.todense()[sparse_vcols]) #strip background variance map similarly
+    back_var     = np.array(back_var[sparse_vcols]) #strip background variance map similarly
     
     flat_stripe  = np.array(flat_stripe.todense()[sparse_vcols])
     sparse_vrows = np.count_nonzero((stripe != 0).T[1500])  # use ~middle column slit height as slit height pass
@@ -1107,11 +1048,11 @@ def _optimal_extraction_single_stripe(stripe, flat_stripe, gain=1, read_noise=1.
     new_back_var = data.copy()  # create actual limit numpy arrays
     profile      = data.copy()
     
-    print(f"stripe shape: {stripe.shape}, flat stripe shape: {flat_stripe.shape}, mask shape: {mask.shape}"
-          f", back_var shape: {back_var.shape}")
-    # print the types
-    print(f"stripe type: {type(stripe)}, flat stripe type: {type(flat_stripe)}, mask type: {type(mask)}"
-            f", back_var type: {type(back_var)}")
+    # print(f"stripe shape: {stripe.shape}, flat stripe shape: {flat_stripe.shape}, mask shape: {mask.shape}"
+    #       f", back_var shape: {back_var.shape}")
+    # # print the types
+    # print(f"stripe type: {type(stripe)}, flat stripe type: {type(flat_stripe)}, mask type: {type(mask)}"
+    #         f", back_var type: {type(back_var)}")
     #import ipdb; ipdb.set_trace()
 
     # legacy code that could be optimized
@@ -1225,6 +1166,220 @@ def _optimal_extraction_single_stripe(stripe, flat_stripe, gain=1, read_noise=1.
                                     "initial_sigma": diff_save}  # {'noise': var, 'profile': profile, 'rejectionmask': sparse.csr_matrix(mask),
     # 'expected': expected, 'actual': actual}
     return flux, var, stand_spec0, stand_err, {'noise': var}
+
+
+
+
+# =========================================================================
+def _optimal_extraction_single_stripe(stripe, flat_stripe, gain=1, read_noise=1.23, back_var=None, mask=None,
+                                    debug_level=0, full_output=False, s_clip=5.0, penalty=1.0, log=None):
+    """
+    Performs optimal extraction of a single stripe.
+    Based on the algorithm described by Horne et al. 1986, PASP, 98, 609.
+
+    Args:
+        stripe (scipy.sparse.spmatrix): science frame stripe to be extracted
+        flat_stripe (scipy.sparse.spmatrix): flat frame stripe to be used as profile
+        gain (float): detector gain factor (conversion photons -> DN,  given in e-/DN )
+        read_noise (float): typical detector read noise given as the variance in DN
+        back_var (np.ndarray): background variance (from scattered light model oder dark, otherwhise 0)
+        mask (np.ndarray): bad pixel mask. Note: the mask will be modified by iterative algorithm that looks for
+        outliers.
+        debug_level (int): debug level
+        full_output (bool): if True, returns all intermediate results for debugging/testing
+        s_clip (float): sigma clipping value for optimal extraction
+        penalty (float): scaling factor for global per-order profile mismatch correction. Set 0 for no correction
+
+    Returns
+    -------
+        tuple(np.ndarray, np.ndarray, dict): (optimal extracted spectrum, box extracted spectrum, dict of additional
+        intermediate results if full_output was True)
+
+    """
+    #log = self.log
+    if mask is None:
+        mask       = stripe.copy()
+        mask[:, :] = 1
+    else:
+        # copy mask, because it will be modified
+        mask     = mask.copy()
+    
+    if back_var is None or isinstance(back_var, float):
+        back_var = stripe.copy()
+        back_var[:,:] = 0
+    else:
+        # back_var = back_var.copy()
+        back_var = back_var.todense() if hasattr(back_var, "todense") else back_var.copy()
+    
+    # box extracted spectrum
+    stand_spec0 = _box_extract_single_stripe(stripe, mask)  # direct box extraction,
+    stand_spec = stand_spec0.copy()
+    stand_err = np.sqrt(stand_spec / gain)
+
+    # flat data
+    box_extracted_flat_stripe = _box_extract_single_stripe(flat_stripe, mask)  # spatial sums for flat along disp
+
+    # print(f"stripe shape: {stripe.shape}, flat stripe shape: {flat_stripe.shape}, mask shape: {mask.shape}"
+    #       f", back_var shape: {back_var.shape}, box_extracted_flat_stripe shape: {box_extracted_flat_stripe.shape}")
+    # # print the types
+    # print(f"stripe type: {type(stripe)}, flat stripe type: {type(flat_stripe)}, mask type: {type(mask)}"
+    #         f", back_var type: {type(back_var)}, box_extracted_flat_stripe type: {type(box_extracted_flat_stripe)}")
+
+
+    # cut stripe sparse matrix into numpy array
+    # find the spatial columns utilized along entire stripe (greater than slit height because of stripe path)
+    sparse_vcols = np.array(~np.all(stripe.todense() == 0, axis=1)).reshape(-1)
+    stripe       = np.array(stripe.todense()[sparse_vcols])  # strip stripe to the inclusive nonzero rows
+    
+    # mask         = np.array(mask.todense()[sparse_vcols]) # mask[sparse_vcols]  # strip mask similarly
+    mask         = mask[sparse_vcols]  # strip mask similarly
+    back_var     = back_var[sparse_vcols] #strip background variance map similarly
+    
+    flat_stripe  = np.array(flat_stripe.todense()[sparse_vcols])
+    sparse_vrows = np.count_nonzero((stripe != 0).T[1500])  # use ~middle column slit height as slit height pass
+    data         = np.zeros((sparse_vrows, stripe.shape[1]))
+    diff_save    = data.copy()
+    new_mask     = data.copy()  # create actual limit numpy arrays
+    new_back_var = data.copy()  # create actual limit numpy arrays
+    profile      = data.copy()
+
+    # print(f"stripe shape: {stripe.shape}, flat stripe shape: {flat_stripe.shape}, mask shape: {mask.shape}"
+    #       f", back_var shape: {back_var.shape}")
+    # # print the types
+    # print(f"stripe type: {type(stripe)}, flat stripe type: {type(flat_stripe)}, mask type: {type(mask)}"
+    #         f", back_var type: {type(back_var)}")
+    #import ipdb; ipdb.set_trace()
+
+    for i in np.arange(stripe.shape[1]):
+        if np.nonzero((stripe != 0).T[i])[0].shape[0] == data.shape[0]:  # if column is slit height (not edge of chip)
+            if box_extracted_flat_stripe[i] > 1E-12:
+                data[:, i]        = stripe[np.nonzero((stripe != 0).T[i])[0], i]  # write data
+                new_mask[:, i]    = mask[np.nonzero((stripe != 0).T[i])[0], i]
+                new_back_var[:,i] =  back_var[np.nonzero((stripe != 0).T[i])[0], i]
+                profile[:, i]     = flat_stripe[np.nonzero((stripe != 0).T[i])[0], i] / box_extracted_flat_stripe[i]
+        else:
+            new_mask[:, i]     = 0  # could be optimized
+            new_back_var[:, i] = 0  # could be optimized
+
+    new_mask[:, stand_spec0 < 1E-12] = 0  # if sum is less than zero, whole column is cancelled for this stripe
+    mask = new_mask.copy()
+    back_var = new_back_var.copy() * mask
+    stripe = data  # return variables 'mask' and 'stripe' to the naming conventions
+    data_var = abs(stripe.copy())/gain + back_var + read_noise
+
+    # final output
+    flux = np.zeros(len(stand_spec0))
+    var = flux.copy()
+
+    # Calculate a first guess of the difference between stripe and scaled flat_stripe
+    expected = profile * mask * stand_spec
+    actual = stripe * mask
+    diff = actual - expected
+
+    # Calculate the median of the difference along the order. This represents the 'global' mismatch between flat and science profile
+    # and helps correct for the 'drift' problem in x-dispersion.
+    diff_aver = penalty * np.abs(median_filter(diff,size=(1,201)))
+
+    # # avoid already caught bad pixels (whole column is zero in bpm or stripe is too small)
+    good_disp = np.nonzero(np.array(~np.any(mask == 0, axis=0)))[0]
+    reject_tracker = np.zeros_like(stand_spec0)
+
+    for h in good_disp:
+        expected = profile[:, h] * mask[:, h] * stand_spec[h]  # flat column with mask scaled to data total
+        actual = stripe[:, h] * mask[:, h]  # actual column data with mask
+        diff = actual - expected
+
+        data_var[:, h] = abs(stand_spec[h] * profile[:, h]) / gain + back_var[:, h] + read_noise
+        noise_rev = 1 / np.sqrt(data_var[:, h])
+        diff_save[:, h] = diff * noise_rev
+        reject_index = np.nonzero(((np.abs(diff) - np.abs(diff_aver[:, h])) * noise_rev) >= s_clip)[0]
+
+        while len(reject_index) > 0:
+
+            worst = np.argmax((np.abs(diff) - np.abs(diff_aver[:, h])) * noise_rev)
+            reject_tracker[h] = reject_tracker[h] + 1
+            if debug_level >= 3:
+                log.fullinfo(f'Outlier found in column {h}, pixel {worst}')
+                # fig, ax = plt.subplots(2, 1)
+                # actual_plot = actual.copy()
+                # expected_plot = expected.copy()
+                # actual_plot[actual_plot == 0 ] = np.nan
+                # expected_plot[expected_plot == 0] = np.nan
+                # ax[0].plot(actual_plot, 'r')
+                # ax[0].plot(expected_plot, 'b')
+                # ax[1].plot(np.abs(diff), 'r')
+                # ax[1].plot(np.abs(diff)-np.abs(diff_aver[:, h]), 'g')
+                # ax[1].plot(np.sqrt(data_var[:, h]) * s_clip, 'b')
+                # plt.show()
+
+            mask[worst, h] = 0
+
+            denom = np.sum(profile[:, h] * profile[:, h] * mask[:, h] / data_var[:, h])
+
+            stand_spec[h] = np.sum(profile[:, h] * mask[:, h] * stripe[:, h] / data_var[:, h]) / denom
+
+            expected = profile[:, h] * mask[:, h] * stand_spec[h]
+            actual = stripe[:, h] * mask[:, h]
+            diff = actual - expected
+
+            data_var[:, h] = abs(stand_spec[h] * profile[:, h]) / gain + back_var[:, h] + read_noise
+            noise_rev = 1 / np.sqrt(data_var[:, h])
+            # diff_save[:,h] = diff*noise_rev
+            reject_index = np.nonzero(((np.abs(diff) - np.abs(diff_aver[:, h])) * noise_rev) >= s_clip)[0]
+
+            if np.count_nonzero(actual[3:-5]) < len(profile[3:-5, h]) /2.:
+                reject_index = np.array([])
+                mask[:, h] = 0
+                flux[h] = 0
+                log.warning(f'Too many bad pixels in column {h}, reject column')
+        if np.count_nonzero(mask[:, h]) > 0:
+            denom = np.sum(profile[:, h] * profile[:, h] * mask[:, h] / data_var[:, h])
+            flux[h] = np.sum(profile[:, h] * mask[:, h] * stripe[:, h] / data_var[:, h]) / denom
+            var[h] = np.sum(profile[:, h] * mask[:, h]) / denom
+
+    flux[flux == 0] = np.nan
+    var[var == 0] = np.nan
+
+    stand_spec0[stand_spec0 == 0] = np.nan
+    stand_err[stand_err == 0] = np.nan
+
+    total_count = np.sum(reject_tracker > 0)
+    substantial_count = np.sum(np.abs(stand_spec0 - stand_spec)[reject_tracker > 0] > 0.005 * (stand_spec0[reject_tracker > 0]))
+    irrelevant_count = total_count - substantial_count
+
+    if total_count > 0:
+        log.fullinfo(f'Rejected {np.sum(reject_tracker):.0f} pixels in {total_count} columns during optimal extraction.')
+        irrelevant_count_percentage = irrelevant_count/total_count*100
+        if irrelevant_count_percentage > 30:
+            log.warning(f'Rejections with flux changes < 0.5%: {irrelevant_count} ({irrelevant_count_percentage:.0f}%)')
+        else:
+            log.fullinfo(f'Rejections with flux changes < 0.5%: {irrelevant_count} ({irrelevant_count_percentage:.0f}%)')
+    else:
+        log.fullinfo('No rejections')
+
+    # if debug_level >= 2:
+    #     #fig, ax = plt.subplots(3, 1)
+    #     fig, ax = plt.subplots(3, 1, sharex='all')
+    #     ax[0].imshow(np.vstack((stripe,np.zeros_like(stripe),profile*flux)),interpolation='none')
+    #     ax[0].scatter(np.where(mask==0)[1],np.where(mask==0)[0],c='r',marker='+')
+
+    #     ax[1].plot(flux - stand_spec0,'r',label='Difference box vs optimal')
+    #     ax[2].plot(stand_spec0, 'b', label='Box extraction')
+    #     ax[2].plot(flux, 'g', label='Optimal extraction')
+    #     plt.legend()
+
+    #     plt.show()
+
+    # return all intermediate results for debugging/testing
+    if full_output:
+        return flux, var, stand_spec0, stand_err, {'noise': var, 'acceptancemask': mask, "stripe": stripe,
+                                        "initial_sigma": diff_save}  # {'noise': var, 'profile': profile, 'rejectionmask': sparse.csr_matrix(mask),
+        # 'expected': expected, 'actual': actual}
+    else:
+        return flux, var, stand_spec0, stand_err, {'noise': var}
+
+
+
 
 #@staticmethod
 def _box_extract_single_stripe(stripe=None, mask=None):
