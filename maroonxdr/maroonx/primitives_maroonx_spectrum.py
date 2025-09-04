@@ -24,6 +24,38 @@ from .maroonx_echellespectrum.maroonxspectrum import MXSpectrum
 from .maroonx_echellespectrum.wavelengthsolution import WavelengthSolution
 # ------------------------------------------------------------------------------
 
+def _get_calibration_wavecal_path():
+    """
+    Get the path for the calibration flat file.
+    Should probably be deprecated when dragons calib is implemented.
+    """
+    cwd = Path(os.getcwd())
+    return cwd # / 'calibrations' / 'processed_wavecal'
+
+def _get_calibration_wavecal(adinputs):
+    """
+    Match and return calibration etalon file as astrodata object.
+    Should probably be deprecated when dragons calib is implemented.
+    """
+    # Get the calibration etalons
+    calib_path = _get_calibration_wavecal_path()
+
+    arm_tag = 'BLUE' if 'BLUE' in adinputs[0].tags else 'RED'
+    etalons = dataselect.select_data(
+        list(calib_path.glob('*.fits')), tags=[arm_tag, 'ETALON', 'PREPARED'])
+    ad_etalons = [astrodata.open(f) for f in etalons]
+
+    adoutputs = []
+    for ad in adinputs:
+        science_time = ad.ut_datetime()
+        # Find the etalon with minimum time difference
+        closest_etalon = min(ad_etalons, 
+                           key=lambda etalon: abs((etalon.ut_datetime() - science_time).total_seconds()))
+        
+        adoutputs.append(closest_etalon)
+    return adoutputs
+
+
 class LogExceptions(object):
     """
     Wraps a function, so that a backtrace is written to logger.
@@ -330,8 +362,9 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
     def fitAndApplyEtalonWls(self, adinputs=None, **params):
         """
-        Computes a new spline-based dynamical wavelength solution for each fiber 
-        using etalon parameters from a config file and an initial wavelength solution.
+        Calculates spline-based dynamic wavelength solutions from etalon spectra.
+        This primitive processes etalon files to create reference wavelength solutions
+        needed for drift correction in science frames.
         
         Parameters:
         -----------
@@ -373,7 +406,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
             # Load the etalon spectrum
             mx_spectrum = MXSpectrum(ad, etalon_peaks_symmetric=symmetric_linefits)
-            log.info(f'Processing etalon file: {ad.filename}')
+            log.fullinfo(f'Processing etalon file: {ad.filename}')
             
             # Determine fibers to process if not provided
             if fibers is None:
@@ -381,7 +414,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 for fiber_num, fiber_type in enumerate(ad.fiber_setup(), start=1):
                     if fiber_type == 'Etalon':
                         fibers.append(fiber_num)
-                log.info(f'Found etalon fibers: {fibers}')
+                log.fullinfo(f'Found etalon fibers: {fibers}')
             
             if ref_file is not None:
                 # If a reference file and reference fiber is given, offset the etalon
@@ -393,7 +426,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
             # Load reference wavelength solution from the config
             refwavelength_file = maroonx_utils.get_refwavelength_filename(ad)
-            log.info(f'Loading reference wavelength file: {refwavelength_file}')
+            log.fullinfo(f'Loading reference wavelength file: {refwavelength_file}')
             
             # If chosen, apply ThAr wls to etalon frame
             if thar == True:    
@@ -409,10 +442,10 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     mx_spectrum.spectra[fiber].apply_wavelength_solution(wls_solution)
             else:
                 for fiber in fibers:
-                    log.info(f'Apply static wavelength solution for peak number identification in fiber {fiber}.')
+                    log.fullinfo(f'Apply static wavelength solution for peak number identification in fiber {fiber}.')
                     mx_spectrum.spectra[fiber].apply_wavelength_vector()
 
-            log.info(f'Apply etalon parameters from file {refwavelength_file}.')
+            log.fullinfo(f'Apply etalon parameters from file {refwavelength_file}.')
             parameters = maroonx_utils.load_params_from_fits(refwavelength_file, ext_name='PARAMETERS')
             for fiber in fibers:
                 mx_spectrum.spectra[fiber].etalon_pars = parameters
@@ -543,6 +576,242 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
+
+
+    def applyWavelengthSolution(self, adinputs=None, **params):
+        """
+        Applies drift-corrected wavelength solutions to science spectra using 
+        simultaneous etalon measurements. This primitive uses pre-calculated 
+        etalon wavelength solutions to correct for instrumental drifts.
+        
+        Parameters:
+        -----------
+        adinputs: list
+            AstroData objects with 1D extracted science spectra (PEAKS and POLY extensions)
+        fibers: list or tuple
+            Science fibers to process (default: [2,3,4])
+        ref_fiber: int
+            Fiber containing simultaneous etalon spectrum for drift measurement (default: 5)
+        symmetric_linefits: bool
+            Whether to use symmetric line fitting (default: False)
+        n_knots: int
+            Number of knots for the spline fit (default: 30)
+        etalon_file: str
+            Path to corresponding etalon file with dynamic wavelength solutions
+            
+        Returns:
+        --------
+        adinputs: list
+            Same AstroData objects with drift-corrected wavelength solutions 
+            stored as WLS_SCIENCE_FIBER_X extensions
+        """
+        log = self.log
+        log.debug(gt.log_message("primitive", self.myself(), "starting"))
+        timestamp_key = self.timestamp_keys[self.myself()]
+
+        # Get parameters from config
+        fibers = params.get('fibers', [2, 3, 4])
+        ref_fiber = params.get('ref_fiber', 5)
+        symmetric_linefits = params.get('symmetric_linefits', False)
+        n_knots = params.get('n_knots', 30)
+        etalons = params.get('etalon_file')
+
+        if etalons is None:
+            etalons = _get_calibration_wavecal(adinputs)
+
+        for science_ad, etalon_ad in zip(*gt.make_lists(adinputs, etalons)):
+            log.fullinfo(f"Processing: {ad.filename} , {etalon_ad.filename}")
+            log.fullinfo(f'Etalon reference fiber: {ref_fiber}')
+
+            # Load the science and etalon spectrum
+            science = MXSpectrum(science_ad, etalon_peaks_symmetric=symmetric_linefits)
+            etalon = MXSpectrum(etalon_ad, etalon_peaks_symmetric=symmetric_linefits)
+
+            # Load reference wavelength solution from the config
+            refwavelength_file = maroonx_utils.get_refwavelength_filename(science_ad)
+            parameters = maroonx_utils.load_params_from_fits(refwavelength_file, ext_name='PARAMETERS')
+            log.debug(f'Apply etalon parameters from file {refwavelength_file}.')
+            for fiber in fibers:
+                etalon.spectra[fiber].etalon_pars = parameters
+            etalon.spectra[ref_fiber].etalon_pars = parameters
+            science.spectra[ref_fiber].etalon_pars = parameters
+
+            # Apply wavelength vector in etalon spectra to the etalon peak positions
+            for fiber in fibers:
+                etalon.spectra[fiber].apply_wavelength_vector()
+            etalon.spectra[ref_fiber].apply_wavelength_vector()
+
+
+            # Calculate offsets in pixel space between science and etalon frame for reference fiber
+            shifts = []
+            wavelengths = []
+            orders = []
+            x_refs = []
+            xs = []
+            splfits = []
+
+            for o in etalon.spectra[ref_fiber].peak_data["CENTER"].index.levels[0]:
+                x_ref = science.spectra[ref_fiber].peak_data["CENTER"][o]
+                x = etalon.spectra[ref_fiber].peak_data["CENTER"][o]
+                try:
+                    shift = x.loc[:] - x_ref.loc[:].reindex(x.loc[:].index, method="nearest", tolerance=0.5)
+                    shift[np.abs(shift) > (np.abs(np.nanmedian(shift)) + 3 * np.nanstd(shift))] = np.nan
+                    log.fullinfo(f'Removed {np.count_nonzero(np.isnan(shift)):.0f} peaks in offset calculation for fiber {ref_fiber} in order {o}')
+                    log.fullinfo(f'Found {np.nanmean(shift):.3f} pix offset for fiber {ref_fiber} in order {o}')
+                except KeyError:
+                    log.warning(f'Could not reference etalon line lists for fiber {ref_fiber} in order {o}')
+
+                if o == 94 and 'RED' in etalon_ad.tags:
+                    shift[0:600] = np.nanmedian(shift[600:])
+                mask = np.isnan(shift)
+                spl = LSQUnivariateSpline(shift.index[~mask], shift.values[~mask], [1000, 2000, 3000], k=3)
+
+                shifts = np.append(shifts, shift.values * etalon.spectra[ref_fiber].peak_data["DISPERSION_MPS"][o])
+                wavelengths = np.append(wavelengths, etalon.spectra[ref_fiber].peak_data["WAVELENGTH_BY_THAR"][o])
+                orders = np.append(orders, np.ones_like(shift.values, dtype=np.int) * o)
+                x_refs = np.append(x_refs, x_ref.values)
+                xs = np.append(xs, x.values)
+                splfits = np.append(splfits, spl(shift.index) * etalon.spectra[ref_fiber].peak_data["DISPERSION_MPS"][o])
+
+                # Apply offsets (smoothed with spline) to etalon frame for science fibers
+                for fiber in fibers:
+                    etalon.spectra[fiber].peak_data["CENTER"][o] = etalon.spectra[fiber].peak_data["CENTER"][o] - spl(
+                        etalon.spectra[fiber].peak_data["CENTER"][o].index)
+
+            # Guess the order #s of the etalon peak positions in the measured spectrum of the science fibers in the etalon spectrum
+            for fiber in fibers:
+                etalon.spectra[fiber].apply_wavelength_vector()
+            etalon.spectra[ref_fiber].apply_wavelength_vector()
+
+            # Guess the order #s of the etalon peak positions in the measured spectrum for reference fiber in science spectrum
+            science.spectra[ref_fiber].apply_wavelength_vector()
+            peak_data = science.spectra[ref_fiber].guess_etalon_peaknumbers(debug=0)
+            
+            residuals = _fc2min(p, peak_data["M"].values, peak_data["WAVELENGTH_BY_THAR"].values) / peak_data["WAVELENGTH_BY_THAR"].values * 3e8
+            bad = np.where(np.abs(residuals-np.nanmedian(residuals)) > 4.0 * np.nanstd(residuals))
+            residuals[bad] = np.nan
+            inst_drift = np.nanmean(residuals)
+
+            # Create new wls from etalon peaks based on the given etalon gap size and dispersion model.
+            wave = {}
+            for fiber in fibers:
+
+                wavelengths_all = []
+                residuals_all = []
+                orders_all = []
+                xs_all = []
+                for o in etalon.spectra[fiber].peak_data["CENTER"].index.levels[0]:
+                    if etalon.spectra[fiber].peak_data["CENTER"][o].values[0] < etalon.spectra[fiber].peak_data["CENTER"][o].values[10]:
+                        x = (etalon.spectra[fiber].peak_data["CENTER"][o].values)
+                        y = (peak_to_wavelength_spline(etalon.spectra[fiber].peak_data["M"][o],
+                                                    etalon.spectra[fiber].etalon_pars).values)
+                    else:
+                        x = (etalon.spectra[fiber].peak_data["CENTER"][o].values)[::-1]
+                        y = (peak_to_wavelength_spline(etalon.spectra[fiber].peak_data["M"][o],
+                                                    etalon.spectra[fiber].etalon_pars).values)[::-1]
+                    knots = np.linspace(min(x) + 1, max(x) - 1, n_knots)
+                    mask = np.isnan(x)
+                    if np.count_nonzero(mask) > 0:
+                        log.warning(f'Found {np.count_nonzero(mask)} NANs in order {o} for fiber {fiber} while building the spline wls')
+                    lsq = scipy.interpolate.LSQUnivariateSpline(x[~mask], y[~mask], knots, k=3)
+                    r = (y - lsq(x))/y * 3e8
+                    good = np.where(np.abs(r-np.nanmedian(r)) < 3.5 * np.nanstd(r))
+                    lsq = scipy.interpolate.LSQUnivariateSpline(x[good], y[good], knots, k=3, ext=3)
+
+                    xs_all          = np.append(xs_all,x[good],axis=0)
+                    orders_all      = np.append(orders_all,np.ones_like(x[good])*o,axis=0)
+                    wavelengths_all = np.append(wavelengths_all,lsq(x[good]),axis=0)
+                    residuals_all   = np.append(residuals_all,y[good] - lsq(x[good]),axis=0)
+
+                    xx = np.arange(len(etalon.spectra[fiber].data.wavelength[92]))
+                    wavelengths = lsq(xx)
+
+                    f = scipy.interpolate.interp1d(x[good][-2:], y[good][-2:],fill_value='extrapolate')
+                    wavelengths[wavelengths==np.max(wavelengths)] = f(xx[wavelengths==np.max(wavelengths)])
+                    f = scipy.interpolate.interp1d(x[good][:2], y[good][:2], fill_value='extrapolate')
+                    wavelengths[wavelengths == np.min(wavelengths)] = f(xx[wavelengths == np.min(wavelengths)])
+
+                    f = f'fiber_{fiber}'
+                    if f in wave:
+                        wave[f].update({str(o): wavelengths})
+                    else:
+                        wave[f] = {str(o): wavelengths}
+
+            # Now for the reference fiber in the science spectrum. This should be refactored at some point
+            wavelengths_all = []
+            residuals_all = []
+            orders_all = []
+            xs_all = []
+
+            for o in science.spectra[ref_fiber].peak_data["CENTER"].index.levels[0]:
+                if science.spectra[ref_fiber].peak_data["CENTER"][o].values[0] < science.spectra[ref_fiber].peak_data["CENTER"][o].values[
+                    10]:
+                    x = (science.spectra[ref_fiber].peak_data["CENTER"][o].values)
+                    y = (peak_to_wavelength_spline(science.spectra[ref_fiber].peak_data["M"][o],
+                                                science.spectra[ref_fiber].etalon_pars).values)
+                else:
+                    x = (science.spectra[ref_fiber].peak_data["CENTER"][o].values)[::-1]
+                    y = (peak_to_wavelength_spline(science.spectra[ref_fiber].peak_data["M"][o],
+                                                science.spectra[ref_fiber].etalon_pars).values)[::-1]
+                knots = np.linspace(min(x) + 1, max(x) - 1, n_knots)
+                lsq = scipy.interpolate.LSQUnivariateSpline(x, y, knots, k=3)
+                r = (y - lsq(x)) / y * 3e8
+                good = np.where(np.abs(r-np.nanmedian(r)) < 3.5 * np.nanstd(r))
+                try:
+                    lsq = scipy.interpolate.LSQUnivariateSpline(x[good], y[good], knots, k=3, ext=3)
+                except:
+                    log.warning(f'Spline fit failed for reference fiber, order {o} - try again')
+                    good = np.where(np.abs(r-np.nanmedian(r)) < 5 * np.nanstd(r))
+                    try:
+                        lsq = scipy.interpolate.LSQUnivariateSpline(x[good], y[good], knots, k=3, ext=3)
+                        log.fullinfo(f'Spline fit succeeded for reference fiber, order {o} with higher outlier threshold')
+                    except:
+                        log.warning(f'Spline fit failed again for reference fiber, order {o}')
+
+                xs_all = np.append(xs_all, x[good], axis=0)
+                orders_all = np.append(orders_all, np.ones_like(x[good]) * o, axis=0)
+                wavelengths_all = np.append(wavelengths_all, lsq(x[good]), axis=0)
+                residuals_all = np.append(residuals_all, y[good] - lsq(x[good]), axis=0)
+
+                xx = np.arange(len(etalon.spectra[fiber].data.wavelength[92]))
+                wavelengths = lsq(xx)
+
+                f = scipy.interpolate.interp1d(x[good][-2:], y[good][-2:], fill_value='extrapolate')
+                wavelengths[wavelengths == np.max(wavelengths)] = f(xx[wavelengths == np.max(wavelengths)])
+                f = scipy.interpolate.interp1d(x[good][:2], y[good][:2], fill_value='extrapolate')
+                wavelengths[wavelengths == np.min(wavelengths)] = f(xx[wavelengths == np.min(wavelengths)])
+
+                f = f'fiber_{ref_fiber}'
+                if f in wave:
+                    wave[f].update({str(o): wavelengths})
+                else:
+                    wave[f] = {str(o): wavelengths}
+
+            # Calculate mean drift in reference fiber 
+            rel_drift = np.nanmean(shifts)
+
+            # Concatenate wavelengths arrays for each fiber and save them
+            all_fibers = fibers + [ref_fiber]
+            for fiber in all_fibers:
+                f = f'fiber_{fiber}'
+                wave_arrays = [wave[f][o] for o in wave[f].keys()]
+                setattr(science_ad[0], f'WLS_SIMULTANEOUS_FIBER_{fiber}', np.stack(wave_arrays))
+
+            for fiber in {1, 2, 3, 4, 5} - set(all_fibers):
+                # If fiber is not in the list of fibers, save an empty array
+                setattr(science_ad[0], f'WLS_SIMULTANEOUS_FIBER_{fiber}', np.zeros((1, 1)))
+
+            # Save meassured drift in header entries
+            if inst_drift is not None:
+                science_ad[0].hdr[f'INSTRUME_DRIFT'] = (round(inst_drift, 2), "Drift in m/s")
+                science_ad[0].hdr[f'RELATIVE_DRIFT'] = (round(rel_drift, 2), "Drift in m/s")
+                log.fullinfo(f'Instrument Drift: {inst_drift:.1f} m/s')
+                log.fullinfo(f'Relative drift measured in Fiber {ref_fiber}: {rel_drift:.1f} m/s')    
+            log.fullinfo(f'Updated wavelength vector in {science_ad.filename}')
+
+        gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
+        return adinputs
+
 
     def combineFibers(self, adinputs=None, **params):
         """
@@ -779,7 +1048,6 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
-
 
 ##############################################################################
 # Below are the helper functions for the primitives in this module           #
