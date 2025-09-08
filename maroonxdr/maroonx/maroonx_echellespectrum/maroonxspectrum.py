@@ -60,8 +60,10 @@ class MXSpectrum:
 
         # poly_data = adinput[0].POLY
         peak_data = adinput[0].PEAKS.to_pandas()
+        peak_data['ORDER'] = peak_data['ORDER'].map(int)
         peak_data = peak_data.sort_values(by=['FIBER', 'ORDER', 'CENTER'])
-        
+        peak_data = peak_data.set_index(['FIBER', 'ORDER', 'CENTER'], drop=False)
+
         self.spectra = {}
         self.echellogram = None
         '''
@@ -88,7 +90,7 @@ class MXSpectrum:
 
             reduced_orders = getattr(adinput[0], f'REDUCED_ORDERS_FIBER_{fiber_number}')
             box_data = getattr(adinput[0], f'BOX_REDUCED_FIBER_{fiber_number}')
-            peaks = peak_data.loc[peak_data['FIBER'] == fiber_number]
+            peaks = peak_data.loc[fiber_number]
             wls_static_data = getattr(adinput[0], f'WLS_STATIC_FIBER_{fiber_number}')
 
             # If the fiber is not in the spectra_classes, default to EchelleSpectrum
