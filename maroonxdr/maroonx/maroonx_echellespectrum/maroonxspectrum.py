@@ -76,7 +76,7 @@ class MXSpectrum:
 
         # Define the spectra classes based on fiber type
         spectra_classes = {
-            'Echelle': EchelleSpectrum,
+            'Target': EchelleSpectrum,
             'Etalon': EtalonSpectrum,
             'Flat lamp': FlatSpectrum,
         }
@@ -88,16 +88,31 @@ class MXSpectrum:
                 self.spectra[fiber_number] = None
                 continue
 
-            reduced_orders = getattr(adinput[0], f'REDUCED_ORDERS_FIBER_{fiber_number}')
-            box_data = getattr(adinput[0], f'BOX_REDUCED_FIBER_{fiber_number}')
-            peaks = peak_data.loc[fiber_number]
-            wls_static_data = getattr(adinput[0], f'WLS_STATIC_FIBER_{fiber_number}')
+            reduced_orders = getattr(adinput[0], f'REDUCED_ORDERS_FIBER_{fiber_number}', None)
+            box_data = getattr(adinput[0], f'BOX_REDUCED_FIBER_{fiber_number}', None)
+            box_err = getattr(adinput[0], f'BOX_REDUCED_ERR_{fiber_number}', None)
+            opt_data = getattr(adinput[0], f'OPTIMAL_REDUCED_FIBER_{fiber_number}', None)
+            opt_err = getattr(adinput[0], f'OPTIMAL_REDUCED_ERR_{fiber_number}', None)
+            wls_static_data = getattr(adinput[0], f'WLS_STATIC_FIBER_{fiber_number}', None)
+
+            if reduced_orders.size == 1:
+                logger.warning(f"Missing data for fiber {fiber_number}. Skipping.")
+                self.spectra[fiber_number] = None
+                continue
+
+            if fiber != 'Target':
+                peaks = peak_data.loc[fiber_number]
+            else:
+                peaks = None
 
             # If the fiber is not in the spectra_classes, default to EchelleSpectrum
             spectra_cls = spectra_classes.get(fiber, EchelleSpectrum)
             self.spectra[fiber_number] = spectra_cls(
                 peak_data=peaks,
                 box_data=box_data,
+                box_err=box_err,
+                opt_data=opt_data,
+                opt_err=opt_err,
                 orders=reduced_orders,
                 wavelength_data=wls_static_data,
                 fiber=fiber_number,

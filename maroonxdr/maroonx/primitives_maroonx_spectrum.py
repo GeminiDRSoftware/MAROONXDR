@@ -4,15 +4,21 @@ calibration solutions from reduced 1-D spectra.
 """
 # ------------------------------------------------------------------------------
 import multiprocessing
+from pathlib import Path
 import time
 import traceback
+import os
+import warnings
 
 from astropy.table import Table
 import numpy as np
 import pandas as pd
 import scipy
+from scipy.interpolate import LSQUnivariateSpline, interp1d
 
+import astrodata
 from geminidr.core import Spect
+from gempy.adlibrary import dataselect
 from gempy.gemini import gemini_tools as gt
 from recipe_system.utils.decorators import parameter_override
 
@@ -448,7 +454,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             log.fullinfo(f'Apply etalon parameters from file {refwavelength_file}.')
             parameters = maroonx_utils.load_params_from_fits(refwavelength_file, ext_name='PARAMETERS')
             for fiber in fibers:
-                mx_spectrum.spectra[fiber].etalon_pars = parameters
+                mx_spectrum.spectra[fiber].etalon_parameters = parameters
 
             # ========================================================= OK line
 
@@ -510,22 +516,18 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
                 # get fiber spectra and orders
                 spectra = mx_spectrum.spectra[fiber]
-
                 speactra_peaks = spectra.peak_data
-
                 for o in spectra.orders:
-
-                    order_mask = speactra_peaks["ORDER"] == o
-                    center = speactra_peaks["CENTER"][order_mask]
+                    center = speactra_peaks["CENTER"][o]
 
                     if center.values[0] < center.values[10]:
                         x = (center.values)
-                        y = (_peak_to_wavelength_spline(speactra_peaks["M"][order_mask],
-                                                    spectra.etalon_pars).values)
+                        y = (_peak_to_wavelength_spline(speactra_peaks["M"][o],
+                                                    spectra.etalon_parameters).values)
                     else:
                         x = (center.values)[::-1]
-                        y = (_peak_to_wavelength_spline(speactra_peaks["M"][order_mask],
-                                                    spectra.etalon_pars).values)[::-1]
+                        y = (_peak_to_wavelength_spline(speactra_peaks["M"][o],
+                                                    spectra.etalon_parameters).values)[::-1]
                     knots = np.linspace(np.min(x) + 1, np.max(x) - 1, n_knots)
                     lsq = scipy.interpolate.LSQUnivariateSpline(x, y, knots, k=3)
                     r = (y - lsq(x))/y * 3e8
@@ -561,13 +563,13 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 setattr(ad[0], f'WLS_DYNAMIC_FIBER_{fiber}', np.zeros((1, 1)))
 
             # Reset indices before concatenating to avoid conflicts
-            for peak_df in new_peak_data:
-                peak_df.reset_index(drop=True, inplace=True)
+            # for peak_df in new_peak_data:
+            #     peak_df.reset_index(drop=True, inplace=True)
 
             # Collect and reformat updated peak data
-            new_peak_data = pd.concat(new_peak_data, ignore_index=True)
-            new_peak_data.sort_values(by=['FIBER', 'ORDER', 'M'], inplace=True)
-            ad[0].NEW_PEAKS = Table.from_pandas(new_peak_data)
+            new_peak_data = pd.concat(new_peak_data).set_index(['FIBER', 'ORDER', 'M'], drop=False)
+            new_peak_data.sort_index(level=[0, 1, 2], inplace=True)
+            ad[0].PEAK_DATA = Table.from_pandas(new_peak_data)
 
             # Save meassured drift in header entries
             for fiber in fibers:
@@ -576,7 +578,6 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
-
 
     def applyWavelengthSolution(self, adinputs=None, **params):
         """
@@ -620,7 +621,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             etalons = _get_calibration_wavecal(adinputs)
 
         for science_ad, etalon_ad in zip(*gt.make_lists(adinputs, etalons)):
-            log.fullinfo(f"Processing: {ad.filename} , {etalon_ad.filename}")
+            log.fullinfo(f"Processing: {science_ad.filename} , {etalon_ad.filename}")
             log.fullinfo(f'Etalon reference fiber: {ref_fiber}')
 
             # Load the science and etalon spectrum
@@ -632,9 +633,9 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             parameters = maroonx_utils.load_params_from_fits(refwavelength_file, ext_name='PARAMETERS')
             log.debug(f'Apply etalon parameters from file {refwavelength_file}.')
             for fiber in fibers:
-                etalon.spectra[fiber].etalon_pars = parameters
-            etalon.spectra[ref_fiber].etalon_pars = parameters
-            science.spectra[ref_fiber].etalon_pars = parameters
+                etalon.spectra[fiber].etalon_parameters = parameters
+            etalon.spectra[ref_fiber].etalon_parameters = parameters
+            science.spectra[ref_fiber].etalon_parameters = parameters
 
             # Apply wavelength vector in etalon spectra to the etalon peak positions
             for fiber in fibers:
@@ -664,11 +665,11 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 if o == 94 and 'RED' in etalon_ad.tags:
                     shift[0:600] = np.nanmedian(shift[600:])
                 mask = np.isnan(shift)
-                spl = LSQUnivariateSpline(shift.index[~mask], shift.values[~mask], [1000, 2000, 3000], k=3)
+                spl = scipy.interpolate.LSQUnivariateSpline(shift.index[~mask], shift.values[~mask], [1000, 2000, 3000], k=3)
 
                 shifts = np.append(shifts, shift.values * etalon.spectra[ref_fiber].peak_data["DISPERSION_MPS"][o])
                 wavelengths = np.append(wavelengths, etalon.spectra[ref_fiber].peak_data["WAVELENGTH_BY_THAR"][o])
-                orders = np.append(orders, np.ones_like(shift.values, dtype=np.int) * o)
+                orders = np.append(orders, np.ones_like(shift.values, dtype=int) * o)
                 x_refs = np.append(x_refs, x_ref.values)
                 xs = np.append(xs, x.values)
                 splfits = np.append(splfits, spl(shift.index) * etalon.spectra[ref_fiber].peak_data["DISPERSION_MPS"][o])
@@ -679,15 +680,16 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                         etalon.spectra[fiber].peak_data["CENTER"][o].index)
 
             # Guess the order #s of the etalon peak positions in the measured spectrum of the science fibers in the etalon spectrum
-            for fiber in fibers:
+            for fiber in fibers + [ref_fiber]:
                 etalon.spectra[fiber].apply_wavelength_vector()
-            etalon.spectra[ref_fiber].apply_wavelength_vector()
+                etalon.spectra[fiber].guess_peak_numbers(debug=0)
+            #etalon.spectra[ref_fiber].apply_wavelength_vector()
 
             # Guess the order #s of the etalon peak positions in the measured spectrum for reference fiber in science spectrum
             science.spectra[ref_fiber].apply_wavelength_vector()
-            peak_data = science.spectra[ref_fiber].guess_etalon_peaknumbers(debug=0)
+            peak_data = science.spectra[ref_fiber].guess_peak_numbers(debug=0)
             
-            residuals = _fc2min(p, peak_data["M"].values, peak_data["WAVELENGTH_BY_THAR"].values) / peak_data["WAVELENGTH_BY_THAR"].values * 3e8
+            residuals = _fc2min(parameters, peak_data["M"].values, peak_data["WAVELENGTH_BY_THAR"].values) / peak_data["WAVELENGTH_BY_THAR"].values * 3e8
             bad = np.where(np.abs(residuals-np.nanmedian(residuals)) > 4.0 * np.nanstd(residuals))
             residuals[bad] = np.nan
             inst_drift = np.nanmean(residuals)
@@ -700,15 +702,22 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 residuals_all = []
                 orders_all = []
                 xs_all = []
-                for o in etalon.spectra[fiber].peak_data["CENTER"].index.levels[0]:
-                    if etalon.spectra[fiber].peak_data["CENTER"][o].values[0] < etalon.spectra[fiber].peak_data["CENTER"][o].values[10]:
-                        x = (etalon.spectra[fiber].peak_data["CENTER"][o].values)
-                        y = (peak_to_wavelength_spline(etalon.spectra[fiber].peak_data["M"][o],
-                                                    etalon.spectra[fiber].etalon_pars).values)
+
+                # get fiber spectra and orders
+                spectra = etalon.spectra[fiber]
+                speactra_peaks = spectra.peak_data
+
+                for o in spectra.orders:
+                    center = speactra_peaks["CENTER"][o]
+
+                    if center.values[0] < center.values[10]:
+                        x = (center.values)
+                        y = (_peak_to_wavelength_spline(etalon.spectra[fiber].peak_data["M"][o],
+                                                    etalon.spectra[fiber].etalon_parameters).values)
                     else:
-                        x = (etalon.spectra[fiber].peak_data["CENTER"][o].values)[::-1]
-                        y = (peak_to_wavelength_spline(etalon.spectra[fiber].peak_data["M"][o],
-                                                    etalon.spectra[fiber].etalon_pars).values)[::-1]
+                        x = (center.values)[::-1]
+                        y = (_peak_to_wavelength_spline(etalon.spectra[fiber].peak_data["M"][o],
+                                                    etalon.spectra[fiber].etalon_parameters).values)[::-1]
                     knots = np.linspace(min(x) + 1, max(x) - 1, n_knots)
                     mask = np.isnan(x)
                     if np.count_nonzero(mask) > 0:
@@ -743,16 +752,18 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             orders_all = []
             xs_all = []
 
-            for o in science.spectra[ref_fiber].peak_data["CENTER"].index.levels[0]:
-                if science.spectra[ref_fiber].peak_data["CENTER"][o].values[0] < science.spectra[ref_fiber].peak_data["CENTER"][o].values[
+            ref_spectra = science.spectra[ref_fiber]
+
+            for o in ref_spectra.peak_data["CENTER"].index.levels[0]:
+                if ref_spectra.peak_data["CENTER"][o].values[0] < ref_spectra.peak_data["CENTER"][o].values[
                     10]:
-                    x = (science.spectra[ref_fiber].peak_data["CENTER"][o].values)
-                    y = (peak_to_wavelength_spline(science.spectra[ref_fiber].peak_data["M"][o],
-                                                science.spectra[ref_fiber].etalon_pars).values)
+                    x = (ref_spectra.peak_data["CENTER"][o].values)
+                    y = (_peak_to_wavelength_spline(ref_spectra.peak_data["M"][o],
+                                                ref_spectra.etalon_parameters).values)
                 else:
-                    x = (science.spectra[ref_fiber].peak_data["CENTER"][o].values)[::-1]
-                    y = (peak_to_wavelength_spline(science.spectra[ref_fiber].peak_data["M"][o],
-                                                science.spectra[ref_fiber].etalon_pars).values)[::-1]
+                    x = (ref_spectra.peak_data["CENTER"][o].values)[::-1]
+                    y = (_peak_to_wavelength_spline(ref_spectra.peak_data["M"][o],
+                                                ref_spectra.etalon_parameters).values)[::-1]
                 knots = np.linspace(min(x) + 1, max(x) - 1, n_knots)
                 lsq = scipy.interpolate.LSQUnivariateSpline(x, y, knots, k=3)
                 r = (y - lsq(x)) / y * 3e8
@@ -812,7 +823,6 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
 
-
     def combineFibers(self, adinputs=None, **params):
         """
         Combines data from multiple science fibers into one spectrum using weighted averaging.
@@ -842,7 +852,6 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         kappa_sigma = params["kappa_sigma"]
         max_clips = params["max_clips"]
 
-
         for ad in adinputs:
             
             # Get fiber data
@@ -854,9 +863,9 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 fiber_errors[fib] = getattr(ad[0], f"OPTIMAL_REDUCED_ERR_{fib}")
 
                 if symmetric_linefits:
-                    fiber_wls[fib] = getattr(ad[0], f"WAVELENGTH_SYM_FIBER_{fib}")
+                    fiber_wls[fib] = getattr(ad[0], f"WLS_SIMULTANEOUS_FIBER_{fib}")
                 else:
-                    fiber_wls[fib] = getattr(ad[0], f"WAVELENGTH_FIBER_{fib}")
+                    fiber_wls[fib] = getattr(ad[0], f"WLS_SIMULTANEOUS_FIBER_{fib}")
             
             # Get orders from one of the fibers, not very relevant which one
             orders = getattr(ad[0], f"REDUCED_ORDERS_FIBER_{fib}")
@@ -915,7 +924,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     intensity1_2 = f1(wave2)
                     error1_2 = np.abs(f1e(wave2))
                 except:
-                    logger.error(f'Interpolation of flux in science fiber 1 of order {order} failed')
+                    log.error(f'Interpolation of flux in science fiber 1 of order {order} failed')
                     intensity1_2 = intensity1
                     error1_2 = np.abs(error1)*np.nan
 
@@ -929,7 +938,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     intensity3_2 = f3(wave2)
                     error3_2 = np.abs(f3e(wave2))
                 except:
-                    logger.error(f'Interpolation of flux in science fiber 3 of order {order} failed')
+                    log.error(f'Interpolation of flux in science fiber 3 of order {order} failed')
                     intensity3_2 = intensity3
                     error3_2 = np.abs(error3)*np.nan
 
@@ -964,7 +973,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 clip3_n = np.size(clip3)
 
                 while(max([clip1_n,clip2_n,clip3_n]) > max_clips and kappa_sigma<10):
-                    logger.warning(f'Number of maximum clipped pixels exceeded in order {order}')
+                    log.warning(f'Number of maximum clipped pixels exceeded in order {order}')
                     kappa_sigma = kappa_sigma + 0.5
 
                     clip1 = np.where(
@@ -978,10 +987,10 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     clip2_n = np.size(clip2)
                     clip3_n = np.size(clip3)
 
-                logger.info(f'Kappa_sigma in order {order}: {kappa_sigma:.1f}')
-                logger.info(f'Clipped {clip1_n} pixels in fiber 2 of order {order}')
-                logger.info(f'Clipped {clip2_n} pixels in fiber 3 of order {order}')
-                logger.info(f'Clipped {clip3_n} pixels in fiber 4 of order {order}')
+                log.info(f'Kappa_sigma in order {order}: {kappa_sigma:.1f}')
+                log.info(f'Clipped {clip1_n} pixels in fiber 2 of order {order}')
+                log.info(f'Clipped {clip2_n} pixels in fiber 3 of order {order}')
+                log.info(f'Clipped {clip3_n} pixels in fiber 4 of order {order}')
 
                 weights1_2[clip1] = 0
                 weights2[clip2] = 0
@@ -1006,11 +1015,11 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
                 mask = np.isnan(intensity)
                 if 1000 > np.count_nonzero(mask) >= 0:
-                    logger.info(f'Number of NANs fixed in order {order}: {np.count_nonzero(mask)}')
+                    log.info(f'Number of NANs fixed in order {order}: {np.count_nonzero(mask)}')
                     f = interp1d(wave2[~mask], intensity[~mask], fill_value='extrapolate', kind='slinear')
                     intensity = f(wave2)
                 else:
-                    logger.warning(f'Too many NANs found in order {order}: {np.count_nonzero(mask)}')
+                    log.warning(f'Too many NANs found in order {order}: {np.count_nonzero(mask)}')
 
                 error[mask] = 1e6
                 error[np.isnan(error)] = 1e6

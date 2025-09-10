@@ -14,4 +14,6 @@ timestamp_keys = {
     "staticWavelengthSolution": "STATIC_WAVELENGTH_APPLIED",
     "fitAndApplyEtalonWls": "DYNAMIC_WAVELENGTH_APPLIED",
     "fitDarkCoefficients": "DARK_COEFFICIENTS_FITTED",
+    "applyWavelengthSolution": "SCIENCE_WAVELENGTH_APPLIED",
+    "combineFibers": "SCIENCE_FIBERS_COMBINED",
 }

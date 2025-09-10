@@ -17,7 +17,7 @@ class EchelleSpectrum:
     '''
     def __init__(self, orders, box_data=None, box_error=None
                  , opt_data=None, opt_error=None, wavelength_data=None, fiber=1, pm=None,
-                 filename = None):
+                 filename=None, **kwargs):
         """
         Loads an echelle spectrum.
 

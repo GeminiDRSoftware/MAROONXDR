@@ -17,6 +17,7 @@ from gempy.adlibrary import dataselect
 from gempy.utils import logutils
 
 import maroonx_instruments  # noqa : important to load adclass tags
+from maroonxdr.maroonx.primitives_maroonx_echelle import _get_calibration_flat
 from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
 from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 from maroonxdr.maroonx.maroonx_utils import load_recordings
@@ -81,6 +82,7 @@ def test_load_recordings(legacy_reduced_path, legacy_flats_path):
 
     # Primitives
     adinput = [astrodata.open(f) for f in selected_spect]
+    #ad_flats = _get_calibration_flat(adinput)
 
     p = MaroonXSpectrum(adinput)
     p.prepare()
@@ -324,7 +326,7 @@ def test_fitAndApplyEtalonWls(legacy_reduced_path, etalon_filename):
         adout = p.fitAndApplyEtalonWls()
 
     # Load new peak data. columns are uppercase
-    new_peak_data = adout[0][0].NEW_PEAKS.to_pandas()
+    new_peak_data = adout[0][0].PEAK_DATA.to_pandas()
 
     # Test relevant columns are present
     # Old table has an extra wavelength column, shapes will be different

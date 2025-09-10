@@ -84,11 +84,38 @@ class fitAndApplyEtalonWlsConfig(config.Config):
     ref_fiber = config.Field('Reference fiber', int, None, optional=True)
     #plot_path = config.Field('Path to save plots', str, '')
 
+
+class applyWavelengthSolutionConfig(config.Config):
+    """
+    This parameter set controls the applyWavelengthSolution primitive for MAROON-X.
+    """
+    fibers = config.ListField(
+        'List of fibers to process.',
+        int,
+        None,
+        optional=True,
+        single=True,
+    )
+    symmetric_linefits = config.Field('Symmetric line fits', bool, False)
+    n_knots = config.Field(
+        'Number of knots for the cubic spline fit',
+        int,
+        30,
+    )
+    thar = config.Field(
+        'Whether to apply ThAr wavelength solution to Etalon frames',
+        bool,
+        False,
+    )
+    ref_fiber = config.Field('Reference fiber', int, None, optional=True)
+    #plot_path = config.Field('Path to save plots', str, '')
+
 class combineFibersConfig(config.Config):
     """
     This parameter set controls the combineFibers primitive for MAROON-X.
     """
 
+    suffix = config.Field('Filename suffix', str, '_combined')
     combine_fibers = config.ListField(
         'List of fibers to combine.',
         int,

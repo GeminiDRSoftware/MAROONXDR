@@ -1727,6 +1727,9 @@ class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
             "20241114T190714Z_DDDDF_b_0007": legacy_path / "20241114T19_masterflat_DDDDF_b_0007.npy",
             "20241114T190714Z_DDDDF_r_0002": legacy_path / "20241114T19_masterflat_DDDDF_r_0002.npy",
             "20241124T041907Z_SOOOE_b_0300": legacy_path / "20241124T041907Z_SOOOE_b_0300_backgroundfit_straylight.npy",
+            "20241124T041907Z_SOOOE_r_0300": legacy_path / "20241124T041907Z_SOOOE_r_0300_backgroundfit_straylight.npy",
+            "20241124T062858Z_SOOOE_b_0300": legacy_path / "20241124T062858Z_SOOOE_b_0300_backgroundfit_straylight.npy",
+            "20241124T062858Z_SOOOE_r_0300": legacy_path / "20241124T062858Z_SOOOE_r_0300_backgroundfit_straylight.npy",
         }
 
         adoutputs = []
