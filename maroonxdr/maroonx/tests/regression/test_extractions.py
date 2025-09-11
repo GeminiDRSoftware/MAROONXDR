@@ -444,6 +444,67 @@ def test_optimal_extraction_single_stripe(legacy_test_root, science_filename):
     # np.testing.assert_allclose(old_var, new_var, rtol=0, atol=1e-4)
     # np.testing.assert_allclose(old_stand_spec, new_stand_spec, rtol=0, atol=1e-4)
 
+@pytest.mark.parametrize("arm", ["BLUE"])
+def test_combineFibers(arm, legacy_reduced_path):
+
+    # Load old data
+    old_file = legacy_reduced_path / "20241124T062858Z_SOOOE_b_0300.hdf"
+    legacy = {
+        'wls': load_dict_from_hdf5(str(old_file), 'wavelengths_simultaneous/fiber_6'),
+        'opt': load_dict_from_hdf5(str(old_file), 'optimal_extraction/fiber_6'),
+        'opt_err': load_dict_from_hdf5(str(old_file), 'optimal_var/fiber_6'),
+    }
+
+    # read files and instantiate the primitive class
+    raw_files = sorted([str(f) for f in Path().glob('20241124T062858Z_SOOOE_*_0300.fits')])
+    
+    selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'SCI', arm])
+
+    # Primitives
+    adinput = [astrodata.open(f) for f in selected_spect]
+
+    p = MaroonXSpectrum(adinput)
+    p.prepare()
+    p.checkArm()
+    p.addDQ()  # just placeholder until MX is in caldb
+    p.overscanCorrect()
+    p.correctImageOrientation()
+    p.addVAR(read_noise=True,poisson_noise=True)
+
+    p.extractStripes(skip_dark=[0,0,0,0,5], remove_straylight=[0,0,0,0,5]) 
+    p.optimalExtraction()
+    p.getPeaksAndPolynomials(fibers=(5,) , multithreading=True)
+    p.staticWavelengthSolution()
+    p.applyWavelengthSolution(fibers=(2,3,4), ref_fiber=5)
+
+    adout = p.combineFibers()
+
+
+    target_fiber = 6
+    
+    new = {
+        'wls': getattr(adout[0][0], f"WLS_SIMULTANEOUS_FIBER_{target_fiber}"),
+        'opt': getattr(adout[0][0], f"OPTIMAL_REDUCED_FIBER_{target_fiber}"),
+        'opt_err': getattr(adout[0][0], f"OPTIMAL_REDUCED_ERR_{target_fiber}"),        
+    }
+    
+    # All orders should be the same, we dont save orders for fiber 6, should we?
+    orders = getattr(adout[0][0], f"REDUCED_ORDERS_FIBER_3")
+    orders = orders.astype(int)
+
+    fail_counter = 0
+    for idx, order in enumerate(orders):
+        for key in ['wls', 'opt', 'opt_err']:
+            legacy_order = legacy[key][f"{order}"]
+            new_order = new[key][idx, :]
+
+            try:
+                np.testing.assert_allclose(legacy_order, new_order, rtol=0, atol=1e-8)
+                print(f'key/order : {key}/{order} [OK]')
+            except AssertionError as err:
+                fail_counter += 1
+                print(f'key/order : {key}/{order} [FAIL]')
+    assert fail_counter == 0
 
 
 

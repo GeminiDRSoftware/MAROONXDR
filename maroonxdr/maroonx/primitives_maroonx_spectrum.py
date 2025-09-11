@@ -1042,9 +1042,9 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             setattr(ad[0], f"OPTIMAL_REDUCED_FIBER_{target_fiber}", combined_intensity_array)
             setattr(ad[0], f"OPTIMAL_REDUCED_ERR_{target_fiber}", combined_error_array)
             if symmetric_linefits:
-                setattr(ad[0], f"WAVELENGTH_SYM_FIBER_{target_fiber}", combined_wavelength_array)
+                setattr(ad[0], f"WLS_SIMULTANEOUS_SYM_FIBER_{target_fiber}", combined_wavelength_array)
             else:
-                setattr(ad[0], f"WAVELENGTH_FIBER_{target_fiber}", combined_wavelength_array)
+                setattr(ad[0], f"WLS_SIMULTANEOUS_FIBER_{target_fiber}", combined_wavelength_array)
 
             # Mark history
             fiber_list = ','.join(map(str, combine_fibers))
