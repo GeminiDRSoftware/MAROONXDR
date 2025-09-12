@@ -56,7 +56,7 @@ def makeDarkCoefficients(p):
     p.prepare()
     p.checkArm()
     p.checkMaster()
-    # p.checkND()
+
     p.fitDarkCoefficients()
     p.storeProcessedDark(suffix="_darkCoefficients")
 

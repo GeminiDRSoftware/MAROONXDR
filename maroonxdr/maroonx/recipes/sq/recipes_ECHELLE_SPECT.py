@@ -40,17 +40,14 @@ def reduce(p):
     p.overscanCorrect()
     p.correctImageOrientation()
     p.addVAR(read_noise=True, poisson_noise=True)
-    # get and save wavelength solution (either static reference or frame's unique sim cal solved)
-    #p.attachDarkSubtraction()
-    p.extractStripes(
-        skip_dark=[0, 0, 0, 0, 5], 
-        remove_straylight=[0, 0, 0, 0, 5])  # gets relevant flat and dark to cut out frame's spectra TODO Skip dark for fiber 5
-    p.optimalExtraction()  # does 2D to 1D conversion of cut out spectra (only for fibers 2,3,4)
-    # TODO: perform echelle peak fitting on fiber 5
-    # TODO: Get wavelength solution from dynamic wavecal recipe
-    # TODO: Take Fiber 5 peak positions and 
+    p.extractStripes(skip_dark=[0, 0, 0, 0, 5], remove_straylight=[0, 0, 0, 0, 5]) 
+    p.optimalExtraction()  
+    p.getPeaksAndPolynomials(fibers=(5,) , multithreading=True)
+    p.staticWavelengthSolution()
+    p.applyWavelengthSolution(fibers=(2, 3, 4), ref_fiber=5)
+    p.combineFibers()
     p.storeProcessedScience(suffix='_reduced')
-    return
+    
 
 _default = reduce
 
@@ -73,8 +70,7 @@ def makeStripeExtractionCheck(p):
     p.overscanCorrect()
     p.correctImageOrientation()
     p.addVAR(read_noise=True, poisson_noise=True)
-    # get and save wavelength solution (either static reference or frame's unique sim cal solved)
-    # p.attachDarkSubtraction()
+
     p.extractStripes(
         skip_dark=[0, 0, 0, 0, 5], 
         remove_straylight=[0, 0, 0, 0, 5], 
