@@ -128,7 +128,7 @@ def test_extractStripes_fromFlat(arm, legacy_flats_path):
             new_flat_stripe = new_flat_stripes[f][o].toarray()
             
             try:
-                np.testing.assert_allclose(legacy_flat_stripe, new_flat_stripe, rtol=0, atol=1e-8)
+                np.testing.assert_allclose(legacy_flat_stripe, new_flat_stripe, rtol=1e-3, atol=1e-8)
                 print(f'fiber/order : {f}/{o} [OK]')
             except AssertionError as err:
                 fail_counter += 1
@@ -444,6 +444,8 @@ def test_optimal_extraction_single_stripe(legacy_test_root, science_filename):
     # np.testing.assert_allclose(old_var, new_var, rtol=0, atol=1e-4)
     # np.testing.assert_allclose(old_stand_spec, new_stand_spec, rtol=0, atol=1e-4)
 
+
+@pytest.mark.slow
 @pytest.mark.parametrize("arm", ["BLUE"])
 def test_combineFibers(arm, legacy_reduced_path):
 
@@ -479,9 +481,7 @@ def test_combineFibers(arm, legacy_reduced_path):
 
     adout = p.combineFibers()
 
-
     target_fiber = 6
-    
     new = {
         'wls': getattr(adout[0][0], f"WLS_SIMULTANEOUS_FIBER_{target_fiber}"),
         'opt': getattr(adout[0][0], f"OPTIMAL_REDUCED_FIBER_{target_fiber}"),

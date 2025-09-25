@@ -5,6 +5,7 @@ from astrodata import (
     astro_data_tag,
     returns_list,
 )
+from astropy.time import Time, TimeDelta
 from gemini_instruments.gemini import AstroDataGemini
 
 from . import lookup
@@ -469,6 +470,54 @@ class AstroDataMAROONX(AstroDataGemini):
                 'HIERARCH MAROONX IMAGE ORIENTATION VERTICAL FLIP'
             ),
         }
+
+    @astro_data_descriptor
+    def telescope_mjd(self, pretty=False):
+        """
+        Returns the MJD of the observation as read from the header.
+
+        Parameters
+        ----------
+        pretty : bool, optional
+            If True, returns a Time object.  Default is False.
+        Returns
+        -------
+        float or Time
+            MJD of the observation.
+        """
+
+        mjd = self.hdr.get('HIERARCH MAROONX TELESCOPE MJD')
+        if not pretty:
+            return mjd
+
+        if self.is_single:
+            return Time(float(mjd), format='mjd', scale='utc')
+        else:
+            return [Time(float(mjd[i]), format='mjd', scale='utc') for i in self.indices]
+
+    @astro_data_descriptor
+    def exposure_time(self, pretty=False):
+        """
+        Returns the exposure time in seconds.
+
+        Parameters
+        ----------
+        pretty : bool, optional
+            If True, returns a TimeDelta object.  Default is False.
+
+        Returns
+        -------
+        float or TimeDelta
+            Exposure time.
+        """
+        exposure_time = self.phu.get(self._keyword_for('exposure_time'), -1)
+        if exposure_time < 0:
+            return None
+        
+        if not pretty:
+            return exposure_time
+        return TimeDelta(exposure_time, format='sec')
+
 
     @astro_data_descriptor
     def detector_x_bin(self):

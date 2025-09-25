@@ -11,10 +11,14 @@ import os
 import warnings
 
 from astropy.table import Table
+from astropy.time import Time, TimeDelta
+from astroquery.simbad import Simbad
+from barycorrpy import get_BC_vel
 import numpy as np
 import pandas as pd
 import scipy
 from scipy.interpolate import LSQUnivariateSpline, interp1d
+from scipy.signal import medfilt
 
 import astrodata
 from geminidr.core import Spect
@@ -368,31 +372,45 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
     def fitAndApplyEtalonWls(self, adinputs=None, **params):
         """
-        Calculates spline-based dynamic wavelength solutions from etalon spectra.
-        This primitive processes etalon files to create reference wavelength solutions
-        needed for drift correction in science frames.
-        
-        Parameters:
-        -----------
-        adinputs: list
-            AstroData objects with 1D extracted spectra (PEAKS and POLY extensions)
-        fibers: list or tuple
-            Fibers containing Etalon spectra to process
-        symmetric_linefits: bool
-            Whether to use symmetric line fitting
-        n_knots: int
-            Number of knots for the spline fit (default: 30)
-        thar: bool
-            Whether to apply ThAr wavelength solution to etalon frame
-        ref_file: str
-            Reference file with previously reduced etalon spectra (for drift correction)
-        ref_fiber: int
-            Fiber to use as reference when ref_file is provided
-            
-        Returns:
-        --------
-        adinputs: list
-            Same AstroData objects with new wavelength solution
+        Calculate spline-based dynamic wavelength solutions from etalon spectra.
+
+        This primitive processes etalon calibration files to create high-precision 
+        wavelength solutions needed for drift correction in science observations. 
+        It identifies etalon peaks, fits spline-based wavelength models, and 
+        generates dynamic wavelength arrays for each fiber.
+
+        Parameters
+        ----------
+        adinputs : list of AstroData
+            Input AstroData objects containing 1D extracted etalon spectra with 
+            PEAKS and POLY extensions. Must have "ETALON" tag.
+        fibers : list of int, optional
+            Fiber numbers containing etalon spectra to process. If None, 
+            automatically detected from fiber setup configuration.
+        symmetric_linefits : bool, optional
+            Whether to use symmetric line fitting for etalon peak detection 
+            (default: False).
+        n_knots : int, optional
+            Number of knots for spline interpolation of wavelength solutions 
+            (default: 30).
+        thar : bool, optional
+            If True, apply ThAr wavelength solution to etalon frame before 
+            processing. If False, use static wavelength vectors (default: False).
+        ref_file : str, optional
+            Path to reference file with previously reduced etalon spectra for 
+            drift correction. Currently not implemented.
+        ref_fiber : int, optional
+            Fiber number to use as reference when ref_file is provided. 
+            Currently not implemented.
+        suffix : str, optional
+            Suffix to append to output filenames.
+
+        Returns
+        -------
+        list of AstroData
+            Modified AstroData objects with dynamic wavelength solutions stored 
+            as WLS_DYNAMIC_FIBER_* extensions, updated peak data tables, and 
+            drift measurements in headers.
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
@@ -581,30 +599,48 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
     def applyWavelengthSolution(self, adinputs=None, **params):
         """
-        Applies drift-corrected wavelength solutions to science spectra using 
-        simultaneous etalon measurements. This primitive uses pre-calculated 
-        etalon wavelength solutions to correct for instrumental drifts.
-        
-        Parameters:
-        -----------
-        adinputs: list
-            AstroData objects with 1D extracted science spectra (PEAKS and POLY extensions)
-        fibers: list or tuple
-            Science fibers to process (default: [2,3,4])
-        ref_fiber: int
-            Fiber containing simultaneous etalon spectrum for drift measurement (default: 5)
-        symmetric_linefits: bool
-            Whether to use symmetric line fitting (default: False)
-        n_knots: int
-            Number of knots for the spline fit (default: 30)
-        etalon_file: str
-            Path to corresponding etalon file with dynamic wavelength solutions
-            
-        Returns:
-        --------
-        adinputs: list
-            Same AstroData objects with drift-corrected wavelength solutions 
-            stored as WLS_SCIENCE_FIBER_X extensions
+        Apply drift-corrected wavelength solution to science spectra using simultaneous etalon measurements.
+
+        This primitive corrects for instrumental wavelength drifts by comparing 
+        simultaneous etalon measurements in science and calibration frames. It 
+        calculates pixel shifts between the frames, applies spline-based wavelength 
+        solutions, and generates high-precision wavelength arrays for each fiber.
+
+        Parameters
+        ----------
+        adinputs : list of AstroData
+            Input AstroData objects containing 1D extracted science spectra with 
+            PEAKS and POLY extensions.
+        fibers : list of int, optional
+            Science fiber numbers to process (default: [2, 3, 4]).
+        ref_fiber : int, optional
+            Fiber number containing simultaneous etalon spectrum used for drift 
+            measurement (default: 5).
+        symmetric_linefits : bool, optional
+            Whether to use symmetric line fitting for etalon peak detection 
+            (default: False).
+        n_knots : int, optional
+            Number of knots for the spline interpolation of wavelength solutions 
+            (default: 30).
+        etalon_file : list of AstroData, optional
+            Corresponding etalon AstroData files with dynamic wavelength 
+            solutions. If None, caldb is called.
+        suffix : str, optional
+            Suffix to append to output filenames.
+
+        Returns
+        -------
+        list of AstroData
+            Modified AstroData objects with drift-corrected wavelength solutions 
+            stored as WLS_SIMULTANEOUS_FIBER_* extensions and drift measurements 
+            in headers.
+
+        Raises
+        ------
+        KeyError
+            If etalon line lists cannot be referenced for a fiber/order combination.
+        ValueError
+            If spline fitting fails completely for critical wavelength solutions.
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
@@ -825,23 +861,41 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
     def combineFibers(self, adinputs=None, **params):
         """
-        Combines data from multiple science fibers into one spectrum using weighted averaging.
-        
-        This primitive scales and interpolates fiber data onto a common wavelength grid,
-        performs kappa-sigma clipping to reject outliers, and combines using inverse
-        variance weighting.
-        
+        Combine data from multiple science fibers into a new fiber.
+
+        This primitive combines fiber data (typically fibers 2, 3, and 4) into a 
+        single high signal-to-noise spectrum using weighted averaging. The process 
+        includes scaling fibers to a common flux level, interpolating onto a common 
+        wavelength grid, performing kappa-sigma clipping to reject outliers, and 
+        combining using inverse variance weighting.
+
         Parameters
         ----------
-        adinputs: AstroData object(s) with extracted fiber data
-        combine_fibers: (list) list of fiber numbers to combine
-        symmetric_linefits: (bool) use symmetrical line fits (affects wavelength source)
-        kappa_sigma: (float) sigma clipping threshold for outlier rejection
-        max_clips: (int) maximum pixels to clip per order before increasing kappa_sigma
-        
+        adinputs : list of AstroData
+            Input AstroData objects containing extracted fiber spectra with 
+            OPTIMAL_REDUCED_FIBER_* and OPTIMAL_REDUCED_ERR_* extensions.
+        combine_fibers : list of int
+            List of fiber numbers to combine (e.g., [2, 3, 4]).
+        symmetric_linefits : bool
+            If True, use symmetrical line fits which affects the wavelength 
+            solution source (WLS_SIMULTANEOUS_SYM_FIBER_* vs WLS_SIMULTANEOUS_FIBER_*).
+        kappa_sigma : float
+            Sigma clipping threshold for outlier rejection. Pixels deviating 
+            more than this threshold from the median are clipped.
+        max_clips : int
+            Maximum number of pixels to clip per order before automatically 
+            increasing kappa_sigma by 0.5 to prevent over-clipping.
+        suffix : str
+            Suffix to append to output filenames.
+
         Returns
         -------
-        adinputs with combined fiber data in new extension with {target_fiber} suffix.
+        list of AstroData
+            Modified AstroData objects with combined fiber data stored in new 
+            extensions:
+            - OPTIMAL_REDUCED_FIBER_6 (or _7 if symmetric_linefits=True)
+            - OPTIMAL_REDUCED_ERR_6 (or _7 if symmetric_linefits=True)
+            - WLS_SIMULTANEOUS_FIBER_6 or WLS_SIMULTANEOUS_SYM_FIBER_7
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
@@ -1053,10 +1107,407 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                         comment=f"combined_fibers_{fiber_list}_to_{target_fiber}")
             
             log.info(f"Combined fibers {fiber_list} into fiber {target_fiber} for {ad.filename}")
-            ad.update_filename(suffix=params["suffix"], strip=False)
+            ad.update_filename(suffix=params["suffix"], strip=True)
         
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
+
+    def barycentricCorrection(self, adinputs=None, **params):
+        """
+        Calculate barycentric velocity corrections for science observations.
+
+
+        Parameters
+        ----------
+        adinputs : list of AstroData
+            Input AstroData objects containing science spectra with timing 
+            and pointing information in headers.
+        target_name : str, optional
+            Override target name for SIMBAD resolution. If None, uses the 
+            OBJECT header keyword. If the target is not SIMBAD-resolvable,
+            user should either provide a correct name or use coordinates.
+        use_coords : bool, optional
+            If True, use telescope pointing coordinates instead of target 
+            name resolution through SIMBAD (default: False).
+        suffix : str, optional
+            Suffix to append to output filenames.
+
+        Returns
+        -------
+        list of AstroData
+            Modified AstroData objects with barycentric velocity corrections 
+            added to headers:
+            - BERV_MID: BERV at exposure midpoint (m/s)
+            - BERV_START: BERV at exposure start (m/s) 
+            - BERV_END: BERV at exposure end (m/s)
+            - BERV_DVDT: BERV time derivative (m/s/s)
+            - UTC_START: Corrected UTC start time
+            - UTC_MID: UTC midpoint time
+            - JD_START: Julian date at start
+            - JD_MID: Julian date at midpoint
+
+        Raises
+        ------
+        ImportError
+            If barycorrpy library is not available.
+        ValueError
+            If target cannot be resolved by SIMBAD and use_coords=False.
+        KeyError
+            If required header keywords are missing.
+        """
+        
+        log = self.log
+        log.debug(gt.log_message("primitive", self.myself(), "starting"))
+        timestamp_key = self.timestamp_keys[self.myself()]
+
+        # Get parameters
+        target_name = params.get('target_name')
+        simbad_target_name = params.get('simbad_target_name')
+        use_coords = params.get('use_coords')
+        zp_pc = params.get('zp_pc')
+        zp_frd = params.get('zp_frd')
+        start_time = params.get('start_time')
+        
+        # ============================================================================
+
+
+        for ad in adinputs:
+            # Read target name from header
+            target = ad.object()
+            log.debug(f'{target_name}, {target}')
+            # Handle user-supplied target name logic
+            if target_name is not None:
+                if target_name in target:
+                    log.fullinfo(f'Selected target name: {target}')
+                    if simbad_target_name and len(simbad_target_name) > 0:
+                        log.fullinfo(f'Replaced with user supplied name: {simbad_target_name}')
+                        target = simbad_target_name
+                else:
+                    log.warning(f'Skip file {ad.filename}')
+                    continue
+
+            # Query SIMBAD for target coordinates
+            result_table = Simbad.query_object(target)
+            if result_table is None:
+                log.warning(f'Target {target} not recognized by SIMBAD')
+                if use_coords:
+                    log.warning(f'Will use telescope pointing as coordinates.')
+                else:
+                    log.warning(f'Skip file {ad.filename} - consider using --use_coords option')
+                    continue
+
+            # Calculate time correction based on selected method
+            utc_start = Time(ad.ut_datetime(), format='datetime', scale='utc')
+            time_correction = TimeDelta(0, format='sec')
+
+            mjd = ad[0].telescope_mjd(pretty=True)
+            exptime = ad[0].exposure_time(pretty=True)
+            if start_time == 'mjd_start':
+                time_correction = mjd - utc_start
+            elif start_time == 'mjd_end':
+                if 'BLUE' in ad.tags:
+                    # 52 and 100 come from legacy code, no docs about them
+                    offset = exptime + TimeDelta(52.0, format='sec')
+                else:
+                    offset = exptime + TimeDelta(100.0, format='sec')
+                time_correction = (mjd - offset) - utc_start
+
+            # Extract times and exposure meter readings for a given exposure
+            emeter = self._exposuremeterStats(ad, utc_start, exptime, zp_pc=zp_pc, zp_frd=zp_frd)
+            log.fullinfo(f'Exposuremeter stats (PC channel): {emeter["pc"]["stats"]}')
+            log.fullinfo(f'Exposuremeter stats (FRD channel): {emeter["frd"]["stats"]}')
+
+            # Calculate BERV at start, mid, end of exposure
+            utc_start += time_correction
+            utc_mid = utc_start + exptime / 2
+            utc_end = utc_start + exptime
+
+            
+            # =============================================================================
+            barycorrpy_kwargs = {
+                'lat': 19.823801,
+                'longi': -155.469047,
+                'alt': 4213,
+                'ephemeris': 'de430',
+                'zmeas': 0.0,
+                'predictive': False,
+                'leap_update': False
+            }
+            if use_coords:
+                ra  = ad[0].hdr.get('MAROONX TELESCOPE TELRA') * 15.0
+                dec = ad[0].hdr.get('MAROONX TELESCOPE TELDEC')
+                log.fullinfo(f'Using RA: {ra:.4f} deg, DEC: {dec:.4f} deg')
+
+                # BVC for nominal exposure midtime
+                result1, warning, status = get_BC_vel(
+                    JDUTC=[utc_start.jd, utc_mid.jd, utc_end.jd],
+                    ra=ra,
+                    dec=dec,
+                    **barycorrpy_kwargs)
+
+                # Average BVC over exposure weighted by exposure meter readings - BEST
+                result3, JDUTCMID_pc, warning3, status3 = exposure_meter_BC_vel(
+                    JDUTC=emeter['pc']['times'].jd + time_correction.jd,
+                    expmeterflux=emeter['pc']['readings'],
+                    ra=ra,
+                    dec=dec,
+                    **barycorrpy_kwargs)
+
+                result4, JDUTCMID_frd, warning4, status4 = exposure_meter_BC_vel(
+                    JDUTC=emeter['frd']['times'].jd + time_correction.jd,
+                    expmeterflux=emeter['frd']['readings'],
+                    ra=ra,
+                    dec=dec,
+                    **barycorrpy_kwargs)
+            else:
+                log.fullinfo(f'Using target name: {target}')
+
+                # BVC for nominal exposure midtime
+                result1, warning, status = get_BC_vel(
+                    JDUTC=[utc_start.jd, utc_mid.jd, utc_end.jd],
+                    starname=target,
+                    **barycorrpy_kwargs)
+
+                # Average BVC over exposure weighted by exposure meter readings - BEST
+                if emeter['pc']['times'] is not None:
+                    result3, JDUTCMID_pc, warning3, status3 = exposure_meter_BC_vel(
+                        JDUTC=emeter['pc']['times'].jd + time_correction.jd,
+                        expmeterflux=emeter['pc']['readings'],
+                        starname=target,
+                        **barycorrpy_kwargs)
+                if emeter['frd']['times'] is not None:
+                    result4, JDUTCMID_frd, warning4, status4 = exposure_meter_BC_vel(
+                        JDUTC=emeter['frd']['times'].jd + time_correction.jd,
+                        expmeterflux=emeter['frd']['readings'],
+                        starname=target,
+                        **barycorrpy_kwargs)               
+
+
+            # =============================================================================
+            # BERV_dvdt values
+            BC_dvdt = [
+                (result1[2] - result1[0]) / (exptime),
+                (result1[2] - result1[1]) / (exptime/2),
+                (result1[1] - result1[0]) / (exptime/2)]
+
+            log.debug(f'File: {file}')
+            log.debug(f'Target: {target}')
+            log.debug(f'Exptime: {exptime} sec')
+            log.debug(f'BERV dv/dt: '
+                f'{BC_dvdt[0]:.4f}, '
+                f'{BC_dvdt[1]:.4f}, ' 
+                f'{BC_dvdt[2]:.4f} m/s/s')
+
+            # Mid values
+            if emeter['pc']['times'] is not None:
+                utc_fluxmid_pc = Time(JDUTCMID_pc, format="jd", scale="utc")
+                utc_fluxmid_frd = Time(JDUTCMID_frd, format="jd", scale="utc")
+                BC_fluxmid_pc = result3
+                BC_fluxmid_frd = result4
+
+            # If times are None, there was a gap in the photometer data and midpoints 
+            # and BERVs are taken from the nominal midpoint.
+            if emeter['pc']['times'] is None:
+                utc_fluxmid_pc = utc_mid
+                BC_fluxmid_pc = result1[1]
+
+            if emeter['frd']['times'] is None:
+                utc_fluxmid_frd = utc_mid
+                BC_fluxmid_frd = result1[1]
+
+            # Scale factor
+            scale_factor = emeter['frd']['stats']['median'] / emeter['pc']['stats']['median']
+
+            # Save header entries
+            ad[0].hdr.set('UTC_START', f'{utc_start.isot}', 'xxxxx')
+            ad[0].hdr.set('UTC_CORRECTION', f'{time_correction.sec:.1f}', 'xxxxx')
+            ad[0].hdr.set('UTC_MIDPOINT', f'{utc_mid.isot}', 'xxxxx')
+            ad[0].hdr.set('UTC_FLUXWEIGHTED_PC', f'{utc_fluxmid_pc.isot}', 'xxxxx')
+            ad[0].hdr.set('UTC_FLUXWEIGHTED_FRD', f'{utc_fluxmid_frd.isot}', 'xxxxx')
+            ad[0].hdr.set('JD_UTC_START', f'{utc_start.jd:.7f}', 'xxxxx')
+            ad[0].hdr.set('JD_UTC_MIDPOINT', f'{utc_mid.jd:.7f}', 'xxxxx')
+            ad[0].hdr.set('JD_UTC_FLUXWEIGHTED_PC', f'{utc_fluxmid_pc.jd:.7f}', 'xxxxx')
+            ad[0].hdr.set('JD_UTC_FLUXWEIGHTED_FRD', f'{utc_fluxmid_frd.jd:.7f}', 'xxxxx')
+
+            ad[0].hdr.set('BERV_SIMBAD_TARGET', simbad_target_name, 'xxxxx')
+            ad[0].hdr.set('BERV_MIDPOINT', f'{result1[1]:.2f}', 'xxxxx')
+            ad[0].hdr.set('BERV_FLUXWEIGHTED_PC', f'{BC_fluxmid_pc:.2f}', 'xxxxx')
+            ad[0].hdr.set('BERV_FLUXWEIGHTED_FRD', f'{BC_fluxmid_frd:.2f}', 'xxxxx')
+            ad[0].hdr.set('BERV_DIFFERENCE_PC', f'{(BC_fluxmid_pc - result1[1]):.2f}', 'xxxxx')
+            ad[0].hdr.set('BERV_DIFFERENCE_FRD', f'{(BC_fluxmid_frd - result1[1]):.2f}', 'xxxxx')
+            ad[0].hdr.set('BERV_DVDT', f'{np.mean(BC_dvdt):.2f}', 'xxxxx')
+
+            ad[0].hdr.set('COUNTS_PC_MIN', f'{emeter['pc']['stats']['min']:.2f}', 'xxxxx')
+            ad[0].hdr.set('COUNTS_PC_MAX', f'{emeter['pc']['stats']['max']:.2f}', 'xxxxx')
+            ad[0].hdr.set('COUNTS_PC_MEDIAN', f'{emeter['pc']['stats']['median']:.2f}', 'xxxxx')
+            ad[0].hdr.set('COUNTS_PC_STD', f'{emeter['pc']['stats']['std']:.2f}', 'xxxxx')
+            ad[0].hdr.set('COUNTS_PC_ZP', f'{emeter['pc']['stats']['zeropint']:.2f}', 'xxxxx')
+
+            ad[0].hdr.set('COUNTS_FRD_MIN', f'{emeter['frd']['stats']['min']:.2f}', 'xxxxx')
+            ad[0].hdr.set('COUNTS_FRD_MAX', f'{emeter['frd']['stats']['max']:.2f}', 'xxxxx')
+            ad[0].hdr.set('COUNTS_FRD_MEDIAN', f'{emeter['frd']['stats']['median']:.2f}', 'xxxxx')
+            ad[0].hdr.set('COUNTS_FRD_STD', f'{emeter['frd']['stats']['std']:.2f}', 'xxxxx')
+            ad[0].hdr.set('COUNTS_FRD_ZP', f'{emeter['frd']['stats']['zeropoint']:.2f}', 'xxxxx')
+            ad[0].hdr.set('SCALEFACTOR', f'{scale_factor:.1f}', 'xxxxx')
+
+            log.fullinfo(f"Barycentric velocity calculation completed for {ad.filename}")
+        
+            # Timestamp and update filename
+            gt.mark_history(ad, primname=self.myself(), keyword=timestamp_key)
+            ad.update_filename(suffix=params["suffix"], strip=True)
+        return adinputs
+
+    def _exposuremeterStats(self, ad, utc_start, exptime, zp_pc=0.0, zp_frd=0.0):
+        """
+        Extract and process exposure meter readings.
+        
+        This function retrieves exposure meter data from a pandas dataframe, applies
+        zeropoint corrections, performs outlier filtering, and calculates statistics
+        for both PC and FRD channels.
+        
+        Parameters
+        ----------
+        ad : AstroData object
+            Input AstroData object containing EXPOSUREMETER extension.
+        utc_start : astropy.time.Time
+            UTC start time of the exposure.
+        exptime : float or astropy.time.TimeDelta
+            Exposure time in seconds.
+        zp_pc : float, optional
+            Zeropoint for PC channel. If 0.0 (default), automatically determined
+            from the median of the 20 lowest values in a 10-minute window around
+            the exposure.
+        zp_frd : float, optional
+            Zeropoint for FRD channel. If 0.0 (default), automatically determined
+            from the median of the 20 lowest values in a 10-minute window around
+            the exposure.
+        
+        Returns
+        -------
+        dict
+            Nested dictionary containing processed exposure meter data:
+            
+            - 'pc'/'frd' : dict
+                Channel-specific data containing:
+                - 'times' : astropy.time.Time or None
+                    Timestamps for readings during exposure
+                - 'readings' : numpy.ndarray or nan
+                    Zeropoint-corrected flux readings (negative values set to 0)
+                - 'stats' : dict
+                    Statistical measures:
+                    - 'min', 'max', 'median', 'std' : float
+                        Basic statistics of the readings
+                    - 'zeropoint' : float
+                        Applied zeropoint value
+        """
+        log = self.log
+        exposuremeter = ad.EXPOSUREMETER.to_pandas(index='Timestamp')  
+        exposuremeter.index = pd.to_datetime(exposuremeter.index)
+        
+        # Reference zeropints
+        ref_zp_pc = ad.EXPOSUREMETER.meta['header']['ZP_PC']
+        ref_zp_frd = ad.EXPOSUREMETER.meta['header']['ZP_FRD']
+
+        # 5 min window around exposure for auto-zp determination
+        dt1 = TimeDelta(exptime, format='sec')
+        dt3 = TimeDelta(300, format='sec')
+        utc_end = utc_start + dt1
+        
+        # Auto-determine zeropoints if not provided
+        n_cutoff = 20
+        start_cut = (utc_start - dt3).iso
+        end_cut = (utc_end + dt3).iso
+        if zp_frd == 0.0:
+            flux_frd = exposuremeter.loc[start_cut:end_cut]['Flux FRD Channel']
+            zp_frd = np.nanmedian(np.sort(flux_frd)[:n_cutoff])
+        if zp_pc == 0.0:
+            flux_pc = exposuremeter.loc[start_cut:end_cut]['Flux PC Channel']
+            zp_pc = np.nanmedian(np.sort(flux_pc)[:n_cutoff])
+        
+        # Check if zp are valid
+        if np.isnan(zp_frd):
+            log.warning("Automatic zeropoint determination for FRD channel failed.")
+            zp_frd = 0.0
+        if np.isnan(zp_pc):
+            log.warning("Automatic zeropoint determination for PC channel failed.")
+            zp_pc = 0.0
+        if abs(zp_frd - ref_zp_frd) > 0.2 * ref_zp_frd:
+            log.warning(f"Automatic zeropoint determination for FRD, {zp_frd}, "
+                        f"is 20% off of reference value of {ref_zp_frd}.")
+        if abs(zp_pc - ref_zp_pc) > 0.2 * ref_zp_pc:
+            log.warning(f"Automatic zeropoint determination for FRD, {zp_pc}, "
+                        f"is 20% off of reference value of {ref_zp_pc}.")
+
+        # Extract readings during exposure
+        result_pc = exposuremeter.loc[utc_start.iso:utc_end.iso]['Flux PC Channel']
+        result_frd = exposuremeter.loc[utc_start.iso:utc_end.iso]['Flux FRD Channel']
+        number_pc = result_pc.count()
+        number_frd = result_frd.count()
+
+        # Apply zp correction and outlier filtering
+        times_pc = Time(result_pc.index.values, format='datetime64', scale='utc')
+        readings_pc = result_pc.values.flatten() - zp_pc
+        median_pc = medfilt(readings_pc, 3)
+        outlier = np.where(np.abs(readings_pc - median_pc) / median_pc > 2)
+        readings_pc[outlier] = median_pc[outlier]        
+        if np.sum(outlier) > 0:
+            log.warning(f'Replaced {len(outlier)} outlier value(s) in PC dataset')        
+        readings_pc[readings_pc < 0] = 0.0
+        
+        times_frd = Time(result_frd.index.values, format='datetime64', scale='utc')
+        readings_frd = result_frd.values.flatten() - zp_frd
+        median_frd = medfilt(readings_frd, 3)
+        outlier = np.where(np.abs(readings_frd - median_pc) / median_frd > 2)
+        readings_frd[outlier] = median_frd[outlier]
+        if np.sum(outlier) > 0:
+            log.warning(f'Replaced {len(outlier)} outlier value(s) in FRD dataset')
+        readings_frd[readings_frd < 0] = 0.0
+
+        # Check for large time gaps in data
+        if number_frd > 2 and number_pc > 2:
+            gaps = [
+                (times_frd[0] - utc_start).sec, 
+                (utc_end - times_frd[-1]).sec,
+                result_frd.index.to_series().diff().dt.total_seconds().fillna(0).max()
+                ]
+            maxgap = max(gaps)
+            if maxgap > 30:
+                log.warning(f'{maxgap:.1f} sec gap found in exposuremeter data. Photometric calculations abandoned.')
+            elif maxgap > 10:
+                logger.warning(f'{maxgap:.1f} sec gap found in exposuremeter data.')
+        else:
+            times_pc = None
+            times_frd = None
+            readings_pc = np.nan
+            readings_frd = np.nan
+
+        # Calculate statistics
+        emeter_stats = {
+            'pc': {
+                'times': times_pc,
+                'readings': readings_pc,
+                'stats': {
+                    'min': np.nanmin(readings_pc),
+                    'max': np.nanmax(readings_pc),
+                    'median': np.nanmedian(readings_pc),
+                    'std': np.nanstd(readings_pc),
+                    'zeropoint': zp_pc
+                }
+            },
+            'frd': {
+                'times': times_frd,
+                'readings': readings_frd,
+                'stats': {
+                    'min': np.nanmin(readings_frd),
+                    'max': np.nanmax(readings_frd),
+                    'median': np.nanmedian(readings_frd),
+                    'std': np.nanstd(readings_frd),
+                    'zeropoint': zp_frd
+                }
+            }
+        }
+        return emeter_stats
+
 
 ##############################################################################
 # Below are the helper functions for the primitives in this module           #
@@ -1089,3 +1540,44 @@ def _fc2min(p, m, etalonwl):
     # residuals are in 'nm' not m/s. Good? bad? Should we normalize?
     return _peak_to_wavelength_spline(m, p) - etalonwl
 
+def _exposuremeter_stats(self, ad, utc_start, exptime, zp_pc=0.0, zp_frd=0.0):
+    """
+    Extract exposure meter readings for flux-weighted BERV calculations.
+    Returns None if exposure meter data is not available.
+    """
+    log = self.log
+    exposuremeter = ad.EXPOSUREMETER.to_pandas()  
+    
+    dt1 = TimeDelta(exptime, format='sec')
+    dt3 = TimeDelta(300, format='sec')
+    endtime = utc_start + dt1
+    
+    # Auto-determine zeropoints if not provided
+    if zp_frd == 0.0:
+        zp_frd = np.nanmedian(np.sort(exposuremeter.loc[(utc_start - dt3).iso[0:19]:(endtime + dt3).iso[0:19]]['counts_frd'])[0:20])
+    if zp_pc == 0.0:
+        zp_pc = np.nanmedian(np.sort(exposuremeter.loc[(utc_start - dt3).iso[0:19]:(endtime + dt3).iso[0:19]]['counts_pc'])[0:20])
+    
+    # Extract readings during exposure
+    result_pc = exposuremeter.loc[(utc_start).iso[0:19]:(endtime).iso[0:19]]['counts_pc']
+    result_frd = exposuremeter.loc[(utc_start).iso[0:19]:(endtime).iso[0:19]]['counts_frd']
+    
+    # Apply outlier filtering (simplified version)
+    times_pc = Time(result_pc.index.values, format='datetime64', scale='utc')
+    readings_pc = result_pc.values.flatten() - zp_pc
+    readings_pc[readings_pc < 0] = 0.0
+    
+    times_frd = Time(result_frd.index.values, format='datetime64', scale='utc')
+    readings_frd = result_frd.values.flatten() - zp_frd
+    readings_frd[readings_frd < 0] = 0.0
+    
+    # Calculate statistics
+    exposuremeter_min = [np.nanmin(readings_pc), np.nanmin(readings_frd)]
+    exposuremeter_max = [np.nanmax(readings_pc), np.nanmax(readings_frd)]
+    exposuremeter_median = [np.nanmedian(readings_pc), np.nanmedian(readings_frd)]
+    exposuremeter_std = [np.nanstd(readings_pc), np.nanstd(readings_frd)]
+    zeropoints = [zp_pc, zp_frd]
+    
+    return (times_pc, readings_pc, times_frd, readings_frd, 
+            exposuremeter_min, exposuremeter_max, exposuremeter_median, 
+            exposuremeter_std, zeropoints)

@@ -46,6 +46,7 @@ def reduce(p):
     p.staticWavelengthSolution()
     p.applyWavelengthSolution(fibers=(2, 3, 4), ref_fiber=5)
     p.combineFibers()
+    p.barycentricCorrection()
     p.storeProcessedScience(suffix='_reduced')
     
 
