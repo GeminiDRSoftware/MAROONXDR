@@ -25,7 +25,7 @@ class getPeaksAndPolynomialsConfig(config.Config):
     This parameter set controls the getPeaksAndPolynomials primitive for MAROON-X.
     """
 
-    suffix = config.Field('Filename suffix', str, '_wavecal')
+    suffix = config.Field('Filename suffix', str, '_peaks')
     guess_file = config.Field(
         'Name of file containing initial guess spectrum.',
         str,
@@ -89,6 +89,7 @@ class applyWavelengthSolutionConfig(config.Config):
     """
     This parameter set controls the applyWavelengthSolution primitive for MAROON-X.
     """
+    suffix = config.Field('Filename suffix', str, '_wls')
     fibers = config.ListField(
         'List of fibers to process.',
         int,
@@ -136,3 +137,45 @@ class combineFibersConfig(config.Config):
         5000,
         optional=True,
     )
+
+class barycentricCorrectionConfig(config.Config):
+    """
+    This parameter set controls the barycentricCorrection primitive for MAROON-X.
+    """
+    suffix = config.Field('Filename suffix', str, '_reduced')
+    target_name = config.ListField(
+        'Target name to downselect files',
+        str,
+        None,
+        optional=True,
+    )
+    simbad_target_name = config.ListField(
+        'SIMBAD resolvable target name',
+        str,
+        None,
+        optional=True,
+    )
+    use_coords = config.Field(
+        'Use telescope pointing coordinates instead of target name',
+        bool,
+        False,
+    )
+    zp_pc = config.Field(
+        'Zeropoint for counts_pc channel. Determined from data if not provided.',
+        float,
+        0.,
+        optional=True,
+    )
+    zp_frd = config.Field(
+        'Zeropoint for counts_frd channel. Determined from data if not provided.',
+        float,
+        0.,
+        optional=True,
+    )
+    start_time = config.ChoiceField(
+        "Time to consider to compute exposure start",
+        str,
+        allowed={"mjd_start": "Telescope MJD written at start of exposure",
+                 "mjd_end": "Telescope MJD written at end of readout",
+                 "filename": "UTC from filename"},
+        default="filename")

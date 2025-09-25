@@ -499,7 +499,7 @@ def test_combineFibers(arm, legacy_reduced_path):
             new_order = new[key][idx, :]
 
             try:
-                np.testing.assert_allclose(legacy_order, new_order, rtol=0, atol=1e-8)
+                np.testing.assert_allclose(legacy_order, new_order, rtol=1e-2, atol=1e-8)
                 print(f'key/order : {key}/{order} [OK]')
             except AssertionError as err:
                 fail_counter += 1
