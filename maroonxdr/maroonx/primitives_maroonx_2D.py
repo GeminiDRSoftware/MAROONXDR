@@ -1892,7 +1892,8 @@ class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
         extensions removed. This ensures all tables and associated data are preserved for
         the remaining extension. The original file name is retrieved from the 'ORIGNAME'
         header and assigned to the new object, and an 'ARCHNAME' header is added to
-        reference the Gemini Archive file name.
+        reference the Gemini Archive file name. Additionally, certain header keywords in the
+        EXPOSUREMETER table are renamed to avoid being lost by writing methods.
 
         Parameters
         ----------
@@ -1930,7 +1931,13 @@ class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
                 archive_card = fits.Card('ARCHNAME', ad.filename, 'Gemini archive name')
                 arm_ad.phu.insert('ORIGNAME', archive_card, after=True)
 
-                # arm_ad.write(new_filename, overwrite=True)
+                # Rename keywords of exposumeter table meta header 
+                # This is patch because the EXPOSUMETER.meta header looses
+                # these particular keywords when writing to file
+                if 'SCI' in ad.tags:
+                    arm_ad.EXPOSUREMETER.meta['header'].rename_keyword('TZERO2', 'ZP_PC')
+                    arm_ad.EXPOSUREMETER.meta['header'].rename_keyword('TZERO3', 'ZP_FRD')
+
                 adoutputs.append(arm_ad)
 
         return adoutputs
