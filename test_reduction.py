@@ -90,9 +90,12 @@ for exptime, arm in it.product(exptime_tags, arm_tags):
 # =============================================================================
 for arm in arm_tags:
 
-    # Select master darks with PROCESSED tag 
+    # Select master darks with PROCESSED tag
+    # Exclude already created darks with DARK_SYNTH or DARK_COEFF tags
     selected_darks = dataselect.select_data(
-        get_files(proc_dark), tags=['PROCESSED', 'DARK', arm])
+        get_files(proc_dark), 
+        tags=['PROCESSED', 'DARK', arm],
+        xtags=['DARK_COEFF', 'DARK_SYNTH'])
 
     # Run reduce on all selected files
     myreduce = Reduce()
