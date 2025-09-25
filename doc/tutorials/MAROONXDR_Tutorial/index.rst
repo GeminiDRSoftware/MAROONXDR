@@ -7,9 +7,6 @@
 DRAGONS MAROONX Data Reduction Tutorial
 =======================================
 
-.. admonition:: Document ID
-
-   <PIPE-USER-999_DocumentID>  To be set closer to release.
 
 .. toctree::
    :numbered:
@@ -17,6 +14,7 @@ DRAGONS MAROONX Data Reduction Tutorial
    :caption: Table of Contents
 
    intro
+   example_api
 
 
 Indices and tables

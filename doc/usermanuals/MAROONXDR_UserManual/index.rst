@@ -16,13 +16,11 @@ DRAGONS MAROONX Data Reduction User Manual
    :maxdepth: 2
    :caption: Table of Contents
 
-   intro
-   flows
-   tags
+   instrument
    recipes
+   tips
+   issues
    primitives
-   parameters
-   tests
 
 
 Indices and tables
@@ -31,5 +29,19 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
+Appendices
+==========
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Appendices
+
+.. _primitives_index:
+
+Primitives Index
+================
+
+:ref:`primitives`
 
 .. todolist::

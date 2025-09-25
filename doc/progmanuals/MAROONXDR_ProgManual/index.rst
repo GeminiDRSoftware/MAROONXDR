@@ -7,9 +7,6 @@
 DRAGONS MAROONX Data Reduction Programmer Manual
 ================================================
 
-.. admonition:: Document ID
-
-   <PIPE-USER-999_DocumentID>  To be set closer to release.
 
 .. toctree::
    :numbered:
