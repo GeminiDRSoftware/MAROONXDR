@@ -566,6 +566,17 @@ def docs(session: nox.Session):
     session.log(f"Documentation built successfully in {docs_build}")
     session.log(f"Open {docs_build}/index.html in your browser to view the docs")
 
+@nox.session(venv_backend='virtualenv')
+def docstyle(session: nox.Session):
+    """Check docstring style using pydocstyle."""
+    session.install('pydocstyle')
+    session.run(
+        'pydocstyle', 
+        'maroonxdr/',
+        '--convention=numpy',
+        '--add-ignore=D100,D104'  # Ignore missing docstrings in modules and __init__.py
+    )
+
 # Building
 @nox.session(venv_backend='virtualenv')
 def build(session: nox.Session):
