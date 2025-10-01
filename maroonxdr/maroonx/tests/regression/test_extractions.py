@@ -507,6 +507,47 @@ def test_combineFibers(arm, legacy_reduced_path):
     assert fail_counter == 0
 
 
+@pytest.mark.parametrize("arm", ["BLUE"])
+def test_barycentricCorrection(arm, legacy_reduced_path):
+
+    def _decode(x):
+        return x.decode("utf-8") if isinstance(x, (bytes, bytearray)) else x
+
+    # Load old data
+    old_file = legacy_reduced_path / "20241124T062858Z_SOOOE_b_0300.hdf"
+
+    # read files and instantiate the primitive class
+    raw_files = sorted([str(f) for f in Path().glob('20241124T062858Z_SOOOE_*_0300.fits')])
+
+    selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'SCI', arm])
+
+    # Primitives
+    adinput = [astrodata.open(f) for f in selected_spect]
+
+    p = MaroonXSpectrum(adinput)
+    p.prepare()
+
+    adout = p.barycentricCorrection(target_name="HD 203030")
+    hdr = adout[0][0].hdr
+    
+    keys = ["BERV_SIMBAD_TARGET", "BERV_FLUXWEIGHTED_PC", "BERV_FLUXWEIGHTED_FRD"]
+    legacy_target, legacy_pc, legacy_frd = read_header_entries(str(old_file), keys)
+
+    assert str(_decode(legacy_target)) == str(hdr.get("BERV_SIMBAD_TARGET"))
+
+    # BERV is in (m/s); atol=0.1 -> 10 cm/s tolerance, rtol=0
+    np.testing.assert_allclose(
+        float(_decode(legacy_pc)),
+        float(hdr.get("BERV_FLUXWEIGHTED_PC")),
+        rtol=0.0,
+        atol=0.1,
+    )
+    np.testing.assert_allclose(
+        float(_decode(legacy_frd)),
+        float(hdr.get("BERV_FLUXWEIGHTED_FRD")),
+        rtol=0.0,
+        atol=0.1,
+    )
 
 # =====================================================
 # HDF5 helper functions
@@ -543,6 +584,12 @@ def load_sparse_mat(name, store='store.h5'):
     m = sparse.csc_matrix(tuple(pars[:3]), shape=pars[3])
     return m
 
+def read_header_entries(filename, hdr_keys):
+    values = []
+    with h5py.File(filename, 'r', libver='latest') as h5f:
+        for key in hdr_keys:
+            values.append(h5f['header'].attrs.get(key))
+    return values
 
 # =========================================================================
 def _optimal_extraction_single_stripe(stripe, flat_stripe, gain=1, read_noise=1.23, back_var=None, mask=None,
