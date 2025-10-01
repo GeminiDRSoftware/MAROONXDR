@@ -12,8 +12,8 @@ import warnings
 
 from astropy.table import Table
 from astropy.time import Time, TimeDelta
+from astropy import units
 from astroquery.simbad import Simbad
-from barycorrpy import get_BC_vel
 import numpy as np
 import pandas as pd
 import scipy
@@ -32,6 +32,61 @@ from . import maroonx_utils
 from .primitives_maroonx_echelle import MAROONXEchelle
 from .maroonx_echellespectrum.maroonxspectrum import MXSpectrum
 from .maroonx_echellespectrum.wavelengthsolution import WavelengthSolution
+
+# Monkey patch for barycorrpy compatibility with newer astroquery versions
+def _patched_get_stellar_data(name=''):
+    """
+    Fixed version of barycorrpy.utils.get_stellar_data for newer astroquery.
+    Based on solution from: https://github.com/shbhuk/barycorrpy/issues/59
+    """
+    from astropy.coordinates import SkyCoord
+    import astropy.units as u
+
+    warning = []
+    
+    customSimbad = Simbad()
+    customSimbad.add_votable_fields('ra', 'dec', 'pmra', 'pmdec', 'plx_value', 'rvz_radvel')
+    
+    obj = customSimbad.query_object(name)
+    if obj is None:
+        raise ValueError(f'ERROR: {name} target not found. Check target name or enter RA,Dec,PMRA,PMDec,Plx,RV,Epoch manually\n\n')
+    else:        
+        warning += [f'{name} queried from SIMBAD.']
+
+    # Check for masked values
+    if all([not x for x in [obj.mask[0][i] for i in obj.colnames]])==False:
+        warning += ['Masked values present in queried dataset']
+
+    obj = obj.filled(None)
+    
+    pos = SkyCoord(ra=obj['ra'], dec=obj['dec'], unit=(u.deg, u.deg))
+    ra = pos.ra.value[0]
+    dec = pos.dec.value[0]
+    pmra = obj['pmra'][0]
+    pmdec = obj['pmdec'][0]
+    plx = obj['plx_value'][0]
+    rv = obj['rvz_radvel'][0] * 1000 #SIMBAD output is in km/s. Converting to m/s
+    epoch = 2451545.0
+    
+    star = {'ra':ra,'dec':dec,'pmra':pmra,'pmdec':pmdec,'px':plx,'rv':rv,'epoch':epoch}
+    
+    # Fill Masked values with None. Again. 
+    for i in star:
+        if star[i] > 1e10:
+            star[i] = None           
+       
+    warning += [f'Values queried from SIMBAD are {star}']
+    return star, warning
+
+# Monkey patch the original function in barycorrpy
+import barycorrpy.utils as bcu
+import barycorrpy.barycorrpy as bcp
+bcu.get_stellar_data = _patched_get_stellar_data   # update source module
+bcp.get_stellar_data = _patched_get_stellar_data   # update alias in barycorrpy.barycorrpy
+
+get_BC_vel = bcp.get_BC_vel
+exposure_meter_BC_vel = bcp.exposure_meter_BC_vel
+
 # ------------------------------------------------------------------------------
 
 def _get_calibration_wavecal_path():
@@ -100,20 +155,31 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
     def staticWavelengthSolution(self, adinputs=None, **params):
         """
-        Loads the static wavelength solution from the config file.
+        Load static wavelength solution from lookup file.
 
-        The config file is located in the lookup directory, see wavelengthdb.py
-        
-        Parameters:
-        -----------
-        adinputs: list 
-            AstroData objects with 1D box extracted spectra
-        fibers: list or tuple
-            Fibers containing Etalon spectra to process
+        This primitive loads pre-computed static wavelength calibration solutions
+        from lookup files and attaches them as an extensions.
+        The static solutions provide initial wavelength mappings before dynamic
+        refinement using etalon measurements.
 
-        Returns:
-        --------
-        adinputs with extensions containing the static wavelengths solution
+        Parameters
+        ----------
+        adinputs : list of AstroData
+            Input AstroData objects with 1D box extracted spectra. Must have
+            REDUCED_ORDERS_FIBER_* extensions for each fiber.
+        fibers : list of int, optional
+            Fiber numbers to load wavelength solutions for. If None, all 
+            fibers (1-5) are processed. Default is None.
+        suffix : str, optional
+            Suffix to append to output filenames. Default is empty string.
+
+        Returns
+        -------
+        list of AstroData
+            Modified AstroData objects with static wavelength solutions stored
+            as WLS_STATIC_FIBER_* extensions for each requested fiber. 
+            Each extension contains a 2D array with wavelength values (nm) 
+            indexed by [order, pixel].
         """
 
         log = self.log
@@ -121,18 +187,14 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         timestamp_key = self.timestamp_keys[self.myself()]
 
         # requested fibers
-        fibers = params['fibers']
-        
-        all_fibers = [1, 2, 3, 4, 5]
-        if fibers is None:
-            fibers = all_fibers
+        fibers = params.get('fibers')
 
         for ad in adinputs:
             # Load static wavelength solution from the config
             statwavelength_file = maroonx_utils.get_statwavelength_filename(ad)
             log.info(f'Loading static wavelength file: {statwavelength_file}')
 
-            for fiber in all_fibers:
+            for fiber in range(1, 6):
                 # Set up an initial value for all fibers
                 setattr(ad[0], f'WLS_STATIC_FIBER_{fiber}', np.zeros((1, 1)))
                     
@@ -152,64 +214,88 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
                 setattr(ad[0], f'WLS_STATIC_FIBER_{fiber}', wls_data)
 
+            ad.update_filename(suffix=params['suffix'], strip=True)
+
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
 
-    def getPeaksAndPolynomials(self, adinputs=None, guess_file=None,
-                            fibers=(), orders=(), degree_sigma=4, degree_width=2,
-                            use_sigma_lr=True, show_plots=False,
-                            plot_path="", multithreading=False,
-                            iterations = 5, **params):
+    def getPeaksAndPolynomials(self, adinputs=None, **params):
         """
-        Extracts the etalon positions from the 1D spectra, determines the centroid,
-        and fits polynomials.  This is done by finding the peak and fitting them using a
-        box convolved with 2 Gaussians  The sigmas of the Gaussians are fitted to a low
-        order polynomial, along with the width of the box.
+        Extract etalon peak positions and fit line profile parameters.
 
-        Below information taken from the MAROON-X Data Handbook:
-        https://sites.google.com/uchicago.edu/maroonx-data-handbook/data-reduction/wavelength-calibration/etalon-line-fitting
+        TODO: Rewrite docstring to make reference to maroonx_fit module
 
-        The line profiles are modeled using a box
-        convolved with 2 Gaussians on either side (sum of 2 erf functions).
-        In order to remove degeneracies between the width of the box (representing
-        the width of the entance slit) and the sigma/FWHM of the Gaussians (representing
-        the field and wavelength dependent abberations), a composite model for each fiber/order
-        is built from all the individual etalon lines in a fiber/order plus a smooth background.
-        Only the line intensities and positions are fitted individually for each  etalon line.
-        Box widths, Gaussian sigmas, and the background are constrained to a low order polynomial
-        across a given fiber/ order.  This is motivated by the fact that these quantities only vary
-        slowly and steadily along an order.
+        Parameters
+        ----------
+        adinputs : list of AstroData
+            Input AstroData objects with 1D box extracted etalon spectra.
+            Must have ETALON tag.
+        guess_file : str, optional
+            Path to file containing initial guess spectrum for peak positions.
+            Default is None.
+        fibers : list of int, optional
+            Fiber numbers to process. Valid values are 1-5. If None,
+            automatically detects fibers with ETALON or LFC fiber type.
+            Default is None.
+        orders : list of int, optional
+            Order numbers to process. If None, all orders are processed.
+            Default is None.
+        degree_sigma : int, optional
+            Polynomial degree for Gaussian sigma variation along order.
+            Default is 3.
+        degree_width : int, optional
+            Polynomial degree for box width variation along order.
+            Default is 3.
+        use_sigma_lr : bool, optional
+            If True, use different polynomial coefficients for left and right
+            Gaussian wings. Default is False.
+        show_plots : bool, optional
+            If True, generate diagnostic plots of etalon line fits.
+            Automatically disabled if multithreading is True. Default is False.
+        plot_path : str, optional
+            Directory path for saving diagnostic plots when show_plots is True.
+            Default is empty string (current directory).
+        multithreading : bool, optional
+            If True, use multiprocessing to parallelize fiber/order fitting.
+            Disables show_plots option. Default is True.
+        iterations : int, optional
+            Maximum number of iterative fitting cycles. Default is 10.
+        suffix : str, optional
+            Suffix to append to output filenames. Default is empty string.
 
-        Parameters:
-        -----------
-        adinputs: list of AstroData objects with 1D box extracted spectra
-        guess_file: str
-            Name of file containing initial guess spectrum.
-        fibers: list of ints
-            Fibers to fit
-        orders: list of ints
-            Orders to fit
-        degree_sigma: int
-            Degree of the sigma polynomial
-        degree_width: int
-            Degree of the width polynomial
-        use_sigma_lr: bool
-            Use different polynomial degrees for left and right side of wings
-        show_plots: bool
-            Show plots of the etalon line fits to be used for debugging.
-        plot_path: str
-            If show_plots is True, save plots to this path.
-        multithreading: bool
-            Use multithreading to speed up extraction.  Disables plotting.
-        iterations: int
-            Maximum number of iterations on the fit.
+        Returns
+        -------
+        list of AstroData
+            Modified AstroData objects with two new table extensions:
 
-        Returns:
-        --------
-        adinputs with extensions containing the peak parameters and polynomial parameters
+            - PEAKS: Peak parameters including centroid positions, intensities,
+              and widths for each detected etalon line.
+            - POLY: Polynomial coefficients describing how box width and
+              Gaussian sigma vary across each order.
+
+        Notes
+        -----
+        The iterative fitting algorithm may skip orders with insufficient flux
+        (median < 0.005) or fail for orders with excessive cosmic rays or
+        artifacts. Failed fits are logged as warnings.
+
+        Known bad pixels are masked during fitting (e.g., pixel 1943 in order
+        122, first 400 pixels in truncated red arm order 94 fiber 5).
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
+
+        # Extract parameters from params dict
+        guess_file = params.get('guess_file')
+        fibers = params.get('fibers')
+        orders = params.get('orders')
+        degree_sigma = params.get('degree_sigma')
+        degree_width = params.get('degree_width')
+        use_sigma_lr = params.get('use_sigma_lr')
+        show_plots = params.get('show_plots', False)
+        plot_path = params.get('plot_path', '')
+        multithreading = params.get('multithreading')
+        iterations = params.get('iterations')
 
         start_time = time.time()
 
@@ -374,43 +460,79 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         """
         Calculate spline-based dynamic wavelength solutions from etalon spectra.
 
-        This primitive processes etalon calibration files to create high-precision 
-        wavelength solutions needed for drift correction in science observations. 
-        It identifies etalon peaks, fits spline-based wavelength models, and 
-        generates dynamic wavelength arrays for each fiber.
+        This primitive processes etalon calibration files to create high-precision
+        wavelength solutions for instrumental drift correction. The workflow is:
+
+        1. Load etalon peak data from PEAKS and POLY extensions
+        2. Apply initial wavelength estimates (ThAr or static)
+        3. Guess etalon peak order numbers using known etalon parameters
+        4. Calculate instrumental drift from deviation of measured peaks from
+           theoretical etalon wavelengths
+        5. Fit cubic splines with outlier rejection to create smooth wavelength
+           solutions for each fiber and order
+        6. Store dynamic wavelength arrays and drift measurements
 
         Parameters
         ----------
         adinputs : list of AstroData
-            Input AstroData objects containing 1D extracted etalon spectra with 
-            PEAKS and POLY extensions. Must have "ETALON" tag.
+            Input AstroData objects containing 1D extracted etalon spectra with
+            PEAKS and POLY extensions. Must have ETALON tag.
         fibers : list of int, optional
-            Fiber numbers containing etalon spectra to process. If None, 
-            automatically detected from fiber setup configuration.
+            Fiber numbers containing etalon spectra to process. Valid values
+            are 1-5. If None, automatically detected from fiber setup (fibers
+            with type 'Etalon'). Default is None.
         symmetric_linefits : bool, optional
-            Whether to use symmetric line fitting for etalon peak detection 
-            (default: False).
+            If True, use symmetric line profile fitting for etalon peak
+            detection. Default is False.
         n_knots : int, optional
-            Number of knots for spline interpolation of wavelength solutions 
-            (default: 30).
+            Number of interior knots for cubic spline interpolation of
+            wavelength solutions. Higher values give more flexible fits.
+            Default is 30.
         thar : bool, optional
-            If True, apply ThAr wavelength solution to etalon frame before 
-            processing. If False, use static wavelength vectors (default: False).
+            If True, apply ThAr-based wavelength solution for initial peak
+            identification. If False, use static wavelength vectors from
+            configuration. Default is False.
         ref_file : str, optional
-            Path to reference file with previously reduced etalon spectra for 
-            drift correction. Currently not implemented.
+            Path to reference etalon file for relative drift measurement.
+            Not currently implemented. Default is None.
         ref_fiber : int, optional
-            Fiber number to use as reference when ref_file is provided. 
-            Currently not implemented.
+            Reference fiber number when ref_file is provided. Not currently
+            implemented. Default is None.
         suffix : str, optional
-            Suffix to append to output filenames.
+            Suffix to append to output filenames. Default is empty string.
 
         Returns
         -------
         list of AstroData
-            Modified AstroData objects with dynamic wavelength solutions stored 
-            as WLS_DYNAMIC_FIBER_* extensions, updated peak data tables, and 
-            drift measurements in headers.
+            Modified AstroData objects with new extensions and header keywords:
+
+            Extensions added:
+            - WLS_DYNAMIC_FIBER_* (1-5): 2D arrays of wavelength values (nm)
+              indexed by [order, pixel] for each fiber
+            - PEAK_DATA: Updated table with wavelength assignments and peak
+              order numbers
+
+            Header keywords added:
+            - DRIFT_FIBER_* (1-5): Measured instrumental drift in m/s for
+              each processed fiber
+
+        Raises
+        ------
+        NotImplementedError
+            If ref_file parameter is provided (reference file functionality
+            not yet implemented).
+
+        Notes
+        -----
+        Instrumental drift is calculated as the velocity offset between
+        measured etalon peak wavelengths and theoretical wavelengths predicted
+        from the etalon gap size and refractive index model.
+
+        Spline fitting includes 3.5-sigma outlier clipping to reject cosmic
+        rays and bad pixels. Edge pixels are extrapolated linearly from the
+        nearest reliable knots.
+
+        Fiber 5 drift is reported separately as 'inst_drift' when present.
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
@@ -594,53 +716,87 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 ad[0].hdr[f'DRIFT_FIBER_{fiber}'] = (round(drifts[fiber], 2), "Drift in m/s")
                 log.info(f"Drift for fiber {fiber}: {round(drifts[fiber], 2)} m/s")
 
+            ad.update_filename(suffix=params['suffix'], strip=True)
+
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
 
     def applyWavelengthSolution(self, adinputs=None, **params):
         """
-        Apply drift-corrected wavelength solution to science spectra using simultaneous etalon measurements.
+        Apply drift-corrected wavelength solutions to science spectra.
 
-        This primitive corrects for instrumental wavelength drifts by comparing 
-        simultaneous etalon measurements in science and calibration frames. It 
-        calculates pixel shifts between the frames, applies spline-based wavelength 
-        solutions, and generates high-precision wavelength arrays for each fiber.
+        This primitive corrects for instrumental wavelength drifts between the
+        etalon calibration exposure and science exposure by comparing simultaneous
+        etalon measurements in both frames. The workflow is:
+
+        1. Load science spectra and corresponding etalon calibration with
+           dynamic wavelength solutions
+        2. Compare etalon peak positions in reference fiber between science
+           and calibration frames to measure pixel shifts
+        3. Fit smooth spline models to pixel shift variations across orders
+        4. Apply measured shifts to science fiber etalon peaks in calibration
+           frame to correct for drift
+        5. Fit spline-based wavelength solutions for corrected science fibers
+        6. Calculate instrumental drift from reference fiber etalon peaks
 
         Parameters
         ----------
         adinputs : list of AstroData
-            Input AstroData objects containing 1D extracted science spectra with 
-            PEAKS and POLY extensions.
+            Input AstroData objects containing 1D extracted science spectra with
+            PEAKS and POLY extensions from getPeaksAndPolynomials.
         fibers : list of int, optional
-            Science fiber numbers to process (default: [2, 3, 4]).
+            Science fiber numbers to process. Valid values are typically 2, 3, 4
+            for MAROON-X science fibers. Default is [2, 3, 4].
         ref_fiber : int, optional
-            Fiber number containing simultaneous etalon spectrum used for drift 
-            measurement (default: 5).
+            Fiber number containing simultaneous etalon spectrum for drift
+            measurement. Typically fiber 5 for MAROON-X. Default is 5.
         symmetric_linefits : bool, optional
-            Whether to use symmetric line fitting for etalon peak detection 
-            (default: False).
+            If True, use symmetric line profile fitting for etalon peak
+            detection. Default is False.
         n_knots : int, optional
-            Number of knots for the spline interpolation of wavelength solutions 
-            (default: 30).
+            Number of interior knots for cubic spline interpolation of
+            wavelength solutions. Default is 30.
         etalon_file : list of AstroData, optional
-            Corresponding etalon AstroData files with dynamic wavelength 
-            solutions. If None, caldb is called.
+            Corresponding etalon calibration files with dynamic wavelength
+            solutions from fitAndApplyEtalonWls. If None, calibration database
+            is queried for matching etalon frames. Default is None.
         suffix : str, optional
-            Suffix to append to output filenames.
+            Suffix to append to output filenames. Default is empty string.
 
         Returns
         -------
         list of AstroData
-            Modified AstroData objects with drift-corrected wavelength solutions 
-            stored as WLS_SIMULTANEOUS_FIBER_* extensions and drift measurements 
-            in headers.
+            Modified AstroData objects with new extensions and header keywords:
+
+            Extensions added:
+            - WLS_SIMULTANEOUS_FIBER_* (fibers + ref_fiber): 2D arrays of
+              drift-corrected wavelength values (nm) indexed by [order, pixel]
+
+            Header keywords added:
+            - INSTRUME_DRIFT: Instrumental drift measured from reference
+              fiber in m/s
+            - RELATIVE_DRIFT: Relative drift between science and calibration
+              etalon frames in m/s
 
         Raises
         ------
         KeyError
-            If etalon line lists cannot be referenced for a fiber/order combination.
-        ValueError
-            If spline fitting fails completely for critical wavelength solutions.
+            If etalon peak lists cannot be matched between science and
+            calibration frames for a specific fiber/order combination.
+
+        Notes
+        -----
+        Pixel shifts are calculated by matching etalon peak positions between
+        science and calibration frames using nearest-neighbor indexing with
+        0.5 pixel tolerance. Outliers beyond 3-sigma from median shift are
+        rejected before spline fitting.
+
+        Order 94 in red arm receives special treatment due to truncation,
+        with first 600 pixels using median shift from remaining pixels.
+
+        If spline fitting fails for reference fiber (insufficient good peaks),
+        the algorithm relaxes outlier threshold to 5-sigma and retries. Complete
+        failures are logged as warnings but don't halt processing.
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
@@ -861,41 +1017,77 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
     def combineFibers(self, adinputs=None, **params):
         """
-        Combine data from multiple science fibers into a new fiber.
+        Combine multiple fiber spectra into single high-SNR spectrum.
 
-        This primitive combines fiber data (typically fibers 2, 3, and 4) into a 
-        single high signal-to-noise spectrum using weighted averaging. The process 
-        includes scaling fibers to a common flux level, interpolating onto a common 
-        wavelength grid, performing kappa-sigma clipping to reject outliers, and 
-        combining using inverse variance weighting.
+        This primitive combines science fiber spectra (typically fibers 2, 3, 4)
+        into a single higher signal-to-noise spectrum using inverse variance
+        weighted averaging. The algorithm performs the following steps for each
+        echelle order:
+
+        1. Scale all fibers to match the flux level of fiber 3 (reference)
+        2. Interpolate fibers 2 and 4 onto fiber 3's wavelength grid
+        3. Calculate median intensity across fibers at each pixel
+        4. Perform kappa-sigma clipping to reject outliers and cosmic rays
+        5. Combine using inverse variance (1/error^2) weights
+        6. Interpolate over remaining gaps in combined spectrum
+
+        The resulting combined spectrum has improved SNR while rejecting
+        discrepant pixels that may result from cosmic rays or bad pixels
+        in individual fibers.
 
         Parameters
         ----------
         adinputs : list of AstroData
-            Input AstroData objects containing extracted fiber spectra with 
-            OPTIMAL_REDUCED_FIBER_* and OPTIMAL_REDUCED_ERR_* extensions.
+            Input AstroData objects with optimally extracted fiber spectra.
+            Must contain OPTIMAL_REDUCED_FIBER_* and OPTIMAL_REDUCED_ERR_*
+            extensions for fibers being combined, plus WLS_SIMULTANEOUS_FIBER_*
+            wavelength solutions.
         combine_fibers : list of int
-            List of fiber numbers to combine (e.g., [2, 3, 4]).
-        symmetric_linefits : bool
-            If True, use symmetrical line fits which affects the wavelength 
-            solution source (WLS_SIMULTANEOUS_SYM_FIBER_* vs WLS_SIMULTANEOUS_FIBER_*).
-        kappa_sigma : float
-            Sigma clipping threshold for outlier rejection. Pixels deviating 
-            more than this threshold from the median are clipped.
-        max_clips : int
-            Maximum number of pixels to clip per order before automatically 
-            increasing kappa_sigma by 0.5 to prevent over-clipping.
-        suffix : str
-            Suffix to append to output filenames.
+            Fiber numbers to combine. For MAROON-X, typically [2, 3, 4] for
+            three science fibers. Must contain at least 2 fibers.
+        symmetric_linefits : bool, optional
+            If True, use wavelength solutions from WLS_SIMULTANEOUS_SYM_FIBER_*
+            extensions. If False, use WLS_SIMULTANEOUS_FIBER_* extensions.
+            Default is False.
+        kappa_sigma : float, optional
+            Sigma clipping threshold for outlier rejection. Pixels deviating
+            more than kappa_sigma * sqrt(error) from the median are clipped.
+            Default is 5.0.
+        max_clips : int, optional
+            Maximum number of pixels to clip per fiber per order. If exceeded,
+            kappa_sigma is automatically increased by 0.5 to prevent
+            over-aggressive clipping. Increases continue until kappa_sigma
+            reaches 10 or clips < max_clips. Default is 100.
+        suffix : str, optional
+            Suffix to append to output filenames. Default is empty string.
 
         Returns
         -------
         list of AstroData
-            Modified AstroData objects with combined fiber data stored in new 
-            extensions:
-            - OPTIMAL_REDUCED_FIBER_6 (or _7 if symmetric_linefits=True)
-            - OPTIMAL_REDUCED_ERR_6 (or _7 if symmetric_linefits=True)
-            - WLS_SIMULTANEOUS_FIBER_6 or WLS_SIMULTANEOUS_SYM_FIBER_7
+            Modified AstroData objects with new combined fiber extensions:
+
+            - OPTIMAL_REDUCED_FIBER_6 (or _7 if symmetric_linefits=True):
+              Combined flux spectrum with same shape as input fibers
+            - OPTIMAL_REDUCED_ERR_6 (or _7 if symmetric_linefits=True):
+              Combined error spectrum (inverse of summed weights)
+            - WLS_SIMULTANEOUS_FIBER_6 or WLS_SIMULTANEOUS_SYM_FIBER_7:
+              Wavelength solution copied from fiber 3 (reference fiber)
+
+        Notes
+        -----
+        Fiber 3 is used as the reference wavelength grid because it typically
+        has the best wavelength solution in MAROON-X multi-fiber mode.
+
+        Known bad pixels are additionally masked before combination:
+        - Blue arm: pixel 196 in all fibers
+        - Red arm: pixels 1793-1794 in all fibers
+
+        If more than 1000 NaN values appear in a combined order, a warning
+        is logged but processing continues. These typically result from edge
+        effects or extended bad pixel regions.
+
+        Flux scaling is relative, so combined spectra preserve relative
+        spectral shapes but not absolute flux calibration.
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
@@ -1116,46 +1308,94 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         """
         Calculate barycentric velocity corrections for science observations.
 
+        This primitive computes barycentric radial velocity corrections (BERV)
+        for high-precision radial velocity measurements. It uses the barycorrpy
+        library to calculate Earth's velocity projection toward the target at
+        various exposure timestamps, accounting for exposure meter flux-weighted
+        timing for maximum accuracy.
+
+        The primitive calculates BERV at the exposure midpoint and flux-weighted
+        midpoint using exposure meter data from both PC and FRD channels. It
+        queries SIMBAD for target coordinates or uses telescope pointing directly.
+        Timing corrections account for instrument-specific offsets between UTC
+        filename timestamps and actual exposure times.
 
         Parameters
         ----------
         adinputs : list of AstroData
-            Input AstroData objects containing science spectra with timing 
-            and pointing information in headers.
+            Input AstroData objects containing 1D extracted science spectra with
+            EXPOSUREMETER extension, timing information (UT_DATETIME, MJD), and
+            telescope pointing data in headers.
         target_name : str, optional
-            Override target name for SIMBAD resolution. If None, uses the 
-            OBJECT header keyword. If the target is not SIMBAD-resolvable,
-            user should either provide a correct name or use coordinates.
+            Target name substring for file filtering. Only files with OBJECT
+            header matching this string are processed. If None, all files are
+            processed. Default is None.
+        simbad_target_name : str, optional
+            SIMBAD-resolvable target name to override OBJECT header value. Use
+            when the header target name differs from the SIMBAD catalog name.
+            Only applies if target_name matches. Default is None.
         use_coords : bool, optional
-            If True, use telescope pointing coordinates instead of target 
-            name resolution through SIMBAD (default: False).
+            If True, use telescope pointing coordinates (TELRA, TELDEC) directly
+            instead of querying SIMBAD for target coordinates. Recommended when
+            target is not in SIMBAD or has unreliable proper motion data.
+            Default is False.
+        zp_pc : float, optional
+            Zeropoint for PC (Precision Coupler) exposure meter channel in counts.
+            If 0.0, automatically determined from median of 20 lowest readings in
+            a 10-minute window around exposure. Units: counts. Default is 0.0.
+        zp_frd : float, optional
+            Zeropoint for FRD (Fiber Refractive Diffraction) exposure meter channel
+            in counts. If 0.0, automatically determined from median of 20 lowest
+            readings in a 10-minute window around exposure. Units: counts.
+            Default is 0.0.
+        start_time : str, optional
+            Method for determining exposure start time. Options:
+            - 'filename': Use UTC from filename (default)
+            - 'mjd_start': Use telescope MJD at exposure start
+            - 'mjd_end': Use telescope MJD at readout end minus exposure time
+            Different methods account for varying instrument timing behaviors
+            between red and blue arms. Default is 'filename'.
         suffix : str, optional
-            Suffix to append to output filenames.
+            Suffix to append to output filenames. Default is '_reduced'.
 
         Returns
         -------
         list of AstroData
-            Modified AstroData objects with barycentric velocity corrections 
-            added to headers:
-            - BERV_MID: BERV at exposure midpoint (m/s)
-            - BERV_START: BERV at exposure start (m/s) 
-            - BERV_END: BERV at exposure end (m/s)
-            - BERV_DVDT: BERV time derivative (m/s/s)
-            - UTC_START: Corrected UTC start time
-            - UTC_MID: UTC midpoint time
-            - JD_START: Julian date at start
-            - JD_MID: Julian date at midpoint
+            Modified AstroData objects with barycentric velocity corrections and
+            exposure meter statistics added to the first extension header:
 
-        Raises
-        ------
-        ImportError
-            If barycorrpy library is not available.
-        ValueError
-            If target cannot be resolved by SIMBAD and use_coords=False.
-        KeyError
-            If required header keywords are missing.
+            BERV values (m/s):
+            - BERV_MIDPOINT: BERV at nominal exposure midpoint
+            - BERV_FLUXWEIGHTED_PC: BERV at flux-weighted midpoint (PC channel)
+            - BERV_FLUXWEIGHTED_FRD: BERV at flux-weighted midpoint (FRD channel)
+            - BERV_DIFFERENCE_PC: Difference between flux-weighted and nominal
+            - BERV_DIFFERENCE_FRD: Difference between flux-weighted and nominal
+
+            Timing information:
+            - UTC_START: Corrected UTC start time (ISO format)
+            - UTC_MIDPOINT: UTC midpoint time
+            - UTC_FLUXWEIGHTED_PC: Flux-weighted UTC (PC channel)
+            - UTC_FLUXWEIGHTED_FRD: Flux-weighted UTC (FRD channel)
+            - UTC_CORRECTION: Applied time correction in seconds
+            - JD_UTC_START: Julian date at start
+            - JD_UTC_MIDPOINT: Julian date at midpoint
+            - JD_UTC_FLUXWEIGHTED_PC: Flux-weighted JD (PC channel)
+            - JD_UTC_FLUXWEIGHTED_FRD: Flux-weighted JD (FRD channel)
+
+            Exposure meter statistics (counts):
+            - COUNTS_PC_MIN/MAX/MEDIAN/STD: PC channel statistics
+            - COUNTS_FRD_MIN/MAX/MEDIAN/STD: FRD channel statistics
+            - COUNTS_PC_ZP: Applied PC zeropoint
+            - COUNTS_FRD_ZP: Applied FRD zeropoint
+            - SCALEFACTOR: Ratio of FRD to PC median counts
+
+            Target information:
+            - BERV_SIMBAD_TARGET: Target name used for BERV calculation
+
+        References
+        ----------
+        .. [1] barycorrpy: https://github.com/shbhuk/barycorrpy
         """
-        
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
         timestamp_key = self.timestamp_keys[self.myself()]
@@ -1168,9 +1408,6 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         zp_frd = params.get('zp_frd')
         start_time = params.get('start_time')
         
-        # ============================================================================
-
-
         for ad in adinputs:
             # Read target name from header
             target = ad.object()
@@ -1223,7 +1460,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             utc_end = utc_start + exptime
 
             
-            # =============================================================================
+            # Call barycorrpy for barycentric calculations
             barycorrpy_kwargs = {
                 'lat': 19.823801,
                 'longi': -155.469047,
@@ -1232,71 +1469,50 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 'zmeas': 0.0,
                 'predictive': False,
                 'leap_update': False
-            }
+            }    
             if use_coords:
                 ra  = ad[0].hdr.get('MAROONX TELESCOPE TELRA') * 15.0
                 dec = ad[0].hdr.get('MAROONX TELESCOPE TELDEC')
+                barycorrpy_kwargs['ra'] = ra
+                barycorrpy_kwargs['dec'] = dec
                 log.fullinfo(f'Using RA: {ra:.4f} deg, DEC: {dec:.4f} deg')
+            else:
+                barycorrpy_kwargs['starname'] = target
+                log.fullinfo(f'Using target name: {target}')
 
-                # BVC for nominal exposure midtime
-                result1, warning, status = get_BC_vel(
-                    JDUTC=[utc_start.jd, utc_mid.jd, utc_end.jd],
-                    ra=ra,
-                    dec=dec,
-                    **barycorrpy_kwargs)
+            # BVC for nominal exposure midtime
+            result1, warning, status = get_BC_vel(
+                JDUTC=[utc_start.jd, utc_mid.jd, utc_end.jd],
+                **barycorrpy_kwargs)
 
-                # Average BVC over exposure weighted by exposure meter readings - BEST
+            # Average BVC over exposure weighted by exposure meter readings - BEST
+            if emeter['pc']['times'] is not None:
                 result3, JDUTCMID_pc, warning3, status3 = exposure_meter_BC_vel(
                     JDUTC=emeter['pc']['times'].jd + time_correction.jd,
                     expmeterflux=emeter['pc']['readings'],
-                    ra=ra,
-                    dec=dec,
                     **barycorrpy_kwargs)
-
+            if emeter['frd']['times'] is not None:
                 result4, JDUTCMID_frd, warning4, status4 = exposure_meter_BC_vel(
                     JDUTC=emeter['frd']['times'].jd + time_correction.jd,
                     expmeterflux=emeter['frd']['readings'],
-                    ra=ra,
-                    dec=dec,
-                    **barycorrpy_kwargs)
-            else:
-                log.fullinfo(f'Using target name: {target}')
+                    **barycorrpy_kwargs)  
 
-                # BVC for nominal exposure midtime
-                result1, warning, status = get_BC_vel(
-                    JDUTC=[utc_start.jd, utc_mid.jd, utc_end.jd],
-                    starname=target,
-                    **barycorrpy_kwargs)
-
-                # Average BVC over exposure weighted by exposure meter readings - BEST
-                if emeter['pc']['times'] is not None:
-                    result3, JDUTCMID_pc, warning3, status3 = exposure_meter_BC_vel(
-                        JDUTC=emeter['pc']['times'].jd + time_correction.jd,
-                        expmeterflux=emeter['pc']['readings'],
-                        starname=target,
-                        **barycorrpy_kwargs)
-                if emeter['frd']['times'] is not None:
-                    result4, JDUTCMID_frd, warning4, status4 = exposure_meter_BC_vel(
-                        JDUTC=emeter['frd']['times'].jd + time_correction.jd,
-                        expmeterflux=emeter['frd']['readings'],
-                        starname=target,
-                        **barycorrpy_kwargs)               
-
-
-            # =============================================================================
-            # BERV_dvdt values
+            # dvdt values in m/s/s
+            m_s = units.Unit('m/s')
+            m_s_s = units.Unit('m/s/s')
             BC_dvdt = [
-                (result1[2] - result1[0]) / (exptime),
-                (result1[2] - result1[1]) / (exptime/2),
-                (result1[1] - result1[0]) / (exptime/2)]
+                (result1[2] - result1[0]) * m_s / (exptime),
+                (result1[2] - result1[1]) * m_s / (exptime/2),
+                (result1[1] - result1[0]) * m_s / (exptime/2)]
 
-            log.debug(f'File: {file}')
-            log.debug(f'Target: {target}')
-            log.debug(f'Exptime: {exptime} sec')
-            log.debug(f'BERV dv/dt: '
-                f'{BC_dvdt[0]:.4f}, '
-                f'{BC_dvdt[1]:.4f}, ' 
-                f'{BC_dvdt[2]:.4f} m/s/s')
+
+            log.fullinfo(f'File: {ad.filename}')
+            log.fullinfo(f'Target: {target}')
+            log.fullinfo(f'Exptime: {exptime} sec')
+            log.fullinfo(f'BERV dv/dt: '
+                f'{BC_dvdt[0].to(m_s_s).value:.4f}, '
+                f'{BC_dvdt[1].to(m_s_s).value:.4f}, ' 
+                f'{BC_dvdt[2].to(m_s_s).value:.4f} m/s/s')
 
             # Mid values
             if emeter['pc']['times'] is not None:
@@ -1329,19 +1545,19 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             ad[0].hdr.set('JD_UTC_FLUXWEIGHTED_PC', f'{utc_fluxmid_pc.jd:.7f}', 'xxxxx')
             ad[0].hdr.set('JD_UTC_FLUXWEIGHTED_FRD', f'{utc_fluxmid_frd.jd:.7f}', 'xxxxx')
 
-            ad[0].hdr.set('BERV_SIMBAD_TARGET', simbad_target_name, 'xxxxx')
+            ad[0].hdr.set('BERV_SIMBAD_TARGET', target, 'xxxxx')
             ad[0].hdr.set('BERV_MIDPOINT', f'{result1[1]:.2f}', 'xxxxx')
             ad[0].hdr.set('BERV_FLUXWEIGHTED_PC', f'{BC_fluxmid_pc:.2f}', 'xxxxx')
             ad[0].hdr.set('BERV_FLUXWEIGHTED_FRD', f'{BC_fluxmid_frd:.2f}', 'xxxxx')
             ad[0].hdr.set('BERV_DIFFERENCE_PC', f'{(BC_fluxmid_pc - result1[1]):.2f}', 'xxxxx')
             ad[0].hdr.set('BERV_DIFFERENCE_FRD', f'{(BC_fluxmid_frd - result1[1]):.2f}', 'xxxxx')
-            ad[0].hdr.set('BERV_DVDT', f'{np.mean(BC_dvdt):.2f}', 'xxxxx')
+            # ad[0].hdr.set('BERV_DVDT', f'{np.mean(BC_dvdt):.2f}', 'xxxxx')
 
             ad[0].hdr.set('COUNTS_PC_MIN', f'{emeter['pc']['stats']['min']:.2f}', 'xxxxx')
             ad[0].hdr.set('COUNTS_PC_MAX', f'{emeter['pc']['stats']['max']:.2f}', 'xxxxx')
             ad[0].hdr.set('COUNTS_PC_MEDIAN', f'{emeter['pc']['stats']['median']:.2f}', 'xxxxx')
             ad[0].hdr.set('COUNTS_PC_STD', f'{emeter['pc']['stats']['std']:.2f}', 'xxxxx')
-            ad[0].hdr.set('COUNTS_PC_ZP', f'{emeter['pc']['stats']['zeropint']:.2f}', 'xxxxx')
+            ad[0].hdr.set('COUNTS_PC_ZP', f'{emeter['pc']['stats']['zeropoint']:.2f}', 'xxxxx')
 
             ad[0].hdr.set('COUNTS_FRD_MIN', f'{emeter['frd']['stats']['min']:.2f}', 'xxxxx')
             ad[0].hdr.set('COUNTS_FRD_MAX', f'{emeter['frd']['stats']['max']:.2f}', 'xxxxx')
@@ -1351,10 +1567,10 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             ad[0].hdr.set('SCALEFACTOR', f'{scale_factor:.1f}', 'xxxxx')
 
             log.fullinfo(f"Barycentric velocity calculation completed for {ad.filename}")
-        
-            # Timestamp and update filename
-            gt.mark_history(ad, primname=self.myself(), keyword=timestamp_key)
             ad.update_filename(suffix=params["suffix"], strip=True)
+
+        gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
+        log.debug(gt.log_message("primitive", self.myself(), "complete"))
         return adinputs
 
     def _exposuremeterStats(self, ad, utc_start, exptime, zp_pc=0.0, zp_frd=0.0):
@@ -1420,9 +1636,11 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         if zp_frd == 0.0:
             flux_frd = exposuremeter.loc[start_cut:end_cut]['Flux FRD Channel']
             zp_frd = np.nanmedian(np.sort(flux_frd)[:n_cutoff])
+            log.fullinfo(f'Automatic zeropoint determination for FRD channel: {zp_frd}')
         if zp_pc == 0.0:
             flux_pc = exposuremeter.loc[start_cut:end_cut]['Flux PC Channel']
             zp_pc = np.nanmedian(np.sort(flux_pc)[:n_cutoff])
+            log.fullinfo(f'Automatic zeropoint determination for PC channel: {zp_pc}')
         
         # Check if zp are valid
         if np.isnan(zp_frd):
@@ -1539,45 +1757,3 @@ def _peak_to_wavelength_spline(mm, pars):
 def _fc2min(p, m, etalonwl):
     # residuals are in 'nm' not m/s. Good? bad? Should we normalize?
     return _peak_to_wavelength_spline(m, p) - etalonwl
-
-def _exposuremeter_stats(self, ad, utc_start, exptime, zp_pc=0.0, zp_frd=0.0):
-    """
-    Extract exposure meter readings for flux-weighted BERV calculations.
-    Returns None if exposure meter data is not available.
-    """
-    log = self.log
-    exposuremeter = ad.EXPOSUREMETER.to_pandas()  
-    
-    dt1 = TimeDelta(exptime, format='sec')
-    dt3 = TimeDelta(300, format='sec')
-    endtime = utc_start + dt1
-    
-    # Auto-determine zeropoints if not provided
-    if zp_frd == 0.0:
-        zp_frd = np.nanmedian(np.sort(exposuremeter.loc[(utc_start - dt3).iso[0:19]:(endtime + dt3).iso[0:19]]['counts_frd'])[0:20])
-    if zp_pc == 0.0:
-        zp_pc = np.nanmedian(np.sort(exposuremeter.loc[(utc_start - dt3).iso[0:19]:(endtime + dt3).iso[0:19]]['counts_pc'])[0:20])
-    
-    # Extract readings during exposure
-    result_pc = exposuremeter.loc[(utc_start).iso[0:19]:(endtime).iso[0:19]]['counts_pc']
-    result_frd = exposuremeter.loc[(utc_start).iso[0:19]:(endtime).iso[0:19]]['counts_frd']
-    
-    # Apply outlier filtering (simplified version)
-    times_pc = Time(result_pc.index.values, format='datetime64', scale='utc')
-    readings_pc = result_pc.values.flatten() - zp_pc
-    readings_pc[readings_pc < 0] = 0.0
-    
-    times_frd = Time(result_frd.index.values, format='datetime64', scale='utc')
-    readings_frd = result_frd.values.flatten() - zp_frd
-    readings_frd[readings_frd < 0] = 0.0
-    
-    # Calculate statistics
-    exposuremeter_min = [np.nanmin(readings_pc), np.nanmin(readings_frd)]
-    exposuremeter_max = [np.nanmax(readings_pc), np.nanmax(readings_frd)]
-    exposuremeter_median = [np.nanmedian(readings_pc), np.nanmedian(readings_frd)]
-    exposuremeter_std = [np.nanstd(readings_pc), np.nanstd(readings_frd)]
-    zeropoints = [zp_pc, zp_frd]
-    
-    return (times_pc, readings_pc, times_frd, readings_frd, 
-            exposuremeter_min, exposuremeter_max, exposuremeter_median, 
-            exposuremeter_std, zeropoints)

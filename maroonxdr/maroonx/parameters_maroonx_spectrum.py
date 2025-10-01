@@ -11,10 +11,11 @@ class staticWavelengthSolutionConfig(config.Config):
     This parameter set controls the staticWavelengthSolution primitive for MAROON-X.
     """
 
+    suffix = config.Field('Filename suffix', str, '_staticwls')
     fibers = config.ListField(
         'List of fibers to process.',
         int,
-        None,
+        [1, 2, 3, 4, 5],
         optional=True,
         single=True,
     )
@@ -62,6 +63,7 @@ class fitAndApplyEtalonWlsConfig(config.Config):
     """
     This parameter set controls the fitAndApplyEtalonWls primitive for MAROON-X.
     """
+    suffix = config.Field('Filename suffix', str, '_etalonwls')
     fibers = config.ListField(
         'List of fibers to process.',
         int,
@@ -143,13 +145,13 @@ class barycentricCorrectionConfig(config.Config):
     This parameter set controls the barycentricCorrection primitive for MAROON-X.
     """
     suffix = config.Field('Filename suffix', str, '_reduced')
-    target_name = config.ListField(
+    target_name = config.Field(
         'Target name to downselect files',
         str,
         None,
         optional=True,
     )
-    simbad_target_name = config.ListField(
+    simbad_target_name = config.Field(
         'SIMBAD resolvable target name',
         str,
         None,
