@@ -181,3 +181,17 @@ class barycentricCorrectionConfig(config.Config):
                  "mjd_end": "Telescope MJD written at end of readout",
                  "filename": "UTC from filename"},
         default="filename")
+
+
+class separateArmStreamsConfig(config.Config):
+    """
+    Configuration for separateArmStreams primitive.
+    """
+    pass
+
+
+class bundleArmStreamsConfig(config.Config):
+    """
+    Configuration for bundleArmStreams primitive.
+    """
+    suffix = config.Field('Filename suffix', str, '_rebundled')

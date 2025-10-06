@@ -33,11 +33,10 @@ class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
 
     tagset = {'GEMINI', 'MAROONX'}
 
-    def __init__(self, adinputs, **kwargs):
-        super().__init__(adinputs, **kwargs)
+    def _initialize(self, adinputs, **kwargs):
+        self.inst_lookups = 'maroonxdr.maroonx.lookups'
+        super()._initialize(adinputs, **kwargs)
         self._param_update(parameters_maroonx_2D)
-        # Add MAROON-X specific timestamp keywords
-        self.timestamp_keys.update(maroonx_stamps.timestamp_keys)
 
     def addDQ(self, adinputs=None, **params):
         # just edited for bpm lookup, can be removed when MX is caldb compliant

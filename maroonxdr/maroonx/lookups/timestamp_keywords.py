@@ -17,4 +17,7 @@ timestamp_keys = {
     "applyWavelengthSolution": "SCIENCE_WAVELENGTH_APPLIED",
     "combineFibers": "SCIENCE_FIBERS_COMBINED",
     "barycentricCorrection": "BARYCENTRIC_CORRECTION_APPLIED",
+    "bundleArmStreams": "ARMS_BUNDLED",
+    "separateArmStreams": "ARMS_SEPARATED",
+    "splitBundle": "BUNDLE_SPLIT",
 }

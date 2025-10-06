@@ -92,3 +92,18 @@ def makeSyntheticDark(p):
     
     p.createSyntheticDark()
     p.storeProcessedDark(suffix="_synth_dark")
+
+
+def exportReducedBundle(p):
+    """
+    This recipe exports reduced MAROON-X spectra from Red and Blue
+    channels to a combined bundle.
+
+    Parameters
+    ----------
+    p : Primitives object
+        A primitive set matching the recipe_tags.
+    """
+    p.separateArmStreams()
+    p.bundleArmStreams()
+    p.storeProcessedScience(suffix='_reduced')

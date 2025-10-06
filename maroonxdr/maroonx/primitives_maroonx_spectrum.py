@@ -3,6 +3,7 @@ This module contains primitives to generate wavelength
 calibration solutions from reduced 1-D spectra.
 """
 # ------------------------------------------------------------------------------
+from copy import deepcopy
 import multiprocessing
 from pathlib import Path
 import time
@@ -10,6 +11,7 @@ import traceback
 import os
 import warnings
 
+from astropy.io import fits
 from astropy.table import Table
 from astropy.time import Time, TimeDelta
 from astropy import units
@@ -148,9 +150,8 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
     tagset = {"GEMINI", "MAROONX", "SPECT"}
 
-    def __init__(self, adinputs, **kwargs):
-        super(MaroonXSpectrum, self).__init__(adinputs, **kwargs)
-        self.inst_lookups = 'maroonxdr.maroonx.lookups'
+    def _initialize(self, adinputs, **kwargs):
+        super()._initialize(adinputs, **kwargs)
         self._param_update(parameters_maroonx_spectrum)
 
     def staticWavelengthSolution(self, adinputs=None, **params):
@@ -1505,15 +1506,6 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 (result1[2] - result1[1]) * m_s / (exptime/2),
                 (result1[1] - result1[0]) * m_s / (exptime/2)]
 
-
-            log.fullinfo(f'File: {ad.filename}')
-            log.fullinfo(f'Target: {target}')
-            log.fullinfo(f'Exptime: {exptime} sec')
-            log.fullinfo(f'BERV dv/dt: '
-                f'{BC_dvdt[0].to(m_s_s).value:.4f}, '
-                f'{BC_dvdt[1].to(m_s_s).value:.4f}, ' 
-                f'{BC_dvdt[2].to(m_s_s).value:.4f} m/s/s')
-
             # Mid values
             if emeter['pc']['times'] is not None:
                 utc_fluxmid_pc = Time(JDUTCMID_pc, format="jd", scale="utc")
@@ -1530,6 +1522,19 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             if emeter['frd']['times'] is None:
                 utc_fluxmid_frd = utc_mid
                 BC_fluxmid_frd = result1[1]
+
+
+            # Log results
+            log.fullinfo(f'File: {ad.filename}')
+            log.fullinfo(f'Target: {target}')
+            log.fullinfo(f'Exptime: {exptime} sec')
+            log.fullinfo(f'BERV dv/dt: '
+                f'{BC_dvdt[0].to(m_s_s).value:.4f}, '
+                f'{BC_dvdt[1].to(m_s_s).value:.4f}, ' 
+                f'{BC_dvdt[2].to(m_s_s).value:.4f} m/s/s')
+            log.fullinfo(f'BERV_MIDPOINT:           {result1[1]:.2f} m/s')
+            log.fullinfo(f'BERV_FLUXWEIGHTED_PC:    {BC_fluxmid_pc:.2f} m/s')
+            log.fullinfo(f'BERV_FLUXWEIGHTED_FRD:   {BC_fluxmid_frd:.2f} m/s')
 
             # Scale factor
             scale_factor = emeter['frd']['stats']['median'] / emeter['pc']['stats']['median']
@@ -1572,6 +1577,170 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         log.debug(gt.log_message("primitive", self.myself(), "complete"))
         return adinputs
+
+    def separateArmStreams(self, adinputs=None, **params):
+        """
+        Separate input AstroData objects into blue and red arm streams.
+
+        This primitive takes a list of AstroData objects and separates them
+        into two lists based on their tags: one for the blue arm and one for
+        the red arm.
+
+        Parameters
+        ----------
+        adinputs : list of AstroData
+            Input list of AstroData objects to be separated.
+
+        Returns
+        -------
+        list of AstroData
+            List of AstroData objects tagged as 'BLUE' arm. The RED arm
+            objects are stored in self.streams['RED'].
+        """
+
+        log = self.log
+        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
+
+        # Initialize dictionary to beindexed by ARCHNAME and arm tag
+        arm_dict = {}
+        for ad in adinputs:
+            archname = ad.phu.get('ARCHNAME')
+            if archname not in arm_dict:
+                arm_dict[archname] = {'BLUE': [], 'RED': []}
+            if 'BLUE' in ad.tags:
+                arm_dict[archname]['BLUE'].append(ad)
+            elif 'RED' in ad.tags:
+                arm_dict[archname]['RED'].append(ad)
+            else:
+                log.warning(f'No BLUE or RED tag found for {ad.filename}, skipping this file.')
+
+        # Sort streams into red and blue lists
+        blue_list = []
+        red_list = []
+        for archname, arms in arm_dict.items():
+            if not arms['BLUE'] or not arms['RED']:
+                raise ValueError(f'No BLUE or RED tagged files found for ARCHNAME {archname}')
+
+            blue_list.extend(arms['BLUE'])
+            red_list.extend(arms['RED'])
+
+        log.debug(gt.log_message('primitive', self.myself(), 'complete'))
+        self.streams['RED'] = red_list
+        return blue_list
+
+    def bundleArmStreams(self, adinputs=None, **params):
+        """
+        Bundle Blue and Red arm AstroData objects.
+
+        This primitive takes the Blue and Red arm streams and combines them
+        into multi-extension bundle AstroData objects, reversing the operation
+        performed by splitBundle(). Each bundle contains both Blue and Red arms
+        as separate extensions.
+
+        Parameters
+        ----------
+        adinputs : list of AstroData
+            List of Blue arm AstroData objects to be combined with
+            previously stored Red arm stream in self.streams['RED'].
+        suffix : str, optional
+            Suffix to append to output filenames. Default is '_reduced'.
+
+        Returns
+        -------
+        list of AstroData
+            List of bundle AstroData objects, each containing Blue and Red
+            arm extensions with restored ARCHNAME filenames.
+
+        Notes
+        -----
+        This primitive requires that the separateArmStreams primitive has
+        been run beforehand to populate self.streams['RED'] with the Red
+        arm AstroData objects. Each Blue/Red pair must have matching
+        ARCHNAME headers to be properly bundled together.
+        """
+
+        log = self.log
+        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
+
+        # Get the red arm stream that was set by separateArmStreams
+        if 'RED' not in self.streams:
+            log.error('RED stream not found. Run separateArmStreams first.')
+            raise ValueError('RED stream not found. Run separateArmStreams first.')
+
+        blue_list = adinputs
+        red_list = self.streams['RED']
+
+        # Create dictionary indexed by ARCHNAME
+        blue_dict = {}
+        red_dict = {}
+
+        for ad in blue_list:
+            archname = ad.phu.get('ARCHNAME')
+            if archname is None:
+                log.warning(f'No ARCHNAME found for {ad.filename}, skipping')
+                continue
+            blue_dict[archname] = ad
+
+        for ad in red_list:
+            archname = ad.phu.get('ARCHNAME')
+            if archname is None:
+                log.warning(f'No ARCHNAME found for {ad.filename}, skipping')
+                continue
+            red_dict[archname] = ad
+
+        # Check that we have matching pairs
+        blue_archnames = set(blue_dict.keys())
+        red_archnames = set(red_dict.keys())
+
+        if blue_archnames != red_archnames:
+            missing_in_blue = red_archnames - blue_archnames
+            missing_in_red = blue_archnames - red_archnames
+            if missing_in_blue:
+                log.warning(f'ARCHNAMES in RED but not BLUE: {missing_in_blue}')
+            if missing_in_red:
+                log.warning(f'ARCHNAMES in BLUE but not RED: {missing_in_red}')
+
+        # Bundle matching pairs
+        adoutputs = []
+        common_archnames = blue_archnames & red_archnames
+
+        for archname in sorted(common_archnames):
+            blue_ad = blue_dict[archname]
+            red_ad = red_dict[archname]
+
+            # Create bundle with ARCHNAME as filename
+            bundle_ad = deepcopy(blue_ad)
+            bundle_ad.filename = archname
+
+            # Update PHU ORIGNAME to archive name
+            bundle_ad.phu['ORIGNAME'] = archname
+
+            # Remove ARCHNAME card if it exists (it's now the filename)
+            if 'ARCHNAME' in bundle_ad.phu:
+                del bundle_ad.phu['ARCHNAME']
+
+            # Append red arm as second extension
+            # Create HDU from red arm data
+            red_hdu = fits.ImageHDU(
+                data=red_ad[0].data,
+                header=red_ad[0].hdr,
+                name=red_ad[0].hdr.get('EXTNAME', 'SCI')
+            )
+
+            # Append the red extension to bundle
+            bundle_ad.append(red_hdu, name='SCI')
+
+            # Update name and append to output
+            bundle_ad.update_filename(suffix=params['suffix'], strip=True)
+            adoutputs.append(bundle_ad)
+
+        log.debug(gt.log_message('primitive', self.myself(), 'complete'))
+        return adoutputs 
+
+
+    # ========================================================================
+    # Private methods
+    # ========================================================================
 
     def _exposuremeterStats(self, ad, utc_start, exptime, zp_pc=0.0, zp_frd=0.0):
         """

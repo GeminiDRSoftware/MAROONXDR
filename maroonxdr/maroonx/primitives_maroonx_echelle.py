@@ -113,11 +113,9 @@ class MAROONXEchelle(MAROONX, Spect):
 
     tagset = {'GEMINI', 'MAROONX', 'ECHELLE'}
 
-    def __init__(self, adinputs, **kwargs):
-        super(MAROONXEchelle, self).__init__(adinputs, **kwargs)
-        self.inst_lookups = 'maroonxdr.maroonx.lookups'
+    def _initialize(self, adinputs, **kwargs):
+        super()._initialize(adinputs, **kwargs)
         self._param_update(parameters_maroonx_echelle)
-
 
     def createSyntheticDark(self, adinputs=None, **params):
         """
