@@ -15,7 +15,7 @@ class staticWavelengthSolutionConfig(config.Config):
     fibers = config.ListField(
         'List of fibers to process.',
         int,
-        [1, 2, 3, 4, 5],
+        None,
         optional=True,
         single=True,
     )
@@ -122,7 +122,7 @@ class combineFibersConfig(config.Config):
     combine_fibers = config.ListField(
         'List of fibers to combine.',
         int,
-        [2, 3, 4],
+        None,
         optional=True,
         single=False,
     )

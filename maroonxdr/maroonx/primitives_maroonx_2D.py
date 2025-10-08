@@ -23,12 +23,11 @@ from scipy.ndimage import gaussian_filter, measurements, median_filter
 
 from . import maroonx_utils, parameters_maroonx_2D
 from .lookups import timestamp_keywords as maroonx_stamps
-from .primitives_calibdb_maroonx import CalibDBMaroonX
 # ------------------------------------------------------------------------------
 
 
 @parameter_override
-class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
+class MAROONX(Gemini, CCD, NearIR):
     """Any primitives specific to MAROON-X can go here."""
 
     tagset = {'GEMINI', 'MAROONX'}
@@ -37,6 +36,7 @@ class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
         self.inst_lookups = 'maroonxdr.maroonx.lookups'
         super()._initialize(adinputs, **kwargs)
         self._param_update(parameters_maroonx_2D)
+        self.timestamp_keys.update(maroonx_stamps.timestamp_keys)
 
     def addDQ(self, adinputs=None, **params):
         # just edited for bpm lookup, can be removed when MX is caldb compliant
@@ -255,21 +255,20 @@ class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
 
         Parameters
         ----------
-        adinputs : List of unchecked AstroData objects
-        suffix: str
+        adinputs : list of AstroData
+            List of unchecked AstroData objects
+        suffix : str
             suffix to be added to output files
-        require_wcs: bool
+        require_wcs : bool
             do all extensions have to have a defined WCS?
 
         Returns
         -------
-        adinputs : List of checked AstroData objects
+        list of AstroData
+            List of checked AstroData objects
         """
         try:
-            super().validateData(
-                adinputs, 
-                suffix=params['suffix'], 
-                require_wcs=params['require_wcs'])
+            super().validateData(adinputs, **params)
         except ValueError as e:
             if 'valid WCS' not in str(e):
                 raise
@@ -428,7 +427,7 @@ class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
 
         return adoutputs
 
-    def addVAR(self, adinputs=None, read_noise=True, poisson_noise=True, **params):
+    def addVAR(self, adinputs=None, **params):
         """
         Calculates the variance based on the read noise for the chip and the poisson noise
         (the variance in this case is just the number of photons for each pixel).
@@ -436,17 +435,26 @@ class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
 
         Parameters
         ----------
-        adinputs - list of MX objects without variance extensions
-        read_noise - boolean, whether to include read noise in variance calculations
-        poisson_noise - boolean, whether to include poisson noise in variance calculations
+        adinputs : list of AstroData
+            List of MX objects without variance extensions
+        suffix : str
+            Suffix to be added to output files
+        read_noise : bool
+            Whether to include read noise in variance calculations
+        poisson_noise : bool
+            Whether to include poisson noise in variance calculations
 
         Returns
         -------
-        adoutputs - list of MX objects with variance extensions
+        list of AstroData
+            List of MX objects with variance extensions
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
         timestamp_key = self.timestamp_keys[self.myself()]
+
+        read_noise = params['read_noise']
+        poisson_noise = params['poisson_noise']
 
         adoutputs = []
         for ad in adinputs:
@@ -490,6 +498,7 @@ class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
                 var += ad[0].data
 
             ad[0].variance = var
+            ad.update_filename(suffix=params['suffix'], strip=True)
             adoutputs.append(ad)
         gt.mark_history(adoutputs, primname=self.myself(), keyword=timestamp_key)
         return adoutputs
@@ -1153,15 +1162,7 @@ class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
         
         return [ad_out]
 
-    def findStripes(
-        self,
-        adinputs=None,
-        deg_polynomial=5,
-        med_filter=1,
-        gauss_filter_sigma=3.5,
-        min_peak=0.008,
-        **params,
-    ):
+    def findStripes(self, adinputs=None, **params):
         """
         Locates and fits stripes in a flat field spectrum.
         Starting in the central column, the algorithm identifies peaks and
@@ -1176,25 +1177,35 @@ class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
 
         Parameters
         ----------
-        adinputs : single MX astrodata object, is either a DFFFD flat,
+        adinputs : list of AstroData
+            Single MX astrodata object, is either a DFFFD flat,
             FDDDF flat, or combined FFFFF flat
-        deg_polynomial : degree of the polynomial fit
-        med_filter : median filter parameter
-        gauss_filter_sigma : sigma of the gaussian filter used to
-            smooth the image.
-        min_peak : minimum relative peak height
+        suffix : str
+            Suffix to be added to output files
+        deg_polynomial : int
+            Degree of the polynomial fit
+        med_filter : int
+            Median filter parameter
+        gauss_filter_sigma : float
+            Sigma of the gaussian filter used to smooth the image
+        min_peak : float
+            Minimum relative peak height
 
         Returns
         -------
-        adoutput : single MX astrodata object with STRIPES_LOC extension.
-        This extension temporarily holds the fits-unsavable fiber information
-        before it is utilized and then removed.
-
-
+        list of AstroData
+            Single MX astrodata object with STRIPES_LOC extension.
+            This extension temporarily holds the fits-unsavable fiber information
+            before it is utilized and then removed.
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
         timestamp_key = self.timestamp_keys[self.myself()]
+
+        deg_polynomial = params['deg_polynomial']
+        med_filter = params['med_filter']
+        gauss_filter_sigma = params['gauss_filter_sigma']
+        min_peak = params['min_peak']
 
         for ad in adinputs:
             npix_y, npix_x = ad[0].data.shape
@@ -1273,9 +1284,7 @@ class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
             ad.update_filename(suffix=params['suffix'], strip=False)
         return adinputs
 
-    def identifyStripes(
-        self, adinputs=None, positions_dir=None, selected_fibers=None, **params
-    ):
+    def identifyStripes(self, adinputs=None, **params):
         """
         Identifies the stripes by assigning their proper order and fiber number,
         including correction for the possibilitiy that the spectra have shifted
@@ -1285,27 +1294,35 @@ class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
 
         Parameters
         ----------
-        adinputs : single MX astrodata object, is either a DFFFD flat,
+        adinputs : list of AstroData
+            Single MX astrodata object, is either a DFFFD flat,
             FDDDF flat, or combined FFFFF flat with STRIPES_LOC extension
-        positions_dir : lookup fits location of nominal y positions and
+        suffix : str
+            Suffix to be added to output files
+        positions_dir : str
+            Lookup fits location of nominal y positions and
             fiber/order labels. Shape is Nx3, columns are
             [fibers, orders, y_positions], nominally found in lookups/SID
-        selected_fibers : fibers illuminated in the flat, if None assumes all
+        selected_fibers : str
+            Fibers illuminated in the flat, if None assumes all
             can work if not given on partially illuminated frame, but best
-            practice is to explicitly identify on function call.
+            practice is to explicitly identify on function call
 
         Returns
         -------
-        adoutput : single MX astrodata object with STRIPES_ID extension.
-        This extension temporarily holds the fits-unsavable fiber information
-        before it is utilized and then removed. A new extension REMOVED_STRIPES
-        also saves the polynomial info for every stripe that is not identified
-        from the original set inherited from findStripes
-
+        list of AstroData
+            Single MX astrodata object with STRIPES_ID extension.
+            This extension temporarily holds the fits-unsavable fiber information
+            before it is utilized and then removed. A new extension REMOVED_STRIPES
+            also saves the polynomial info for every stripe that is not identified
+            from the original set inherited from findStripes
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
         timestamp_key = self.timestamp_keys[self.myself()]
+
+        positions_dir = params.get('positions_dir', None)
+        selected_fibers = params.get('selected_fibers', None)
 
         for ad in adinputs:
             # first obtain reference positions (position_dir)
@@ -1420,7 +1437,7 @@ class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
             ad.update_filename(suffix=params['suffix'], strip=False)
             return adinputs
 
-    def defineFlatStripes(self, adinputs=None, slit_height=10, extract=False, **params):
+    def defineFlatStripes(self, adinputs=None, **params):
         """
         Saves fiber location info based on flat field info for stray light
         removal (extract=False) and for future science extraction (extract=True).
@@ -1441,21 +1458,31 @@ class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
 
         Parameters
         ----------
-        adinputs : single MX astrodata object, is either a DFFFD, FDDDF flat,
+        adinputs : list of AstroData
+            Single MX astrodata object, is either a DFFFD, FDDDF flat,
             or combined FFFFF flat
-        slit_height : half pixel height of box in each dimension to
+        suffix : str
+            Suffix to be added to output files
+        slit_height : int
+            Half pixel height of box in each dimension to
             perform box extraction with
-        extract :  if True, will write STRIPES_ID in fits-acceptable
+        extract : bool
+            If True, will write STRIPES_ID in fits-acceptable
             format. Utilized in combined, all fiber illuminated FFFFF_flat
 
         Returns
         -------
-        adoutput : single MX astrodata object with INDEX_FIBER, INDEX_ORDER
+        list of AstroData
+            Single MX astrodata object with INDEX_FIBER, INDEX_ORDER
             extensions and possibly STRIPES_ID and STRIPES_FIBERS extensions
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
         timestamp_key = self.timestamp_keys[self.myself()]
+
+        slit_height = params['slit_height']
+        extract = params['extract']
+
         for ad in adinputs:
             p_id = ad[0].STRIPES_ID  # Create dictionary of stripes
             img = ad[0].data
@@ -1510,9 +1537,7 @@ class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
 
-    def removeStrayLight_NEW(
-        self, adinputs=None, box_size=20, filter_size=19, snapshot=False, **params
-    ):
+    def removeStrayLight_NEW(self, adinputs=None, **params):
         """
         Removes stray light from full frame images for more accurate fiber flux
         accounting. Requires the defineStripes primitive to be run prior during
@@ -1522,23 +1547,34 @@ class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
 
         Parameters
         ----------
-        adinputs : single MX astrodata object, is either a DFFFD or FDDDF flat
+        adinputs : list of AstroData
+            Single MX astrodata object, is either a DFFFD or FDDDF flat
             that has not previously had its stray light removed
-        box_size : pixel height and width of 'mesh_element' used in
+        suffix : str
+            Suffix to be added to output files
+        box_size : int
+            Pixel height and width of 'mesh_element' used in
             background identification sub-routine
-        filter_size : pixel height and width of window to perform
+        filter_size : int
+            Pixel height and width of window to perform
             background identification sub-routine
-        snapshot : Bool to save difference frame of removed stray light as
+        snapshot : bool
+            Bool to save difference frame of removed stray light as
             extension STRAYLIGHT_DIFFERENCE
 
         Returns
         -------
-        adoutput : single MX astrodata object with stray light removed from
-            SCI
+        list of AstroData
+            Single MX astrodata object with stray light removed from SCI
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
         timestamp_key = self.timestamp_keys[self.myself()]
+
+        box_size = params['box_size']
+        filter_size = params['filter_size']
+        snapshot = params['snapshot']
+
         adoutputs = []
         for ad in adinputs:
             adint = deepcopy(ad)
@@ -1688,9 +1724,7 @@ class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
 
         return adoutputs
 
-    def removeStrayLight(
-        self, adinputs=None, box_size=20, filter_size=19, snapshot=False, **params
-    ):
+    def removeStrayLight(self, adinputs=None, **params):
         """
         Removes stray light from full frame images for more accurate fiber flux
         accounting. Requires the defineStripes primitive to be run prior during
@@ -1700,23 +1734,31 @@ class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
 
         Parameters
         ----------
-        adinputs : single MX astrodata object, is either a DFFFD or FDDDF flat
+        adinputs : list of AstroData
+            Single MX astrodata object, is either a DFFFD or FDDDF flat
             that has not previously had its stray light removed
-        box_size : pixel height and width of 'mesh_element' used in
+        suffix : str
+            Suffix to be added to output files
+        box_size : int
+            Pixel height and width of 'mesh_element' used in
             background identification sub-routine
-        filter_size : pixel height and width of window to perform
+        filter_size : int
+            Pixel height and width of window to perform
             background identification sub-routine
-        snapshot : Bool to save difference frame of removed stray light as
+        snapshot : bool
+            Bool to save difference frame of removed stray light as
             extension STRAYLIGHT_DIFFERENCE
 
         Returns
         -------
-        adoutput : single MX astrodata object with stray light removed from
-            SCI
+        list of AstroData
+            Single MX astrodata object with stray light removed from SCI
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
         timestamp_key = self.timestamp_keys[self.myself()]
+
+        snapshot = params['snapshot']
 
         from pathlib import Path
         legacy_path = Path("/home/martin/Projects/MaroonX/legacy/maroonx_base/legacy_bkg_arrays")
@@ -1820,7 +1862,7 @@ class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
         )
         return flat_fdddf_list
 
-    def combineFlatStreams(self, adinputs=None, stream_2=None, **params):
+    def combineFlatStreams(self, adinputs=None, **params):
         """
         Combines two flat field streams into a single, unified flat.
 
@@ -1834,10 +1876,11 @@ class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
         ----------
         adinputs : list of AstroData
             Primary stream of flat objects (typically FDDDF flats)
+        suffix : str
+            Suffix to be added to output files
         stream_2 : str
             Name of the secondary stream to combine with the main stream
             (typically 'DFFFD_flats')
-        **params : dict of parameters, optional
 
         Returns
         -------
@@ -1847,6 +1890,8 @@ class MAROONX(Gemini, CCD, NearIR, CalibDBMaroonX):
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
+
+        stream_2 = params['stream_2']
 
         if stream_2 not in self.streams.keys():
             # If stream_2 does not exist, return the provided input without modification

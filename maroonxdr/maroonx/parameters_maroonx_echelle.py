@@ -63,6 +63,7 @@ class optimalExtractionConfig(config.Config):
     This parameter set controls the optimalExtraction primitive for MAROON-X.
     '''
     suffix = config.Field("Filename suffix", str, "_reduced")
+    opt_extraction = config.ListField("Fibers for optimal extraction", int, None, optional=True, single=False)
     full_output = config.Field("More outputs made", bool, False)
     penalty = config.Field("scaling penalty factor", float, None)
     s_clip = config.Field("sigma-clipping factor", float, None)

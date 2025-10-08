@@ -274,10 +274,7 @@ class MAROONXEchelle(MAROONX, Spect):
         
         return adoutputs
 
-    def extractStripes(self, adinputs=None, flat=None,
-                       skip_dark=None, remove_straylight=None,
-                       slit_height=10,
-                       test_extraction=False, individual=False, **params):
+    def extractStripes(self, adinputs=None, **params):
         """
         Extracts the stripes from the original 2D spectrum to a sparse array,
         containing only relevant pixels.
@@ -293,32 +290,45 @@ class MAROONXEchelle(MAROONX, Spect):
 
         Parameters
         ----------
-            adinputs
-            flat: adinput of relevant processed flat, as processed, will have
-                the STRIPES_ID and STRIPES_FIBERS extensions needed
-            dark: (optional) adinput of relevant processed dark
-            skip_dark: if dark given, which individual fibers dark
-                subtraction should be skipped
-            slit_height (int): total slit height in px
-            test_extraction (bool): used in unit test for this function, saves
+        adinputs : list of AstroData
+            Input science frames
+        suffix : str
+            Suffix to be added to output files
+        flat : AstroData, optional
+            Adinput of relevant processed flat, as processed, will have
+            the STRIPES_ID and STRIPES_FIBERS extensions needed
+        skip_dark : list of int, optional
+            If dark given, which individual fibers dark
+            subtraction should be skipped
+        remove_straylight : list of int, optional
+            Which individual fibers straylight will be removed
+        slit_height : int
+            Total slit height in px
+        test_extraction : bool
+            Used in unit test for this function, saves
             science extraction, flat extraction, and the bpm-extraction in
             FITS-readable format (STRIPES, F_STRIPES, STRIPES_MASK)
-            individual: (bool) if False uses one calib call for all frames per arm,
+        individual : bool
+            If False uses one calib call for all frames per arm,
             if True performs a calib call for each frame
 
         Returns
         -------
-            adinputs with sparse matrices added holding the 2D extractions for
+        list of AstroData
+            Adinputs with sparse matrices added holding the 2D extractions for
             each fiber/order for the science frame, flat frame, and BPM
             (STRIPES, F_STRIPES, STRIPES_MASK)
             if test_extraction==True, the extractions are FITS-readable and not
             sparse matrix format
-
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
         timestamp_key = self.timestamp_keys[self.myself()]
 
+        skip_dark = params.get('skip_dark', None)
+        remove_straylight = params.get('remove_straylight', None)
+        slit_height = params['slit_height']
+        test_extraction = params['test_extraction']
 
         if skip_dark is None:
             # skip all dark subtraction by default
@@ -437,9 +447,7 @@ class MAROONXEchelle(MAROONX, Spect):
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
 
-    def optimalExtraction(self, adinputs=None, opt_extraction=None,
-                          back_var=None, full_output=False, penalty=None,
-                          s_clip=None, **params):
+    def optimalExtraction(self, adinputs=None, **params):
         """
         Optimal extraction of the 2d echelle spectrum.
 
@@ -452,26 +460,41 @@ class MAROONXEchelle(MAROONX, Spect):
 
         Parameters
         ----------
-            adinputs with STRIPES, F_STRIPES, and STRIPES_MASKS 'extensions' as
+        adinputs : list of AstroData
+            Adinputs with STRIPES, F_STRIPES, and STRIPES_MASKS 'extensions' as
             dicts of sparse arrays
-            opt_extraction (list): fibers considered for optimal extraction
-            back_var (float): manual background variance for frame
-            full_output (bool): if True, an additional set of intermediate
-                products will be returned / saved
-            penalty (float): scaling penalty factor for mismatch correction
-                between flat field profile and science spectrum during optimal
-                extraction
-            s_clip (float): sigma-clipping paramter during optimal extraction
+        suffix : str
+            Suffix to be added to output files
+        opt_extraction : list of int, optional
+            Fibers considered for optimal extraction
+        back_var : float, optional
+            Manual background variance for frame
+        full_output : bool
+            If True, an additional set of intermediate
+            products will be returned / saved
+        penalty : float
+            Scaling penalty factor for mismatch correction
+            between flat field profile and science spectrum during optimal
+            extraction
+        s_clip : float
+            Sigma-clipping parameter during optimal extraction
 
         Returns
         -------
-            adinputs with optimal and box extracted orders for each fiber as
+        list of AstroData
+            Adinputs with optimal and box extracted orders for each fiber as
             well as uncertainties and the bad pixel mask result from the optimal
             extraction
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
         timestamp_key = self.timestamp_keys[self.myself()]
+
+        opt_extraction = params.get('opt_extraction', None)
+        back_var = params.get('back_var', None)
+        full_output = params['full_output']
+        penalty = params['penalty']
+        s_clip = params['s_clip']
 
         # If no fibers are specified, optimal extract fibers 2,3 and 4 (Object fibers in SOOOE frames)
         if opt_extraction is None:

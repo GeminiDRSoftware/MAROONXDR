@@ -189,6 +189,8 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
         # requested fibers
         fibers = params.get('fibers')
+        if fibers is None:
+            fibers = [1, 2, 3, 4, 5]
 
         for ad in adinputs:
             # Load static wavelength solution from the config
@@ -1093,12 +1095,15 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
         timestamp_key = self.timestamp_keys[self.myself()]
-        
+
         combine_fibers = params["combine_fibers"]
         symmetric_linefits = params["symmetric_linefits"]
         kappa_sigma = params["kappa_sigma"]
         max_clips = params["max_clips"]
 
+        if combine_fibers is None:
+            combine_fibers = [2, 3, 4]
+            
         for ad in adinputs:
             
             # Get fiber data
@@ -1234,10 +1239,10 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     clip2_n = np.size(clip2)
                     clip3_n = np.size(clip3)
 
-                log.info(f'Kappa_sigma in order {order}: {kappa_sigma:.1f}')
-                log.info(f'Clipped {clip1_n} pixels in fiber 2 of order {order}')
-                log.info(f'Clipped {clip2_n} pixels in fiber 3 of order {order}')
-                log.info(f'Clipped {clip3_n} pixels in fiber 4 of order {order}')
+                log.fullinfo(f'Kappa_sigma in order {order}: {kappa_sigma:.1f}')
+                log.debug(f'Clipped {clip1_n} pixels in fiber 2 of order {order}')
+                log.debug(f'Clipped {clip2_n} pixels in fiber 3 of order {order}')
+                log.debug(f'Clipped {clip3_n} pixels in fiber 4 of order {order}')
 
                 weights1_2[clip1] = 0
                 weights2[clip2] = 0
@@ -1262,7 +1267,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
                 mask = np.isnan(intensity)
                 if 1000 > np.count_nonzero(mask) >= 0:
-                    log.info(f'Number of NANs fixed in order {order}: {np.count_nonzero(mask)}')
+                    log.debug(f'Number of NANs fixed in order {order}: {np.count_nonzero(mask)}')
                     f = interp1d(wave2[~mask], intensity[~mask], fill_value='extrapolate', kind='slinear')
                     intensity = f(wave2)
                 else:
@@ -1299,7 +1304,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                         keyword='FIBER_COMBINATION',
                         comment=f"combined_fibers_{fiber_list}_to_{target_fiber}")
             
-            log.info(f"Combined fibers {fiber_list} into fiber {target_fiber} for {ad.filename}")
+            log.fullinfo(f"Combined fibers {fiber_list} into fiber {target_fiber} for {ad.filename}")
             ad.update_filename(suffix=params["suffix"], strip=True)
         
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
@@ -1719,16 +1724,9 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             if 'ARCHNAME' in bundle_ad.phu:
                 del bundle_ad.phu['ARCHNAME']
 
-            # Append red arm as second extension
-            # Create HDU from red arm data
-            red_hdu = fits.ImageHDU(
-                data=red_ad[0].data,
-                header=red_ad[0].hdr,
-                name=red_ad[0].hdr.get('EXTNAME', 'SCI')
-            )
-
-            # Append the red extension to bundle
-            bundle_ad.append(red_hdu, name='SCI')
+            # Append red arm as second extension with all its data
+            # This preserves variance, mask, tables, and all other extensions
+            bundle_ad.append(red_ad[0])
 
             # Update name and append to output
             bundle_ad.update_filename(suffix=params['suffix'], strip=True)

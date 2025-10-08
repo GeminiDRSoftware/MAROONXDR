@@ -15,6 +15,16 @@ class addDQMXConfig(parameters_standardize.addDQConfig):
     suffix = config.Field('Filename suffix', str, '')
 
 
+class addVARConfig(config.Config):
+    """
+    This parameter set controls the addVAR primitive for MAROON-X.
+    """
+
+    suffix = config.Field('Filename suffix', str, '_varAdded')
+    read_noise = config.Field('Include read noise in variance', bool, True)
+    poisson_noise = config.Field('Include poisson noise in variance', bool, True)
+
+
 class checkArmConfig(config.Config):
     """
     This parameter set controls the checkArm primitive for MAROON-X.
@@ -71,6 +81,10 @@ class findStripesConfig(config.Config):
     """
 
     suffix = config.Field('Filename suffix', str, '')
+    deg_polynomial = config.Field('Degree of polynomial fit', int, 5)
+    med_filter = config.Field('Median filter parameter', int, 1)
+    gauss_filter_sigma = config.Field('Gaussian filter sigma', float, 3.5)
+    min_peak = config.Field('Minimum relative peak height', float, 0.008)
 
 
 class identifyStripesConfig(config.Config):
@@ -79,7 +93,8 @@ class identifyStripesConfig(config.Config):
     """
 
     suffix = config.Field('Filename suffix', str, '')
-    selected_fibers = config.Field('Fiber selection', str, None)
+    positions_dir = config.Field('Stripe identification lookup file', str, None, optional=True)
+    selected_fibers = config.Field('Fiber selection', str, None, optional=True)
 
 
 class overscanCorrectConfig(parameters_ccd.overscanCorrectConfig):
@@ -89,6 +104,14 @@ class overscanCorrectConfig(parameters_ccd.overscanCorrectConfig):
 
     def setDefaults(self):
         self.function = 'none'
+
+
+class subtractOverscanConfig(config.Config):
+    """
+    This parameter set controls the subtractOverscan primitive for MAROON-X.
+    """
+
+    suffix = config.Field('Filename suffix', str, '_overscanSubtracted')
 
 
 class removeStrayLightConfig(config.Config):
