@@ -11,12 +11,10 @@ sessions, so running ``nox`` in isolation will do nothing.
 
 import re
 from pathlib import Path
-import os
 
 import nox
 
 nox.options.sessions = []
-# nox.options.default_venv_backend = 'conda'
 nox.options.error_on_external_run = True
 
 # Dragons installation resources
@@ -27,11 +25,13 @@ OBSDB_URL = R'https://github.com/GeminiDRSoftware/GeminiObsDB.git@release/1.0.x'
 DRAGONS_BRANCH = 'master'
 DRAGONS_LOCATION = 'DRAGONS/'
 
-PATH = os.path.abspath(os.path.dirname(__file__))
+PATH = Path(__file__).parent.resolve()
 
 # Define the following paths to be set as environment variables
-NEW_ENV_VARIABLES = {    
-    "MAROONX_LEGACY_TEST": Path("home/martin/Projects/MaroonX/legacy/maroonx_base/data2"),
+NEW_ENV_VARIABLES = {
+    "MAROONX_LEGACY_TEST": Path(
+        "/home/martin/Projects/MaroonX/legacy/maroonx_base/data2"
+    ),
     "MAROONX_DRAGONS_TEST": Path(PATH),
 }
 
@@ -220,12 +220,12 @@ def devenv(session: nox.Session):
 
     # Add environment variables to the activate script
     venv_activate = venv_loc / 'bin' / 'activate'
-        
+
     # Append environment variables to the activate script
-    with open(venv_activate, 'a') as f:
+    with venv_activate.open('a') as f:
         f.write('\n# Custom environment variables for MAROONXDR\n')
         for var_name, var_value in NEW_ENV_VARIABLES.items():
-            f.write(f'export {var_name}="{str(var_value)}"\n')
+            f.write(f'export {var_name}="{var_value!s}"\n')
 
     session.log(
         f'Successfully created virtual environment at {venv_loc}! '
@@ -234,7 +234,6 @@ def devenv(session: nox.Session):
         f'The following env variables are available: \n'
         f'     {list(NEW_ENV_VARIABLES.keys())}'
     )
-    # session.notify('initialize_commit_hooks')
 
 
 @nox.session(venv_backend=None, python='3.12')
@@ -252,7 +251,7 @@ def devconda(session: nox.Session):
         '-n',
         env_name,
         '-c', 'http://astroconda.gemini.edu/public',
-        '-c', 'conda-forge', 
+        '-c', 'conda-forge',
         '-c', 'defaults',
         'python=3.12',
         external=True,
@@ -419,7 +418,7 @@ def unit_tests(session: nox.Session):
         '--tb=no',
         '--rootdir=.',
     ]
-    
+
     # Add any additional arguments passed via command line
     test_args.extend(session.posargs)
     session.run(*test_args)
@@ -451,7 +450,7 @@ def regression_tests(session: nox.Session):
         '--tb=no',
         '--rootdir=.',
     ]
-    
+
     # Add any additional arguments passed via command line
     test_args.extend(session.posargs)
     session.run(*test_args)
@@ -486,7 +485,7 @@ def complete_tests(session: nox.Session):
 
     # Run each script using the session's Python
     for test_script in completion_tests:
-        session.run('python', test_script) 
+        session.run('python', test_script)
 
 @nox.session(python='3.10')
 def integration_tests(session: nox.Session):
@@ -526,14 +525,14 @@ def coverage(session: nox.Session):
 def docs(session: nox.Session):
     """Build documentation using Sphinx."""
     session.install('poetry', 'poetry-plugin-export')
-    
+
     # Install DRAGONS
     install_dragons(session)
-    
+
     # Install dependencies
     dependencies = get_dependencies(session, only='main,docs')
     session.install(*dependencies)
-    
+
     # Install maroonxdr and maroonx_instruments
     session.run(
         'pip',
@@ -542,27 +541,27 @@ def docs(session: nox.Session):
         '.',
         external=True,
     )
-    
+
     # Create docs directories if they don't exist
     docs_source = Path('docs/source')
     docs_build = Path('docs/build/html')
-    
+
     if not docs_source.exists():
         session.error(
             f"Documentation source directory {docs_source} does not exist. "
             "Please create it and add your Sphinx configuration."
         )
-    
+
     # Build the documentation
     session.run(
-        'sphinx-build', 
+        'sphinx-build',
         '-b', 'html',
         '-W',  # Treat warnings as errors
         '--keep-going',  # Continue on errors to see all issues
-        str(docs_source), 
+        str(docs_source),
         str(docs_build)
     )
-    
+
     session.log(f"Documentation built successfully in {docs_build}")
     session.log(f"Open {docs_build}/index.html in your browser to view the docs")
 
@@ -571,7 +570,7 @@ def docstyle(session: nox.Session):
     """Check docstring style using pydocstyle."""
     session.install('pydocstyle')
     session.run(
-        'pydocstyle', 
+        'pydocstyle',
         'maroonxdr/',
         '--convention=numpy',
         '--add-ignore=D100,D104'  # Ignore missing docstrings in modules and __init__.py
