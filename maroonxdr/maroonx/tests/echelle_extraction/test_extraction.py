@@ -1,8 +1,6 @@
 
 import logging
-import os
 from copy import deepcopy
-from pathlib import Path
 
 import astrodata
 import numpy as np
@@ -12,8 +10,8 @@ import maroonx_instruments  # noqa : import is necesary for astrodata.instrument
 from maroonxdr.maroonx.primitives_maroonx_echelle import MAROONXEchelle
 
 
-@pytest.mark.slow
-@pytest.mark.parametrize("filename", ["20241124T041907Z_SOOOE_r_0300_reduced.fits", 
+@pytest.mark.slow()
+@pytest.mark.parametrize("filename", ["20241124T041907Z_SOOOE_r_0300_reduced.fits",
                                       "20241124T041907Z_SOOOE_b_0300_reduced.fits"])
 def test_optimal_extracting_science_data(caplog, filename):
     """
@@ -23,6 +21,7 @@ def test_optimal_extracting_science_data(caplog, filename):
     As is standard for the echelle extraction, all extensions should exist even
     if not called to be populated by data
     (e.g. optimal extraction of simcal fiber).
+
     Parameters
     ----------
     caplog : fixture
@@ -30,8 +29,8 @@ def test_optimal_extracting_science_data(caplog, filename):
     filename_b : str
     """
     caplog.set_level(logging.DEBUG)
-    
-    
+
+
     # test that optimal extraction is equal to a previously reduced extraction
     ad = astrodata.open(filename)
     p = MAROONXEchelle([deepcopy(ad)])

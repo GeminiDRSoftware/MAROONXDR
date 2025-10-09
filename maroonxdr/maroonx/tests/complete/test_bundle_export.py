@@ -2,7 +2,6 @@
 Test suite for bundle export primitives and recipe.
 """
 import logging
-from copy import deepcopy
 
 import astrodata
 import pytest

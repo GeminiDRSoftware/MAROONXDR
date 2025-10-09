@@ -3,37 +3,35 @@ This module contains primitives to generate wavelength
 calibration solutions from reduced 1-D spectra.
 """
 # ------------------------------------------------------------------------------
-from copy import deepcopy
 import multiprocessing
-from pathlib import Path
+import os
 import time
 import traceback
-import os
 import warnings
+from copy import deepcopy
+from pathlib import Path
 
-from astropy.io import fits
-from astropy.table import Table
-from astropy.time import Time, TimeDelta
-from astropy import units
-from astroquery.simbad import Simbad
+import astrodata
 import numpy as np
 import pandas as pd
 import scipy
-from scipy.interpolate import LSQUnivariateSpline, interp1d
-from scipy.signal import medfilt
-
-import astrodata
+from astropy import units
+from astropy.table import Table
+from astropy.time import Time, TimeDelta
+from astroquery.simbad import Simbad
 from geminidr.core import Spect
 from gempy.adlibrary import dataselect
 from gempy.gemini import gemini_tools as gt
 from recipe_system.utils.decorators import parameter_override
+from scipy.interpolate import interp1d
+from scipy.signal import medfilt
 
-from . import parameters_maroonx_spectrum
-from .maroonx_fit import maroonx_fit, set_logger, get_logger
-from . import maroonx_utils
-from .primitives_maroonx_echelle import MAROONXEchelle
+from . import maroonx_utils, parameters_maroonx_spectrum
 from .maroonx_echellespectrum.maroonxspectrum import MXSpectrum
 from .maroonx_echellespectrum.wavelengthsolution import WavelengthSolution
+from .maroonx_fit import maroonx_fit, set_logger
+from .primitives_maroonx_echelle import MAROONXEchelle
+
 
 # Monkey patch for barycorrpy compatibility with newer astroquery versions
 def _patched_get_stellar_data(name=''):
@@ -41,18 +39,24 @@ def _patched_get_stellar_data(name=''):
     Fixed version of barycorrpy.utils.get_stellar_data for newer astroquery.
     Based on solution from: https://github.com/shbhuk/barycorrpy/issues/59
     """
-    from astropy.coordinates import SkyCoord
     import astropy.units as u
+    from astropy.coordinates import SkyCoord
 
     warning = []
-    
+
     customSimbad = Simbad()
-    customSimbad.add_votable_fields('ra', 'dec', 'pmra', 'pmdec', 'plx_value', 'rvz_radvel')
-    
+    customSimbad.add_votable_fields(
+        'ra', 'dec', 'pmra', 'pmdec', 'plx_value', 'rvz_radvel'
+    )
+
     obj = customSimbad.query_object(name)
     if obj is None:
-        raise ValueError(f'ERROR: {name} target not found. Check target name or enter RA,Dec,PMRA,PMDec,Plx,RV,Epoch manually\n\n')
-    else:        
+        msg = (
+            f'ERROR: {name} target not found. Check target name or '
+            f'enter RA,Dec,PMRA,PMDec,Plx,RV,Epoch manually\n\n'
+        )
+        raise ValueError(msg)
+    else:
         warning += [f'{name} queried from SIMBAD.']
 
     # Check for masked values
@@ -60,7 +64,7 @@ def _patched_get_stellar_data(name=''):
         warning += ['Masked values present in queried dataset']
 
     obj = obj.filled(None)
-    
+
     pos = SkyCoord(ra=obj['ra'], dec=obj['dec'], unit=(u.deg, u.deg))
     ra = pos.ra.value[0]
     dec = pos.dec.value[0]
@@ -69,22 +73,25 @@ def _patched_get_stellar_data(name=''):
     plx = obj['plx_value'][0]
     rv = obj['rvz_radvel'][0] * 1000 #SIMBAD output is in km/s. Converting to m/s
     epoch = 2451545.0
-    
+
     star = {'ra':ra,'dec':dec,'pmra':pmra,'pmdec':pmdec,'px':plx,'rv':rv,'epoch':epoch}
-    
-    # Fill Masked values with None. Again. 
+
+    # Fill Masked values with None. Again.
     for i in star:
         if star[i] > 1e10:
-            star[i] = None           
-       
+            star[i] = None
+
     warning += [f'Values queried from SIMBAD are {star}']
     return star, warning
 
 # Monkey patch the original function in barycorrpy
-import barycorrpy.utils as bcu
 import barycorrpy.barycorrpy as bcp
-bcu.get_stellar_data = _patched_get_stellar_data   # update source module
-bcp.get_stellar_data = _patched_get_stellar_data   # update alias in barycorrpy.barycorrpy
+import barycorrpy.utils as bcu
+
+# update source module
+bcu.get_stellar_data = _patched_get_stellar_data
+# update alias in barycorrpy.barycorrpy
+bcp.get_stellar_data = _patched_get_stellar_data
 
 get_BC_vel = bcp.get_BC_vel
 exposure_meter_BC_vel = bcp.exposure_meter_BC_vel
@@ -109,16 +116,18 @@ def _get_calibration_wavecal(adinputs):
 
     arm_tag = 'BLUE' if 'BLUE' in adinputs[0].tags else 'RED'
     etalons = dataselect.select_data(
-        list(calib_path.glob('*.fits')), tags=[arm_tag, 'ETALON', 'PREPARED'])
+        list(calib_path.glob('*.fits')),
+        tags=[arm_tag, 'ETALON', 'PREPARED']
+    )
     ad_etalons = [astrodata.open(f) for f in etalons]
 
     adoutputs = []
     for ad in adinputs:
         science_time = ad.ut_datetime()
         # Find the etalon with minimum time difference
-        closest_etalon = min(ad_etalons, 
+        closest_etalon = min(ad_etalons,
                            key=lambda etalon: abs((etalon.ut_datetime() - science_time).total_seconds()))
-        
+
         adoutputs.append(closest_etalon)
     return adoutputs
 
@@ -137,7 +146,7 @@ class LogExceptions(object):
             return self.f(*args, **kwargs)
         except Exception as e:
             e.original_traceback = traceback.format_tb(e.__traceback__)
-            raise e
+            raise
 
 @parameter_override
 class MaroonXSpectrum(MAROONXEchelle, Spect):
@@ -182,7 +191,6 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             Each extension contains a 2D array with wavelength values (nm) 
             indexed by [order, pixel].
         """
-
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
         timestamp_key = self.timestamp_keys[self.myself()]
@@ -200,7 +208,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             for fiber in range(1, 6):
                 # Set up an initial value for all fibers
                 setattr(ad[0], f'WLS_STATIC_FIBER_{fiber}', np.zeros((1, 1)))
-                    
+
             for fiber in fibers:
                 # Check if the fiber is present in the data
                 orders = getattr(ad[0], f'REDUCED_ORDERS_FIBER_{fiber}')
@@ -210,7 +218,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 else:
                     # Load the static wavelength solution for this fiber
                     wls_dict = maroonx_utils.load_statwls_from_fits(
-                        statwavelength_file, 
+                        statwavelength_file,
                         ext_name=f'FIBER_{fiber}',
                         orders=orders)
                     wls_data = np.vstack([wls_dict[str(int(order))] for order in orders])
@@ -303,7 +311,9 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         start_time = time.time()
 
         if len(adinputs) == 0:
-            raise ValueError("No input files")
+            msg = "No input files"
+            log.debug(msg)
+            raise ValueError(msg)
         elif len(adinputs) >= 1:
             log.fullinfo(f"Extracting etalon lines from {len(adinputs)} files")
 
@@ -348,11 +358,11 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     if order == 122:
                         # Remnant from the old pipeline, we should move this to the BPM at some point
                         data[1943] = np.nan
-                        log.warning(f'Removed pixel 1943 in order 122')
+                        log.warning('Removed pixel 1943 in order 122')
 
                     if fiber == 5 and order == 94 and len(data) > 4000:
                         data[0:399] = 0
-                        log.warning(f'Removed first 400 pixels in truncated order 94 of fiber 5')
+                        log.warning('Removed first 400 pixels in truncated order 94 of fiber 5')
                     ############################
 
                     # Define callback functions to save results and errors for multithreading
@@ -379,7 +389,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                             degree_width = degree_width,
                             iterations = iterations,
                             guess_spectrum = guess,
-                            fiber="{}_{}".format(fiber, order),
+                            fiber=f"{fiber}_{order}",
                             plot_path = plot_path,
                             use_sigma_lr = use_sigma_lr,
                             show_plots = show_plots),
@@ -402,13 +412,13 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     if order == 122:
                         # Remnant from the old pipeline, we should move this to the BPM at some point
                         data[1943] = np.nan
-                        log.warning(f'Removed pixel 1943 in order 122')
+                        log.warning('Removed pixel 1943 in order 122')
 
                     if fiber == 5 and order == 94 and len(data) > 4000:
                         data[0:399] = 0
-                        log.warning(f'Removed first 400 pixels in truncated order 94 of fiber 5')
+                        log.warning('Removed first 400 pixels in truncated order 94 of fiber 5')
                     ############################
-                    
+
                     if not (np.nanmedian(data) > 0.005):
                         log.warning(f'Skipped order {order} for fiber {fiber} for insufficient flux')
                         continue
@@ -421,7 +431,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                                 degree_width = degree_width,
                                 iterations = iterations,
                                 guess_spectrum = guess,
-                                fiber="{}_{}".format(fiber, order),
+                                fiber=f"{fiber}_{order}",
                                 plot_path=plot_path,
                                 use_sigma_lr = use_sigma_lr,
                                 show_plots = show_plots
@@ -556,7 +566,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             # Load the etalon spectrum
             mx_spectrum = MXSpectrum(ad, etalon_peaks_symmetric=symmetric_linefits)
             log.fullinfo(f'Processing etalon file: {ad.filename}')
-            
+
             # Determine fibers to process if not provided
             if fibers is None:
                 fibers = []
@@ -564,21 +574,23 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     if fiber_type == 'Etalon':
                         fibers.append(fiber_num)
                 log.fullinfo(f'Found etalon fibers: {fibers}')
-            
+
             if ref_file is not None:
                 # If a reference file and reference fiber is given, offset the etalon
                 # position on all fibers by the offset found in the reference fiber.
                 # ref_fiber = params.get('ref_fiber')
                 # TODO: Ask Andreas what this is supposed to do because currently
                 # we do not know how this works in the old pipeline
-                raise NotImplementedError("Reference file not implemented yet")
+                msg = "Reference file not implemented yet"
+                log.debug(msg)
+                raise NotImplementedError(msg)
 
             # Load reference wavelength solution from the config
             refwavelength_file = maroonx_utils.get_refwavelength_filename(ad)
             log.fullinfo(f'Loading reference wavelength file: {refwavelength_file}')
-            
+
             # If chosen, apply ThAr wls to etalon frame
-            if thar == True:    
+            if thar == True:
                 ref_wavelength = {
                     1: maroonx_utils.load_refwls_from_fits(refwavelength_file, ext_name='FIBER_2'),
                     2: maroonx_utils.load_refwls_from_fits(refwavelength_file, ext_name='FIBER_2'),
@@ -641,7 +653,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     drift = np.nanmean(residuals)
                     drifts[fiber] = drift
                     #drifts = np.append(drifts, drift)
-                
+
             # ==============================================================
             # This should probably be splitted into a separate primitive
 
@@ -883,7 +895,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             # Guess the order #s of the etalon peak positions in the measured spectrum for reference fiber in science spectrum
             science.spectra[ref_fiber].apply_wavelength_vector()
             peak_data = science.spectra[ref_fiber].guess_peak_numbers(debug=0)
-            
+
             residuals = _fc2min(parameters, peak_data["M"].values, peak_data["WAVELENGTH_BY_THAR"].values) / peak_data["WAVELENGTH_BY_THAR"].values * 3e8
             bad = np.where(np.abs(residuals-np.nanmedian(residuals)) > 4.0 * np.nanstd(residuals))
             residuals[bad] = np.nan
@@ -993,7 +1005,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 else:
                     wave[f] = {str(o): wavelengths}
 
-            # Calculate mean drift in reference fiber 
+            # Calculate mean drift in reference fiber
             rel_drift = np.nanmean(shifts)
 
             # Concatenate wavelengths arrays for each fiber and save them
@@ -1009,10 +1021,10 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
             # Save meassured drift in header entries
             if inst_drift is not None:
-                science_ad[0].hdr[f'INSTRUME_DRIFT'] = (round(inst_drift, 2), "Drift in m/s")
-                science_ad[0].hdr[f'RELATIVE_DRIFT'] = (round(rel_drift, 2), "Drift in m/s")
+                science_ad[0].hdr['INSTRUME_DRIFT'] = (round(inst_drift, 2), "Drift in m/s")
+                science_ad[0].hdr['RELATIVE_DRIFT'] = (round(rel_drift, 2), "Drift in m/s")
                 log.fullinfo(f'Instrument Drift: {inst_drift:.1f} m/s')
-                log.fullinfo(f'Relative drift measured in Fiber {ref_fiber}: {rel_drift:.1f} m/s')    
+                log.fullinfo(f'Relative drift measured in Fiber {ref_fiber}: {rel_drift:.1f} m/s')
             log.fullinfo(f'Updated wavelength vector in {science_ad.filename}')
 
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
@@ -1103,9 +1115,9 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
         if combine_fibers is None:
             combine_fibers = [2, 3, 4]
-            
+
         for ad in adinputs:
-            
+
             # Get fiber data
             fiber_data = {}
             fiber_errors = {}
@@ -1118,19 +1130,19 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     fiber_wls[fib] = getattr(ad[0], f"WLS_SIMULTANEOUS_FIBER_{fib}")
                 else:
                     fiber_wls[fib] = getattr(ad[0], f"WLS_SIMULTANEOUS_FIBER_{fib}")
-            
+
             # Get orders from one of the fibers, not very relevant which one
             orders = getattr(ad[0], f"REDUCED_ORDERS_FIBER_{fib}")
-            
+
             combined_intensity = {}
             combined_error = {}
             combined_wavelength = {}
-            
+
             orig_kappa_sigma = kappa_sigma
-            
+
             for order_idx, order in enumerate(orders):
                 kappa_sigma = orig_kappa_sigma
-                
+
                 intensity1 = fiber_data[2][order_idx]
                 intensity2 = fiber_data[3][order_idx]
                 scale1 = np.nansum(intensity1 / np.nansum(intensity2))
@@ -1148,14 +1160,14 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 wave1 = fiber_wls[2][order_idx]
                 wave2 = fiber_wls[3][order_idx]
                 wave3 = fiber_wls[4][order_idx]
-                
+
                 # Apply instrument-specific masking
                 if 'BLUE' in ad.tags:
                     log.fullinfo('Masking additional pixels in blue arm at pixel 196')
                     intensity1[196] = np.nan
                     intensity2[196] = np.nan
                     intensity3[196] = np.nan
-                
+
                 if 'RED' in ad.tags:
                     log.fullinfo('Masking additional pixels in red arm at pixels 1793-1794')
                     intensity1[1793:1794] = np.nan
@@ -1176,7 +1188,8 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     intensity1_2 = f1(wave2)
                     error1_2 = np.abs(f1e(wave2))
                 except:
-                    log.error(f'Interpolation of flux in science fiber 1 of order {order} failed')
+                    msg = f'Interpolation of flux in science fiber 1 of order {order} failed'
+                    log.debug(msg)
                     intensity1_2 = intensity1
                     error1_2 = np.abs(error1)*np.nan
 
@@ -1190,7 +1203,8 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     intensity3_2 = f3(wave2)
                     error3_2 = np.abs(f3e(wave2))
                 except:
-                    log.error(f'Interpolation of flux in science fiber 3 of order {order} failed')
+                    msg = f'Interpolation of flux in science fiber 3 of order {order} failed'
+                    log.debug(msg)
                     intensity3_2 = intensity3
                     error3_2 = np.abs(error3)*np.nan
 
@@ -1258,8 +1272,8 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     weights3_2[bad] = np.nan
 
                     intensity = np.average([
-                        np.nan_to_num(intensity1_2), 
-                        np.nan_to_num(intensity2), 
+                        np.nan_to_num(intensity1_2),
+                        np.nan_to_num(intensity2),
                         np.nan_to_num(intensity3_2)],
                         weights=[weights1_2, weights2, weights3_2],
                         axis=0)
@@ -1303,10 +1317,10 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             gt.mark_history(ad, primname=self.myself(),
                         keyword='FIBER_COMBINATION',
                         comment=f"combined_fibers_{fiber_list}_to_{target_fiber}")
-            
+
             log.fullinfo(f"Combined fibers {fiber_list} into fiber {target_fiber} for {ad.filename}")
             ad.update_filename(suffix=params["suffix"], strip=True)
-        
+
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
 
@@ -1413,7 +1427,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         zp_pc = params.get('zp_pc')
         zp_frd = params.get('zp_frd')
         start_time = params.get('start_time')
-        
+
         for ad in adinputs:
             # Read target name from header
             target = ad.object()
@@ -1434,7 +1448,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             if result_table is None:
                 log.warning(f'Target {target} not recognized by SIMBAD')
                 if use_coords:
-                    log.warning(f'Will use telescope pointing as coordinates.')
+                    log.warning('Will use telescope pointing as coordinates.')
                 else:
                     log.warning(f'Skip file {ad.filename} - consider using --use_coords option')
                     continue
@@ -1465,7 +1479,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             utc_mid = utc_start + exptime / 2
             utc_end = utc_start + exptime
 
-            
+
             # Call barycorrpy for barycentric calculations
             barycorrpy_kwargs = {
                 'lat': 19.823801,
@@ -1475,7 +1489,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 'zmeas': 0.0,
                 'predictive': False,
                 'leap_update': False
-            }    
+            }
             if use_coords:
                 ra  = ad[0].hdr.get('MAROONX TELESCOPE TELRA') * 15.0
                 dec = ad[0].hdr.get('MAROONX TELESCOPE TELDEC')
@@ -1501,7 +1515,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 result4, JDUTCMID_frd, warning4, status4 = exposure_meter_BC_vel(
                     JDUTC=emeter['frd']['times'].jd + time_correction.jd,
                     expmeterflux=emeter['frd']['readings'],
-                    **barycorrpy_kwargs)  
+                    **barycorrpy_kwargs)
 
             # dvdt values in m/s/s
             m_s = units.Unit('m/s')
@@ -1518,7 +1532,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 BC_fluxmid_pc = result3
                 BC_fluxmid_frd = result4
 
-            # If times are None, there was a gap in the photometer data and midpoints 
+            # If times are None, there was a gap in the photometer data and midpoints
             # and BERVs are taken from the nominal midpoint.
             if emeter['pc']['times'] is None:
                 utc_fluxmid_pc = utc_mid
@@ -1535,7 +1549,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             log.fullinfo(f'Exptime: {exptime} sec')
             log.fullinfo(f'BERV dv/dt: '
                 f'{BC_dvdt[0].to(m_s_s).value:.4f}, '
-                f'{BC_dvdt[1].to(m_s_s).value:.4f}, ' 
+                f'{BC_dvdt[1].to(m_s_s).value:.4f}, '
                 f'{BC_dvdt[2].to(m_s_s).value:.4f} m/s/s')
             log.fullinfo(f'BERV_MIDPOINT:           {result1[1]:.2f} m/s')
             log.fullinfo(f'BERV_FLUXWEIGHTED_PC:    {BC_fluxmid_pc:.2f} m/s')
@@ -1602,7 +1616,6 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             List of AstroData objects tagged as 'BLUE' arm. The RED arm
             objects are stored in self.streams['RED'].
         """
-
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
 
@@ -1624,7 +1637,9 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         red_list = []
         for archname, arms in arm_dict.items():
             if not arms['BLUE'] or not arms['RED']:
-                raise ValueError(f'No BLUE or RED tagged files found for ARCHNAME {archname}')
+                msg = f'No BLUE or RED tagged files found for ARCHNAME {archname}'
+                log.debug(msg)
+                raise ValueError(msg)
 
             blue_list.extend(arms['BLUE'])
             red_list.extend(arms['RED'])
@@ -1663,14 +1678,14 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         arm AstroData objects. Each Blue/Red pair must have matching
         ARCHNAME headers to be properly bundled together.
         """
-
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
 
         # Get the red arm stream that was set by separateArmStreams
         if 'RED' not in self.streams:
-            log.error('RED stream not found. Run separateArmStreams first.')
-            raise ValueError('RED stream not found. Run separateArmStreams first.')
+            msg = 'RED stream not found. Run separateArmStreams first.'
+            log.error(msg)
+            raise ValueError(msg)
 
         blue_list = adinputs
         red_list = self.streams['RED']
@@ -1733,7 +1748,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             adoutputs.append(bundle_ad)
 
         log.debug(gt.log_message('primitive', self.myself(), 'complete'))
-        return adoutputs 
+        return adoutputs
 
 
     # ========================================================================
@@ -1784,9 +1799,9 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                         Applied zeropoint value
         """
         log = self.log
-        exposuremeter = ad.EXPOSUREMETER.to_pandas(index='Timestamp')  
+        exposuremeter = ad.EXPOSUREMETER.to_pandas(index='Timestamp')
         exposuremeter.index = pd.to_datetime(exposuremeter.index)
-        
+
         # Reference zeropints
         ref_zp_pc = ad.EXPOSUREMETER.meta['header']['ZP_PC']
         ref_zp_frd = ad.EXPOSUREMETER.meta['header']['ZP_FRD']
@@ -1795,7 +1810,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         dt1 = TimeDelta(exptime, format='sec')
         dt3 = TimeDelta(300, format='sec')
         utc_end = utc_start + dt1
-        
+
         # Auto-determine zeropoints if not provided
         n_cutoff = 20
         start_cut = (utc_start - dt3).iso
@@ -1808,7 +1823,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             flux_pc = exposuremeter.loc[start_cut:end_cut]['Flux PC Channel']
             zp_pc = np.nanmedian(np.sort(flux_pc)[:n_cutoff])
             log.fullinfo(f'Automatic zeropoint determination for PC channel: {zp_pc}')
-        
+
         # Check if zp are valid
         if np.isnan(zp_frd):
             log.warning("Automatic zeropoint determination for FRD channel failed.")
@@ -1834,11 +1849,11 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         readings_pc = result_pc.values.flatten() - zp_pc
         median_pc = medfilt(readings_pc, 3)
         outlier = np.where(np.abs(readings_pc - median_pc) / median_pc > 2)
-        readings_pc[outlier] = median_pc[outlier]        
+        readings_pc[outlier] = median_pc[outlier]
         if np.sum(outlier) > 0:
-            log.warning(f'Replaced {len(outlier)} outlier value(s) in PC dataset')        
+            log.warning(f'Replaced {len(outlier)} outlier value(s) in PC dataset')
         readings_pc[readings_pc < 0] = 0.0
-        
+
         times_frd = Time(result_frd.index.values, format='datetime64', scale='utc')
         readings_frd = result_frd.values.flatten() - zp_frd
         median_frd = medfilt(readings_frd, 3)
@@ -1851,7 +1866,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         # Check for large time gaps in data
         if number_frd > 2 and number_pc > 2:
             gaps = [
-                (times_frd[0] - utc_start).sec, 
+                (times_frd[0] - utc_start).sec,
                 (utc_end - times_frd[-1]).sec,
                 result_frd.index.to_series().diff().dt.total_seconds().fillna(0).max()
                 ]
@@ -1859,7 +1874,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             if maxgap > 30:
                 log.warning(f'{maxgap:.1f} sec gap found in exposuremeter data. Photometric calculations abandoned.')
             elif maxgap > 10:
-                logger.warning(f'{maxgap:.1f} sec gap found in exposuremeter data.')
+                log.warning(f'{maxgap:.1f} sec gap found in exposuremeter data.')
         else:
             times_pc = None
             times_frd = None

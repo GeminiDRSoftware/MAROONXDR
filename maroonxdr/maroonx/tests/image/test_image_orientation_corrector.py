@@ -1,24 +1,19 @@
-from copy import deepcopy
-from pathlib import Path
-import sys
-import os
+"""Tests for image orientation correction primitives."""
+
 import logging
-import pytest
+from copy import deepcopy
+
 import astrodata
 import numpy as np
+import pytest
 
-import maroonx_instruments  # noqa : import is necesary for astrodata.instrument()
 from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
-
-# Test data should be under science_dir
-# science_dir = Path(__file__).parents[4] / 'science_dir'
-# os.chdir(science_dir)
 
 
 @pytest.mark.parametrize("filename", ["20241114T181815Z_DFFFD_r_0002.fits"])
 def test_correctImageOrientation_does_not_change_red_frames(caplog, filename):
-    """
-    Test that orientation does not change if given a raw red frame
+    """Test that orientation does not change for raw red frames.
+
     Parameters
     ----------
     caplog : fixture
@@ -42,8 +37,8 @@ def test_correctImageOrientation_does_not_change_red_frames(caplog, filename):
 
 @pytest.mark.parametrize("filename", ["20241114T181959Z_DFFFD_b_0008.fits"])
 def test_correctImageOrientation_flips_blue_frames(caplog, filename):
-    """
-    Test that blue frames are flipped along both axes given a raw blue frame
+    """Test that blue frames are flipped along both axes.
+
     Parameters
     ----------
     caplog : fixture

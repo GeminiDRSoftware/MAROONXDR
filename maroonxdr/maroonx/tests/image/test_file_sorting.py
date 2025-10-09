@@ -1,18 +1,13 @@
+"""Tests for file sorting and stream separation primitives."""
+
 import logging
-import os
 from copy import deepcopy
-from pathlib import Path
 
 import astrodata
 import numpy as np
 import pytest
 
-import maroonx_instruments  # noqa : import is necesary for astrodata.instrument()
 from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
-
-# Test data should be under science_dir
-# science_dir = Path(__file__).parents[4] / 'science_dir'
-# os.chdir(science_dir)
 
 
 @pytest.mark.parametrize('bundle_filename', ['N20241114M3271.fits'])
@@ -55,9 +50,7 @@ def test_splitBundle(caplog, bundle_filename):
 @pytest.mark.parametrize('filename_r', ['20241114T181028Z_DFFFD_r_0002.fits'])
 @pytest.mark.parametrize('filename_b', ['20241114T181028Z_DFFFD_b_0008.fits'])
 def test_checkArm_collection_and_rejection(caplog, filename_r, filename_b):
-    """
-    Test that first file and others of its arm-type are included
-    while else are removed from set
+    """Test that first file and others of its arm-type are included while else are removed.
 
     Parameters
     ----------
@@ -101,9 +94,7 @@ def test_checkArm_collection_and_rejection(caplog, filename_r, filename_b):
 @pytest.mark.parametrize('DFFFD_file', ['20241114T181815Z_DFFFD_b_0008.fits'])
 @pytest.mark.parametrize('FDDDF_file', ['20241114T191006Z_DDDDF_b_0007.fits'])
 def test_separating_flat_streams(caplog, DFFFD_file, FDDDF_file):
-    """
-    Test that seperateFlatStreams correctly separates a set of given flats by
-    illuminated fibers and creates the 'DFFFD_flats' stream.
+    """Test that seperateFlatStreams correctly separates flats by illuminated fibers.
 
     Parameters
     ----------
@@ -154,11 +145,7 @@ def test_separating_flat_streams(caplog, DFFFD_file, FDDDF_file):
 @pytest.mark.parametrize('DFFFD_file', ['20241114T181815Z_DFFFD_b_0008.fits'])
 @pytest.mark.parametrize('FDDDF_file', ['20241114T191006Z_DDDDF_b_0007.fits'])
 def test_combining_flat_streams(caplog, DFFFD_file, FDDDF_file):
-    """
-    Test that combineFlatStreams correctly 'combines' a set of given two flats
-    of types DFFFD and FDDDF by creating a new frame with the by-pixel max of
-    the two input frames. Utilizes separateFlatStreams to create
-    two-stream input.
+    """Test that combineFlatStreams creates by-pixel max of DFFFD and FDDDF flats.
 
     Parameters
     ----------

@@ -1,27 +1,18 @@
-from copy import deepcopy
-from pathlib import Path
-import sys
-import os
+"""Tests for neutral density filter checking primitives."""
+
 import logging
-import pytest
+from copy import deepcopy
+
 import astrodata
+import pytest
 
-import maroonx_instruments  # noqa : import is necesary for astrodata.instrument()
 from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
-
-# Test data should be under science_dir
-# science_dir = Path(__file__).parents[4] / 'science_dir'
-# os.chdir(science_dir)
-
 
 
 @pytest.mark.parametrize("filename", ["20241114T181028Z_DFFFD_r_0002.fits"])
 def test_nd_filter_good_series(caplog, filename):
-    """
-    Test that neutral density filter checker appropriately outputs the full set
-    input files based on the ND filter on the sim cal fiber when all inputs are
-    in agreement with the value set with the first input file.
-    i.e. illumination is similar intensity as needed for good removal.
+    """Test ND filter checker outputs full set when all inputs agree with first file.
+
     Parameters
     ----------
     caplog : fixture
@@ -46,10 +37,8 @@ def test_nd_filter_good_series(caplog, filename):
 
 @pytest.mark.parametrize("filename", ["20241114T181028Z_DFFFD_r_0002.fits"])
 def test_nd_filter_subgood_series(caplog, filename):
-    """
-    Test that neutral density filter checker appropriately outputs the subset of
-    input files based on the ND filter value set with the first input file.
-    i.e. illumination is similar intensity as needed for good removal.
+    """Test ND filter checker outputs subset matching first file's ND filter value.
+
     Parameters
     ----------
     caplog : fixture
@@ -81,15 +70,13 @@ def test_nd_filter_subgood_series(caplog, filename):
 
 @pytest.mark.parametrize("filename", ["20241114T181028Z_DFFFD_r_0002.fits"])
 def test_nd_filter_bad_series(caplog, filename):
+    """Test ND filter checker raises OSError when only first file has unique ND setting.
+
+    Parameters
+    ----------
+    caplog : fixture
+    filename : str
     """
-       Test that neutral density filter checker appropriately IOErrors if multiple
-       input files are given and the first is the only with its ND filter setting
-       (i.e. somehow files were added incorrectly mid reduction).
-       Parameters
-       ----------
-       caplog : fixture
-       filename : str
-       """
     caplog.set_level(logging.DEBUG)
 
     ad = astrodata.open(filename)
@@ -102,9 +89,11 @@ def test_nd_filter_bad_series(caplog, filename):
 
     with pytest.raises(OSError):
         p.checkND()
-    
-    assert any("Only first frame found, of given, with its simcal ND filter " \
-               "setting" in r.message for r in caplog.records)
+
+    assert any(
+        "Only first frame found, of given, with its simcal ND filter setting"
+        in r.message for r in caplog.records
+    )
 
 if __name__ == '__main__':
     pytest.main()

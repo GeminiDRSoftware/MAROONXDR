@@ -1,20 +1,14 @@
-import re
-import numpy as np
-import pandas as pd
-import pytest
-from copy import deepcopy
 from pathlib import Path
 
-from astropy.io import fits
-import h5py
-
 import astrodata
+import numpy as np
+import pandas as pd
 from gempy.adlibrary import dataselect
 from gempy.utils import logutils
 
 import maroonx_instruments  # noqa : important to load adclass tags
 from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
-from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
+
 #from maroonxdr.maroonx.primitives_maroonx_echelle import create_synthetic_dark
 
 # Set logger
@@ -82,7 +76,7 @@ def test_exportBundle(legacy_reduced_path):
             # Get DRAGONS data for this fiber
             dragons_wls = getattr(blue_ad, f'WLS_SIMULTANEOUS_FIBER_{fiber}')
             dragons_flux = getattr(blue_ad, f'OPTIMAL_REDUCED_FIBER_{fiber}')
-            dragons_orders = getattr(blue_ad, f'REDUCED_ORDERS_FIBER_3').astype(int)
+            dragons_orders = blue_ad.REDUCED_ORDERS_FIBER_3.astype(int)
 
             # Compare each order
             for idx, order in enumerate(dragons_orders):
@@ -101,7 +95,7 @@ def test_exportBundle(legacy_reduced_path):
                         rtol=0, atol=1e-4,
                         err_msg=f"BLUE fiber {fiber} order {order} wavelength mismatch"
                     )
-                except AssertionError as e:
+                except AssertionError:
                     log.error(f"BLUE fiber {fiber} order {order} wavelength: FAIL")
                     blue_failures += 1
 
@@ -112,7 +106,7 @@ def test_exportBundle(legacy_reduced_path):
                         rtol=1e-3, atol=1e-4,
                         err_msg=f"BLUE fiber {fiber} order {order} flux mismatch"
                     )
-                except AssertionError as e:
+                except AssertionError:
                     log.error(f"BLUE fiber {fiber} order {order} flux: FAIL")
                     blue_failures += 1
 
@@ -122,7 +116,7 @@ def test_exportBundle(legacy_reduced_path):
             # Get DRAGONS data for this fiber
             dragons_wls = getattr(red_ad, f'WLS_SIMULTANEOUS_FIBER_{fiber}')
             dragons_flux = getattr(red_ad, f'OPTIMAL_REDUCED_FIBER_{fiber}')
-            dragons_orders = getattr(red_ad, f'REDUCED_ORDERS_FIBER_3').astype(int)
+            dragons_orders = red_ad.REDUCED_ORDERS_FIBER_3.astype(int)
 
             # Compare each order
             for idx, order in enumerate(dragons_orders):
@@ -141,7 +135,7 @@ def test_exportBundle(legacy_reduced_path):
                         rtol=0, atol=1e-4,
                         err_msg=f"RED fiber {fiber} order {order} wavelength mismatch"
                     )
-                except AssertionError as e:
+                except AssertionError:
                     log.error(f"RED fiber {fiber} order {order} wavelength: FAIL")
                     red_failures += 1
 
@@ -152,7 +146,7 @@ def test_exportBundle(legacy_reduced_path):
                         rtol=1e-3, atol=1e-4,
                         err_msg=f"RED fiber {fiber} order {order} flux mismatch"
                     )
-                except AssertionError as e:
+                except AssertionError:
                     log.error(f"RED fiber {fiber} order {order} flux: FAIL")
                     red_failures += 1
 

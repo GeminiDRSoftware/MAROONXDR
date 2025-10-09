@@ -1,7 +1,5 @@
 import logging
-import os
 from copy import deepcopy
-from pathlib import Path
 
 import astrodata
 import numpy as np
@@ -19,7 +17,7 @@ from maroonxdr.maroonx.primitives_maroonx_echelle import MAROONXEchelle
                                       "20241124T041907Z_SOOOE_b_0300_test_stripes.fits"])
 def test_getting_stripe_locations(caplog, filename):
     caplog.set_level(logging.DEBUG)
-    
+
     ad = astrodata.open(filename)
     p = MAROONXEchelle([deepcopy(ad)])
     adtest = p.extractStripes()

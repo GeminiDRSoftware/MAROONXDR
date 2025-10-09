@@ -1,18 +1,13 @@
-from copy import deepcopy
-import numpy as np
-import pytest
 from pathlib import Path
 
 import astrodata
-from astropy.io import fits
 import h5py
-
+import numpy as np
+from astropy.io import fits
 from gempy.adlibrary import dataselect
 
 import maroonx_instruments  # noqa : important to load adclass tags
-from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
 from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
-
 
 # =========================================================
 # TESTS
@@ -24,7 +19,6 @@ def test_stackFlats(arm, legacy_flats_path):
     Needs legacy output of step 1, create master flats: 
     reduce/recipes/make_master_flats.py
     """
-
     if arm == "BLUE":
         old_DFFFD = legacy_flats_path / "20241114T18_masterflat_DFFFD_b_0008.fits"
         old_DDDDF = legacy_flats_path / "20241114T19_masterflat_DDDDF_b_0007.fits"
@@ -84,15 +78,15 @@ def test_identifyStripes(arm, legacy_flats_path):
     p.trimOverscan()  # old files are not trimmed at this point
     p.correctImageOrientation()  # blue files are not flipped at this point
     p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
-    
+
     p.stackFlats(stream='main', scale_mode='mean_frame', suffix='_DDDDF_flat')
     p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='_DFFFD_flat')
 
     p.findStripes()  # define stripe info to ultimately remove stray light in each stream
     p.findStripes(stream='DFFFD_flats')
 
-    p.identifyStripes(selected_fibers='0,0,0,0,5') # identify stripes based on MX architecture files
-    p.identifyStripes(stream='DFFFD_flats',selected_fibers='0,2,3,4,0')
+    p.identifyStripes(selected_fibers=[5]) # identify stripes based on MX architecture files
+    p.identifyStripes(stream='DFFFD_flats',selected_fibers=[2,3,4])
 
     p_id_DDDDF = p.streams['main'][0][0].STRIPES_ID
     p_id_DFFFD = p.streams['DFFFD_flats'][0][0].STRIPES_ID
@@ -104,7 +98,7 @@ def test_identifyStripes(arm, legacy_flats_path):
         for order in old_p_id_DDDDF[fiber].keys():
             np.testing.assert_allclose(p_id_DDDDF[fiber][order], old_p_id_DDDDF[fiber][order],
                 rtol=0, atol=1e-4)
-            
+
     for fiber in old_p_id_DFFFD.keys():
         for order in old_p_id_DFFFD[fiber].keys():
             np.testing.assert_allclose(p_id_DFFFD[fiber][order], old_p_id_DFFFD[fiber][order],
@@ -142,7 +136,7 @@ def test_identifyStripes_legacyOrder(arm, legacy_flats_path):
 
     p.stackFlats(stream='main', scale_mode='mean_frame', suffix='_DDDDF_flat')
     p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='_DFFFD_flat')
-    
+
     # Subtract overscan is run again in backgroundfit.py on the stacked flats
     p.subtractOverscan(stream='main')
     p.subtractOverscan(stream='DFFFD_flats')
@@ -153,12 +147,12 @@ def test_identifyStripes_legacyOrder(arm, legacy_flats_path):
     p.correctImageOrientation(stream='main')
     p.correctImageOrientation(stream='DFFFD_flats')
     # ================================================
-    
+
     p.findStripes(stream='main')  # define stripe info to ultimately remove stray light in each stream
     p.findStripes(stream='DFFFD_flats')
 
-    p.identifyStripes(stream='main', selected_fibers='0,0,0,0,5') # identify stripes based on MX architecture files
-    p.identifyStripes(stream='DFFFD_flats',selected_fibers='0,2,3,4,0')
+    p.identifyStripes(stream='main', selected_fibers=[5])   # '0,0,0,0,5') # identify stripes based on MX architecture files
+    p.identifyStripes(stream='DFFFD_flats', selected_fibers=[2, 3, 4]) # '0,2,3,4,0')
 
     p_id_DDDDF = p.streams['main'][0][0].STRIPES_ID
     p_id_DFFFD = p.streams['DFFFD_flats'][0][0].STRIPES_ID
@@ -170,7 +164,7 @@ def test_identifyStripes_legacyOrder(arm, legacy_flats_path):
         for order in old_p_id_DDDDF[fiber].keys():
             np.testing.assert_allclose(p_id_DDDDF[fiber][order], old_p_id_DDDDF[fiber][order],
                 rtol=0, atol=1e-4)
-            
+
     for fiber in old_p_id_DFFFD.keys():
         for order in old_p_id_DFFFD[fiber].keys():
             np.testing.assert_allclose(p_id_DFFFD[fiber][order], old_p_id_DFFFD[fiber][order],
@@ -204,15 +198,15 @@ def test_removeStraylight(arm, legacy_flats_path):
     p.trimOverscan()  # old files are not trimmed at this point
     p.correctImageOrientation()  # blue files are not flipped at this point
     p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
-    
+
     p.stackFlats(stream='main', scale_mode='mean_frame', suffix='_flat')
     p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='_flat')
 
     p.findStripes()  # define stripe info to ultimately remove stray light in each stream
     p.findStripes(stream='DFFFD_flats')
 
-    p.identifyStripes(selected_fibers='0,0,0,0,5') # identify stripes based on MX architecture files
-    p.identifyStripes(stream='DFFFD_flats',selected_fibers='0,2,3,4,0')
+    p.identifyStripes(selected_fibers=[5]) # identify stripes based on MX architecture files
+    p.identifyStripes(stream='DFFFD_flats',selected_fibers=[2,3,4])
 
     p.defineFlatStripes()  # defines pixel inclusion for each flat region based on stripe ids
     p.defineFlatStripes(stream='DFFFD_flats')
@@ -260,7 +254,7 @@ def test_removeStraylight_legacyOrder(arm, legacy_flats_path):
 
     p.stackFlats(stream='main', scale_mode='mean_frame', suffix='_flat')
     p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='_flat')
-    
+
     # Subtract overscan is run again in backgroundfit.py on the stacked flats
     p.subtractOverscan(stream='main')
     p.subtractOverscan(stream='DFFFD_flats')
@@ -275,8 +269,8 @@ def test_removeStraylight_legacyOrder(arm, legacy_flats_path):
     p.findStripes()  # define stripe info to ultimately remove stray light in each stream
     p.findStripes(stream='DFFFD_flats')
 
-    p.identifyStripes(selected_fibers='0,0,0,0,5') # identify stripes based on MX architecture files
-    p.identifyStripes(stream='DFFFD_flats',selected_fibers='0,2,3,4,0')
+    p.identifyStripes(selected_fibers=[5]) # identify stripes based on MX architecture files
+    p.identifyStripes(stream='DFFFD_flats',selected_fibers=[2,3,4])
 
     p.defineFlatStripes()  # defines pixel inclusion for each flat region based on stripe ids
     p.defineFlatStripes(stream='DFFFD_flats')
@@ -320,35 +314,35 @@ def test_combinedFlat(arm, legacy_flats_path):
 
     p.stackFlats(stream='main', scale_mode='mean_frame', suffix='_flat')
     p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='_flat')
-    
+
     # Subtract overscan is run again in backgroundfit.py on the stacked flats
     p.subtractOverscan(stream='main')
     p.subtractOverscan(stream='DFFFD_flats')
-    
+
     p.trimOverscan(stream='main')
     p.trimOverscan(stream='DFFFD_flats')
-    
+
     p.correctImageOrientation(stream='main')
     p.correctImageOrientation(stream='DFFFD_flats')
-    
+
     p.findStripes()  # define stripe info to ultimately remove stray light in each stream
     p.findStripes(stream='DFFFD_flats')
-    
-    p.identifyStripes(selected_fibers='0,0,0,0,5') # identify stripes based on MX architecture files
-    p.identifyStripes(stream='DFFFD_flats',selected_fibers='0,2,3,4,0')
-    
+
+    p.identifyStripes(selected_fibers=[5]) # identify stripes based on MX architecture files
+    p.identifyStripes(stream='DFFFD_flats',selected_fibers=[2,3,4])
+
     p.defineFlatStripes()  # defines pixel inclusion for each flat region based on stripe ids
     p.defineFlatStripes(stream='DFFFD_flats')
-    
+
     p.removeStrayLight(filter_size=19, box_size=20, snapshot=False)  # remove straylight from frame (this is why 2 partial illumination flat sets are necessary)
     p.removeStrayLight(stream='DFFFD_flats', filter_size=19, box_size=20, snapshot=False)
     # =========================================================
 
     p.combineFlatStreams(stream='main', stream_2='DFFFD_flats')  # combine straylight-removed images
     p.clearStream(stream='DFFFD_flats') # remove second stream
-    
+
     p.findStripes()  # re-run find/identify/define routine on combined frame
-    p.identifyStripes(selected_fibers='0,2,3,4,5')
+    p.identifyStripes(selected_fibers=[2,3,4,5])
     # p.defineFlatStripes(extract=True)
 
     p_id_DFFFF = p.streams['main'][0][0].STRIPES_ID
@@ -359,7 +353,7 @@ def test_combinedFlat(arm, legacy_flats_path):
         for order in old_p_id_DFFFF[fiber].keys():
             np.testing.assert_allclose(p_id_DFFFF[fiber][order], old_p_id_DFFFF[fiber][order],
                 rtol=1e-5, atol=1e-5)
-            
+
 
 
 # =====================================================

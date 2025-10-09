@@ -94,7 +94,7 @@ class identifyStripesConfig(config.Config):
 
     suffix = config.Field('Filename suffix', str, '')
     positions_dir = config.Field('Stripe identification lookup file', str, None, optional=True)
-    selected_fibers = config.Field('Fiber selection', str, None, optional=True)
+    selected_fibers = config.ListField('List of illuminated fibers', int, None, optional=True, single=False)
 
 
 class overscanCorrectConfig(parameters_ccd.overscanCorrectConfig):

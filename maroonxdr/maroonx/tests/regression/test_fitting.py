@@ -1,27 +1,20 @@
 
 
-from copy import deepcopy
-import numpy as np
-import pandas as pd
-import tables
-import pytest
-
-from scipy import sparse
 from pathlib import Path
 
 import astrodata
-from astropy.io import fits
 import h5py
-
+import numpy as np
+import pandas as pd
+import pytest
+import tables
 from gempy.adlibrary import dataselect
 from gempy.utils import logutils
 
 import maroonx_instruments  # noqa : important to load adclass tags
-from maroonxdr.maroonx.primitives_maroonx_echelle import _get_calibration_flat
-from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
-from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
+from maroonxdr.maroonx.maroonx_fit import maroonx_fit, set_logger
 from maroonxdr.maroonx.maroonx_utils import load_recordings
-from maroonxdr.maroonx.maroonx_fit import maroonx_fit, set_logger, get_logger
+from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
 
 # =========================================================
 # FILES TO COMPARE
@@ -91,7 +84,7 @@ def test_load_recordings(legacy_reduced_path, legacy_flats_path):
     p.overscanCorrect()
     p.correctImageOrientation()
     p.addVAR(read_noise=True, poisson_noise=True)
-    
+
     p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
     adout = p.boxExtraction() # extracts spectra from stripes
     ad = adout[0]
@@ -107,22 +100,22 @@ def test_load_recordings(legacy_reduced_path, legacy_flats_path):
     new_dict = dict()
     for fiber, order, data, guess in new_generator:
         new_dict[(int(fiber), int(order))] = (data, guess)
-    
+
     old_dict = dict()
     for fiber, order, data, guess in old_generator:
         old_dict[(int(fiber), int(order))] = (data, guess)
-    
+
     # iterate old keys and compare with new keys values
     for (old_fiber, old_order), (old_data, old_guess) in old_dict.items():
-        
-        assert (old_fiber, old_order) in new_dict, f"Old fiber/order ({old_fiber}, {old_order}) not found in new data"        
+
+        assert (old_fiber, old_order) in new_dict, f"Old fiber/order ({old_fiber}, {old_order}) not found in new data"
         new_data, new_guess = new_dict[(old_fiber, old_order)]
 
         # Test data shapes are equal
         assert old_data.shape == new_data.shape
         # Test data values are equal
         np.testing.assert_allclose(old_data, new_data, rtol=0, atol=1e-4)
-    
+
 @pytest.mark.skip(reason="This test is for debuging purposes only.")
 def test_iterative_fit_legacy():
     # Load old peak data. columns are lowercase
@@ -135,7 +128,6 @@ def test_iterative_fit_legacy():
 
     # Get the old iterative fit function
     import sys
-    import os
 
     MOD_PATH = "/home/martin/Projects/MaroonX/legacy/maroonx_base/reduce/"
     sys.path.append(MOD_PATH)
@@ -194,7 +186,7 @@ def test_iterative_fit_ETALON(legacy_reduced_path):
         np.testing.assert_allclose(
             peaks[col.upper()].values,
             old_peak_data[old_mask][col.lower()].values,
-            rtol=0, atol=1e-2)        
+            rtol=0, atol=1e-2)
 
 
 
@@ -241,7 +233,7 @@ def test_iterative_fit_LFC(legacy_reduced_path):
 
 
 
-@pytest.mark.slow
+@pytest.mark.slow()
 @pytest.mark.parametrize("etalon_filename", ETALONS)
 def test_getPeaksAndPolynomials(legacy_reduced_path, etalon_filename):
 
@@ -253,10 +245,10 @@ def test_getPeaksAndPolynomials(legacy_reduced_path, etalon_filename):
 
     if USE_CACHE:
         # Use previously saved data on science_dir
-        adout = [astrodata.open((etalon_filename + "_wavecal.fits"))]
+        adout = [astrodata.open(etalon_filename + "_wavecal.fits")]
     else:
         # Primitives
-        adinput = [astrodata.open((etalon_filename + ".fits"))]
+        adinput = [astrodata.open(etalon_filename + ".fits")]
 
         p = MaroonXSpectrum(adinput)
         p.prepare()
@@ -265,12 +257,12 @@ def test_getPeaksAndPolynomials(legacy_reduced_path, etalon_filename):
         p.overscanCorrect()
         p.correctImageOrientation()
         p.addVAR(read_noise=True, poisson_noise=True)
-        
+
         p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
         p.boxExtraction() # extracts spectra from stripes
 
         adout = p.getPeaksAndPolynomials(fibers=(2, 3, 4, 5))
-    
+
     # Load new peak data. columns are uppercase
     new_peak_data = adout[0][0].PEAKS.to_pandas()
 
@@ -284,16 +276,16 @@ def test_getPeaksAndPolynomials(legacy_reduced_path, etalon_filename):
     # Test the the column FIBER has the same value counts
     assert new_peak_data["FIBER"].value_counts().equals(old_peak_data["fiber"].value_counts())
 
-    cols = ['amplitude', 'center', 'fiber', # 'lq_cost', # 'lq_status', 
+    cols = ['amplitude', 'center', 'fiber', # 'lq_cost', # 'lq_status',
         'offset', 'order', 'sigma1', 'sigma2', 'width']
     for c in cols:
-        try: 
+        try:
             np.testing.assert_allclose(new_peak_data[c.upper()].values, old_peak_data[c.lower()].values, atol=1e-1)
         except AssertionError as err:
             print(f"Column {c} mismatch: {err}")
             raise err
 
-@pytest.mark.slow
+@pytest.mark.slow()
 @pytest.mark.parametrize("etalon_filename", ETALONS)
 def test_fitAndApplyEtalonWls(legacy_reduced_path, etalon_filename):
 
@@ -305,10 +297,10 @@ def test_fitAndApplyEtalonWls(legacy_reduced_path, etalon_filename):
 
     if USE_CACHE:
         # Use previously saved data on science_dir
-        adout = [astrodata.open((etalon_filename + "_wavecal.fits"))]
+        adout = [astrodata.open(etalon_filename + "_wavecal.fits")]
     else:
         # Primitives
-        adinput = [astrodata.open((etalon_filename + ".fits"))]
+        adinput = [astrodata.open(etalon_filename + ".fits")]
 
         p = MaroonXSpectrum(adinput)
         p.prepare()
@@ -317,7 +309,7 @@ def test_fitAndApplyEtalonWls(legacy_reduced_path, etalon_filename):
         p.overscanCorrect()
         p.correctImageOrientation()
         p.addVAR(read_noise=True, poisson_noise=True)
-        
+
         p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
         p.boxExtraction() # extracts spectra from stripes
 
@@ -337,7 +329,7 @@ def test_fitAndApplyEtalonWls(legacy_reduced_path, etalon_filename):
     # Test the the column FIBER has the same value counts
     assert new_peak_data["FIBER"].value_counts().equals(old_peak_data["fiber"].value_counts())
 
-@pytest.mark.slow
+@pytest.mark.slow()
 @pytest.mark.parametrize("etalon_filename", ETALONS)
 def test_dynamicWavelengthSolution(legacy_reduced_path, etalon_filename):
 
@@ -349,10 +341,10 @@ def test_dynamicWavelengthSolution(legacy_reduced_path, etalon_filename):
 
     if USE_CACHE:
         # Use previously saved data on science_dir
-        adout = [astrodata.open((etalon_filename + "_wavecal.fits"))]
+        adout = [astrodata.open(etalon_filename + "_wavecal.fits")]
     else:
         # Primitives
-        adinput = [astrodata.open((etalon_filename + ".fits"))]
+        adinput = [astrodata.open(etalon_filename + ".fits")]
 
         p = MaroonXSpectrum(adinput)
         p.prepare()
@@ -361,7 +353,7 @@ def test_dynamicWavelengthSolution(legacy_reduced_path, etalon_filename):
         p.overscanCorrect()
         p.correctImageOrientation()
         p.addVAR(read_noise=True, poisson_noise=True)
-        
+
         p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
         p.boxExtraction() # extracts spectra from stripes
 
@@ -386,12 +378,12 @@ def test_dynamicWavelengthSolution(legacy_reduced_path, etalon_filename):
             try:
                 np.testing.assert_allclose(legacy_order_wls, new_order_wls, rtol=1e-4)
                 print(f'fiber/order : {fiber}/{order} [OK]')
-            except AssertionError as err:
+            except AssertionError:
                 fail_counter += 1
                 print(f'fiber/order : {fiber}/{order} [FAIL]')
     assert fail_counter == 0
 
-@pytest.mark.slow
+@pytest.mark.slow()
 @pytest.mark.parametrize("etalon_filename", ETALONS)
 def test_fiber_drifts_ETALON(legacy_reduced_path, etalon_filename):
 
@@ -399,7 +391,7 @@ def test_fiber_drifts_ETALON(legacy_reduced_path, etalon_filename):
 
     # Load old drift values
     hdr_keys = [
-        'Drift_Fiber1', 'Drift_Fiber2', 
+        'Drift_Fiber1', 'Drift_Fiber2',
         'Drift_Fiber3', 'Drift_Fiber4', 'Instrument_Drift',
     ]
     old_header_drifts = read_header_entries(str(old_file), hdr_keys)
@@ -409,13 +401,13 @@ def test_fiber_drifts_ETALON(legacy_reduced_path, etalon_filename):
         drift = float(raw_entry.decode().split()[0]) if raw_entry is not None else None
         legacy_drifts[f"fiber_{fiber}"] = drift
 
-    
+
     if USE_CACHE:
         # Use previously saved data on science_dir
-        adout = [astrodata.open((etalon_filename + "_wavecal.fits"))]
+        adout = [astrodata.open(etalon_filename + "_wavecal.fits")]
     else:
         # Primitives
-        adinput = [astrodata.open((etalon_filename + ".fits"))]
+        adinput = [astrodata.open(etalon_filename + ".fits")]
 
         p = MaroonXSpectrum(adinput)
         p.prepare()
@@ -424,7 +416,7 @@ def test_fiber_drifts_ETALON(legacy_reduced_path, etalon_filename):
         p.overscanCorrect()
         p.correctImageOrientation()
         p.addVAR(read_noise=True, poisson_noise=True)
-        
+
         p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
         p.boxExtraction() # extracts spectra from stripes
 
@@ -475,7 +467,6 @@ def load_recordings_legacy(f_data, f_flat, f_guess, fibers, orders, use_sigma_lr
     :returns: iterator of (fiber, order, data)
     :rtype: iterator
     """
-
     PATH_SPECTRA = '/box_extraction'
     NODE_PARAMETERS = 'etalon_peak_parameters'
     NODE_PEAKS = 'peaks'
@@ -516,7 +507,7 @@ def load_recordings_legacy(f_data, f_flat, f_guess, fibers, orders, use_sigma_lr
 
                 flat = h5flat.get_node(node._v_pathname)
                 data = np.array(node) / np.array(flat)
-                
+
                 yield fiber, order, data, None
                 #yield fiber, order, np.array(node) , np.array(flat), None
 

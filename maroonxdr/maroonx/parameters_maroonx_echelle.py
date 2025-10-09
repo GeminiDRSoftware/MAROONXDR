@@ -41,15 +41,15 @@ class extractStripesConfig(config.Config):
     This parameter set controls the extractStripes primitive for MAROON-X.
     '''
     suffix = config.Field("Filename suffix", str, "")
-    skip_dark = config.ListField(
-        'Input fibers for which the dark frame will NOT be subtracted.',
+    dark_subtraction_skip_fibers = config.ListField(
+        'Fiber numbers (1-5) to skip dark frame subtraction.',
         int,
         None,
         optional=True,
         single=True,
     )
-    remove_straylight = config.ListField(
-        'Input fibers for which straylight will be removed.',
+    straylight_removal_fibers = config.ListField(
+        'Fiber numbers (1-5) for which straylight will be removed.',
         int,
         None,
         optional=True,
@@ -63,7 +63,7 @@ class optimalExtractionConfig(config.Config):
     This parameter set controls the optimalExtraction primitive for MAROON-X.
     '''
     suffix = config.Field("Filename suffix", str, "_reduced")
-    opt_extraction = config.ListField("Fibers for optimal extraction", int, None, optional=True, single=False)
+    optimal_extraction_fibers = config.ListField("Fiber numbers (1-5) for optimal extraction", int, None, optional=True, single=False)
     full_output = config.Field("More outputs made", bool, False)
     penalty = config.Field("scaling penalty factor", float, None)
     s_clip = config.Field("sigma-clipping factor", float, None)

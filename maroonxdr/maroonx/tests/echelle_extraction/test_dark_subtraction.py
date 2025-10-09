@@ -1,16 +1,12 @@
 
 import logging
-import os
 from copy import deepcopy
-from pathlib import Path
 
 import astrodata
-import numpy as np
 import pytest
 
 import maroonx_instruments  # noqa : import is necesary for astrodata.instrument()
 from maroonxdr.maroonx.primitives_maroonx_echelle import MAROONXEchelle
-
 
 
 @pytest.mark.parametrize("filename", ["20241124T062858Z_SOOOE_r_0300_reduced.fits"])
@@ -20,7 +16,7 @@ def test_getting_stripe_locations(caplog, filename):
     """
     caplog.set_level(logging.DEBUG)
 
-    
+
     ad = astrodata.open(filename)
     p = MAROONXEchelle([deepcopy(ad)])
     adtest = p.attachDarkSubtraction()

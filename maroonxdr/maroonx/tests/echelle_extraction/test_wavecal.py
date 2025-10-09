@@ -1,15 +1,11 @@
 import logging
-import os
 from copy import deepcopy
-from pathlib import Path
 
 import astrodata
-import numpy as np
 import pytest
 
 import maroonx_instruments  # noqa : import is necesary for astrodata
 from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
-
 
 
 @pytest.mark.parametrize("filename", ["20241124T030227Z_DEEEE_b_0030_wavecal.fits"])
@@ -23,7 +19,7 @@ def test_staticWavelengthSolution(caplog, science_dir, filename):
     p = MaroonXSpectrum([deepcopy(ad)])
 
     requested_fibers = (3, 4)
-    
+
     adoutputs = p.staticWavelengthSolution(fibers=requested_fibers)
     out_ad = adoutputs[0]
 
@@ -68,7 +64,7 @@ def test_fitAndApplyEtalonWls(caplog, filename):
 
 
     requested_fibers = (3, 4)
-    
+
     p.staticWavelengthSolution(fibers=requested_fibers)
     adoutputs = p.fitAndApplyEtalonWls(fibers=requested_fibers)
     out_ad = adoutputs[0]

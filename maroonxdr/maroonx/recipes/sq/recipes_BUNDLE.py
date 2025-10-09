@@ -1,14 +1,13 @@
-"""
-Recipes available to data with tags ``['MAROONX', `BUNDLE`]``.
-"""
+"""Recipes available to data with tags ``['MAROONX', `BUNDLE`]``."""
 
-recipe_tags = set(['MAROONX', 'BUNDLE', 'UNPREPARED'])
+recipe_tags = {'MAROONX', 'BUNDLE', 'UNPREPARED'}
 
 
 def processBundle(p):
     """
-    This recipe processes MAROONX observation bundles.
-    Red and Blue arms extensions are splited before further processing.
+    Process MAROONX observation bundles.
+
+    Red and Blue arms extensions are split before further processing.
 
     Parameters
     ----------

@@ -1,24 +1,17 @@
 
 
-from copy import deepcopy
-import numpy as np
-import pandas as pd
-import pytest
-
-from scipy import sparse
 from pathlib import Path
 
 import astrodata
-from astropy.io import fits
 import h5py
-
+import numpy as np
+import pytest
 from gempy.adlibrary import dataselect
 from gempy.utils import logutils
+from scipy import sparse
 
 import maroonx_instruments  # noqa : important to load adclass tags
 from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
-from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
-
 
 # =========================================================
 # FILES TO COMPARE
@@ -26,7 +19,10 @@ from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 
 OLD_BASE_PATH = Path("/home/martin/Projects/MaroonX/legacy/maroonx_base/data2/")
 OLD_FILES_PATH = OLD_BASE_PATH / Path("MaroonX_spectra_reduced/20241124")
-OLD_FLAT_FILES_PATH = OLD_BASE_PATH / Path("MaroonX_spectra_reduced/Maroonx_masterframes/202411xx/flats")
+OLD_FLAT_FILES_PATH = (
+    OLD_BASE_PATH
+    / Path("MaroonX_spectra_reduced/Maroonx_masterframes/202411xx/flats")
+)
 
 SCIENCE_DIR = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir')
 
@@ -52,7 +48,7 @@ def test_extractStripes_fromEtalon(arm, legacy_reduced_path):
 
     # read files and instantiate the primitive class
     raw_files = sorted([str(f) for f in Path().glob('20241124T162336Z_DEEEE_*.fits')])
-    
+
     selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'WAVECAL', arm])
 
     # Primitives
@@ -65,7 +61,7 @@ def test_extractStripes_fromEtalon(arm, legacy_reduced_path):
     p.overscanCorrect()
     p.correctImageOrientation()
     p.addVAR(read_noise=True, poisson_noise=True)
-    
+
     adout = p.extractStripes()
 
     # STRIPES extension is an intermediate dictionary of fibers and orders
@@ -76,15 +72,15 @@ def test_extractStripes_fromEtalon(arm, legacy_reduced_path):
         for o in new_stripes[f].keys():
             # this function comes from the legacy pipeline
             mat = load_sparse_mat(f'extracted_stripes/{f}/{o}', str(old_file))
-            
+
             legacy_stripe = mat.toarray()
 
             new_stripe = new_stripes[f][o].toarray()
-            
+
             try:
                 np.testing.assert_allclose(legacy_stripe, new_stripe, rtol=0, atol=1e-8)
                 print(f'fiber/order : {f}/{o} [OK]')
-            except AssertionError as err:
+            except AssertionError:
                 fail_counter += 1
                 print(f'fiber/order : {f}/{o} [FAIL]')
     assert fail_counter == 0
@@ -97,7 +93,7 @@ def test_extractStripes_fromFlat(arm, legacy_flats_path):
 
     # read files and instantiate the primitive class
     raw_files = sorted([str(f) for f in Path().glob('20241124T162336Z_DEEEE_*.fits')])
-    
+
     selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'WAVECAL', arm])
 
     # Primitives
@@ -110,11 +106,11 @@ def test_extractStripes_fromFlat(arm, legacy_flats_path):
     p.overscanCorrect()
     p.correctImageOrientation()
     p.addVAR(read_noise=True, poisson_noise=True)
-    
+
     adout = p.extractStripes()
 
-    # STRIPES extension is an intermediate dictionary of fibers and orders    
-    
+    # STRIPES extension is an intermediate dictionary of fibers and orders
+
     new_flat_stripes = adout[0][0].F_STRIPES
 
     fail_counter = 0
@@ -122,15 +118,15 @@ def test_extractStripes_fromFlat(arm, legacy_flats_path):
         for o in new_flat_stripes[f].keys():
             # this function comes from the legacy pipeline
             flat_mat = load_sparse_mat(f'extracted_stripes/{f}/{o}', str(old_flat))
-            
+
             legacy_flat_stripe = flat_mat.toarray()
 
             new_flat_stripe = new_flat_stripes[f][o].toarray()
-            
+
             try:
                 np.testing.assert_allclose(legacy_flat_stripe, new_flat_stripe, rtol=1e-3, atol=1e-8)
                 print(f'fiber/order : {f}/{o} [OK]')
-            except AssertionError as err:
+            except AssertionError:
                 fail_counter += 1
                 print(f'fiber/order : {f}/{o} [FAIL]')
     assert fail_counter == 0
@@ -140,17 +136,19 @@ def test_extractStripes_fromFlat(arm, legacy_flats_path):
 def test_extractStripes_fromScience(arm, legacy_reduced_path, legacy_test_root):
 
     # old_flat = OLD_FLAT_FILES_PATH / "20241114T19_masterflat_backgroundsubtracted_FFFFF_b_0007.hdf"
-    
+
     old_science = legacy_reduced_path / "20241124T041907Z_SOOOE_b_0300.hdf"
     LEGACY_TEST_NPY_PATH = legacy_test_root.parent / "legacy_bkg_arrays"
     legacy_npy = LEGACY_TEST_NPY_PATH / "20241124T041907Z_SOOOE_b_0300_test.npy"
     legacy_dict = np.load(legacy_npy, allow_pickle=True).item()
     # legacy_dict.keys() has the following keys:
-    # dict_keys(['raw', 'bias_corrected', 'overscan_removed', 'orientation_corrected', 'dark_science', 'back_var', 'index_fiber', 'index_order', 'mask', 'science_straylight_removed'])
+    # dict_keys(['raw', 'bias_corrected', 'overscan_removed',
+    # 'orientation_corrected', 'dark_science', 'back_var', 'index_fiber',
+    # 'index_order', 'mask', 'science_straylight_removed'])
 
     # read files and instantiate the primitive class
     raw_files = sorted([str(f) for f in Path().glob('20241124T041907Z_SOOOE_*.fits')])
-    
+
     selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'SCI', arm])
 
     # Primitives
@@ -165,29 +163,29 @@ def test_extractStripes_fromScience(arm, legacy_reduced_path, legacy_test_root):
 
     # test raw data is the same as legacy
     np.testing.assert_allclose(
-        p.streams["main"][0][0].data, 
-        legacy_dict['raw'], 
+        p.streams["main"][0][0].data,
+        legacy_dict['raw'],
         rtol=1e-4, atol=1e-4)
 
     p.subtractOverscan()
     # test overscan removed data is the same as legacy
     np.testing.assert_allclose(
-        p.streams["main"][0][0].data, 
-        legacy_dict['bias_corrected'], 
+        p.streams["main"][0][0].data,
+        legacy_dict['bias_corrected'],
         rtol=1e-4, atol=1e-4)
 
     p.trimOverscan()
     # test overscan removed data is the same as legacy
     np.testing.assert_allclose(
-        p.streams["main"][0][0].data, 
-        legacy_dict['overscan_removed'], 
+        p.streams["main"][0][0].data,
+        legacy_dict['overscan_removed'],
         rtol=1e-4, atol=1e-4)
 
     p.correctImageOrientation()
     # test orientation corrected data is the same as legacy
     np.testing.assert_allclose(
-        p.streams["main"][0][0].data, 
-        legacy_dict['orientation_corrected'], 
+        p.streams["main"][0][0].data,
+        legacy_dict['orientation_corrected'],
         rtol=1e-4, atol=1e-4)
 
     # ====================================================== OK line
@@ -195,10 +193,10 @@ def test_extractStripes_fromScience(arm, legacy_reduced_path, legacy_test_root):
     # p.removeStrayLight()
     # # test straylight corrected data is the same as legacy
     # np.testing.assert_allclose(
-    #     p.streams["main"][0][0].data, 
-    #     legacy_dict['science_straylight_removed'], 
+    #     p.streams["main"][0][0].data,
+    #     legacy_dict['science_straylight_removed'],
     #     rtol=1e-4, atol=1e-4)
-    p.extractStripes(skip_dark=[0, 0, 0, 0, 5], remove_straylight=[0, 0, 0, 0, 5])
+    p.extractStripes(dark_subtraction_skip_fibers=[5], straylight_removal_fibers=[5])
 
     # STRIPES extension is an intermediate dictionary of fibers and orders
     new_stripes = p.streams["main"][0][0].STRIPES
@@ -208,15 +206,15 @@ def test_extractStripes_fromScience(arm, legacy_reduced_path, legacy_test_root):
         for o in new_stripes[f].keys():
             # this function comes from the legacy pipeline
             mat = load_sparse_mat(f'extracted_stripes/{f}/{o}', str(old_science))
-            
+
             legacy_stripe = mat.toarray()
 
             new_stripe = new_stripes[f][o].toarray()
-            
+
             try:
                 np.testing.assert_allclose(legacy_stripe, new_stripe, rtol=0, atol=1e-3)
                 print(f'fiber/order : {f}/{o} [OK]')
-            except AssertionError as err:
+            except AssertionError:
                 fail_counter += 1
                 print(f'fiber/order : {f}/{o} [FAIL]')
     assert fail_counter == 0
@@ -244,9 +242,9 @@ def test_boxExtraction(arm, legacy_reduced_path):
     p.overscanCorrect()
     p.correctImageOrientation()
     p.addVAR(read_noise=True, poisson_noise=True)
-    
+
     p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
-    
+
     adout = p.boxExtraction() # extracts spectra from stripes
     # adout = p.optimalExtraction()
 
@@ -271,27 +269,26 @@ def test_boxExtraction(arm, legacy_reduced_path):
             try:
                 np.testing.assert_allclose(legacy_order, new_order, rtol=0, atol=1e-8)
                 print(f'fiber/order : {fiber}/{order} [OK]')
-            except AssertionError as err:
+            except AssertionError:
                 fail_counter += 1
                 print(f'fiber/order : {fiber}/{order} [FAIL]')
     assert fail_counter == 0
 
 
-@pytest.mark.slow
+@pytest.mark.slow()
 @pytest.mark.parametrize("science_filename", SCIENCE_FILES)
 def test_optimalExtraction(legacy_reduced_path, science_filename):
     """
     This test is not implemented yet, as the optimal extraction is not yet implemented in MaroonX.
     """
-
     old_file = legacy_reduced_path / (science_filename + ".hdf")
 
     if USE_CACHE:
         # Use previously saved data on science_dir
-        adout = [astrodata.open((science_filename + "_reduced.fits"))]
+        adout = [astrodata.open(science_filename + "_reduced.fits")]
     else:
         # Primitives
-        adinput = [astrodata.open((science_filename + ".fits"))]
+        adinput = [astrodata.open(science_filename + ".fits")]
 
         p = MaroonXSpectrum(adinput)
         p.prepare()
@@ -300,8 +297,8 @@ def test_optimalExtraction(legacy_reduced_path, science_filename):
         p.overscanCorrect()
         p.correctImageOrientation()
         p.addVAR(read_noise=True, poisson_noise=True)
-        
-        p.extractStripes(skip_dark=[0, 0, 0, 0, 5], remove_straylight=[0, 0, 0, 0, 5])  
+
+        p.extractStripes(dark_subtraction_skip_fibers=[5], straylight_removal_fibers=[5])
         adout = p.optimalExtraction() # extracts spectra from stripes
 
     legacy_box = load_dict_from_hdf5(str(old_file), "box_extraction/")
@@ -326,7 +323,7 @@ def test_optimalExtraction(legacy_reduced_path, science_filename):
             try:
                 np.testing.assert_allclose(legacy_order, new_order, rtol=0, atol=1e-4)
                 print(f'fiber/order [opt]: {fiber}/{order} [OK]')
-            except AssertionError as err:
+            except AssertionError:
                 fail_counter += 1
                 print(f'fiber/order [opt]: {fiber}/{order} [FAIL]')
 
@@ -335,7 +332,7 @@ def test_optimalExtraction(legacy_reduced_path, science_filename):
             try:
                 np.testing.assert_allclose(legacy_order, new_order, rtol=0, atol=1e-4)
                 print(f'fiber/order [box]: {fiber}/{order} [OK]')
-            except AssertionError as err:
+            except AssertionError:
                 fail_counter += 1
                 print(f'fiber/order [box]: {fiber}/{order} [FAIL]')
     assert fail_counter == 0
@@ -351,7 +348,7 @@ def test_staticWavelengthSolution(arm, legacy_reduced_path):
 
     # read files and instantiate the primitive class
     raw_files = sorted([str(f) for f in Path().glob('20241124T162336Z_DEEEE_*.fits')])
-    
+
     selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'WAVECAL', arm])
 
     # Primitives
@@ -364,7 +361,7 @@ def test_staticWavelengthSolution(arm, legacy_reduced_path):
     p.overscanCorrect()
     p.correctImageOrientation()
     p.addVAR(read_noise=True, poisson_noise=True)
-    
+
     p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
     p.boxExtraction() # extracts spectra from stripes
 
@@ -388,49 +385,70 @@ def test_staticWavelengthSolution(arm, legacy_reduced_path):
             try:
                 np.testing.assert_allclose(legacy_order_wls, new_order_wls, rtol=0, atol=1e-8)
                 # print(f'fiber/order : {fiber}/{order} [OK]')
-            except AssertionError as err:
+            except AssertionError:
                 fail_counter += 1
                 # print(f'fiber/order : {fiber}/{order} [FAIL]')
     assert fail_counter == 0
 
- 
+
 @pytest.mark.parametrize("science_filename", SCIENCE_FILES)
 def test_optimal_extraction_single_stripe(legacy_test_root, science_filename):
     # Load old data
-    old_file_inputs = legacy_test_root.parent / "legacy_bkg_arrays" / f"{science_filename}_optimal_2_111_inputs.npy"
+    old_file_inputs = (
+        legacy_test_root.parent / "legacy_bkg_arrays"
+        / f"{science_filename}_optimal_2_111_inputs.npy"
+    )
     old_input = np.load(old_file_inputs, allow_pickle=True).item()
 
-    old_flux, old_var, old_stand_spec, old_stand_err, old_fo = _optimal_extraction_single_stripe(
-        old_input['stripe'], 
-        old_input['flat_stripes'], 
+    (
+        old_flux, old_var, old_stand_spec, old_stand_err, old_fo
+    ) = _optimal_extraction_single_stripe(
+        old_input['stripe'],
+        old_input['flat_stripes'],
         gain=old_input['gain'],
-        read_noise=old_input['read_noise'], 
+        read_noise=old_input['read_noise'],
         back_var=old_input['back_var'],
         mask=old_input['mask'],
         s_clip=old_input['s_clip'],
-        penalty=old_input['penalty'], 
-        full_output=False, 
+        penalty=old_input['penalty'],
+        full_output=False,
         log=log)
-    np.testing.assert_allclose(old_flux, old_input['flux'], rtol=0, atol=1e-8)
-    np.testing.assert_allclose(old_var, old_input['var'], rtol=0, atol=1e-8)
-    np.testing.assert_allclose(old_stand_spec, old_input['stand_spec'], rtol=0, atol=1e-8)
+    np.testing.assert_allclose(
+        old_flux, old_input['flux'], rtol=0, atol=1e-8
+    )
+    np.testing.assert_allclose(
+        old_var, old_input['var'], rtol=0, atol=1e-8
+    )
+    np.testing.assert_allclose(
+        old_stand_spec, old_input['stand_spec'], rtol=0, atol=1e-8
+    )
 
     # load new data
-    new_input = np.load(f"{science_filename}_optimal_2_111_inputs.npy", allow_pickle=True).item()
-    new_flux, new_var, new_stand_spec, new_stand_err, new_fo = _optimal_extraction_single_stripe(
-        new_input['stripe'], 
-        new_input['flat_stripes'], 
+    new_input = np.load(
+        f"{science_filename}_optimal_2_111_inputs.npy", allow_pickle=True
+    ).item()
+    (
+        new_flux, new_var, new_stand_spec, new_stand_err, new_fo
+    ) = _optimal_extraction_single_stripe(
+        new_input['stripe'],
+        new_input['flat_stripes'],
         gain=new_input['gain'],
-        read_noise=new_input['read_noise'], 
+        read_noise=new_input['read_noise'],
         back_var=new_input['back_var'],
         mask=new_input['mask'],
         s_clip=new_input['s_clip'],
-        penalty=new_input['penalty'], 
-        full_output=False, 
+        penalty=new_input['penalty'],
+        full_output=False,
         log=log)
-    np.testing.assert_allclose(new_flux, new_input['flux'], rtol=0, atol=1e-8)
-    np.testing.assert_allclose(new_var, new_input['var'], rtol=0, atol=1e-8)
-    np.testing.assert_allclose(new_stand_spec, new_input['stand_spec'], rtol=0, atol=1e-8)
+    np.testing.assert_allclose(
+        new_flux, new_input['flux'], rtol=0, atol=1e-8
+    )
+    np.testing.assert_allclose(
+        new_var, new_input['var'], rtol=0, atol=1e-8
+    )
+    np.testing.assert_allclose(
+        new_stand_spec, new_input['stand_spec'], rtol=0, atol=1e-8
+    )
 
 
     # Assert old and new inputs are close to each other
@@ -438,14 +456,14 @@ def test_optimal_extraction_single_stripe(legacy_test_root, science_filename):
     np.testing.assert_allclose(old_input['flat_stripes'].todense(), new_input['flat_stripes'].todense(), rtol=0, atol=1e-5)
     np.testing.assert_allclose(old_input['back_var'], new_input['back_var'], rtol=0, atol=1e-5)
 
-    
+
     # # Assert old and new results are close to each other
     # np.testing.assert_allclose(old_flux, new_flux, rtol=0, atol=1e-4)
     # np.testing.assert_allclose(old_var, new_var, rtol=0, atol=1e-4)
     # np.testing.assert_allclose(old_stand_spec, new_stand_spec, rtol=0, atol=1e-4)
 
 
-@pytest.mark.slow
+@pytest.mark.slow()
 @pytest.mark.parametrize("arm", ["BLUE"])
 def test_combineFibers(arm, legacy_reduced_path):
 
@@ -459,7 +477,7 @@ def test_combineFibers(arm, legacy_reduced_path):
 
     # read files and instantiate the primitive class
     raw_files = sorted([str(f) for f in Path().glob('20241124T062858Z_SOOOE_*_0300.fits')])
-    
+
     selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'SCI', arm])
 
     # Primitives
@@ -473,7 +491,7 @@ def test_combineFibers(arm, legacy_reduced_path):
     p.correctImageOrientation()
     p.addVAR(read_noise=True,poisson_noise=True)
 
-    p.extractStripes(skip_dark=[0,0,0,0,5], remove_straylight=[0,0,0,0,5]) 
+    p.extractStripes(dark_subtraction_skip_fibers=[5], straylight_removal_fibers=[5])
     p.optimalExtraction()
     p.getPeaksAndPolynomials(fibers=(5,) , multithreading=True)
     p.staticWavelengthSolution()
@@ -485,11 +503,11 @@ def test_combineFibers(arm, legacy_reduced_path):
     new = {
         'wls': getattr(adout[0][0], f"WLS_SIMULTANEOUS_FIBER_{target_fiber}"),
         'opt': getattr(adout[0][0], f"OPTIMAL_REDUCED_FIBER_{target_fiber}"),
-        'opt_err': getattr(adout[0][0], f"OPTIMAL_REDUCED_ERR_{target_fiber}"),        
+        'opt_err': getattr(adout[0][0], f"OPTIMAL_REDUCED_ERR_{target_fiber}"),
     }
-    
+
     # All orders should be the same, we dont save orders for fiber 6, should we?
-    orders = getattr(adout[0][0], f"REDUCED_ORDERS_FIBER_3")
+    orders = adout[0][0].REDUCED_ORDERS_FIBER_3
     orders = orders.astype(int)
 
     fail_counter = 0
@@ -501,7 +519,7 @@ def test_combineFibers(arm, legacy_reduced_path):
             try:
                 np.testing.assert_allclose(legacy_order, new_order, rtol=1e-2, atol=1e-8)
                 print(f'key/order : {key}/{order} [OK]')
-            except AssertionError as err:
+            except AssertionError:
                 fail_counter += 1
                 print(f'key/order : {key}/{order} [FAIL]')
     assert fail_counter == 0
@@ -529,7 +547,7 @@ def test_barycentricCorrection(arm, legacy_reduced_path):
 
     adout = p.barycentricCorrection(target_name="HD 203030")
     hdr = adout[0][0].hdr
-    
+
     keys = ["BERV_SIMBAD_TARGET", "BERV_FLUXWEIGHTED_PC", "BERV_FLUXWEIGHTED_FRD"]
     legacy_target, legacy_pc, legacy_frd = read_header_entries(str(old_file), keys)
 
@@ -626,14 +644,14 @@ def _optimal_extraction_single_stripe(stripe, flat_stripe, gain=1, read_noise=1.
     else:
         # copy mask, because it will be modified
         mask     = mask.copy()
-    
+
     if back_var is None or isinstance(back_var, float):
         back_var = stripe.copy()
         back_var[:,:] = 0
     else:
         # back_var = back_var.copy()
         back_var = back_var.todense() if hasattr(back_var, "todense") else back_var.copy()
-    
+
     # box extracted spectrum
     stand_spec0 = _box_extract_single_stripe(stripe, mask)  # direct box extraction,
     stand_spec = stand_spec0.copy()
@@ -653,10 +671,10 @@ def _optimal_extraction_single_stripe(stripe, flat_stripe, gain=1, read_noise=1.
     # find the spatial columns utilized along entire stripe (greater than slit height because of stripe path)
     sparse_vcols = np.array(~np.all(stripe.todense() == 0, axis=1)).reshape(-1)
     stripe       = np.array(stripe.todense()[sparse_vcols])  # strip stripe to the inclusive nonzero rows
-    
+
     mask         = mask[sparse_vcols]  # strip mask similarly
     back_var     = back_var[sparse_vcols] #strip background variance map similarly
-    
+
     flat_stripe  = np.array(flat_stripe.todense()[sparse_vcols])
     sparse_vrows = np.count_nonzero((stripe != 0).T[1500])  # use ~middle column slit height as slit height pass
     data         = np.zeros((sparse_vrows, stripe.shape[1]))

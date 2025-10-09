@@ -8,11 +8,10 @@ that focus on the 2D spectra themselves).
 
 # from geminidr.gemini.lookups import DQ_definitions as DQ
 import copy
-from pathlib import Path
 import os
+from pathlib import Path
 
 import astrodata
-import matplotlib.pyplot as plt
 import numba
 import numpy as np
 from geminidr.core import Spect
@@ -54,9 +53,11 @@ def _get_calibration_dark_coeff(arm_tag):
         list(calib_dark_path.glob('*.fits')), tags=['DARK_COEFF', arm_tag])
 
     if len(files) == 0:
-        raise ValueError(f'No dark coefficient file found for arm tag: {arm_tag}')
+        msg = f'No dark coefficient file found for arm tag: {arm_tag}'
+        raise ValueError(msg)
     elif len(files) > 1:
-        raise ValueError(f'Multiple calibration darks found for arm tag: {arm_tag}')
+        msg = f'Multiple calibration darks found for arm tag: {arm_tag}'
+        raise ValueError(msg)
     return astrodata.open(files[0])
 
 def _get_calibration_dark(adinputs):
@@ -88,15 +89,18 @@ def _get_calibration_flat(adinputs):
     Should probably be deprecated when dragons calib is implemented.
     """
     calib_flat_path = _get_calibration_flat_path()
-    
+
     adoutputs = []
     for ad in adinputs:
         if 'BLUE' in ad.tags:
-            flat_ad = astrodata.open( str(calib_flat_path / '20241114T190714Z_DDDDF_b_0007_DFFFF_flat.fits') )
+            flat_file = '20241114T190714Z_DDDDF_b_0007_DFFFF_flat.fits'
+            flat_ad = astrodata.open(str(calib_flat_path / flat_file))
         elif 'RED' in ad.tags:
-            flat_ad = astrodata.open( str(calib_flat_path / '20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits') )
+            flat_file = '20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits'
+            flat_ad = astrodata.open(str(calib_flat_path / flat_file))
         else:
-            raise ValueError("Unknown file arm.")
+            msg = "Unknown file arm."
+            raise ValueError(msg)
 
         adoutputs.append(copy.deepcopy(flat_ad))
 
@@ -127,9 +131,10 @@ class MAROONXEchelle(MAROONX, Spect):
         Parameters
         ----------
         adinputs: AstroData object(s) science files to create darks for
-        dark_coeff: (optional) adinput of dark coefficients file  
-        individual: (bool) if True, creates unique dark for each frame (no reuse).
-            If False, reuses darks for frames with same exposure time, ND filter, and arm.
+        dark_coeff: (optional) adinput of dark coefficients file
+        individual: (bool) if True, creates unique dark for each frame
+            (no reuse). If False, reuses darks for frames with same
+            exposure time, ND filter, and arm.
             
         Returns
         -------
@@ -139,67 +144,72 @@ class MAROONXEchelle(MAROONX, Spect):
 
         dark_coeff = params['dark_coeff']
         individual = params['individual']
-        
+
         # Cache for storing created darks when individual=False
         dark_cache = {}
         adoutputs = []
-        
+
         for ad in adinputs:
             exptime = ad.exposure_time()
             nd_filter = ad.filter_orientation()['ND']
             arm_tag = 'BLUE' if 'BLUE' in ad.tags else 'RED'
-            
+
             # Create cache key based on individual parameter
             if individual:
                 cache_key = ad.filename  # Unique key - no reuse
             else:
                 cache_key = (exptime, nd_filter, arm_tag)  # Grouping key - allows reuse
-            
+
             synthetic_dark_data = None
-            
+
             if cache_key not in dark_cache:
                 # Create new synthetic dark
                 if dark_coeff is None:
                     dark_coeff_ad = _get_calibration_dark_coeff(arm_tag)
                 else:
                     dark_coeff_ad = dark_coeff
-                
+
                 if dark_coeff_ad is not None:
                     # Validate inputs
                     if exptime is None and nd_filter is None:
-                        raise ValueError("Either exptime or nd_filter must be provided")
-                    
+                        msg = "Either exptime or nd_filter must be provided"
+                        log.debug(msg)
+                        raise ValueError(msg)
+
                     # Check for required extensions
                     required_extensions = ['COEFF_Z0', 'COEFF_Z1', 'LOGEXPTIME']
                     for ext_name in required_extensions:
                         if not hasattr(dark_coeff_ad[0], ext_name):
-                            raise ValueError(f"Required extension {ext_name} not found")
-                    
+                            msg = f"Required extension {ext_name} not found"
+                            log.debug(msg)
+                            raise ValueError(msg)
+
                     # Extract coefficient arrays
                     z0 = dark_coeff_ad[0].COEFF_Z0
                     z1 = dark_coeff_ad[0].COEFF_Z1
                     logexptime_table = dark_coeff_ad[0].LOGEXPTIME
-                    
+
                     # Extract calibration data
                     logexptimes = np.array(logexptime_table['logexptime'])
                     exptimes = np.array(logexptime_table['exptime'])
-                    
+
                     # Check if ND filter data is available
                     has_nd_data = 'ndfilter' in logexptime_table.colnames
                     if has_nd_data:
                         ndfilters = np.array(logexptime_table['ndfilter'])
                     else:
-                        ndfilters = np.zeros_like(exptimes)  # Default to zero if no ND data
-                    
+                        # Default to zero if no ND data
+                        ndfilters = np.zeros_like(exptimes)
+
                     # Initialize variables
                     factor = 1.0
                     actual_exptime = exptime
                     actual_nd = nd_filter
-                    
+
                     # Case 1: Only exposure time provided
                     if exptime is not None and nd_filter is None:
                         actual_exptime = exptime
-                        
+
                         if has_nd_data and len(np.unique(ndfilters)) > 1:
                             # Calculate expected ND position from exposure time
                             z_nd_logt = np.polyfit(logexptimes, ndfilters, 1)
@@ -207,11 +217,11 @@ class MAROONXEchelle(MAROONX, Spect):
                             actual_nd = f_nd_logt(np.log10(exptime))
                         else:
                             actual_nd = ndfilters[0] if len(ndfilters) > 0 else 0.0
-                    
-                    # Case 2: Only ND value provided  
+
+                    # Case 2: Only ND value provided
                     elif nd_filter is not None and exptime is None:
                         actual_nd = nd_filter
-                        
+
                         if has_nd_data and len(np.unique(ndfilters)) > 1:
                             # Calculate exposure time from ND position
                             z_logt_nd = np.polyfit(ndfilters, logexptimes, 1)
@@ -220,45 +230,53 @@ class MAROONXEchelle(MAROONX, Spect):
                         else:
                             # Use median exposure time as default
                             actual_exptime = np.median(exptimes)
-                    
+
                     # Case 3: Both exposure time and ND value provided
                     elif exptime is not None and nd_filter is not None:
                         actual_exptime = exptime
                         actual_nd = nd_filter
-                        
+
                         # Check for ND filter mismatch and apply correction if needed
                         if has_nd_data and len(np.unique(ndfilters)) > 1:
                             z_nd_logt = np.polyfit(logexptimes, ndfilters, 1)
                             f_nd_logt = np.poly1d(z_nd_logt)
-                            z_logt_nd = np.polyfit(ndfilters, logexptimes, 1) 
+                            z_logt_nd = np.polyfit(ndfilters, logexptimes, 1)
                             f_logt_nd = np.poly1d(z_logt_nd)
-                            
+
                             expected_nd = f_nd_logt(np.log10(exptime))
                             nd_difference = abs(actual_nd - expected_nd)
-                            
-                            # Apply correction factor if ND mismatch is significant (>0.2)
+
+                            # Apply correction if ND mismatch is significant
                             if nd_difference > 0.2:
                                 logt_nominal = f_logt_nd(actual_nd)
                                 factor = 10**(np.log10(exptime) - logt_nominal)
-                    
+
                     # Calculate synthetic dark frame
                     # Formula: dark = z1 + z0 * log10(exptime * factor)
                     effective_logexptime = np.log10(actual_exptime * factor)
-                    synthetic_dark_data = (z1 + z0 * effective_logexptime).astype(np.float32)
-                    
+                    synthetic_dark_data = (
+                        z1 + z0 * effective_logexptime
+                    ).astype(np.float32)
+
                     dark_cache[cache_key] = synthetic_dark_data
-                    log.fullinfo(f"Created synthetic dark for {ad.filename}: "
-                                f"exptime={actual_exptime:.1f}s, nd={actual_nd:.2f}, factor={factor:.2f}")
+                    log.fullinfo(
+                        f"Created synthetic dark for {ad.filename}: "
+                        f"exptime={actual_exptime:.1f}s, nd={actual_nd:.2f}, "
+                        f"factor={factor:.2f}"
+                    )
                 else:
-                    log.warning(f"No dark coefficients found for {arm_tag} arm, {ad.filename}")
+                    log.warning(
+                        f"No dark coefficients found for {arm_tag} arm, "
+                        f"{ad.filename}"
+                    )
                     dark_cache[cache_key] = None
             else:
                 # Use cached dark
                 synthetic_dark_data = dark_cache[cache_key]
-            
+
             # Create AstroData object for synthetic dark
             if synthetic_dark_data is not None:
-                # Create a copy of the input AstroData structure but with synthetic dark data
+                # Create copy of input AstroData with synthetic dark data
                 adout = copy.deepcopy(ad)
                 adout[0].data = synthetic_dark_data
 
@@ -271,7 +289,7 @@ class MAROONXEchelle(MAROONX, Spect):
                 log.warning(f"No synthetic dark created for {ad.filename}")
                 # Optionally append None or skip this frame
                 # adoutputs.append(None)
-        
+
         return adoutputs
 
     def extractStripes(self, adinputs=None, **params):
@@ -297,10 +315,12 @@ class MAROONXEchelle(MAROONX, Spect):
         flat : AstroData, optional
             Adinput of relevant processed flat, as processed, will have
             the STRIPES_ID and STRIPES_FIBERS extensions needed
-        skip_dark : list of int, optional
+        dark_subtraction_skip_fibers : list of int, optional
+            Fiber numbers (1-5) to skip dark frame subtraction.
             If dark given, which individual fibers dark
             subtraction should be skipped
-        remove_straylight : list of int, optional
+        straylight_removal_fibers : list of int, optional
+            Fiber numbers (1-5) for which straylight will be removed.
             Which individual fibers straylight will be removed
         slit_height : int
             Total slit height in px
@@ -325,31 +345,32 @@ class MAROONXEchelle(MAROONX, Spect):
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
         timestamp_key = self.timestamp_keys[self.myself()]
 
-        skip_dark = params.get('skip_dark', None)
-        remove_straylight = params.get('remove_straylight', None)
+        dark_subtraction_skip_fibers = params.get('dark_subtraction_skip_fibers', None)
+        straylight_removal_fibers = params.get('straylight_removal_fibers', None)
         slit_height = params['slit_height']
         test_extraction = params['test_extraction']
 
-        if skip_dark is None:
+        if dark_subtraction_skip_fibers is None:
             # skip all dark subtraction by default
-            skip_dark = [1, 2, 3, 4, 5]
+            dark_subtraction_skip_fibers = [1, 2, 3, 4, 5]
 
-        if remove_straylight is None:
+        if straylight_removal_fibers is None:
             # skip all
-            remove_straylight = [0, 0, 0, 0, 0]
+            straylight_removal_fibers = []
 
         flats = _get_calibration_flat(adinputs)
         darks = _get_calibration_dark(adinputs)
 
 
         for ad, flat_ad, dark_ad in zip(*gt.make_lists(adinputs, flats, darks)):
-            log.fullinfo(f"{ad.filename} : {flat_ad.filename} : {getattr(dark_ad, 'filename', None)}")
+            dark_fn = getattr(dark_ad, 'filename', None)
+            log.fullinfo(f"{ad.filename} : {flat_ad.filename} : {dark_fn}")
 
             if dark_ad:
                 dark_ad = self.trimOverscan(adinputs=[dark_ad])[0]
                 dark_ad = self.correctImageOrientation(adinputs=[dark_ad])[0]
 
-            if any(remove_straylight):
+            if any(straylight_removal_fibers):
                 ad_sl_removed = self.removeStrayLight(adinputs=[copy.deepcopy(ad)])[0]
 
             stripes = {}
@@ -369,22 +390,28 @@ class MAROONXEchelle(MAROONX, Spect):
             p_id = p_id_new
 
 
-            log.fullinfo("Flat-Identified pixel associations with fiber/order "
-                         "found as polynomial info in association "
-                         f"with science frame {ad.filename}")
-            log.fullinfo(f"Skip_dark: {skip_dark}, Remove_straylight: {remove_straylight}")
+            log.fullinfo(
+                "Flat-Identified pixel associations with fiber/order "
+                "found as polynomial info in association "
+                f"with science frame {ad.filename}"
+            )
+            log.fullinfo(
+                f"Dark_subtraction_skip_fibers: "
+                f"{dark_subtraction_skip_fibers}, "
+                f"Straylight_removal_fibers: {straylight_removal_fibers}"
+            )
 
             for f, op in p_id.items():  # extract info into sparse matrices
                 adint = copy.deepcopy(ad)
                 flatint = copy.deepcopy(flat_ad)
                 # dark subtract the frame for the fiber if appropriate
                 # each fiber is independent in its need of the dark subtraction
-                
-                if int(f[-1]) in skip_dark:
+
+                if int(f[-1]) in dark_subtraction_skip_fibers:
                     log.fullinfo(f'No dark subtracted for fiber {f[-1]}')
                     adint[0].data = ad[0].data
 
-                    if int(f[-1]) in remove_straylight:
+                    if int(f[-1]) in straylight_removal_fibers:
                         log.fullinfo(f'Use straylight corrected data for fiber {f[-1]}')
                         adint[0].data = ad_sl_removed[0].data
                 else:
@@ -410,14 +437,15 @@ class MAROONXEchelle(MAROONX, Spect):
                         stripes[f] = {o: stripe}
                         f_stripes[f] = {o: f_stripe}
                         stripes_masks[f] = {o: s_mask}
-                        
+
             # store the stripe, flat stripe and stripe mask
             ad[0].STRIPES = stripes
             ad[0].F_STRIPES = f_stripes
             # could find a way to make the flat info retrieve more efficient
             ad[0].STRIPES_MASKS = stripes_masks
-            # here mask no longer conforms to BPM, (STRIPES_MASKS == 1 is good)
-            # test extraction allows for future reduction direct comparison
+            # here mask no longer conforms to BPM
+            # (STRIPES_MASKS == 1 is good)
+            # test extraction for future reduction comparison
             if test_extraction:
                 repack_stripes = []
                 repack_f_stripes = []
@@ -465,7 +493,8 @@ class MAROONXEchelle(MAROONX, Spect):
             dicts of sparse arrays
         suffix : str
             Suffix to be added to output files
-        opt_extraction : list of int, optional
+        optimal_extraction_fibers : list of int, optional
+            Fiber numbers (1-5) for optimal extraction.
             Fibers considered for optimal extraction
         back_var : float, optional
             Manual background variance for frame
@@ -490,15 +519,15 @@ class MAROONXEchelle(MAROONX, Spect):
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
         timestamp_key = self.timestamp_keys[self.myself()]
 
-        opt_extraction = params.get('opt_extraction', None)
+        optimal_extraction_fibers = params.get('optimal_extraction_fibers', None)
         back_var = params.get('back_var', None)
         full_output = params['full_output']
         penalty = params['penalty']
         s_clip = params['s_clip']
 
         # If no fibers are specified, optimal extract fibers 2,3 and 4 (Object fibers in SOOOE frames)
-        if opt_extraction is None:
-            opt_extraction = [0, 2, 3, 4, 0]
+        if optimal_extraction_fibers is None:
+            optimal_extraction_fibers = [2, 3, 4]
         optimal_reduced_stripes = {}
         box_reduced_stripes = {}
         box_reduced_err = {}
@@ -507,16 +536,23 @@ class MAROONXEchelle(MAROONX, Spect):
         optimal_reduced_2d_arrays = {}
         extracted_bpms = {}
 
-        darks = _get_calibration_dark(adinputs)        
+        darks = _get_calibration_dark(adinputs)
 
         for ad, dark_ad in zip(*gt.make_lists(adinputs, darks)):
 
-            # For each fiber, we need extensions for the reduced orders, the optimal reduced fiber,
-            # the error of the optimal reduced fiber, the box reduced fiber, the error of the box
-            # reduced fiber, and the bad pixel mask.
+            # For each fiber, we need extensions for the reduced orders,
+            # the optimal reduced fiber, the error of the optimal reduced
+            # fiber, the box reduced fiber, the error of the box reduced
+            # fiber, and the bad pixel mask.
             for f in range(1, 6):
-                setattr(ad[0], f"REDUCED_ORDERS_FIBER_{f}", np.zeros(shape=[1, 1]))
-                setattr(ad[0], f"OPTIMAL_REDUCED_FIBER_{f}", np.zeros(shape=[1, 1]))
+                setattr(
+                    ad[0], f"REDUCED_ORDERS_FIBER_{f}",
+                    np.zeros(shape=[1, 1])
+                )
+                setattr(
+                    ad[0], f"OPTIMAL_REDUCED_FIBER_{f}",
+                    np.zeros(shape=[1, 1])
+                )
                 setattr(ad[0], f"OPTIMAL_REDUCED_ERR_{f}", np.zeros(shape=[1, 1]))
                 setattr(ad[0], f"BOX_REDUCED_FIBER_{f}", np.zeros(shape=[1, 1]))
                 setattr(ad[0], f"BOX_REDUCED_ERR_{f}", np.zeros(shape=[1, 1]))
@@ -528,8 +564,10 @@ class MAROONXEchelle(MAROONX, Spect):
             mask = ad[0].STRIPES_MASKS
             flat_stripes = ad[0].F_STRIPES
 
-            gain = ad.gain()[0][0]  # fix for different channels
-            read_noise = ad.read_noise()[0][0]  # Each chip has a different read noise
+            # fix for different channels
+            gain = ad.gain()[0][0]
+            # Each chip has a different read noise
+            read_noise = ad.read_noise()[0][0]
 
             if dark_ad:
                 # This should be refactored so it is not repeated as in extractStripes
@@ -538,18 +576,30 @@ class MAROONXEchelle(MAROONX, Spect):
                 back_var = np.abs(dark_ad[0].data) / gain * np.sqrt(2)
 
             for f in stripes.keys():
-                if int(f[-1]) in opt_extraction:
+                if int(f[-1]) in optimal_extraction_fibers:
 
-                    # if last item of the key is in opt_extraction, we do optimal extraction
+                    # if last item of the key is in
+                    # optimal_extraction_fibers, we do optimal extraction
                     for o, stripe in stripes[f].items():
-                        log.fullinfo(f'Optimum extraction in {f}, order {o}, penalty={penalty}, s_clip={s_clip}')
+                        log.fullinfo(
+                            f'Optimum extraction in {f}, order {o}, '
+                            f'penalty={penalty}, s_clip={s_clip}'
+                        )
 
-                        flux, var, stand_spec, stand_err, stand_flat, fo = _optimal_extraction_single_stripe(
-                            stripe, flat_stripes[f][o], gain=gain,
-                            read_noise=read_noise, back_var=back_var,
-                            mask=np.logical_not(ad[0].mask).astype(int), #[f][o], 
+                        (
+                            flux, var, stand_spec, stand_err,
+                            stand_flat, fo
+                        ) = _optimal_extraction_single_stripe(
+                            stripe, flat_stripes[f][o],
+                            gain=gain,
+                            read_noise=read_noise,
+                            back_var=back_var,
+                            mask=np.logical_not(ad[0].mask).astype(int),
                             s_clip=s_clip,
-                            penalty=penalty, full_output=full_output, log=log)
+                            penalty=penalty,
+                            full_output=full_output,
+                            log=log
+                        )
 
                         # =================================================================
                         if int(f[-1]) == 2 and int(o) == 111:
@@ -568,10 +618,13 @@ class MAROONXEchelle(MAROONX, Spect):
                                 'var': var,
                                 'stand_spec': stand_spec,
                             }
-                            # Use Path from pathlib to extract the filename from outfile and use that
-                            #from pathlib import Path
-                            base = Path().resolve() #.parent 
-                            outfile = f"{ad.filename.rstrip('.fits')}_optimal_{int(f[-1])}_{int(o)}_inputs.npy"
+                            # Use Path from pathlib to extract filename
+                            base = Path().resolve()
+                            fn = ad.filename.rstrip('.fits')
+                            outfile = (
+                                f"{fn}_optimal_{int(f[-1])}_"
+                                f"{int(o)}_inputs.npy"
+                            )
                             print(f"outfile: {outfile}")
                             print(f"base: {base}")
                             save_dir = base #/ 'legacy_bkg_arrays'
@@ -583,14 +636,17 @@ class MAROONXEchelle(MAROONX, Spect):
                         if f in optimal_reduced_stripes:
                             # Update the extensions we created earlier
                             optimal_reduced_stripes[f].update({o: flux})
-                            optimal_reduced_err[f].update({o: np.sqrt(var)}) # TODO: When we add the addVAR() method,
-                            # we need  to deal with the variance before this line
+                            # TODO: When we add the addVAR() method,
+                            # we need to deal with the variance before this
+                            optimal_reduced_err[f].update({o: np.sqrt(var)})
                             optimal_reduced_2d_arrays[f].update({o: fo})
                             box_reduced_flat[f].update({o: stand_flat})
                             box_reduced_stripes[f].update({o: stand_spec})
                             box_reduced_err[f].update({o: stand_err})
-                            extracted_bpms[f].update({o: np.array(np.sum(
-                                mask[f][o], axis=0).T).flatten()})
+                            bpm_array = np.array(
+                                np.sum(mask[f][o], axis=0).T
+                            ).flatten()
+                            extracted_bpms[f].update({o: bpm_array})
                         else:
                             # We do not have the extensions yet, so create them
                             optimal_reduced_stripes[f] = {o: flux}
@@ -602,7 +658,7 @@ class MAROONXEchelle(MAROONX, Spect):
                             extracted_bpms[f] = {o: np.array(np.sum(
                                 mask[f][o], axis=0).T).flatten()}
                 else:
-                    # if last item of the key is not in opt_extraction, we do box extraction
+                    # if last item of the key is not in optimal_extraction_fibers, we do box extraction
                     for o, stripe in stripes[f].items():
                         log.fullinfo(f'Only box extraction in {f}, order {o}')
                         stand_flat = _box_extract_single_stripe(
@@ -615,34 +671,52 @@ class MAROONXEchelle(MAROONX, Spect):
                             box_reduced_flat[f].update({o: stand_flat})
                             box_reduced_stripes[f].update({o: stand_spec})
                             box_reduced_err[f].update({o: stand_err})
-                            extracted_bpms[f].update({o: np.array(np.sum(
-                                mask[f][o], axis=0).T).flatten()})
+                            bpm_array = np.array(
+                                np.sum(mask[f][o], axis=0).T
+                            ).flatten()
+                            extracted_bpms[f].update({o: bpm_array})
                         else:
-                            # We do not have the extensions yet, so create them
+                            # We do not have the extensions yet, create them
                             box_reduced_flat[f] = {o: stand_flat}
                             box_reduced_stripes[f] = {o: stand_spec}
                             box_reduced_err[f] = {o: stand_err}
-                            extracted_bpms[f] = {o: np.array(np.sum(
-                                mask[f][o], axis=0).T).flatten()}
+                            bpm_array = np.array(
+                                np.sum(mask[f][o], axis=0).T
+                            ).flatten()
+                            extracted_bpms[f] = {o: bpm_array}
             for f in stripes.keys():
                 if f in optimal_reduced_stripes:
-                    optimal_reduced_single_fiber = np.array(list(
-                        optimal_reduced_stripes[f].values()), dtype=float)
-                    optimal_reduced_single_fiber_order_key = np.array(list(
-                        optimal_reduced_stripes[f].keys()), dtype=float)
-                    optimal_reduced_single_fiber_err = np.array(list(
-                        optimal_reduced_err[f].values()), dtype=float)
-                    box_reduced_single_fiber = np.array(list(
-                        box_reduced_stripes[f].values()), dtype=float)
-                    box_reduced_single_err = np.array(list(
-                        box_reduced_err[f].values()), dtype=float)
-                    box_reduced_single_flat = np.array(list(
-                        box_reduced_flat[f].values()), dtype=float)
-                    bpm_single_fiber = np.array(list(
-                        extracted_bpms[f].values()), dtype=int)
+                    optimal_reduced_single_fiber = np.array(
+                        list(optimal_reduced_stripes[f].values()),
+                        dtype=float
+                    )
+                    optimal_reduced_single_fiber_order_key = np.array(
+                        list(optimal_reduced_stripes[f].keys()),
+                        dtype=float
+                    )
+                    optimal_reduced_single_fiber_err = np.array(
+                        list(optimal_reduced_err[f].values()),
+                        dtype=float
+                    )
+                    box_reduced_single_fiber = np.array(
+                        list(box_reduced_stripes[f].values()),
+                        dtype=float
+                    )
+                    box_reduced_single_err = np.array(
+                        list(box_reduced_err[f].values()),
+                        dtype=float
+                    )
+                    box_reduced_single_flat = np.array(
+                        list(box_reduced_flat[f].values()),
+                        dtype=float
+                    )
+                    bpm_single_fiber = np.array(
+                        list(extracted_bpms[f].values()),
+                        dtype=int
+                    )
 
                     # Update the extensions based on which fiber we have
-                    f_num = int(f[-1]) 
+                    f_num = int(f[-1])
                     setattr(ad[0], f"REDUCED_ORDERS_FIBER_{f_num}", optimal_reduced_single_fiber_order_key)
                     setattr(ad[0], f"OPTIMAL_REDUCED_FIBER_{f_num}", optimal_reduced_single_fiber)
                     setattr(ad[0], f"OPTIMAL_REDUCED_ERR_{f_num}", optimal_reduced_single_fiber_err)
@@ -659,13 +733,17 @@ class MAROONXEchelle(MAROONX, Spect):
                         box_reduced_stripes[f].values()), dtype=float)
                     box_reduced_single_err = np.array(list(
                         box_reduced_err[f].values()), dtype=float)
-                    box_reduced_single_flat = np.array(list(
-                        box_reduced_flat[f].values()), dtype=float)
-                    bpm_single_fiber = np.array(list(
-                        extracted_bpms[f].values()), dtype=int)
+                    box_reduced_single_flat = np.array(
+                        list(box_reduced_flat[f].values()),
+                        dtype=float
+                    )
+                    bpm_single_fiber = np.array(
+                        list(extracted_bpms[f].values()),
+                        dtype=int
+                    )
 
                     # Update the extensions based on which fiber we have.
-                    f_num = int(f[-1]) 
+                    f_num = int(f[-1])
                     setattr(ad[0], f"REDUCED_ORDERS_FIBER_{f_num}", box_reduced_single_fiber_order_key)
                     setattr(ad[0], f"BOX_REDUCED_FIBER_{f_num}", box_reduced_single_fiber)
                     setattr(ad[0], f"BOX_REDUCED_ERR_{f_num}", box_reduced_single_err)
@@ -721,13 +799,15 @@ class MAROONXEchelle(MAROONX, Spect):
             mask = ad[0].STRIPES_MASKS
             flat_stripes = ad[0].F_STRIPES
 
-            gain = ad.gain()[0][0]  # fix for different channels
-            read_noise = ad.read_noise()[0][0]  # Each chip has a different read noise
+            # fix for different channels
+            gain = ad.gain()[0][0]
+            # Each chip has a different read noise
+            read_noise = ad.read_noise()[0][0]
 
             for f in stripes:
                 for o, stripe in stripes[f].items():
                     log.fullinfo(f'Box extraction in {f}, order {o}')
-                    
+
                     stand_spec = _box_extract_single_stripe(stripe, mask[f][o])
                     stand_err = np.sqrt(stand_spec/gain)
                     stand_flat = _box_extract_single_stripe(flat_stripes[f][o], mask[f][o])
@@ -755,7 +835,7 @@ class MAROONXEchelle(MAROONX, Spect):
                 bpm_single_fiber = np.array(list(extracted_bpms[f].values()), dtype=int)
 
                 # Update the extensions based on which fiber we have
-                f_num = int(f[-1])  # get the fiber number from the key    
+                f_num = int(f[-1])  # get the fiber number from the key
                 setattr(ad[0], f"REDUCED_ORDERS_FIBER_{f_num}", box_reduced_single_fiber_order_key)
                 setattr(ad[0], f"BOX_REDUCED_FIBER_{f_num}", box_reduced_single_fiber)
                 setattr(ad[0], f"BOX_REDUCED_ERR_{f_num}", box_reduced_single_err)
@@ -808,42 +888,43 @@ def create_synthetic_dark(ad_coeff, exptime_value=None, nd_value=None):
         If neither exptime_value nor nd_value is provided, or if required 
         extensions are missing from ad_coeff
     """
-    
     # Validate inputs
     if exptime_value is None and nd_value is None:
-        raise ValueError("Either exptime_value or nd_value must be provided")
-    
+        msg = "Either exptime_value or nd_value must be provided"
+        raise ValueError(msg)
+
     # Check for required extensions
     required_extensions = ['COEFF_Z0', 'COEFF_Z1', 'LOGEXPTIME']
     for ext_name in required_extensions:
         if not hasattr(ad_coeff[0], ext_name):
-            raise ValueError(f"Required extension {ext_name} not found")
-    
+            msg = f"Required extension {ext_name} not found"
+            raise ValueError(msg)
+
     # Extract coefficient arrays
     z0 = ad_coeff[0].COEFF_Z0
     z1 = ad_coeff[0].COEFF_Z1
     logexptime_table = ad_coeff[0].LOGEXPTIME
-    
+
     # Extract calibration data
     logexptimes = np.array(logexptime_table['logexptime'])
     exptimes = np.array(logexptime_table['exptime'])
-    
+
     # Check if ND filter data is available
     has_nd_data = 'ndfilter' in logexptime_table.colnames
     if has_nd_data:
         ndfilters = np.array(logexptime_table['ndfilter'])
     else:
         ndfilters = np.zeros_like(exptimes)  # Default to zero if no ND data
-    
+
     # Initialize variables
     factor = 1.0
     actual_exptime = exptime_value
     actual_nd = nd_value
-    
+
     # Case 1: Only exposure time provided
     if exptime_value is not None and nd_value is None:
         actual_exptime = exptime_value
-        
+
         if has_nd_data and len(np.unique(ndfilters)) > 1:
             # Calculate expected ND position from exposure time
             z_nd_logt = np.polyfit(logexptimes, ndfilters, 1)
@@ -851,11 +932,11 @@ def create_synthetic_dark(ad_coeff, exptime_value=None, nd_value=None):
             actual_nd = f_nd_logt(np.log10(exptime_value))
         else:
             actual_nd = ndfilters[0] if len(ndfilters) > 0 else 0.0
-    
-    # Case 2: Only ND value provided  
+
+    # Case 2: Only ND value provided
     elif nd_value is not None and exptime_value is None:
         actual_nd = nd_value
-        
+
         if has_nd_data and len(np.unique(ndfilters)) > 1:
             # Calculate exposure time from ND position
             z_logt_nd = np.polyfit(ndfilters, logexptimes, 1)
@@ -864,32 +945,32 @@ def create_synthetic_dark(ad_coeff, exptime_value=None, nd_value=None):
         else:
             # Use median exposure time as default
             actual_exptime = np.median(exptimes)
-    
+
     # Case 3: Both exposure time and ND value provided
     elif exptime_value is not None and nd_value is not None:
         actual_exptime = exptime_value
         actual_nd = nd_value
-        
+
         # Check for ND filter mismatch and apply correction if needed
         if has_nd_data and len(np.unique(ndfilters)) > 1:
             z_nd_logt = np.polyfit(logexptimes, ndfilters, 1)
             f_nd_logt = np.poly1d(z_nd_logt)
-            z_logt_nd = np.polyfit(ndfilters, logexptimes, 1) 
+            z_logt_nd = np.polyfit(ndfilters, logexptimes, 1)
             f_logt_nd = np.poly1d(z_logt_nd)
-            
+
             expected_nd = f_nd_logt(np.log10(exptime_value))
             nd_difference = abs(actual_nd - expected_nd)
-            
+
             # Apply correction factor if ND mismatch is significant (>0.2)
             if nd_difference > 0.2:
                 logt_nominal = f_logt_nd(actual_nd)
                 factor = 10**(np.log10(exptime_value) - logt_nominal)
-    
+
     # Calculate synthetic dark frame
     # Formula: dark = z1 + z0 * log10(exptime * factor)
     effective_logexptime = np.log10(actual_exptime * factor)
     synthetic_dark = z1 + z0 * effective_logexptime
-    
+
     return synthetic_dark.astype(np.float32), actual_exptime, actual_nd, factor
 
 
@@ -1068,10 +1149,10 @@ def _optimal_extraction_single_stripe_NEW(stripe, flat_stripe, gain=1, read_nois
 
     # mask         = mask[sparse_vcols]  # strip mask similarly
     # back_var     = back_var[sparse_vcols] #strip background variance map similarly
-        
+
     mask         = np.array(mask.todense()[sparse_vcols])  # strip mask similarly
     back_var     = np.array(back_var[sparse_vcols]) #strip background variance map similarly
-    
+
     flat_stripe  = np.array(flat_stripe.todense()[sparse_vcols])
     sparse_vrows = np.count_nonzero((stripe != 0).T[1500])  # use ~middle column slit height as slit height pass
     data         = np.zeros((sparse_vrows, stripe.shape[1]))
@@ -1079,7 +1160,7 @@ def _optimal_extraction_single_stripe_NEW(stripe, flat_stripe, gain=1, read_nois
     new_mask     = data.copy()  # create actual limit numpy arrays
     new_back_var = data.copy()  # create actual limit numpy arrays
     profile      = data.copy()
-    
+
     # print(f"stripe shape: {stripe.shape}, flat stripe shape: {flat_stripe.shape}, mask shape: {mask.shape}"
     #       f", back_var shape: {back_var.shape}")
     # # print the types
@@ -1098,7 +1179,7 @@ def _optimal_extraction_single_stripe_NEW(stripe, flat_stripe, gain=1, read_nois
         else:
             new_mask[:, i]     = 0  # could be optimized
             new_back_var[:, i] = 0  # could be optimized
-    
+
     # TODO: possible optimization, refacter after regression tests pass
     # rectify_and_reshape(back_var, box_extracted_flat_stripe, data, flat_stripe, mask, new_back_var, new_mask, profile, stripe)
 
@@ -1235,14 +1316,14 @@ def _optimal_extraction_single_stripe(stripe, flat_stripe, gain=1, read_noise=1.
     else:
         # copy mask, because it will be modified
         mask     = mask.copy()
-    
+
     if back_var is None or isinstance(back_var, float):
         back_var = stripe.copy()
         back_var[:,:] = 0
     else:
         # back_var = back_var.copy()
         back_var = back_var.todense() if hasattr(back_var, "todense") else back_var.copy()
-    
+
     # box extracted spectrum
     stand_spec0 = _box_extract_single_stripe(stripe, mask)  # direct box extraction,
     stand_spec = stand_spec0.copy()
@@ -1262,11 +1343,11 @@ def _optimal_extraction_single_stripe(stripe, flat_stripe, gain=1, read_noise=1.
     # find the spatial columns utilized along entire stripe (greater than slit height because of stripe path)
     sparse_vcols = np.array(~np.all(stripe.todense() == 0, axis=1)).reshape(-1)
     stripe       = np.array(stripe.todense()[sparse_vcols])  # strip stripe to the inclusive nonzero rows
-    
+
     # mask         = np.array(mask.todense()[sparse_vcols]) # mask[sparse_vcols]  # strip mask similarly
     mask         = mask[sparse_vcols]  # strip mask similarly
     back_var     = back_var[sparse_vcols] #strip background variance map similarly
-    
+
     flat_stripe  = np.array(flat_stripe.todense()[sparse_vcols])
     sparse_vrows = np.count_nonzero((stripe != 0).T[1500])  # use ~middle column slit height as slit height pass
     data         = np.zeros((sparse_vrows, stripe.shape[1]))

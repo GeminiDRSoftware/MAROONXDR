@@ -31,7 +31,7 @@ and processed_flat subdirectories, respectively.  If you need to change the path
 #     myreduce = Reduce()
 #     myreduce.files.extend(science_files)
 #     myreduce.drpkg= 'maroonxdr'
-    
+
 #     # coment out this line for default reduction
 #     # myreduce.recipename = 'makeStripeExtractionCheck'
 
@@ -44,11 +44,11 @@ import os
 from pathlib import Path
 
 from gempy.adlibrary import dataselect
+from gempy.utils import logutils
 from recipe_system.reduction.coreReduce import Reduce
 
 import maroonx_instruments  # noqa : important to load adclass tags
 
-from gempy.utils import logutils
 logutils.config(file_name="test_reduction.log", stomp=False)
 log = logutils.get_logger("test_reduction.log")
 log.setLevel("DEBUG")

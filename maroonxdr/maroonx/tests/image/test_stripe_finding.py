@@ -1,11 +1,9 @@
-from copy import deepcopy
-from pathlib import Path
-import sys
-import os
 import logging
-import pytest
+from copy import deepcopy
+
 import astrodata
 import numpy as np
+import pytest
 
 import maroonx_instruments  # noqa : import is necesary for astrodata.instrument()
 from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
@@ -23,6 +21,7 @@ def test_find_stripes(caplog, filename):
     been previously found in an extracted frame as well the possible set of
     any not identified in the final extraction as being exactly those that were
     removed by identifyStripes.
+
     Parameters
     ----------
     caplog : fixture
@@ -61,6 +60,7 @@ def test_identify_stripes(caplog, filename):
     Also check that the number of stripes removed from those inherited by
     findStripes are the same as those removed by identifyStripes
     (complementary to test in findStripes).
+
     Parameters
     ----------
     caplog : fixture
@@ -76,7 +76,7 @@ def test_identify_stripes(caplog, filename):
     p = MAROONX([deepcopy(ad)])
     p.prepare()
     p.findStripes()
-    adtest = p.identifyStripes(selected_fibers=(',').join(selected_fibers))
+    adtest = p.identifyStripes(selected_fibers=[int(fib) for fib in selected_fibers])
     for ifib, fib in enumerate(selected_fibers):
         fiber = 'fiber_'+fib
         idx = ifib * 6
@@ -88,7 +88,7 @@ def test_identify_stripes(caplog, filename):
             else:
                 assert (adtest[0][0].STRIPES_ID[fiber][order] ==
                         ad[0].STRIPES_ID[order][idx:idx+6].data).all()
-    
+
     assert len(caplog.records) > 0
     assert sum("could not be identified" in r.message for r in caplog.records) \
            == len(ad[0].REMOVED_STRIPES)
@@ -99,6 +99,7 @@ def test_full_stripe_definition(caplog, filename):
     """
     Test that the same exact stripes are found in reference masterflat frame
     from a previous extraction
+
     Parameters
     ----------
     caplog : fixture
@@ -114,7 +115,7 @@ def test_full_stripe_definition(caplog, filename):
     p = MAROONX([deepcopy(ad)])
     p.prepare()
     p.findStripes()
-    p.identifyStripes(selected_fibers=(',').join(selected_fibers))
+    p.identifyStripes(selected_fibers=[int(fib) for fib in selected_fibers])
     adtest = p.defineFlatStripes(extract=True)
     assert len(caplog.records) > 0
     for keys in ad[0].STRIPES_ID.keys():

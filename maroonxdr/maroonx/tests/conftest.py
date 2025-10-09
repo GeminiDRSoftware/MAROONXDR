@@ -1,15 +1,11 @@
 import os
-import pytest
-from pathlib import Path
-import tempfile
-import shutil
 from contextlib import contextmanager
-
-import numpy as np
+from pathlib import Path
 
 import astrodata
+import numpy as np
+import pytest
 from gempy.adlibrary import dataselect
-import maroonx_instruments  # noqa : important to load adclass tags
 
 # =========================================================
 # DRAGONS TEST CONFIGURATION
@@ -85,7 +81,7 @@ def legacy_reduced_path(legacy_test_root):
     """
     Fixture providing path to test legacy data directory.
     """
-    path = legacy_test_root / "MaroonX_spectra_reduced" / "20241124" 
+    path = legacy_test_root / "MaroonX_spectra_reduced" / "20241124"
     if not path.exists():
         pytest.skip(f"Legacy data directory does not exist: {path}")
     return path
@@ -95,7 +91,10 @@ def legacy_darks_path(legacy_test_root):
     """
     Fixture providing path to test legacy data directory.
     """
-    path = legacy_test_root / "MaroonX_spectra_reduced" / "Maroonx_masterframes" / "202411xx" / "darks"
+    path = (
+        legacy_test_root / "MaroonX_spectra_reduced"
+        / "Maroonx_masterframes" / "202411xx" / "darks"
+    )
     if not path.exists():
         pytest.skip(f"Legacy data directory does not exist: {path}")
     return path
@@ -105,7 +104,10 @@ def legacy_flats_path(legacy_test_root):
     """
     Fixture providing path to test legacy data directory.
     """
-    path = legacy_test_root / "MaroonX_spectra_reduced" / "Maroonx_masterframes" / "202411xx" / "flats"
+    path = (
+        legacy_test_root / "MaroonX_spectra_reduced"
+        / "Maroonx_masterframes" / "202411xx" / "flats"
+    )
     if not path.exists():
         pytest.skip(f"Legacy data directory does not exist: {path}")
     return path
@@ -123,10 +125,10 @@ def science_dir(dragons_test_root):
 @pytest.fixture(scope="function")
 def science_dir_context(science_dir):
     """Fixture that provides a context manager to change the working directory"""
-    
+
     @contextmanager
     def change_dir():
-        original_dir = os.getcwd()
+        original_dir = Path.cwd()
         try:
             os.chdir(science_dir)
             yield
@@ -137,13 +139,13 @@ def science_dir_context(science_dir):
 @pytest.fixture(autouse=True)
 def change_to_science_dir(science_dir):
     """Automatically change to science directory before each test and restore after"""
-    original_dir = os.getcwd()
-    
+    original_dir = Path.cwd()
+
     # Change to science directory
     os.chdir(science_dir)
-    
+
     yield science_dir
-    
+
     # Restore original directory
     os.chdir(original_dir)
 
@@ -165,7 +167,7 @@ def processed_dark_path(science_dir):
 def arm(request):
     """
     Fixture providing color tag name for the arm.
-    """    
+    """
     return request.param
 
 @pytest.fixture(scope="function")
@@ -173,7 +175,9 @@ def ad_empty_dark(arm, science_dir):
     """
     Fixture providing an astrodata object with empty data.
     """
-    dark_list = dataselect.select_data(science_dir.glob("*.fits"), tags=['RAW', 'DARK', arm])
+    dark_list = dataselect.select_data(
+        science_dir.glob("*.fits"), tags=['RAW', 'DARK', arm]
+    )
     dark_ad = astrodata.open(dark_list[0])
     dark_ad[0].data = np.zeros((1, 1))
     return dark_ad
@@ -194,8 +198,9 @@ def pytest_configure(config):
     """
     # Register custom markers
     config.addinivalue_line(
-        "markers", 
-        "regression: marks tests as regression tests (deselect with '-m \"not regression\"')"
+        "markers",
+        "regression: marks tests as regression tests "
+        "(deselect with '-m \"not regression\"')"
     )
     config.addinivalue_line(
         "markers",

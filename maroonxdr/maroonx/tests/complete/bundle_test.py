@@ -1,23 +1,23 @@
+"""Test bundle file reduction workflow."""
+
 import os
 from pathlib import Path
 
 from gempy.adlibrary import dataselect
+from gempy.utils import logutils
 from recipe_system.reduction.coreReduce import Reduce
 
-import maroonx_instruments  # noqa : important to load adclass tags
-
-from gempy.utils import logutils
 logutils.config(file_name="test_reduction.log", stomp=False)
 log = logutils.get_logger("test_reduction.log")
 log.setLevel("DEBUG")
 
 
 def test_reduce_bundle():
-    
+    """Test reduction of bundle FITS files containing both red and blue arms."""
     # Get all files in the science_dir.  Change the path here to suit your installation.
     test_path = Path(os.environ.get("MAROONX_DRAGONS_TEST"))
     science_dir = test_path / 'science_dir'
-    
+
     # Get all files in the science_dir
     all_files = list(Path(science_dir).glob('*.fits'))
     all_files = [str(p) for p in all_files]
@@ -25,7 +25,7 @@ def test_reduce_bundle():
     only_bundles = dataselect.select_data(all_files, tags=['BUNDLE'])
 
     # Change working directory to science_dir
-    original_dir = os.getcwd()
+    original_dir = Path.cwd()
     os.chdir(science_dir)
 
     # Run reduce on all selected files
