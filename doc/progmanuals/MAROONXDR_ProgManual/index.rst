@@ -20,6 +20,7 @@ DRAGONS MAROONX Data Reduction Programmer Manual
    primitives
    parameters
    tests
+   legacy
 
 
 Indices and tables
