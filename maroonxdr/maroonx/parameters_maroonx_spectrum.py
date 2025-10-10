@@ -195,3 +195,26 @@ class bundleArmStreamsConfig(config.Config):
     Configuration for bundleArmStreams primitive.
     """
     suffix = config.Field('Filename suffix', str, '_rebundled')
+
+
+class displaySpectraConfig(config.Config):
+    """
+    Configuration for displaySpectra primitive.
+
+    This primitive launches an interactive Bokeh viewer to display extracted
+    spectra in a web browser for quality assessment.
+    """
+    fibers = config.ListField(
+        'List of fibers to display (e.g., [2, 3, 4] for science fibers, '
+        '[6] for combined fiber, [5] for calibration fiber).',
+        int,
+        None,
+        optional=True,
+        single=False,
+    )
+    show_wavelength = config.Field(
+        'Display spectra vs wavelength (nm) if wavelength solution available. '
+        'If False or no wavelength solution exists, display vs pixel number.',
+        bool,
+        False,
+    )

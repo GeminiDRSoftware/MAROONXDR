@@ -2,6 +2,7 @@
 This module contains primitives to generate wavelength
 calibration solutions from reduced 1-D spectra.
 """
+
 # ------------------------------------------------------------------------------
 import multiprocessing
 import os
@@ -34,7 +35,7 @@ from .primitives_maroonx_echelle import MAROONXEchelle
 
 
 # Monkey patch for barycorrpy compatibility with newer astroquery versions
-def _patched_get_stellar_data(name=''):
+def _patched_get_stellar_data(name=""):
     """
     Fixed version of barycorrpy.utils.get_stellar_data for newer astroquery.
     Based on solution from: https://github.com/shbhuk/barycorrpy/issues/59
@@ -46,43 +47,52 @@ def _patched_get_stellar_data(name=''):
 
     customSimbad = Simbad()
     customSimbad.add_votable_fields(
-        'ra', 'dec', 'pmra', 'pmdec', 'plx_value', 'rvz_radvel'
+        "ra", "dec", "pmra", "pmdec", "plx_value", "rvz_radvel"
     )
 
     obj = customSimbad.query_object(name)
     if obj is None:
         msg = (
-            f'ERROR: {name} target not found. Check target name or '
-            f'enter RA,Dec,PMRA,PMDec,Plx,RV,Epoch manually\n\n'
+            f"ERROR: {name} target not found. Check target name or "
+            f"enter RA,Dec,PMRA,PMDec,Plx,RV,Epoch manually\n\n"
         )
         raise ValueError(msg)
     else:
-        warning += [f'{name} queried from SIMBAD.']
+        warning += [f"{name} queried from SIMBAD."]
 
     # Check for masked values
-    if all([not x for x in [obj.mask[0][i] for i in obj.colnames]])==False:
-        warning += ['Masked values present in queried dataset']
+    if all([not x for x in [obj.mask[0][i] for i in obj.colnames]]) == False:
+        warning += ["Masked values present in queried dataset"]
 
     obj = obj.filled(None)
 
-    pos = SkyCoord(ra=obj['ra'], dec=obj['dec'], unit=(u.deg, u.deg))
+    pos = SkyCoord(ra=obj["ra"], dec=obj["dec"], unit=(u.deg, u.deg))
     ra = pos.ra.value[0]
     dec = pos.dec.value[0]
-    pmra = obj['pmra'][0]
-    pmdec = obj['pmdec'][0]
-    plx = obj['plx_value'][0]
-    rv = obj['rvz_radvel'][0] * 1000 #SIMBAD output is in km/s. Converting to m/s
+    pmra = obj["pmra"][0]
+    pmdec = obj["pmdec"][0]
+    plx = obj["plx_value"][0]
+    rv = obj["rvz_radvel"][0] * 1000  # SIMBAD output is in km/s. Converting to m/s
     epoch = 2451545.0
 
-    star = {'ra':ra,'dec':dec,'pmra':pmra,'pmdec':pmdec,'px':plx,'rv':rv,'epoch':epoch}
+    star = {
+        "ra": ra,
+        "dec": dec,
+        "pmra": pmra,
+        "pmdec": pmdec,
+        "px": plx,
+        "rv": rv,
+        "epoch": epoch,
+    }
 
     # Fill Masked values with None. Again.
     for i in star:
         if star[i] > 1e10:
             star[i] = None
 
-    warning += [f'Values queried from SIMBAD are {star}']
+    warning += [f"Values queried from SIMBAD are {star}"]
     return star, warning
+
 
 # Monkey patch the original function in barycorrpy
 import barycorrpy.barycorrpy as bcp
@@ -98,13 +108,15 @@ exposure_meter_BC_vel = bcp.exposure_meter_BC_vel
 
 # ------------------------------------------------------------------------------
 
+
 def _get_calibration_wavecal_path():
     """
     Get the path for the calibration flat file.
     Should probably be deprecated when dragons calib is implemented.
     """
     cwd = Path(os.getcwd())
-    return cwd # / 'calibrations' / 'processed_wavecal'
+    return cwd  # / 'calibrations' / 'processed_wavecal'
+
 
 def _get_calibration_wavecal(adinputs):
     """
@@ -114,25 +126,27 @@ def _get_calibration_wavecal(adinputs):
     # Get the calibration etalons
     calib_path = _get_calibration_wavecal_path()
 
-    arm_tag = 'BLUE' if 'BLUE' in adinputs[0].tags else 'RED'
+    arm_tag = "BLUE" if "BLUE" in adinputs[0].tags else "RED"
     etalons = dataselect.select_data(
-        list(calib_path.glob('*.fits')),
-        tags=[arm_tag, 'ETALON', 'PREPARED']
+        list(calib_path.glob("*.fits")), tags=[arm_tag, "ETALON", "PREPARED"]
     )
     ad_etalons = [astrodata.open(f) for f in etalons]
 
     adoutputs = []
     for ad in adinputs:
         science_time = ad.ut_datetime()
+
         # Find the etalon with minimum time difference
-        closest_etalon = min(ad_etalons,
-                           key=lambda etalon: abs((etalon.ut_datetime() - science_time).total_seconds()))
+        def time_diff(etalon):
+            return abs((etalon.ut_datetime() - science_time).total_seconds())
+
+        closest_etalon = min(ad_etalons, key=time_diff)
 
         adoutputs.append(closest_etalon)
     return adoutputs
 
 
-class LogExceptions(object):
+class LogExceptions:
     """
     Wraps a function, so that a backtrace is written to logger.
     Used to wrap iterative fit, which is called using multiprocessing.
@@ -147,6 +161,7 @@ class LogExceptions(object):
         except Exception as e:
             e.original_traceback = traceback.format_tb(e.__traceback__)
             raise
+
 
 @parameter_override
 class MaroonXSpectrum(MAROONXEchelle, Spect):
@@ -178,7 +193,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             Input AstroData objects with 1D box extracted spectra. Must have
             REDUCED_ORDERS_FIBER_* extensions for each fiber.
         fibers : list of int, optional
-            Fiber numbers to load wavelength solutions for. If None, all 
+            Fiber numbers to load wavelength solutions for. If None, all
             fibers (1-5) are processed. Default is None.
         suffix : str, optional
             Suffix to append to output filenames. Default is empty string.
@@ -187,8 +202,8 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         -------
         list of AstroData
             Modified AstroData objects with static wavelength solutions stored
-            as WLS_STATIC_FIBER_* extensions for each requested fiber. 
-            Each extension contains a 2D array with wavelength values (nm) 
+            as WLS_STATIC_FIBER_* extensions for each requested fiber.
+            Each extension contains a 2D array with wavelength values (nm)
             indexed by [order, pixel].
         """
         log = self.log
@@ -196,36 +211,37 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         timestamp_key = self.timestamp_keys[self.myself()]
 
         # requested fibers
-        fibers = params.get('fibers')
+        fibers = params.get("fibers")
         if fibers is None:
             fibers = [1, 2, 3, 4, 5]
 
         for ad in adinputs:
             # Load static wavelength solution from the config
             statwavelength_file = maroonx_utils.get_statwavelength_filename(ad)
-            log.info(f'Loading static wavelength file: {statwavelength_file}')
+            log.info("Loading static wavelength file: %s", statwavelength_file)
 
             for fiber in range(1, 6):
                 # Set up an initial value for all fibers
-                setattr(ad[0], f'WLS_STATIC_FIBER_{fiber}', np.zeros((1, 1)))
+                setattr(ad[0], f"WLS_STATIC_FIBER_{fiber}", np.zeros((1, 1)))
 
             for fiber in fibers:
                 # Check if the fiber is present in the data
-                orders = getattr(ad[0], f'REDUCED_ORDERS_FIBER_{fiber}')
+                orders = getattr(ad[0], f"REDUCED_ORDERS_FIBER_{fiber}")
                 if orders.size == 1:
                     # Save an empty array for this fiber
                     wls_data = np.zeros((1, 1))
                 else:
                     # Load the static wavelength solution for this fiber
                     wls_dict = maroonx_utils.load_statwls_from_fits(
-                        statwavelength_file,
-                        ext_name=f'FIBER_{fiber}',
-                        orders=orders)
-                    wls_data = np.vstack([wls_dict[str(int(order))] for order in orders])
+                        statwavelength_file, ext_name=f"FIBER_{fiber}", orders=orders
+                    )
+                    wls_data = np.vstack(
+                        [wls_dict[str(int(order))] for order in orders]
+                    )
 
-                setattr(ad[0], f'WLS_STATIC_FIBER_{fiber}', wls_data)
+                setattr(ad[0], f"WLS_STATIC_FIBER_{fiber}", wls_data)
 
-            ad.update_filename(suffix=params['suffix'], strip=True)
+            ad.update_filename(suffix=params["suffix"], strip=True)
 
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
@@ -297,16 +313,16 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
 
         # Extract parameters from params dict
-        guess_file = params.get('guess_file')
-        fibers = params.get('fibers')
-        orders = params.get('orders')
-        degree_sigma = params.get('degree_sigma')
-        degree_width = params.get('degree_width')
-        use_sigma_lr = params.get('use_sigma_lr')
-        show_plots = params.get('show_plots', False)
-        plot_path = params.get('plot_path', '')
-        multithreading = params.get('multithreading')
-        iterations = params.get('iterations')
+        guess_file = params.get("guess_file")
+        fibers = params.get("fibers")
+        orders = params.get("orders")
+        degree_sigma = params.get("degree_sigma")
+        degree_width = params.get("degree_width")
+        use_sigma_lr = params.get("use_sigma_lr")
+        show_plots = params.get("show_plots", False)
+        plot_path = params.get("plot_path", "")
+        multithreading = params.get("multithreading")
+        iterations = params.get("iterations")
 
         start_time = time.time()
 
@@ -322,10 +338,13 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
             # See which fibers and orders we are extracting
             if fibers is None:
-                log.warning("No fibers specified.  Finding all Etalon and LFC fibers and extracting those.")
+                log.warning(
+                    "No fibers specified.  Finding all Etalon and LFC "
+                    "fibers and extracting those."
+                )
                 fibers_list = []
                 for fiber_num, fiber_type in enumerate(ad.fiber_setup(), start=1):
-                    if fiber_type in ['Etalon', 'LFC']:
+                    if fiber_type in ["Etalon", "LFC"]:
                         fibers_list.append(fiber_num)
                 fibers = tuple(fibers_list)
 
@@ -342,7 +361,6 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             log.fullinfo(f"Extracting fibers {fibers} from {ad.filename}")
 
             # Set logger for iterative fit
-            #maroonx_fit.set_logger(log)
             set_logger(log)
 
             # Create worker pools for multithreading
@@ -350,22 +368,28 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 pool = multiprocessing.get_context("fork").Pool()
                 log.fullinfo(f"Using {pool._processes} processes for extraction")
                 for fiber, order, data, guess in maroonx_utils.load_recordings(
-                ad, guess_file, fibers, orders):
+                    ad, guess_file, fibers, orders
+                ):
                     log.fullinfo(f"{ad.filename} - Fitting fiber {fiber} order {order}")
 
                     # Remove pixels that are known to be bad
                     ############################
                     if order == 122:
-                        # Remnant from the old pipeline, we should move this to the BPM at some point
+                        # Remnant from the old pipeline, we should move
+                        # this to the BPM at some point
                         data[1943] = np.nan
-                        log.warning('Removed pixel 1943 in order 122')
+                        log.warning("Removed pixel 1943 in order 122")
 
                     if fiber == 5 and order == 94 and len(data) > 4000:
                         data[0:399] = 0
-                        log.warning('Removed first 400 pixels in truncated order 94 of fiber 5')
+                        log.warning(
+                            "Removed first 400 pixels in truncated "
+                            "order 94 of fiber 5"
+                        )
                     ############################
 
-                    # Define callback functions to save results and errors for multithreading
+                    # Define callback functions to save results and errors
+                    # for multithreading
                     def save_result(x, fiber=fiber, order=order):
                         x.fiber = fiber
                         x.order = order
@@ -374,28 +398,36 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
                     def error_callback(exc, fiber=fiber, order=order):
                         errors.append((fiber, order, str(exc)))
-                        log.warning(f"{ad.filename} - Error extracting fiber {fiber} order {order}: {exc}")
+                        log.warning(
+                            "%s - Error extracting fiber %s order %s: %s",
+                            ad.filename, fiber, order, exc
+                        )
 
                     if not (np.nanmedian(data) > 0.005):
-                        log.warning(f'Skipped order {order} for fiber {fiber} for insufficient flux')
+                        log.warning(
+                            "Skipped order %s for fiber %s for insufficient flux",
+                            order, fiber
+                        )
                         continue
 
-                    # Asynchronously run iterative fit using the data yielded by the generator function
+                    # Asynchronously run iterative fit using the data
+                    # yielded by the generator function
                     pool.apply_async(
                         maroonx_fit.iterative_fit,
                         kwds=dict(
-                            input_spectrum = data,
-                            degree_sigma = degree_sigma,
-                            degree_width = degree_width,
-                            iterations = iterations,
-                            guess_spectrum = guess,
+                            input_spectrum=data,
+                            degree_sigma=degree_sigma,
+                            degree_width=degree_width,
+                            iterations=iterations,
+                            guess_spectrum=guess,
                             fiber=f"{fiber}_{order}",
-                            plot_path = plot_path,
-                            use_sigma_lr = use_sigma_lr,
-                            show_plots = show_plots),
+                            plot_path=plot_path,
+                            use_sigma_lr=use_sigma_lr,
+                            show_plots=show_plots,
+                        ),
                         callback=save_result,
-                        error_callback=error_callback
-                        )
+                        error_callback=error_callback,
+                    )
 
                 pool.close()
                 pool.join()
@@ -404,52 +436,67 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             else:
                 log.fullinfo("Using single process for extraction")
                 for fiber, order, data, guess in maroonx_utils.load_recordings(
-                ad, guess_file, fibers, orders):
+                    ad, guess_file, fibers, orders
+                ):
                     log.fullinfo(f"{ad.filename} - Fitting fiber {fiber} order {order}")
 
                     # Remove pixels that are known to be bad
                     ############################
                     if order == 122:
-                        # Remnant from the old pipeline, we should move this to the BPM at some point
+                        # Remnant from the old pipeline, we should move
+                        # this to the BPM at some point
                         data[1943] = np.nan
-                        log.warning('Removed pixel 1943 in order 122')
+                        log.warning("Removed pixel 1943 in order 122")
 
                     if fiber == 5 and order == 94 and len(data) > 4000:
                         data[0:399] = 0
-                        log.warning('Removed first 400 pixels in truncated order 94 of fiber 5')
+                        log.warning(
+                            "Removed first 400 pixels in truncated "
+                            "order 94 of fiber 5"
+                        )
                     ############################
 
                     if not (np.nanmedian(data) > 0.005):
-                        log.warning(f'Skipped order {order} for fiber {fiber} for insufficient flux')
+                        log.warning(
+                            "Skipped order %s for fiber %s for insufficient flux",
+                            order, fiber
+                        )
                         continue
 
-                    # Run iterative fit using the data yielded by the generator function in serial
+                    # Run iterative fit using the data yielded by the
+                    # generator function in serial
                     try:
                         output = maroonx_fit.iterative_fit(
-                                input_spectrum = data,
-                                degree_sigma = degree_sigma,
-                                degree_width = degree_width,
-                                iterations = iterations,
-                                guess_spectrum = guess,
-                                fiber=f"{fiber}_{order}",
-                                plot_path=plot_path,
-                                use_sigma_lr = use_sigma_lr,
-                                show_plots = show_plots
-                                )
+                            input_spectrum=data,
+                            degree_sigma=degree_sigma,
+                            degree_width=degree_width,
+                            iterations=iterations,
+                            guess_spectrum=guess,
+                            fiber=f"{fiber}_{order}",
+                            plot_path=plot_path,
+                            use_sigma_lr=use_sigma_lr,
+                            show_plots=show_plots,
+                        )
 
-                        # Save the results in a manner anologoous to the save_results callback function
+                        # Save the results in a manner anologoous to the
+                        # save_results callback function
                         output.fiber = fiber
                         output.order = order
                         output.recording_time = 0.0  # TODO extract from data set
                         results.append(output)
                     except Exception as exc:
                         errors.append((fiber, order, str(exc)))
-                        log.warning(f"{ad.filename} - Error extracting fiber {fiber} order {order}: {exc}")
-
+                        log.warning(
+                            "%s - Error extracting fiber %s order %s: %s",
+                            ad.filename, fiber, order, exc
+                        )
 
             # Record the time taken
             end_time = time.time()
-            log.fullinfo(f"Finished extracting etalon lines in {end_time - start_time:.2f} seconds")
+            log.fullinfo(
+                f"Finished extracting etalon lines in "
+                f"{end_time - start_time:.2f} seconds"
+            )
 
             if results:
                 # Add the results to adinputs
@@ -465,7 +512,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             if errors:
                 log.warning("Errors were encountered during extraction")
                 for fiber, order, msg in errors:
-                    log.warning(f"Error extracting fiber {fiber} order {order}: {msg}")
+                    log.warning("Error extracting fiber %s order %s: %s", fiber, order, msg)
 
         return adinputs
 
@@ -552,33 +599,36 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         timestamp_key = self.timestamp_keys[self.myself()]
 
         # get the parameters from the config
-        fibers = params.get('fibers')
-        symmetric_linefits = params.get('symmetric_linefits')
-        n_knots = params.get('n_knots')
-        thar = params.get('thar')
-        ref_file = params.get('ref_file')
+        fibers = params.get("fibers")
+        symmetric_linefits = params.get("symmetric_linefits")
+        n_knots = params.get("n_knots")
+        thar = params.get("thar")
+        ref_file = params.get("ref_file")
 
         for ad in adinputs:
             if "ETALON" not in ad.tags:
-                log.warning(f"File {ad.filename} is not ETALON. Skipping dynamic wavelength solution fitting.")
+                log.warning(
+                    "File %s is not ETALON. Skipping dynamic wavelength solution fitting.",
+                    ad.filename
+                )
                 continue
 
             # Load the etalon spectrum
             mx_spectrum = MXSpectrum(ad, etalon_peaks_symmetric=symmetric_linefits)
-            log.fullinfo(f'Processing etalon file: {ad.filename}')
+            log.fullinfo(f"Processing etalon file: {ad.filename}")
 
             # Determine fibers to process if not provided
             if fibers is None:
                 fibers = []
                 for fiber_num, fiber_type in enumerate(ad.fiber_setup(), start=1):
-                    if fiber_type == 'Etalon':
+                    if fiber_type == "Etalon":
                         fibers.append(fiber_num)
-                log.fullinfo(f'Found etalon fibers: {fibers}')
+                log.fullinfo(f"Found etalon fibers: {fibers}")
 
             if ref_file is not None:
                 # If a reference file and reference fiber is given, offset the etalon
                 # position on all fibers by the offset found in the reference fiber.
-                # ref_fiber = params.get('ref_fiber')
+                
                 # TODO: Ask Andreas what this is supposed to do because currently
                 # we do not know how this works in the old pipeline
                 msg = "Reference file not implemented yet"
@@ -587,27 +637,42 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
             # Load reference wavelength solution from the config
             refwavelength_file = maroonx_utils.get_refwavelength_filename(ad)
-            log.fullinfo(f'Loading reference wavelength file: {refwavelength_file}')
+            log.fullinfo(f"Loading reference wavelength file: {refwavelength_file}")
 
             # If chosen, apply ThAr wls to etalon frame
             if thar == True:
                 ref_wavelength = {
-                    1: maroonx_utils.load_refwls_from_fits(refwavelength_file, ext_name='FIBER_2'),
-                    2: maroonx_utils.load_refwls_from_fits(refwavelength_file, ext_name='FIBER_2'),
-                    3: maroonx_utils.load_refwls_from_fits(refwavelength_file, ext_name='FIBER_3'),
-                    4: maroonx_utils.load_refwls_from_fits(refwavelength_file, ext_name='FIBER_4'),
-                    5: maroonx_utils.load_refwls_from_fits(refwavelength_file, ext_name='FIBER_4')
+                    1: maroonx_utils.load_refwls_from_fits(
+                        refwavelength_file, ext_name="FIBER_2"
+                    ),
+                    2: maroonx_utils.load_refwls_from_fits(
+                        refwavelength_file, ext_name="FIBER_2"
+                    ),
+                    3: maroonx_utils.load_refwls_from_fits(
+                        refwavelength_file, ext_name="FIBER_3"
+                    ),
+                    4: maroonx_utils.load_refwls_from_fits(
+                        refwavelength_file, ext_name="FIBER_4"
+                    ),
+                    5: maroonx_utils.load_refwls_from_fits(
+                        refwavelength_file, ext_name="FIBER_4"
+                    ),
                 }
                 for fiber in fibers:
                     wls_solution = WavelengthSolution(**ref_wavelength[fiber])
                     mx_spectrum.spectra[fiber].apply_wavelength_solution(wls_solution)
             else:
                 for fiber in fibers:
-                    log.fullinfo(f'Apply static wavelength solution for peak number identification in fiber {fiber}.')
+                    log.fullinfo(
+                        f"Apply static wavelength solution for peak number "
+                        f"identification in fiber {fiber}."
+                    )
                     mx_spectrum.spectra[fiber].apply_wavelength_vector()
 
-            log.fullinfo(f'Apply etalon parameters from file {refwavelength_file}.')
-            parameters = maroonx_utils.load_params_from_fits(refwavelength_file, ext_name='PARAMETERS')
+            log.fullinfo(f"Apply etalon parameters from file {refwavelength_file}.")
+            parameters = maroonx_utils.load_params_from_fits(
+                refwavelength_file, ext_name="PARAMETERS"
+            )
             for fiber in fibers:
                 mx_spectrum.spectra[fiber].etalon_parameters = parameters
 
@@ -615,36 +680,46 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
             # Guess the order #s of the etalon peak positions in the measured spectrum
             wl = None
-            m  = None
+            m = None
             mf = None
-            o  = None
-            x  = None
+            o = None
+            x = None
 
             inst_drift = None
 
             drifts = {}
 
             for fiber in fibers:
-                log.info(f'Guess Etalon peak numbers for fiber {fiber}')
+                log.info("Guess Etalon peak numbers for fiber %s", fiber)
                 peak_data = mx_spectrum.spectra[fiber].guess_peak_numbers(debug=0)
 
                 if wl is not None:
                     wl = np.concatenate((wl, peak_data["WAVELENGTH_BY_THAR"].values))
-                    m  = np.concatenate((m, peak_data["M"].values))
+                    m = np.concatenate((m, peak_data["M"].values))
                     mf = np.concatenate((mf, peak_data["M_FRACTION"].values))
-                    o  = np.concatenate((o, peak_data["ORDER"].values))
-                    x  = np.concatenate((x, peak_data["CENTER"].values))
+                    o = np.concatenate((o, peak_data["ORDER"].values))
+                    x = np.concatenate((x, peak_data["CENTER"].values))
                 else:
                     wl = peak_data["WAVELENGTH_BY_THAR"].values
-                    m  = peak_data["M"].values
+                    m = peak_data["M"].values
                     mf = peak_data["M_FRACTION"].values
-                    o  = peak_data["ORDER"].values
-                    x  = peak_data["CENTER"].values
+                    o = peak_data["ORDER"].values
+                    x = peak_data["CENTER"].values
 
                 # Calculate drift for this fiber
-                residuals = _fc2min(parameters, peak_data["M"].values, peak_data["WAVELENGTH_BY_THAR"].values) / peak_data[
-                    "WAVELENGTH_BY_THAR"].values * 3e8
-                bad = np.where(np.abs(residuals-np.nanmedian(residuals)) > 4.0 * np.nanstd(residuals))
+                residuals = (
+                    _fc2min(
+                        parameters,
+                        peak_data["M"].values,
+                        peak_data["WAVELENGTH_BY_THAR"].values,
+                    )
+                    / peak_data["WAVELENGTH_BY_THAR"].values
+                    * 3e8
+                )
+                bad = np.where(
+                    np.abs(residuals - np.nanmedian(residuals))
+                    > 4.0 * np.nanstd(residuals)
+                )
                 residuals[bad] = np.nan
                 if fiber == 5:
                     inst_drift = np.nanmean(residuals)
@@ -652,18 +727,18 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 else:
                     drift = np.nanmean(residuals)
                     drifts[fiber] = drift
-                    #drifts = np.append(drifts, drift)
 
             # ==============================================================
             # This should probably be splitted into a separate primitive
 
-            # Create new wls from etalon peaks based on the fitted etalon gap size and dispersion model.
+            # Create new wls from etalon peaks based on the fitted
+            # etalon gap size and dispersion model.
             wave = {}
 
             new_peak_data = []
 
             for fiber in fibers:
-                log.info(f'Spline fit for fiber {fiber}')
+                log.info("Spline fit for fiber %s", fiber)
                 wavelengths_all = []
                 residuals_all = []
                 orders_all = []
@@ -676,31 +751,49 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     center = speactra_peaks["CENTER"][o]
 
                     if center.values[0] < center.values[10]:
-                        x = (center.values)
-                        y = (_peak_to_wavelength_spline(speactra_peaks["M"][o],
-                                                    spectra.etalon_parameters).values)
+                        x = center.values
+                        y = _peak_to_wavelength_spline(
+                            speactra_peaks["M"][o], spectra.etalon_parameters
+                        ).values
                     else:
                         x = (center.values)[::-1]
-                        y = (_peak_to_wavelength_spline(speactra_peaks["M"][o],
-                                                    spectra.etalon_parameters).values)[::-1]
+                        y = (
+                            _peak_to_wavelength_spline(
+                                speactra_peaks["M"][o], spectra.etalon_parameters
+                            ).values
+                        )[::-1]
                     knots = np.linspace(np.min(x) + 1, np.max(x) - 1, n_knots)
                     lsq = scipy.interpolate.LSQUnivariateSpline(x, y, knots, k=3)
-                    r = (y - lsq(x))/y * 3e8
+                    r = (y - lsq(x)) / y * 3e8
                     good = np.where(np.abs(r) < 3.5 * np.nanstd(r))
-                    lsq = scipy.interpolate.LSQUnivariateSpline(x[good], y[good], knots, k=3, ext=3)
+                    lsq = scipy.interpolate.LSQUnivariateSpline(
+                        x[good], y[good], knots, k=3, ext=3
+                    )
 
-                    xs_all          = np.append(xs_all,x[good],axis=0)
-                    orders_all      = np.append(orders_all,np.ones_like(x[good])*o,axis=0)
-                    wavelengths_all = np.append(wavelengths_all,lsq(x[good]),axis=0)
-                    residuals_all   = np.append(residuals_all,y[good] - lsq(x[good]),axis=0)
+                    xs_all = np.append(xs_all, x[good], axis=0)
+                    orders_all = np.append(
+                        orders_all, np.ones_like(x[good]) * o, axis=0
+                    )
+                    wavelengths_all = np.append(wavelengths_all, lsq(x[good]), axis=0)
+                    residuals_all = np.append(
+                        residuals_all, y[good] - lsq(x[good]), axis=0
+                    )
 
                     xx = np.arange(len(spectra.data.wavelength.iloc[0]))
                     wavelengths = lsq(xx)
 
-                    f = scipy.interpolate.interp1d(x[good][-2:], y[good][-2:],fill_value='extrapolate')
-                    wavelengths[wavelengths==np.max(wavelengths)] = f(xx[wavelengths==np.max(wavelengths)])
-                    f = scipy.interpolate.interp1d(x[good][:2], y[good][:2], fill_value='extrapolate')
-                    wavelengths[wavelengths == np.min(wavelengths)] = f(xx[wavelengths == np.min(wavelengths)])
+                    f = scipy.interpolate.interp1d(
+                        x[good][-2:], y[good][-2:], fill_value="extrapolate"
+                    )
+                    wavelengths[wavelengths == np.max(wavelengths)] = f(
+                        xx[wavelengths == np.max(wavelengths)]
+                    )
+                    f = scipy.interpolate.interp1d(
+                        x[good][:2], y[good][:2], fill_value="extrapolate"
+                    )
+                    wavelengths[wavelengths == np.min(wavelengths)] = f(
+                        xx[wavelengths == np.min(wavelengths)]
+                    )
 
                     if fiber in wave:
                         wave[fiber].update({str(int(o)): wavelengths})
@@ -711,27 +804,28 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
                 # Concatenate wavelengths arrays for each fiber and save them
                 wave_arrays = [wave[fiber][o] for o in wave[fiber].keys()]
-                setattr(ad[0], f'WLS_DYNAMIC_FIBER_{fiber}', np.stack(wave_arrays))
+                setattr(ad[0], f"WLS_DYNAMIC_FIBER_{fiber}", np.stack(wave_arrays))
 
             for fiber in {1, 2, 3, 4, 5} - set(fibers):
                 # If fiber is not in the list of fibers, save an empty array
-                setattr(ad[0], f'WLS_DYNAMIC_FIBER_{fiber}', np.zeros((1, 1)))
-
-            # Reset indices before concatenating to avoid conflicts
-            # for peak_df in new_peak_data:
-            #     peak_df.reset_index(drop=True, inplace=True)
+                setattr(ad[0], f"WLS_DYNAMIC_FIBER_{fiber}", np.zeros((1, 1)))
 
             # Collect and reformat updated peak data
-            new_peak_data = pd.concat(new_peak_data).set_index(['FIBER', 'ORDER', 'M'], drop=False)
+            new_peak_data = pd.concat(new_peak_data).set_index(
+                ["FIBER", "ORDER", "M"], drop=False
+            )
             new_peak_data.sort_index(level=[0, 1, 2], inplace=True)
             ad[0].PEAK_DATA = Table.from_pandas(new_peak_data)
 
             # Save meassured drift in header entries
             for fiber in fibers:
-                ad[0].hdr[f'DRIFT_FIBER_{fiber}'] = (round(drifts[fiber], 2), "Drift in m/s")
-                log.info(f"Drift for fiber {fiber}: {round(drifts[fiber], 2)} m/s")
+                ad[0].hdr[f"DRIFT_FIBER_{fiber}"] = (
+                    round(drifts[fiber], 2),
+                    "Drift in m/s",
+                )
+                log.info("Drift for fiber %s: %.2f m/s", fiber, drifts[fiber])
 
-            ad.update_filename(suffix=params['suffix'], strip=True)
+            ad.update_filename(suffix=params["suffix"], strip=True)
 
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
@@ -818,18 +912,18 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         timestamp_key = self.timestamp_keys[self.myself()]
 
         # Get parameters from config
-        fibers = params.get('fibers', [2, 3, 4])
-        ref_fiber = params.get('ref_fiber', 5)
-        symmetric_linefits = params.get('symmetric_linefits', False)
-        n_knots = params.get('n_knots', 30)
-        etalons = params.get('etalon_file')
+        fibers = params.get("fibers", [2, 3, 4])
+        ref_fiber = params.get("ref_fiber", 5)
+        symmetric_linefits = params.get("symmetric_linefits", False)
+        n_knots = params.get("n_knots", 30)
+        etalons = params.get("etalon_file")
 
         if etalons is None:
             etalons = _get_calibration_wavecal(adinputs)
 
         for science_ad, etalon_ad in zip(*gt.make_lists(adinputs, etalons)):
             log.fullinfo(f"Processing: {science_ad.filename} , {etalon_ad.filename}")
-            log.fullinfo(f'Etalon reference fiber: {ref_fiber}')
+            log.fullinfo(f"Etalon reference fiber: {ref_fiber}")
 
             # Load the science and etalon spectrum
             science = MXSpectrum(science_ad, etalon_peaks_symmetric=symmetric_linefits)
@@ -837,8 +931,10 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
             # Load reference wavelength solution from the config
             refwavelength_file = maroonx_utils.get_refwavelength_filename(science_ad)
-            parameters = maroonx_utils.load_params_from_fits(refwavelength_file, ext_name='PARAMETERS')
-            log.debug(f'Apply etalon parameters from file {refwavelength_file}.')
+            parameters = maroonx_utils.load_params_from_fits(
+                refwavelength_file, ext_name="PARAMETERS"
+            )
+            log.debug("Apply etalon parameters from file %s.", refwavelength_file)
             for fiber in fibers:
                 etalon.spectra[fiber].etalon_parameters = parameters
             etalon.spectra[ref_fiber].etalon_parameters = parameters
@@ -849,8 +945,8 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 etalon.spectra[fiber].apply_wavelength_vector()
             etalon.spectra[ref_fiber].apply_wavelength_vector()
 
-
-            # Calculate offsets in pixel space between science and etalon frame for reference fiber
+            # Calculate offsets in pixel space between science and etalon
+            # frame for reference fiber
             shifts = []
             wavelengths = []
             orders = []
@@ -862,46 +958,89 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 x_ref = science.spectra[ref_fiber].peak_data["CENTER"][o]
                 x = etalon.spectra[ref_fiber].peak_data["CENTER"][o]
                 try:
-                    shift = x.loc[:] - x_ref.loc[:].reindex(x.loc[:].index, method="nearest", tolerance=0.5)
-                    shift[np.abs(shift) > (np.abs(np.nanmedian(shift)) + 3 * np.nanstd(shift))] = np.nan
-                    log.fullinfo(f'Removed {np.count_nonzero(np.isnan(shift)):.0f} peaks in offset calculation for fiber {ref_fiber} in order {o}')
-                    log.fullinfo(f'Found {np.nanmean(shift):.3f} pix offset for fiber {ref_fiber} in order {o}')
+                    shift = x.loc[:] - x_ref.loc[:].reindex(
+                        x.loc[:].index, method="nearest", tolerance=0.5
+                    )
+                    shift[
+                        np.abs(shift)
+                        > (np.abs(np.nanmedian(shift)) + 3 * np.nanstd(shift))
+                    ] = np.nan
+                    log.fullinfo(
+                        f"Removed {np.count_nonzero(np.isnan(shift)):.0f} peaks "
+                        f"in offset calculation for fiber {ref_fiber} in order {o}"
+                    )
+                    log.fullinfo(
+                        f"Found {np.nanmean(shift):.3f} pix offset for fiber "
+                        f"{ref_fiber} in order {o}"
+                    )
                 except KeyError:
-                    log.warning(f'Could not reference etalon line lists for fiber {ref_fiber} in order {o}')
+                    log.warning(
+                        "Could not reference etalon line lists for fiber %s in order %s",
+                        ref_fiber, o
+                    )
 
-                if o == 94 and 'RED' in etalon_ad.tags:
+                if o == 94 and "RED" in etalon_ad.tags:
                     shift[0:600] = np.nanmedian(shift[600:])
                 mask = np.isnan(shift)
-                spl = scipy.interpolate.LSQUnivariateSpline(shift.index[~mask], shift.values[~mask], [1000, 2000, 3000], k=3)
+                spl = scipy.interpolate.LSQUnivariateSpline(
+                    shift.index[~mask], shift.values[~mask], [1000, 2000, 3000], k=3
+                )
 
-                shifts = np.append(shifts, shift.values * etalon.spectra[ref_fiber].peak_data["DISPERSION_MPS"][o])
-                wavelengths = np.append(wavelengths, etalon.spectra[ref_fiber].peak_data["WAVELENGTH_BY_THAR"][o])
+                shifts = np.append(
+                    shifts,
+                    shift.values
+                    * etalon.spectra[ref_fiber].peak_data["DISPERSION_MPS"][o],
+                )
+                wavelengths = np.append(
+                    wavelengths,
+                    etalon.spectra[ref_fiber].peak_data["WAVELENGTH_BY_THAR"][o],
+                )
                 orders = np.append(orders, np.ones_like(shift.values, dtype=int) * o)
                 x_refs = np.append(x_refs, x_ref.values)
                 xs = np.append(xs, x.values)
-                splfits = np.append(splfits, spl(shift.index) * etalon.spectra[ref_fiber].peak_data["DISPERSION_MPS"][o])
+                splfits = np.append(
+                    splfits,
+                    spl(shift.index)
+                    * etalon.spectra[ref_fiber].peak_data["DISPERSION_MPS"][o],
+                )
 
-                # Apply offsets (smoothed with spline) to etalon frame for science fibers
+                # Apply offsets (smoothed with spline) to etalon frame
+                # for science fibers
                 for fiber in fibers:
-                    etalon.spectra[fiber].peak_data["CENTER"][o] = etalon.spectra[fiber].peak_data["CENTER"][o] - spl(
-                        etalon.spectra[fiber].peak_data["CENTER"][o].index)
+                    etalon.spectra[fiber].peak_data["CENTER"][o] = etalon.spectra[
+                        fiber
+                    ].peak_data["CENTER"][o] - spl(
+                        etalon.spectra[fiber].peak_data["CENTER"][o].index
+                    )
 
-            # Guess the order #s of the etalon peak positions in the measured spectrum of the science fibers in the etalon spectrum
+            # Guess the order #s of the etalon peak positions in the measured
+            # spectrum of the science fibers in the etalon spectrum
             for fiber in fibers + [ref_fiber]:
                 etalon.spectra[fiber].apply_wavelength_vector()
                 etalon.spectra[fiber].guess_peak_numbers(debug=0)
-            #etalon.spectra[ref_fiber].apply_wavelength_vector()
 
-            # Guess the order #s of the etalon peak positions in the measured spectrum for reference fiber in science spectrum
+            # Guess the order #s of the etalon peak positions in the measured
+            # spectrum for reference fiber in science spectrum
             science.spectra[ref_fiber].apply_wavelength_vector()
             peak_data = science.spectra[ref_fiber].guess_peak_numbers(debug=0)
 
-            residuals = _fc2min(parameters, peak_data["M"].values, peak_data["WAVELENGTH_BY_THAR"].values) / peak_data["WAVELENGTH_BY_THAR"].values * 3e8
-            bad = np.where(np.abs(residuals-np.nanmedian(residuals)) > 4.0 * np.nanstd(residuals))
+            residuals = (
+                _fc2min(
+                    parameters,
+                    peak_data["M"].values,
+                    peak_data["WAVELENGTH_BY_THAR"].values,
+                )
+                / peak_data["WAVELENGTH_BY_THAR"].values
+                * 3e8
+            )
+            bad = np.where(
+                np.abs(residuals - np.nanmedian(residuals)) > 4.0 * np.nanstd(residuals)
+            )
             residuals[bad] = np.nan
             inst_drift = np.nanmean(residuals)
 
-            # Create new wls from etalon peaks based on the given etalon gap size and dispersion model.
+            # Create new wls from etalon peaks based on the given etalon gap
+            # size and dispersion model.
             wave = {}
             for fiber in fibers:
 
@@ -918,42 +1057,68 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     center = speactra_peaks["CENTER"][o]
 
                     if center.values[0] < center.values[10]:
-                        x = (center.values)
-                        y = (_peak_to_wavelength_spline(etalon.spectra[fiber].peak_data["M"][o],
-                                                    etalon.spectra[fiber].etalon_parameters).values)
+                        x = center.values
+                        y = _peak_to_wavelength_spline(
+                            etalon.spectra[fiber].peak_data["M"][o],
+                            etalon.spectra[fiber].etalon_parameters,
+                        ).values
                     else:
                         x = (center.values)[::-1]
-                        y = (_peak_to_wavelength_spline(etalon.spectra[fiber].peak_data["M"][o],
-                                                    etalon.spectra[fiber].etalon_parameters).values)[::-1]
+                        y = (
+                            _peak_to_wavelength_spline(
+                                etalon.spectra[fiber].peak_data["M"][o],
+                                etalon.spectra[fiber].etalon_parameters,
+                            ).values
+                        )[::-1]
                     knots = np.linspace(min(x) + 1, max(x) - 1, n_knots)
                     mask = np.isnan(x)
                     if np.count_nonzero(mask) > 0:
-                        log.warning(f'Found {np.count_nonzero(mask)} NANs in order {o} for fiber {fiber} while building the spline wls')
-                    lsq = scipy.interpolate.LSQUnivariateSpline(x[~mask], y[~mask], knots, k=3)
-                    r = (y - lsq(x))/y * 3e8
-                    good = np.where(np.abs(r-np.nanmedian(r)) < 3.5 * np.nanstd(r))
-                    lsq = scipy.interpolate.LSQUnivariateSpline(x[good], y[good], knots, k=3, ext=3)
+                        log.warning(
+                            "Found %s NANs in order %s for fiber %s while building the spline wls",
+                            np.count_nonzero(mask), o, fiber
+                        )
+                    lsq = scipy.interpolate.LSQUnivariateSpline(
+                        x[~mask], y[~mask], knots, k=3
+                    )
+                    r = (y - lsq(x)) / y * 3e8
+                    good = np.where(np.abs(r - np.nanmedian(r)) < 3.5 * np.nanstd(r))
+                    lsq = scipy.interpolate.LSQUnivariateSpline(
+                        x[good], y[good], knots, k=3, ext=3
+                    )
 
-                    xs_all          = np.append(xs_all,x[good],axis=0)
-                    orders_all      = np.append(orders_all,np.ones_like(x[good])*o,axis=0)
-                    wavelengths_all = np.append(wavelengths_all,lsq(x[good]),axis=0)
-                    residuals_all   = np.append(residuals_all,y[good] - lsq(x[good]),axis=0)
+                    xs_all = np.append(xs_all, x[good], axis=0)
+                    orders_all = np.append(
+                        orders_all, np.ones_like(x[good]) * o, axis=0
+                    )
+                    wavelengths_all = np.append(wavelengths_all, lsq(x[good]), axis=0)
+                    residuals_all = np.append(
+                        residuals_all, y[good] - lsq(x[good]), axis=0
+                    )
 
                     xx = np.arange(len(etalon.spectra[fiber].data.wavelength[92]))
                     wavelengths = lsq(xx)
 
-                    f = scipy.interpolate.interp1d(x[good][-2:], y[good][-2:],fill_value='extrapolate')
-                    wavelengths[wavelengths==np.max(wavelengths)] = f(xx[wavelengths==np.max(wavelengths)])
-                    f = scipy.interpolate.interp1d(x[good][:2], y[good][:2], fill_value='extrapolate')
-                    wavelengths[wavelengths == np.min(wavelengths)] = f(xx[wavelengths == np.min(wavelengths)])
+                    f = scipy.interpolate.interp1d(
+                        x[good][-2:], y[good][-2:], fill_value="extrapolate"
+                    )
+                    wavelengths[wavelengths == np.max(wavelengths)] = f(
+                        xx[wavelengths == np.max(wavelengths)]
+                    )
+                    f = scipy.interpolate.interp1d(
+                        x[good][:2], y[good][:2], fill_value="extrapolate"
+                    )
+                    wavelengths[wavelengths == np.min(wavelengths)] = f(
+                        xx[wavelengths == np.min(wavelengths)]
+                    )
 
-                    f = f'fiber_{fiber}'
+                    f = f"fiber_{fiber}"
                     if f in wave:
                         wave[f].update({str(o): wavelengths})
                     else:
                         wave[f] = {str(o): wavelengths}
 
-            # Now for the reference fiber in the science spectrum. This should be refactored at some point
+            # Now for the reference fiber in the science spectrum. This should
+            # be refactored at some point
             wavelengths_all = []
             residuals_all = []
             orders_all = []
@@ -962,29 +1127,46 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             ref_spectra = science.spectra[ref_fiber]
 
             for o in ref_spectra.peak_data["CENTER"].index.levels[0]:
-                if ref_spectra.peak_data["CENTER"][o].values[0] < ref_spectra.peak_data["CENTER"][o].values[
-                    10]:
-                    x = (ref_spectra.peak_data["CENTER"][o].values)
-                    y = (_peak_to_wavelength_spline(ref_spectra.peak_data["M"][o],
-                                                ref_spectra.etalon_parameters).values)
+                if (
+                    ref_spectra.peak_data["CENTER"][o].values[0]
+                    < ref_spectra.peak_data["CENTER"][o].values[10]
+                ):
+                    x = ref_spectra.peak_data["CENTER"][o].values
+                    y = _peak_to_wavelength_spline(
+                        ref_spectra.peak_data["M"][o], ref_spectra.etalon_parameters
+                    ).values
                 else:
                     x = (ref_spectra.peak_data["CENTER"][o].values)[::-1]
-                    y = (_peak_to_wavelength_spline(ref_spectra.peak_data["M"][o],
-                                                ref_spectra.etalon_parameters).values)[::-1]
+                    y = (
+                        _peak_to_wavelength_spline(
+                            ref_spectra.peak_data["M"][o], ref_spectra.etalon_parameters
+                        ).values
+                    )[::-1]
                 knots = np.linspace(min(x) + 1, max(x) - 1, n_knots)
                 lsq = scipy.interpolate.LSQUnivariateSpline(x, y, knots, k=3)
                 r = (y - lsq(x)) / y * 3e8
-                good = np.where(np.abs(r-np.nanmedian(r)) < 3.5 * np.nanstd(r))
+                good = np.where(np.abs(r - np.nanmedian(r)) < 3.5 * np.nanstd(r))
                 try:
-                    lsq = scipy.interpolate.LSQUnivariateSpline(x[good], y[good], knots, k=3, ext=3)
+                    lsq = scipy.interpolate.LSQUnivariateSpline(
+                        x[good], y[good], knots, k=3, ext=3
+                    )
                 except:
-                    log.warning(f'Spline fit failed for reference fiber, order {o} - try again')
-                    good = np.where(np.abs(r-np.nanmedian(r)) < 5 * np.nanstd(r))
+                    log.warning(
+                        "Spline fit failed for reference fiber, order %s - try again", o
+                    )
+                    good = np.where(np.abs(r - np.nanmedian(r)) < 5 * np.nanstd(r))
                     try:
-                        lsq = scipy.interpolate.LSQUnivariateSpline(x[good], y[good], knots, k=3, ext=3)
-                        log.fullinfo(f'Spline fit succeeded for reference fiber, order {o} with higher outlier threshold')
+                        lsq = scipy.interpolate.LSQUnivariateSpline(
+                            x[good], y[good], knots, k=3, ext=3
+                        )
+                        log.fullinfo(
+                            "Spline fit succeeded for reference fiber, order %s with higher outlier threshold",
+                            o
+                        )
                     except:
-                        log.warning(f'Spline fit failed again for reference fiber, order {o}')
+                        log.warning(
+                            "Spline fit failed again for reference fiber, order %s", o
+                        )
 
                 xs_all = np.append(xs_all, x[good], axis=0)
                 orders_all = np.append(orders_all, np.ones_like(x[good]) * o, axis=0)
@@ -994,12 +1176,20 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 xx = np.arange(len(etalon.spectra[fiber].data.wavelength[92]))
                 wavelengths = lsq(xx)
 
-                f = scipy.interpolate.interp1d(x[good][-2:], y[good][-2:], fill_value='extrapolate')
-                wavelengths[wavelengths == np.max(wavelengths)] = f(xx[wavelengths == np.max(wavelengths)])
-                f = scipy.interpolate.interp1d(x[good][:2], y[good][:2], fill_value='extrapolate')
-                wavelengths[wavelengths == np.min(wavelengths)] = f(xx[wavelengths == np.min(wavelengths)])
+                f = scipy.interpolate.interp1d(
+                    x[good][-2:], y[good][-2:], fill_value="extrapolate"
+                )
+                wavelengths[wavelengths == np.max(wavelengths)] = f(
+                    xx[wavelengths == np.max(wavelengths)]
+                )
+                f = scipy.interpolate.interp1d(
+                    x[good][:2], y[good][:2], fill_value="extrapolate"
+                )
+                wavelengths[wavelengths == np.min(wavelengths)] = f(
+                    xx[wavelengths == np.min(wavelengths)]
+                )
 
-                f = f'fiber_{ref_fiber}'
+                f = f"fiber_{ref_fiber}"
                 if f in wave:
                     wave[f].update({str(o): wavelengths})
                 else:
@@ -1011,21 +1201,35 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             # Concatenate wavelengths arrays for each fiber and save them
             all_fibers = fibers + [ref_fiber]
             for fiber in all_fibers:
-                f = f'fiber_{fiber}'
+                f = f"fiber_{fiber}"
                 wave_arrays = [wave[f][o] for o in wave[f].keys()]
-                setattr(science_ad[0], f'WLS_SIMULTANEOUS_FIBER_{fiber}', np.stack(wave_arrays))
+                setattr(
+                    science_ad[0],
+                    f"WLS_SIMULTANEOUS_FIBER_{fiber}",
+                    np.stack(wave_arrays),
+                )
 
             for fiber in {1, 2, 3, 4, 5} - set(all_fibers):
                 # If fiber is not in the list of fibers, save an empty array
-                setattr(science_ad[0], f'WLS_SIMULTANEOUS_FIBER_{fiber}', np.zeros((1, 1)))
+                setattr(
+                    science_ad[0], f"WLS_SIMULTANEOUS_FIBER_{fiber}", np.zeros((1, 1))
+                )
 
             # Save meassured drift in header entries
             if inst_drift is not None:
-                science_ad[0].hdr['INSTRUME_DRIFT'] = (round(inst_drift, 2), "Drift in m/s")
-                science_ad[0].hdr['RELATIVE_DRIFT'] = (round(rel_drift, 2), "Drift in m/s")
-                log.fullinfo(f'Instrument Drift: {inst_drift:.1f} m/s')
-                log.fullinfo(f'Relative drift measured in Fiber {ref_fiber}: {rel_drift:.1f} m/s')
-            log.fullinfo(f'Updated wavelength vector in {science_ad.filename}')
+                science_ad[0].hdr["INSTRUME_DRIFT"] = (
+                    round(inst_drift, 2),
+                    "Drift in m/s",
+                )
+                science_ad[0].hdr["RELATIVE_DRIFT"] = (
+                    round(rel_drift, 2),
+                    "Drift in m/s",
+                )
+                log.fullinfo(f"Instrument Drift: {inst_drift:.1f} m/s")
+                log.fullinfo(
+                    f"Relative drift measured in Fiber {ref_fiber}: {rel_drift:.1f} m/s"
+                )
+            log.fullinfo(f"Updated wavelength vector in {science_ad.filename}")
 
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
@@ -1087,6 +1291,8 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
               Combined error spectrum (inverse of summed weights)
             - WLS_SIMULTANEOUS_FIBER_6 or WLS_SIMULTANEOUS_SYM_FIBER_7:
               Wavelength solution copied from fiber 3 (reference fiber)
+            - REDUCED_ORDERS_FIBER_6 (or _7):
+              List of reduced orders.
 
         Notes
         -----
@@ -1162,14 +1368,16 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 wave3 = fiber_wls[4][order_idx]
 
                 # Apply instrument-specific masking
-                if 'BLUE' in ad.tags:
-                    log.fullinfo('Masking additional pixels in blue arm at pixel 196')
+                if "BLUE" in ad.tags:
+                    log.fullinfo("Masking additional pixels in blue arm at pixel 196")
                     intensity1[196] = np.nan
                     intensity2[196] = np.nan
                     intensity3[196] = np.nan
 
-                if 'RED' in ad.tags:
-                    log.fullinfo('Masking additional pixels in red arm at pixels 1793-1794')
+                if "RED" in ad.tags:
+                    log.fullinfo(
+                        "Masking additional pixels in red arm at pixels 1793-1794"
+                    )
                     intensity1[1793:1794] = np.nan
                     intensity2[1793:1794] = np.nan
                     intensity3[1793:1794] = np.nan
@@ -1180,42 +1388,73 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
                 try:
                     m = np.zeros_like(wave1, dtype=bool)
-                    m[np.unique(wave1, return_index=True, return_inverse=True)[1]] = True
+                    m[np.unique(wave1, return_index=True, return_inverse=True)[1]] = (
+                        True
+                    )
                     mask1[~m] = True
 
-                    f1 = interp1d(wave1[~mask1], intensity1[~mask1], fill_value='extrapolate', kind='slinear')
-                    f1e = interp1d(wave1[~mask1], error1[~mask1], fill_value='extrapolate', kind='slinear')
+                    f1 = interp1d(
+                        wave1[~mask1],
+                        intensity1[~mask1],
+                        fill_value="extrapolate",
+                        kind="slinear",
+                    )
+                    f1e = interp1d(
+                        wave1[~mask1],
+                        error1[~mask1],
+                        fill_value="extrapolate",
+                        kind="slinear",
+                    )
                     intensity1_2 = f1(wave2)
                     error1_2 = np.abs(f1e(wave2))
                 except:
-                    msg = f'Interpolation of flux in science fiber 1 of order {order} failed'
+                    msg = (
+                        f"Interpolation of flux in science fiber 1 of order "
+                        f"{order} failed"
+                    )
                     log.debug(msg)
                     intensity1_2 = intensity1
-                    error1_2 = np.abs(error1)*np.nan
+                    error1_2 = np.abs(error1) * np.nan
 
                 try:
                     m = np.zeros_like(wave3, dtype=bool)
-                    m[np.unique(wave3, return_index=True, return_inverse=True)[1]] = True
+                    m[np.unique(wave3, return_index=True, return_inverse=True)[1]] = (
+                        True
+                    )
                     mask3[~m] = True
 
-                    f3 = interp1d(wave3[~mask3], intensity3[~mask3], fill_value='extrapolate', kind='slinear')
-                    f3e = interp1d(wave3[~mask3], error3[~mask3], fill_value='extrapolate', kind='slinear')
+                    f3 = interp1d(
+                        wave3[~mask3],
+                        intensity3[~mask3],
+                        fill_value="extrapolate",
+                        kind="slinear",
+                    )
+                    f3e = interp1d(
+                        wave3[~mask3],
+                        error3[~mask3],
+                        fill_value="extrapolate",
+                        kind="slinear",
+                    )
                     intensity3_2 = f3(wave2)
                     error3_2 = np.abs(f3e(wave2))
                 except:
-                    msg = f'Interpolation of flux in science fiber 3 of order {order} failed'
+                    msg = (
+                        f"Interpolation of flux in science fiber 3 of order "
+                        f"{order} failed"
+                    )
                     log.debug(msg)
                     intensity3_2 = intensity3
-                    error3_2 = np.abs(error3)*np.nan
-
+                    error3_2 = np.abs(error3) * np.nan
 
                 intensity1_2[mask1] = np.nan
                 intensity3_2[mask3] = np.nan
 
-                median_intensity = np.nanmedian([intensity1_2, intensity2, intensity3_2], axis=0)
+                median_intensity = np.nanmedian(
+                    [intensity1_2, intensity2, intensity3_2], axis=0
+                )
 
                 weights1_2 = 1.0 / error1_2
-                weights2   = 1.0 / error2
+                weights2 = 1.0 / error2
                 weights3_2 = 1.0 / error3_2
 
                 weights1_2[np.isnan(weights1_2)] = 0
@@ -1230,40 +1469,57 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 weights2[np.isnan(intensity2)] = 0
                 weights3_2[np.isnan(intensity3_2)] = 0
 
-                clip1 = np.where(np.nan_to_num(np.abs(intensity1_2 - median_intensity)) > kappa_sigma * np.nan_to_num(np.sqrt(error1_2)))
-                clip2 = np.where(np.nan_to_num(np.abs(intensity2 - median_intensity)) > kappa_sigma * np.nan_to_num(np.sqrt(error2)))
-                clip3 = np.where(np.nan_to_num(np.abs(intensity3_2 - median_intensity)) > kappa_sigma * np.nan_to_num(np.sqrt(error3_2)))
+                clip1 = np.where(
+                    np.nan_to_num(np.abs(intensity1_2 - median_intensity))
+                    > kappa_sigma * np.nan_to_num(np.sqrt(error1_2))
+                )
+                clip2 = np.where(
+                    np.nan_to_num(np.abs(intensity2 - median_intensity))
+                    > kappa_sigma * np.nan_to_num(np.sqrt(error2))
+                )
+                clip3 = np.where(
+                    np.nan_to_num(np.abs(intensity3_2 - median_intensity))
+                    > kappa_sigma * np.nan_to_num(np.sqrt(error3_2))
+                )
 
                 clip1_n = np.size(clip1)
                 clip2_n = np.size(clip2)
                 clip3_n = np.size(clip3)
 
-                while(max([clip1_n,clip2_n,clip3_n]) > max_clips and kappa_sigma<10):
-                    log.warning(f'Number of maximum clipped pixels exceeded in order {order}')
+                while max([clip1_n, clip2_n, clip3_n]) > max_clips and kappa_sigma < 10:
+                    log.warning(
+                        "Number of maximum clipped pixels exceeded in order %s", order
+                    )
                     kappa_sigma = kappa_sigma + 0.5
 
                     clip1 = np.where(
-                        np.nan_to_num(np.abs(intensity1_2 - median_intensity)) > kappa_sigma * np.nan_to_num(np.sqrt(error1_2)))
+                        np.nan_to_num(np.abs(intensity1_2 - median_intensity))
+                        > kappa_sigma * np.nan_to_num(np.sqrt(error1_2))
+                    )
                     clip2 = np.where(
-                        np.nan_to_num(np.abs(intensity2 - median_intensity)) > kappa_sigma * np.nan_to_num(np.sqrt(error2)))
+                        np.nan_to_num(np.abs(intensity2 - median_intensity))
+                        > kappa_sigma * np.nan_to_num(np.sqrt(error2))
+                    )
                     clip3 = np.where(
-                        np.nan_to_num(np.abs(intensity3_2 - median_intensity)) > kappa_sigma * np.nan_to_num(np.sqrt(error3_2)))
+                        np.nan_to_num(np.abs(intensity3_2 - median_intensity))
+                        > kappa_sigma * np.nan_to_num(np.sqrt(error3_2))
+                    )
 
                     clip1_n = np.size(clip1)
                     clip2_n = np.size(clip2)
                     clip3_n = np.size(clip3)
 
-                log.fullinfo(f'Kappa_sigma in order {order}: {kappa_sigma:.1f}')
-                log.debug(f'Clipped {clip1_n} pixels in fiber 2 of order {order}')
-                log.debug(f'Clipped {clip2_n} pixels in fiber 3 of order {order}')
-                log.debug(f'Clipped {clip3_n} pixels in fiber 4 of order {order}')
+                log.fullinfo("Kappa_sigma in order %s: %.1f", order, kappa_sigma)
+                log.debug("Clipped %s pixels in fiber 2 of order %s", clip1_n, order)
+                log.debug("Clipped %s pixels in fiber 3 of order %s", clip2_n, order)
+                log.debug("Clipped %s pixels in fiber 4 of order %s", clip3_n, order)
 
                 weights1_2[clip1] = 0
                 weights2[clip2] = 0
                 weights3_2[clip3] = 0
 
                 with warnings.catch_warnings():
-                    warnings.filterwarnings('ignore', r'All-NaN slice encountered')
+                    warnings.filterwarnings("ignore", r"All-NaN slice encountered")
 
                     weights = np.nansum([weights1_2, weights2, weights3_2], axis=0)
                     bad = np.where(weights == 0)
@@ -1271,21 +1527,37 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     weights2[bad] = np.nan
                     weights3_2[bad] = np.nan
 
-                    intensity = np.average([
-                        np.nan_to_num(intensity1_2),
-                        np.nan_to_num(intensity2),
-                        np.nan_to_num(intensity3_2)],
+                    intensity = np.average(
+                        [
+                            np.nan_to_num(intensity1_2),
+                            np.nan_to_num(intensity2),
+                            np.nan_to_num(intensity3_2),
+                        ],
                         weights=[weights1_2, weights2, weights3_2],
-                        axis=0)
-                    error = np.abs(1.0 / np.sum([weights1_2, weights2, weights3_2], axis=0))
+                        axis=0,
+                    )
+                    error = np.abs(
+                        1.0 / np.sum([weights1_2, weights2, weights3_2], axis=0)
+                    )
 
                 mask = np.isnan(intensity)
                 if 1000 > np.count_nonzero(mask) >= 0:
-                    log.debug(f'Number of NANs fixed in order {order}: {np.count_nonzero(mask)}')
-                    f = interp1d(wave2[~mask], intensity[~mask], fill_value='extrapolate', kind='slinear')
+                    log.debug(
+                        "Number of NANs fixed in order %s: %s",
+                        order, np.count_nonzero(mask)
+                    )
+                    f = interp1d(
+                        wave2[~mask],
+                        intensity[~mask],
+                        fill_value="extrapolate",
+                        kind="slinear",
+                    )
                     intensity = f(wave2)
                 else:
-                    log.warning(f'Too many NANs found in order {order}: {np.count_nonzero(mask)}')
+                    log.warning(
+                        "Too many NANs found in order %s: %s",
+                        order, np.count_nonzero(mask)
+                    )
 
                 error[mask] = 1e6
                 error[np.isnan(error)] = 1e6
@@ -1294,31 +1566,52 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 combined_intensity.update({order: intensity})
                 combined_error.update({order: error})
 
-
-            # ===================================================================================
+            # ====================================================================
 
             # Store combined results as new extensions
-            combined_intensity_array = np.vstack([combined_intensity[o] for o in orders])
+            combined_intensity_array = np.vstack(
+                [combined_intensity[o] for o in orders]
+            )
             combined_error_array = np.vstack([combined_error[o] for o in orders])
-            combined_wavelength_array = np.vstack([combined_wavelength[o] for o in orders])
+            combined_wavelength_array = np.vstack(
+                [combined_wavelength[o] for o in orders]
+            )
 
             # Define final combined fiber number
             target_fiber = 6 if not symmetric_linefits else 7
 
-            setattr(ad[0], f"OPTIMAL_REDUCED_FIBER_{target_fiber}", combined_intensity_array)
+            setattr(
+                ad[0], f"OPTIMAL_REDUCED_FIBER_{target_fiber}", combined_intensity_array
+            )
             setattr(ad[0], f"OPTIMAL_REDUCED_ERR_{target_fiber}", combined_error_array)
+            setattr(ad[0], f"REDUCED_ORDER_{target_fiber}", orders)
+
             if symmetric_linefits:
-                setattr(ad[0], f"WLS_SIMULTANEOUS_SYM_FIBER_{target_fiber}", combined_wavelength_array)
+                setattr(
+                    ad[0],
+                    f"WLS_SIMULTANEOUS_SYM_FIBER_{target_fiber}",
+                    combined_wavelength_array,
+                )
             else:
-                setattr(ad[0], f"WLS_SIMULTANEOUS_FIBER_{target_fiber}", combined_wavelength_array)
+                setattr(
+                    ad[0],
+                    f"WLS_SIMULTANEOUS_FIBER_{target_fiber}",
+                    combined_wavelength_array,
+                )
 
             # Mark history
-            fiber_list = ','.join(map(str, combine_fibers))
-            gt.mark_history(ad, primname=self.myself(),
-                        keyword='FIBER_COMBINATION',
-                        comment=f"combined_fibers_{fiber_list}_to_{target_fiber}")
+            fiber_list = ",".join(map(str, combine_fibers))
+            gt.mark_history(
+                ad,
+                primname=self.myself(),
+                keyword="FIBER_COMBINATION",
+                comment=f"combined_fibers_{fiber_list}_to_{target_fiber}",
+            )
 
-            log.fullinfo(f"Combined fibers {fiber_list} into fiber {target_fiber} for {ad.filename}")
+            log.fullinfo(
+                f"Combined fibers {fiber_list} into fiber {target_fiber} "
+                f"for {ad.filename}"
+            )
             ad.update_filename(suffix=params["suffix"], strip=True)
 
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
@@ -1421,56 +1714,62 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         timestamp_key = self.timestamp_keys[self.myself()]
 
         # Get parameters
-        target_name = params.get('target_name')
-        simbad_target_name = params.get('simbad_target_name')
-        use_coords = params.get('use_coords')
-        zp_pc = params.get('zp_pc')
-        zp_frd = params.get('zp_frd')
-        start_time = params.get('start_time')
+        target_name = params.get("target_name")
+        simbad_target_name = params.get("simbad_target_name")
+        use_coords = params.get("use_coords")
+        zp_pc = params.get("zp_pc")
+        zp_frd = params.get("zp_frd")
+        start_time = params.get("start_time")
 
         for ad in adinputs:
             # Read target name from header
             target = ad.object()
-            log.debug(f'{target_name}, {target}')
+            log.debug("%s, %s", target_name, target)
             # Handle user-supplied target name logic
             if target_name is not None:
                 if target_name in target:
-                    log.fullinfo(f'Selected target name: {target}')
+                    log.fullinfo("Selected target name: %s", target)
                     if simbad_target_name and len(simbad_target_name) > 0:
-                        log.fullinfo(f'Replaced with user supplied name: {simbad_target_name}')
+                        log.fullinfo(
+                            "Replaced with user supplied name: %s", simbad_target_name
+                        )
                         target = simbad_target_name
                 else:
-                    log.warning(f'Skip file {ad.filename}')
+                    log.warning("Skip file %s", ad.filename)
                     continue
 
             # Query SIMBAD for target coordinates
             result_table = Simbad.query_object(target)
             if result_table is None:
-                log.warning(f'Target {target} not recognized by SIMBAD')
+                log.warning("Target %s not recognized by SIMBAD", target)
                 if use_coords:
-                    log.warning('Will use telescope pointing as coordinates.')
+                    log.warning("Will use telescope pointing as coordinates.")
                 else:
-                    log.warning(f'Skip file {ad.filename} - consider using --use_coords option')
+                    log.warning(
+                        "Skip file %s - consider using --use_coords option", ad.filename
+                    )
                     continue
 
             # Calculate time correction based on selected method
-            utc_start = Time(ad.ut_datetime(), format='datetime', scale='utc')
-            time_correction = TimeDelta(0, format='sec')
+            utc_start = Time(ad.ut_datetime(), format="datetime", scale="utc")
+            time_correction = TimeDelta(0, format="sec")
 
             mjd = ad[0].telescope_mjd(pretty=True)
             exptime = ad[0].exposure_time(pretty=True)
-            if start_time == 'mjd_start':
+            if start_time == "mjd_start":
                 time_correction = mjd - utc_start
-            elif start_time == 'mjd_end':
-                if 'BLUE' in ad.tags:
+            elif start_time == "mjd_end":
+                if "BLUE" in ad.tags:
                     # 52 and 100 come from legacy code, no docs about them
-                    offset = exptime + TimeDelta(52.0, format='sec')
+                    offset = exptime + TimeDelta(52.0, format="sec")
                 else:
-                    offset = exptime + TimeDelta(100.0, format='sec')
+                    offset = exptime + TimeDelta(100.0, format="sec")
                 time_correction = (mjd - offset) - utc_start
 
             # Extract times and exposure meter readings for a given exposure
-            emeter = self._exposuremeterStats(ad, utc_start, exptime, zp_pc=zp_pc, zp_frd=zp_frd)
+            emeter = self._exposuremeterStats(
+                ad, utc_start, exptime, zp_pc=zp_pc, zp_frd=zp_frd
+            )
             log.fullinfo(f'Exposuremeter stats (PC channel): {emeter["pc"]["stats"]}')
             log.fullinfo(f'Exposuremeter stats (FRD channel): {emeter["frd"]["stats"]}')
 
@@ -1479,54 +1778,56 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             utc_mid = utc_start + exptime / 2
             utc_end = utc_start + exptime
 
-
             # Call barycorrpy for barycentric calculations
             barycorrpy_kwargs = {
-                'lat': 19.823801,
-                'longi': -155.469047,
-                'alt': 4213,
-                'ephemeris': 'de430',
-                'zmeas': 0.0,
-                'predictive': False,
-                'leap_update': False
+                "lat": 19.823801,
+                "longi": -155.469047,
+                "alt": 4213,
+                "ephemeris": "de430",
+                "zmeas": 0.0,
+                "predictive": False,
+                "leap_update": False,
             }
             if use_coords:
-                ra  = ad[0].hdr.get('MAROONX TELESCOPE TELRA') * 15.0
-                dec = ad[0].hdr.get('MAROONX TELESCOPE TELDEC')
-                barycorrpy_kwargs['ra'] = ra
-                barycorrpy_kwargs['dec'] = dec
-                log.fullinfo(f'Using RA: {ra:.4f} deg, DEC: {dec:.4f} deg')
+                ra = ad[0].hdr.get("MAROONX TELESCOPE TELRA") * 15.0
+                dec = ad[0].hdr.get("MAROONX TELESCOPE TELDEC")
+                barycorrpy_kwargs["ra"] = ra
+                barycorrpy_kwargs["dec"] = dec
+                log.fullinfo(f"Using RA: {ra:.4f} deg, DEC: {dec:.4f} deg")
             else:
-                barycorrpy_kwargs['starname'] = target
-                log.fullinfo(f'Using target name: {target}')
+                barycorrpy_kwargs["starname"] = target
+                log.fullinfo(f"Using target name: {target}")
 
             # BVC for nominal exposure midtime
             result1, warning, status = get_BC_vel(
-                JDUTC=[utc_start.jd, utc_mid.jd, utc_end.jd],
-                **barycorrpy_kwargs)
+                JDUTC=[utc_start.jd, utc_mid.jd, utc_end.jd], **barycorrpy_kwargs
+            )
 
             # Average BVC over exposure weighted by exposure meter readings - BEST
-            if emeter['pc']['times'] is not None:
+            if emeter["pc"]["times"] is not None:
                 result3, JDUTCMID_pc, warning3, status3 = exposure_meter_BC_vel(
-                    JDUTC=emeter['pc']['times'].jd + time_correction.jd,
-                    expmeterflux=emeter['pc']['readings'],
-                    **barycorrpy_kwargs)
-            if emeter['frd']['times'] is not None:
+                    JDUTC=emeter["pc"]["times"].jd + time_correction.jd,
+                    expmeterflux=emeter["pc"]["readings"],
+                    **barycorrpy_kwargs,
+                )
+            if emeter["frd"]["times"] is not None:
                 result4, JDUTCMID_frd, warning4, status4 = exposure_meter_BC_vel(
-                    JDUTC=emeter['frd']['times'].jd + time_correction.jd,
-                    expmeterflux=emeter['frd']['readings'],
-                    **barycorrpy_kwargs)
+                    JDUTC=emeter["frd"]["times"].jd + time_correction.jd,
+                    expmeterflux=emeter["frd"]["readings"],
+                    **barycorrpy_kwargs,
+                )
 
             # dvdt values in m/s/s
-            m_s = units.Unit('m/s')
-            m_s_s = units.Unit('m/s/s')
+            m_s = units.Unit("m/s")
+            m_s_s = units.Unit("m/s/s")
             BC_dvdt = [
                 (result1[2] - result1[0]) * m_s / (exptime),
-                (result1[2] - result1[1]) * m_s / (exptime/2),
-                (result1[1] - result1[0]) * m_s / (exptime/2)]
+                (result1[2] - result1[1]) * m_s / (exptime / 2),
+                (result1[1] - result1[0]) * m_s / (exptime / 2),
+            ]
 
             # Mid values
-            if emeter['pc']['times'] is not None:
+            if emeter["pc"]["times"] is not None:
                 utc_fluxmid_pc = Time(JDUTCMID_pc, format="jd", scale="utc")
                 utc_fluxmid_frd = Time(JDUTCMID_frd, format="jd", scale="utc")
                 BC_fluxmid_pc = result3
@@ -1534,66 +1835,374 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
             # If times are None, there was a gap in the photometer data and midpoints
             # and BERVs are taken from the nominal midpoint.
-            if emeter['pc']['times'] is None:
+            if emeter["pc"]["times"] is None:
                 utc_fluxmid_pc = utc_mid
                 BC_fluxmid_pc = result1[1]
 
-            if emeter['frd']['times'] is None:
+            if emeter["frd"]["times"] is None:
                 utc_fluxmid_frd = utc_mid
                 BC_fluxmid_frd = result1[1]
 
-
             # Log results
-            log.fullinfo(f'File: {ad.filename}')
-            log.fullinfo(f'Target: {target}')
-            log.fullinfo(f'Exptime: {exptime} sec')
-            log.fullinfo(f'BERV dv/dt: '
-                f'{BC_dvdt[0].to(m_s_s).value:.4f}, '
-                f'{BC_dvdt[1].to(m_s_s).value:.4f}, '
-                f'{BC_dvdt[2].to(m_s_s).value:.4f} m/s/s')
-            log.fullinfo(f'BERV_MIDPOINT:           {result1[1]:.2f} m/s')
-            log.fullinfo(f'BERV_FLUXWEIGHTED_PC:    {BC_fluxmid_pc:.2f} m/s')
-            log.fullinfo(f'BERV_FLUXWEIGHTED_FRD:   {BC_fluxmid_frd:.2f} m/s')
+            log.fullinfo(f"File: {ad.filename}")
+            log.fullinfo(f"Target: {target}")
+            log.fullinfo(f"Exptime: {exptime} sec")
+            log.fullinfo(
+                f"BERV dv/dt: "
+                f"{BC_dvdt[0].to(m_s_s).value:.4f}, "
+                f"{BC_dvdt[1].to(m_s_s).value:.4f}, "
+                f"{BC_dvdt[2].to(m_s_s).value:.4f} m/s/s"
+            )
+            log.fullinfo(f"BERV_MIDPOINT:           {result1[1]:.2f} m/s")
+            log.fullinfo(f"BERV_FLUXWEIGHTED_PC:    {BC_fluxmid_pc:.2f} m/s")
+            log.fullinfo(f"BERV_FLUXWEIGHTED_FRD:   {BC_fluxmid_frd:.2f} m/s")
 
             # Scale factor
-            scale_factor = emeter['frd']['stats']['median'] / emeter['pc']['stats']['median']
+            scale_factor = (
+                emeter["frd"]["stats"]["median"] / emeter["pc"]["stats"]["median"]
+            )
 
             # Save header entries
-            ad[0].hdr.set('UTC_START', f'{utc_start.isot}', 'xxxxx')
-            ad[0].hdr.set('UTC_CORRECTION', f'{time_correction.sec:.1f}', 'xxxxx')
-            ad[0].hdr.set('UTC_MIDPOINT', f'{utc_mid.isot}', 'xxxxx')
-            ad[0].hdr.set('UTC_FLUXWEIGHTED_PC', f'{utc_fluxmid_pc.isot}', 'xxxxx')
-            ad[0].hdr.set('UTC_FLUXWEIGHTED_FRD', f'{utc_fluxmid_frd.isot}', 'xxxxx')
-            ad[0].hdr.set('JD_UTC_START', f'{utc_start.jd:.7f}', 'xxxxx')
-            ad[0].hdr.set('JD_UTC_MIDPOINT', f'{utc_mid.jd:.7f}', 'xxxxx')
-            ad[0].hdr.set('JD_UTC_FLUXWEIGHTED_PC', f'{utc_fluxmid_pc.jd:.7f}', 'xxxxx')
-            ad[0].hdr.set('JD_UTC_FLUXWEIGHTED_FRD', f'{utc_fluxmid_frd.jd:.7f}', 'xxxxx')
+            ad[0].hdr.set("UTC_START", f"{utc_start.isot}", "xxxxx")
+            ad[0].hdr.set("UTC_CORRECTION", f"{time_correction.sec:.1f}", "xxxxx")
+            ad[0].hdr.set("UTC_MIDPOINT", f"{utc_mid.isot}", "xxxxx")
+            ad[0].hdr.set("UTC_FLUXWEIGHTED_PC", f"{utc_fluxmid_pc.isot}", "xxxxx")
+            ad[0].hdr.set("UTC_FLUXWEIGHTED_FRD", f"{utc_fluxmid_frd.isot}", "xxxxx")
+            ad[0].hdr.set("JD_UTC_START", f"{utc_start.jd:.7f}", "xxxxx")
+            ad[0].hdr.set("JD_UTC_MIDPOINT", f"{utc_mid.jd:.7f}", "xxxxx")
+            ad[0].hdr.set("JD_UTC_FLUXWEIGHTED_PC", f"{utc_fluxmid_pc.jd:.7f}", "xxxxx")
+            ad[0].hdr.set(
+                "JD_UTC_FLUXWEIGHTED_FRD", f"{utc_fluxmid_frd.jd:.7f}", "xxxxx"
+            )
 
-            ad[0].hdr.set('BERV_SIMBAD_TARGET', target, 'xxxxx')
-            ad[0].hdr.set('BERV_MIDPOINT', f'{result1[1]:.2f}', 'xxxxx')
-            ad[0].hdr.set('BERV_FLUXWEIGHTED_PC', f'{BC_fluxmid_pc:.2f}', 'xxxxx')
-            ad[0].hdr.set('BERV_FLUXWEIGHTED_FRD', f'{BC_fluxmid_frd:.2f}', 'xxxxx')
-            ad[0].hdr.set('BERV_DIFFERENCE_PC', f'{(BC_fluxmid_pc - result1[1]):.2f}', 'xxxxx')
-            ad[0].hdr.set('BERV_DIFFERENCE_FRD', f'{(BC_fluxmid_frd - result1[1]):.2f}', 'xxxxx')
-            # ad[0].hdr.set('BERV_DVDT', f'{np.mean(BC_dvdt):.2f}', 'xxxxx')
+            ad[0].hdr.set("BERV_SIMBAD_TARGET", target, "xxxxx")
+            ad[0].hdr.set("BERV_MIDPOINT", f"{result1[1]:.2f}", "xxxxx")
+            ad[0].hdr.set("BERV_FLUXWEIGHTED_PC", f"{BC_fluxmid_pc:.2f}", "xxxxx")
+            ad[0].hdr.set("BERV_FLUXWEIGHTED_FRD", f"{BC_fluxmid_frd:.2f}", "xxxxx")
+            ad[0].hdr.set(
+                "BERV_DIFFERENCE_PC", f"{(BC_fluxmid_pc - result1[1]):.2f}", "xxxxx"
+            )
+            ad[0].hdr.set(
+                "BERV_DIFFERENCE_FRD", f"{(BC_fluxmid_frd - result1[1]):.2f}", "xxxxx"
+            )
 
-            ad[0].hdr.set('COUNTS_PC_MIN', f'{emeter['pc']['stats']['min']:.2f}', 'xxxxx')
-            ad[0].hdr.set('COUNTS_PC_MAX', f'{emeter['pc']['stats']['max']:.2f}', 'xxxxx')
-            ad[0].hdr.set('COUNTS_PC_MEDIAN', f'{emeter['pc']['stats']['median']:.2f}', 'xxxxx')
-            ad[0].hdr.set('COUNTS_PC_STD', f'{emeter['pc']['stats']['std']:.2f}', 'xxxxx')
-            ad[0].hdr.set('COUNTS_PC_ZP', f'{emeter['pc']['stats']['zeropoint']:.2f}', 'xxxxx')
+            ad[0].hdr.set(
+                "COUNTS_PC_MIN", f"{emeter['pc']['stats']['min']:.2f}", "xxxxx"
+            )
+            ad[0].hdr.set(
+                "COUNTS_PC_MAX", f"{emeter['pc']['stats']['max']:.2f}", "xxxxx"
+            )
+            ad[0].hdr.set(
+                "COUNTS_PC_MEDIAN", f"{emeter['pc']['stats']['median']:.2f}", "xxxxx"
+            )
+            ad[0].hdr.set(
+                "COUNTS_PC_STD", f"{emeter['pc']['stats']['std']:.2f}", "xxxxx"
+            )
+            ad[0].hdr.set(
+                "COUNTS_PC_ZP", f"{emeter['pc']['stats']['zeropoint']:.2f}", "xxxxx"
+            )
 
-            ad[0].hdr.set('COUNTS_FRD_MIN', f'{emeter['frd']['stats']['min']:.2f}', 'xxxxx')
-            ad[0].hdr.set('COUNTS_FRD_MAX', f'{emeter['frd']['stats']['max']:.2f}', 'xxxxx')
-            ad[0].hdr.set('COUNTS_FRD_MEDIAN', f'{emeter['frd']['stats']['median']:.2f}', 'xxxxx')
-            ad[0].hdr.set('COUNTS_FRD_STD', f'{emeter['frd']['stats']['std']:.2f}', 'xxxxx')
-            ad[0].hdr.set('COUNTS_FRD_ZP', f'{emeter['frd']['stats']['zeropoint']:.2f}', 'xxxxx')
-            ad[0].hdr.set('SCALEFACTOR', f'{scale_factor:.1f}', 'xxxxx')
+            ad[0].hdr.set(
+                "COUNTS_FRD_MIN", f"{emeter['frd']['stats']['min']:.2f}", "xxxxx"
+            )
+            ad[0].hdr.set(
+                "COUNTS_FRD_MAX", f"{emeter['frd']['stats']['max']:.2f}", "xxxxx"
+            )
+            ad[0].hdr.set(
+                "COUNTS_FRD_MEDIAN", f"{emeter['frd']['stats']['median']:.2f}", "xxxxx"
+            )
+            ad[0].hdr.set(
+                "COUNTS_FRD_STD", f"{emeter['frd']['stats']['std']:.2f}", "xxxxx"
+            )
+            ad[0].hdr.set(
+                "COUNTS_FRD_ZP", f"{emeter['frd']['stats']['zeropoint']:.2f}", "xxxxx"
+            )
+            ad[0].hdr.set("SCALEFACTOR", f"{scale_factor:.1f}", "xxxxx")
 
-            log.fullinfo(f"Barycentric velocity calculation completed for {ad.filename}")
+            log.fullinfo(
+                f"Barycentric velocity calculation completed for {ad.filename}"
+            )
             ad.update_filename(suffix=params["suffix"], strip=True)
 
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
+        log.debug(gt.log_message("primitive", self.myself(), "complete"))
+        return adinputs
+
+    def _extract_spectra_data(self, ad, ext_index, fibers, show_wavelength):
+        """
+        Helper function to extract spectrum data from an AstroData object.
+
+        Parameters
+        ----------
+        ad : AstroData
+            AstroData object with extracted spectra
+        ext_index : int
+            Extension index to extract from (0 for Blue, 1 for Red in bundles)
+        fibers : list of int
+            Fiber numbers to extract
+        show_wavelength : bool
+            Whether to extract wavelength solutions
+
+        Returns
+        -------
+        dict
+            Dictionary mapping fiber numbers to spectrum data
+        """
+        log = self.log
+        spectra_data = {}
+
+        # Validate extension index
+        if ext_index >= len(ad):
+            log.warning(f"Extension {ext_index} not found in {ad.filename}")
+            return spectra_data
+
+        for fiber in fibers:
+            # Get both optimal and box extractions if available
+            optimal_flux = getattr(ad[ext_index], f"OPTIMAL_REDUCED_FIBER_{fiber}", None)
+            box_flux = getattr(ad[ext_index], f"BOX_REDUCED_FIBER_{fiber}", None)
+
+            # Filter out placeholder (1,1) arrays - these indicate fiber was not extracted
+            if optimal_flux is not None and optimal_flux.shape == (1, 1):
+                optimal_flux = None
+            if box_flux is not None and box_flux.shape == (1, 1):
+                box_flux = None
+
+            if optimal_flux is None and box_flux is None:
+                log.warning(
+                    f"Fiber {fiber}: No valid extraction data found in {ad.filename}, skipping"
+                )
+                continue
+
+            # Get order numbers
+            orders = getattr(ad[ext_index], f"REDUCED_ORDERS_FIBER_{fiber}", None)
+            if orders is None or len(orders) <= 1:
+                log.warning(
+                    f"Fiber {fiber}: No valid order data found in {ad.filename} ext {ext_index}, skipping"
+                )
+                continue
+
+            # Get wavelength solution if requested
+            wavelength = None
+            if show_wavelength:
+                # Try dynamic first, then static
+                wavelength = getattr(ad[ext_index], f"WLS_DYNAMIC_FIBER_{fiber}", None)
+                if wavelength is None:
+                    wavelength = getattr(ad[ext_index], f"WLS_STATIC_FIBER_{fiber}", None)
+
+                if wavelength is None:
+                    log.warning(
+                        f"Fiber {fiber}: No wavelength solution found, "
+                        f"displaying in pixel space"
+                    )
+
+            spectra_data[fiber] = {
+                "optimal_flux": optimal_flux,
+                "box_flux": box_flux,
+                "orders": orders,
+                "wavelength": wavelength,
+            }
+
+            # Log available extractions
+            available_extractions = []
+            if optimal_flux is not None:
+                available_extractions.append("optimal")
+            if box_flux is not None:
+                available_extractions.append("box")
+
+            log.fullinfo(
+                f"Fiber {fiber}: {len(orders)} orders, "
+                f"wavelength: {wavelength is not None}, "
+                f"extractions: {', '.join(available_extractions)}"
+            )
+
+        return spectra_data
+
+    def displaySpectra(self, adinputs=None, **params):
+        """
+        Display extracted spectra in browser using interactive Bokeh visualization.
+
+        This primitive launches an interactive Bokeh server that displays MaroonX
+        extracted spectra in a web browser. Users can zoom, pan, and inspect
+        individual orders for quality assessment. The primitive blocks execution
+        until the user clicks "Submit" or closes the browser window.
+
+        The visualizer automatically opens at http://localhost:5006 (or next
+        available port) and provides interactive plots showing all extracted
+        orders for selected fibers. If wavelength calibration is available and
+        show_wavelength=True, spectra are displayed in wavelength space;
+        otherwise pixel space is used.
+
+        Parameters
+        ----------
+        adinputs : list of AstroData
+            Input AstroData objects with extracted spectra. Must have
+            OPTIMAL_REDUCED_FIBER_* or BOX_REDUCED_FIBER_* extensions.
+        fibers : list of int
+            Fiber numbers to display (e.g., [2, 3, 4] for science fibers,
+            [6] for combined fiber, [5] for calibration fiber).
+            Default is [2, 3, 4].
+        show_wavelength : bool
+            If True and wavelength solution exists (WLS_STATIC_FIBER_* or
+            WLS_DYNAMIC_FIBER_* extensions), display spectra vs wavelength (nm).
+            If False or no wavelength solution, display vs pixel number.
+            Default is False.
+
+        Returns
+        -------
+        list of AstroData
+            Unmodified input AstroData objects (this is a visualization-only
+            primitive with no data modification).
+
+        Notes
+        -----
+        The Bokeh server runs in a separate thread and communicates with the
+        browser via websockets. Browser opens automatically based on user
+        configuration in ~/.dragons/dragonsrc:
+
+        [interactive]
+        browser = chrome          # or firefox, safari
+        theme = dark_minimal      # or light_minimal
+        port_number = 5006        # starting port
+
+        If the specified port is occupied, the server automatically tries
+        subsequent ports up to 65535.
+
+        The visualizer provides:
+        - Dropdown to select fiber
+        - Dropdown to select individual orders or "All Orders" view
+        - Dropdown to select extraction type (optimal or box)
+        - Interactive Bokeh plot with zoom, pan, hover tooltips
+        - Submit button to continue reduction
+
+        Examples
+        --------
+        Display science fibers after extraction (pixel space):
+        >>> p.displaySpectra(fibers=[2, 3, 4])
+
+        Display calibrated spectra in wavelength space:
+        >>> p.displaySpectra(fibers=[2, 3, 4], show_wavelength=True)
+
+        Display combined fiber spectrum:
+        >>> p.displaySpectra(fibers=[6], show_wavelength=True)
+        """
+        log = self.log
+        log.debug(gt.log_message("primitive", self.myself(), "starting"))
+
+        # Get parameters
+        fibers = params["fibers"]
+        show_wavelength = params["show_wavelength"]
+
+        if fibers is None:
+            fibers = [2, 3, 4]
+
+        log.fullinfo(f"Selected fibers: {fibers}")
+
+        # Import Bokeh visualizer components
+        try:
+            from geminidr.interactive import server
+            from .interactive.spectrum_viewer import SpectrumVisualizer
+        except ImportError as e:
+            log.warning(
+                f"Failed to import Bokeh interactive components: {e}\n"
+                f"Skipping spectrum display. Install bokeh to enable visualization."
+            )
+            return adinputs
+
+        # Process all AstroData objects and collect spectra by file and arm
+        all_files_data = []
+
+        for ad in adinputs:
+            log.fullinfo(f"Preparing spectrum display for {ad.filename}")
+
+            # Determine if this is a bundle or single arm
+            if 'BUNDLE' in ad.tags:
+                # Bundle: ext 0 = Blue, ext 1 = Red
+                log.fullinfo(f"{ad.filename} is a BUNDLE (ext 0=Blue, ext 1=Red)")
+
+                arms_data = {}
+
+                # Extract Blue arm (extension 0)
+                blue_spectra = self._extract_spectra_data(ad, 0, fibers, show_wavelength)
+                if blue_spectra:
+                    arms_data['Blue'] = blue_spectra
+                else:
+                    log.warning(f"No valid Blue arm spectra in {ad.filename}")
+
+                # Extract Red arm (extension 1)
+                if len(ad) > 1:
+                    red_spectra = self._extract_spectra_data(ad, 1, fibers, show_wavelength)
+                    if red_spectra:
+                        arms_data['Red'] = red_spectra
+                    else:
+                        log.warning(f"No valid Red arm spectra in {ad.filename}")
+                else:
+                    log.warning(f"{ad.filename} marked as BUNDLE but has only 1 extension")
+
+                if arms_data:
+                    all_files_data.append({
+                        'filename': ad.filename,
+                        'arms_data': arms_data
+                    })
+
+            elif 'BLUE' in ad.tags:
+                # Single Blue arm
+                log.fullinfo(f"{ad.filename} is a single Blue arm")
+                blue_spectra = self._extract_spectra_data(ad, 0, fibers, show_wavelength)
+                if blue_spectra:
+                    all_files_data.append({
+                        'filename': ad.filename,
+                        'arms_data': {'Blue': blue_spectra}
+                    })
+                else:
+                    log.warning(f"No valid spectra in {ad.filename}")
+
+            elif 'RED' in ad.tags:
+                # Single Red arm
+                log.fullinfo(f"{ad.filename} is a single Red arm")
+                red_spectra = self._extract_spectra_data(ad, 0, fibers, show_wavelength)
+                if red_spectra:
+                    all_files_data.append({
+                        'filename': ad.filename,
+                        'arms_data': {'Red': red_spectra}
+                    })
+                else:
+                    log.warning(f"No valid spectra in {ad.filename}")
+
+            else:
+                # Unknown type - try to extract from first extension
+                log.fullinfo(f"{ad.filename} has no BUNDLE/BLUE/RED tag, treating as single arm")
+                spectra = self._extract_spectra_data(ad, 0, fibers, show_wavelength)
+                if spectra:
+                    all_files_data.append({
+                        'filename': ad.filename,
+                        'arms_data': {'Data': spectra}
+                    })
+                else:
+                    log.warning(f"No valid spectra in {ad.filename}")
+
+        if not all_files_data:
+            log.warning("No valid spectra found in any input files, skipping display")
+            return adinputs
+
+        # Create visualizer for all files
+        log.stdinfo(f"Launching interactive spectrum viewer for {len(all_files_data)} file(s)")
+        log.stdinfo(f"Browser will open automatically at http://localhost:5006")
+        log.stdinfo(f"Click 'Submit' or close browser to continue reduction")
+
+        visualizer = SpectrumVisualizer(
+            all_files_data,
+            title="MaroonX Extracted Spectra",
+            primitive_name="displaySpectra",
+        )
+
+        # Launch browser (blocks until user submits)
+        try:
+            server.interactive_fitter(visualizer)
+            log.fullinfo("User submitted spectrum viewer, continuing reduction")
+        except KeyboardInterrupt:
+            log.warning("User aborted spectrum viewer")
+            raise
+
         log.debug(gt.log_message("primitive", self.myself(), "complete"))
         return adinputs
 
@@ -1617,35 +2226,37 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             objects are stored in self.streams['RED'].
         """
         log = self.log
-        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
+        log.debug(gt.log_message("primitive", self.myself(), "starting"))
 
         # Initialize dictionary to beindexed by ARCHNAME and arm tag
         arm_dict = {}
         for ad in adinputs:
-            archname = ad.phu.get('ARCHNAME')
+            archname = ad.phu.get("ARCHNAME")
             if archname not in arm_dict:
-                arm_dict[archname] = {'BLUE': [], 'RED': []}
-            if 'BLUE' in ad.tags:
-                arm_dict[archname]['BLUE'].append(ad)
-            elif 'RED' in ad.tags:
-                arm_dict[archname]['RED'].append(ad)
+                arm_dict[archname] = {"BLUE": [], "RED": []}
+            if "BLUE" in ad.tags:
+                arm_dict[archname]["BLUE"].append(ad)
+            elif "RED" in ad.tags:
+                arm_dict[archname]["RED"].append(ad)
             else:
-                log.warning(f'No BLUE or RED tag found for {ad.filename}, skipping this file.')
+                log.warning(
+                    "No BLUE or RED tag found for %s, skipping this file.", ad.filename
+                )
 
         # Sort streams into red and blue lists
         blue_list = []
         red_list = []
         for archname, arms in arm_dict.items():
-            if not arms['BLUE'] or not arms['RED']:
-                msg = f'No BLUE or RED tagged files found for ARCHNAME {archname}'
+            if not arms["BLUE"] or not arms["RED"]:
+                msg = f"No BLUE or RED tagged files found for ARCHNAME {archname}"
                 log.debug(msg)
                 raise ValueError(msg)
 
-            blue_list.extend(arms['BLUE'])
-            red_list.extend(arms['RED'])
+            blue_list.extend(arms["BLUE"])
+            red_list.extend(arms["RED"])
 
-        log.debug(gt.log_message('primitive', self.myself(), 'complete'))
-        self.streams['RED'] = red_list
+        log.debug(gt.log_message("primitive", self.myself(), "complete"))
+        self.streams["RED"] = red_list
         return blue_list
 
     def bundleArmStreams(self, adinputs=None, **params):
@@ -1679,32 +2290,32 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         ARCHNAME headers to be properly bundled together.
         """
         log = self.log
-        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
+        log.debug(gt.log_message("primitive", self.myself(), "starting"))
 
         # Get the red arm stream that was set by separateArmStreams
-        if 'RED' not in self.streams:
-            msg = 'RED stream not found. Run separateArmStreams first.'
+        if "RED" not in self.streams:
+            msg = "RED stream not found. Run separateArmStreams first."
             log.error(msg)
             raise ValueError(msg)
 
         blue_list = adinputs
-        red_list = self.streams['RED']
+        red_list = self.streams["RED"]
 
         # Create dictionary indexed by ARCHNAME
         blue_dict = {}
         red_dict = {}
 
         for ad in blue_list:
-            archname = ad.phu.get('ARCHNAME')
+            archname = ad.phu.get("ARCHNAME")
             if archname is None:
-                log.warning(f'No ARCHNAME found for {ad.filename}, skipping')
+                log.warning("No ARCHNAME found for %s, skipping", ad.filename)
                 continue
             blue_dict[archname] = ad
 
         for ad in red_list:
-            archname = ad.phu.get('ARCHNAME')
+            archname = ad.phu.get("ARCHNAME")
             if archname is None:
-                log.warning(f'No ARCHNAME found for {ad.filename}, skipping')
+                log.warning("No ARCHNAME found for %s, skipping", ad.filename)
                 continue
             red_dict[archname] = ad
 
@@ -1716,9 +2327,9 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             missing_in_blue = red_archnames - blue_archnames
             missing_in_red = blue_archnames - red_archnames
             if missing_in_blue:
-                log.warning(f'ARCHNAMES in RED but not BLUE: {missing_in_blue}')
+                log.warning("ARCHNAMES in RED but not BLUE: %s", missing_in_blue)
             if missing_in_red:
-                log.warning(f'ARCHNAMES in BLUE but not RED: {missing_in_red}')
+                log.warning("ARCHNAMES in BLUE but not RED: %s", missing_in_red)
 
         # Bundle matching pairs
         adoutputs = []
@@ -1733,23 +2344,22 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             bundle_ad.filename = archname
 
             # Update PHU ORIGNAME to archive name
-            bundle_ad.phu['ORIGNAME'] = archname
+            bundle_ad.phu["ORIGNAME"] = archname
 
             # Remove ARCHNAME card if it exists (it's now the filename)
-            if 'ARCHNAME' in bundle_ad.phu:
-                del bundle_ad.phu['ARCHNAME']
+            if "ARCHNAME" in bundle_ad.phu:
+                del bundle_ad.phu["ARCHNAME"]
 
             # Append red arm as second extension with all its data
             # This preserves variance, mask, tables, and all other extensions
             bundle_ad.append(red_ad[0])
 
             # Update name and append to output
-            bundle_ad.update_filename(suffix=params['suffix'], strip=True)
+            bundle_ad.update_filename(suffix=params["suffix"], strip=True)
             adoutputs.append(bundle_ad)
 
-        log.debug(gt.log_message('primitive', self.myself(), 'complete'))
+        log.debug(gt.log_message("primitive", self.myself(), "complete"))
         return adoutputs
-
 
     # ========================================================================
     # Private methods
@@ -1758,11 +2368,11 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
     def _exposuremeterStats(self, ad, utc_start, exptime, zp_pc=0.0, zp_frd=0.0):
         """
         Extract and process exposure meter readings.
-        
+
         This function retrieves exposure meter data from a pandas dataframe, applies
         zeropoint corrections, performs outlier filtering, and calculates statistics
         for both PC and FRD channels.
-        
+
         Parameters
         ----------
         ad : AstroData object
@@ -1779,12 +2389,12 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             Zeropoint for FRD channel. If 0.0 (default), automatically determined
             from the median of the 20 lowest values in a 10-minute window around
             the exposure.
-        
+
         Returns
         -------
         dict
             Nested dictionary containing processed exposure meter data:
-            
+
             - 'pc'/'frd' : dict
                 Channel-specific data containing:
                 - 'times' : astropy.time.Time or None
@@ -1799,16 +2409,16 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                         Applied zeropoint value
         """
         log = self.log
-        exposuremeter = ad.EXPOSUREMETER.to_pandas(index='Timestamp')
+        exposuremeter = ad.EXPOSUREMETER.to_pandas(index="Timestamp")
         exposuremeter.index = pd.to_datetime(exposuremeter.index)
 
         # Reference zeropints
-        ref_zp_pc = ad.EXPOSUREMETER.meta['header']['ZP_PC']
-        ref_zp_frd = ad.EXPOSUREMETER.meta['header']['ZP_FRD']
+        ref_zp_pc = ad.EXPOSUREMETER.meta["header"]["ZP_PC"]
+        ref_zp_frd = ad.EXPOSUREMETER.meta["header"]["ZP_FRD"]
 
         # 5 min window around exposure for auto-zp determination
-        dt1 = TimeDelta(exptime, format='sec')
-        dt3 = TimeDelta(300, format='sec')
+        dt1 = TimeDelta(exptime, format="sec")
+        dt3 = TimeDelta(300, format="sec")
         utc_end = utc_start + dt1
 
         # Auto-determine zeropoints if not provided
@@ -1816,13 +2426,13 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         start_cut = (utc_start - dt3).iso
         end_cut = (utc_end + dt3).iso
         if zp_frd == 0.0:
-            flux_frd = exposuremeter.loc[start_cut:end_cut]['Flux FRD Channel']
+            flux_frd = exposuremeter.loc[start_cut:end_cut]["Flux FRD Channel"]
             zp_frd = np.nanmedian(np.sort(flux_frd)[:n_cutoff])
-            log.fullinfo(f'Automatic zeropoint determination for FRD channel: {zp_frd}')
+            log.fullinfo(f"Automatic zeropoint determination for FRD channel: {zp_frd}")
         if zp_pc == 0.0:
-            flux_pc = exposuremeter.loc[start_cut:end_cut]['Flux PC Channel']
+            flux_pc = exposuremeter.loc[start_cut:end_cut]["Flux PC Channel"]
             zp_pc = np.nanmedian(np.sort(flux_pc)[:n_cutoff])
-            log.fullinfo(f'Automatic zeropoint determination for PC channel: {zp_pc}')
+            log.fullinfo(f"Automatic zeropoint determination for PC channel: {zp_pc}")
 
         # Check if zp are valid
         if np.isnan(zp_frd):
@@ -1832,35 +2442,39 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             log.warning("Automatic zeropoint determination for PC channel failed.")
             zp_pc = 0.0
         if abs(zp_frd - ref_zp_frd) > 0.2 * ref_zp_frd:
-            log.warning(f"Automatic zeropoint determination for FRD, {zp_frd}, "
-                        f"is 20% off of reference value of {ref_zp_frd}.")
+            log.warning(
+                "Automatic zeropoint determination for FRD, %s, is 20%% off of reference value of %s.",
+                zp_frd, ref_zp_frd
+            )
         if abs(zp_pc - ref_zp_pc) > 0.2 * ref_zp_pc:
-            log.warning(f"Automatic zeropoint determination for FRD, {zp_pc}, "
-                        f"is 20% off of reference value of {ref_zp_pc}.")
+            log.warning(
+                "Automatic zeropoint determination for FRD, %s, is 20%% off of reference value of %s.",
+                zp_pc, ref_zp_pc
+            )
 
         # Extract readings during exposure
-        result_pc = exposuremeter.loc[utc_start.iso:utc_end.iso]['Flux PC Channel']
-        result_frd = exposuremeter.loc[utc_start.iso:utc_end.iso]['Flux FRD Channel']
+        result_pc = exposuremeter.loc[utc_start.iso : utc_end.iso]["Flux PC Channel"]
+        result_frd = exposuremeter.loc[utc_start.iso : utc_end.iso]["Flux FRD Channel"]
         number_pc = result_pc.count()
         number_frd = result_frd.count()
 
         # Apply zp correction and outlier filtering
-        times_pc = Time(result_pc.index.values, format='datetime64', scale='utc')
+        times_pc = Time(result_pc.index.values, format="datetime64", scale="utc")
         readings_pc = result_pc.values.flatten() - zp_pc
         median_pc = medfilt(readings_pc, 3)
         outlier = np.where(np.abs(readings_pc - median_pc) / median_pc > 2)
         readings_pc[outlier] = median_pc[outlier]
         if np.sum(outlier) > 0:
-            log.warning(f'Replaced {len(outlier)} outlier value(s) in PC dataset')
+            log.warning("Replaced %s outlier value(s) in PC dataset", len(outlier))
         readings_pc[readings_pc < 0] = 0.0
 
-        times_frd = Time(result_frd.index.values, format='datetime64', scale='utc')
+        times_frd = Time(result_frd.index.values, format="datetime64", scale="utc")
         readings_frd = result_frd.values.flatten() - zp_frd
         median_frd = medfilt(readings_frd, 3)
         outlier = np.where(np.abs(readings_frd - median_pc) / median_frd > 2)
         readings_frd[outlier] = median_frd[outlier]
         if np.sum(outlier) > 0:
-            log.warning(f'Replaced {len(outlier)} outlier value(s) in FRD dataset')
+            log.warning("Replaced %s outlier value(s) in FRD dataset", len(outlier))
         readings_frd[readings_frd < 0] = 0.0
 
         # Check for large time gaps in data
@@ -1868,13 +2482,16 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             gaps = [
                 (times_frd[0] - utc_start).sec,
                 (utc_end - times_frd[-1]).sec,
-                result_frd.index.to_series().diff().dt.total_seconds().fillna(0).max()
-                ]
+                result_frd.index.to_series().diff().dt.total_seconds().fillna(0).max(),
+            ]
             maxgap = max(gaps)
             if maxgap > 30:
-                log.warning(f'{maxgap:.1f} sec gap found in exposuremeter data. Photometric calculations abandoned.')
+                log.warning(
+                    "%.1f sec gap found in exposuremeter data. Photometric calculations abandoned.",
+                    maxgap
+                )
             elif maxgap > 10:
-                log.warning(f'{maxgap:.1f} sec gap found in exposuremeter data.')
+                log.warning("%.1f sec gap found in exposuremeter data.", maxgap)
         else:
             times_pc = None
             times_frd = None
@@ -1883,28 +2500,28 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
         # Calculate statistics
         emeter_stats = {
-            'pc': {
-                'times': times_pc,
-                'readings': readings_pc,
-                'stats': {
-                    'min': np.nanmin(readings_pc),
-                    'max': np.nanmax(readings_pc),
-                    'median': np.nanmedian(readings_pc),
-                    'std': np.nanstd(readings_pc),
-                    'zeropoint': zp_pc
-                }
+            "pc": {
+                "times": times_pc,
+                "readings": readings_pc,
+                "stats": {
+                    "min": np.nanmin(readings_pc),
+                    "max": np.nanmax(readings_pc),
+                    "median": np.nanmedian(readings_pc),
+                    "std": np.nanstd(readings_pc),
+                    "zeropoint": zp_pc,
+                },
             },
-            'frd': {
-                'times': times_frd,
-                'readings': readings_frd,
-                'stats': {
-                    'min': np.nanmin(readings_frd),
-                    'max': np.nanmax(readings_frd),
-                    'median': np.nanmedian(readings_frd),
-                    'std': np.nanstd(readings_frd),
-                    'zeropoint': zp_frd
-                }
-            }
+            "frd": {
+                "times": times_frd,
+                "readings": readings_frd,
+                "stats": {
+                    "min": np.nanmin(readings_frd),
+                    "max": np.nanmax(readings_frd),
+                    "median": np.nanmedian(readings_frd),
+                    "std": np.nanstd(readings_frd),
+                    "zeropoint": zp_frd,
+                },
+            },
         }
         return emeter_stats
 
@@ -1912,6 +2529,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 ##############################################################################
 # Below are the helper functions for the primitives in this module           #
 ##############################################################################
+
 
 def _make_b_spline_from_pars(p, kind=5):
     disp_params = []
@@ -1927,14 +2545,21 @@ def _make_b_spline_from_pars(p, kind=5):
 
     return scipy.interpolate.BSpline(knots, disp_params, kind)
 
+
 def _peak_to_wavelength(m, pars):
     return (2.0 * (pars["l"]) * np.cos(pars["theta"]) * pars["n"] / m) * 1e6
+
 
 def _peak_to_wavelength_spline(mm, pars):
     spl = _make_b_spline_from_pars(pars)
     return (
-        2.0 * (pars["l"]  - spl(1 / mm)*pars["l"]) * np.cos(pars["theta"]) * pars["n"] / mm
+        2.0
+        * (pars["l"] - spl(1 / mm) * pars["l"])
+        * np.cos(pars["theta"])
+        * pars["n"]
+        / mm
     ) * 1e6
+
 
 def _fc2min(p, m, etalonwl):
     # residuals are in 'nm' not m/s. Good? bad? Should we normalize?

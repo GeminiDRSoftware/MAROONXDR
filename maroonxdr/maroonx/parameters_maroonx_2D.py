@@ -20,7 +20,7 @@ class addVARConfig(config.Config):
     This parameter set controls the addVAR primitive for MAROON-X.
     """
 
-    suffix = config.Field('Filename suffix', str, '_varAdded')
+    suffix = config.Field('Filename suffix', str, '')
     read_noise = config.Field('Include read noise in variance', bool, True)
     poisson_noise = config.Field('Include poisson noise in variance', bool, True)
 
