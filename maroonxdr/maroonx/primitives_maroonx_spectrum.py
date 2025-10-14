@@ -115,7 +115,7 @@ def _get_calibration_wavecal_path():
     Should probably be deprecated when dragons calib is implemented.
     """
     cwd = Path(os.getcwd())
-    return cwd  # / 'calibrations' / 'processed_wavecal'
+    return cwd / 'calibrations' / 'processed_wavecal'
 
 
 def _get_calibration_wavecal(adinputs):
@@ -1510,9 +1510,9 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     clip3_n = np.size(clip3)
 
                 log.fullinfo("Kappa_sigma in order %s: %.1f", order, kappa_sigma)
-                log.debug("Clipped %s pixels in fiber 2 of order %s", clip1_n, order)
-                log.debug("Clipped %s pixels in fiber 3 of order %s", clip2_n, order)
-                log.debug("Clipped %s pixels in fiber 4 of order %s", clip3_n, order)
+                log.fullinfo("Clipped %s pixels in fiber 2 of order %s", clip1_n, order)
+                log.fullinfo("Clipped %s pixels in fiber 3 of order %s", clip2_n, order)
+                log.fullinfo("Clipped %s pixels in fiber 4 of order %s", clip3_n, order)
 
                 weights1_2[clip1] = 0
                 weights2[clip2] = 0

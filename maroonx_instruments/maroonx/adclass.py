@@ -178,6 +178,14 @@ class AstroDataMAROONX(AstroDataGemini):
 
     # Adapt as required.
     # More tags needs to be added by the MAROON-X DR team
+    @astro_data_tag
+    def _status_processed_maroonx_cals(self):
+        """
+        Define the 'processed data' tag set for MAROON-X data.
+        """
+        kwords = {'PRWAVECAL'}
+        if set(self.phu) & kwords:
+            return TagSet(['PROCESSED'])
 
     # ----------------------
     # Descriptor definitions

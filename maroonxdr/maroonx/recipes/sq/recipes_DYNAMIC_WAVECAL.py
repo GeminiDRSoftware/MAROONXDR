@@ -56,7 +56,8 @@ def makeDynamicWavecal(p):
     p.staticWavelengthSolution()
     p.fitAndApplyEtalonWls()
 
-    p.writeOutputs(suffix='_wavecal')  # save reduced 1D spectra
+    #p.writeOutputs(suffix='_wavecal')  # save reduced 1D spectra
+    p.storeProcessedWavecal(suffix='_wavecal', force=True)  # save reduced 1D spectra
 
 _default = makeDynamicWavecal
 

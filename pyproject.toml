@@ -121,6 +121,8 @@ ignore = [
   "TD",      # TODO statements | Covered by .github/workflows/todo.yml
   "ISC001",  # String concatenation | Conflicts with linter
   "RUF012",  # Avoid mandatory type annotations
+  "PLR2004", # Magic numbers | Legacy code makes heavy use of these. Refactor over time
+
 ]
 
 [tool.ruff.lint.per-file-ignores]

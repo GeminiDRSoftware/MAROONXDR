@@ -648,7 +648,7 @@ class MAROONXEchelle(MAROONX, Spect):
                             optimal_reduced_stripes[f].update({o: flux})
                             # TODO: When we add the addVAR() method,
                             # we need to deal with the variance before this
-                            optimal_reduced_err[f].update({o: np.sqrt(var)})
+                            optimal_reduced_err[f].update({o: var})
                             optimal_reduced_2d_arrays[f].update({o: fo})
                             box_reduced_flat[f].update({o: stand_flat})
                             box_reduced_stripes[f].update({o: stand_spec})

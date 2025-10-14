@@ -23,10 +23,11 @@ from scipy.ndimage import gaussian_filter, measurements, median_filter
 
 from . import maroonx_utils, parameters_maroonx_2D
 from .lookups import timestamp_keywords as maroonx_stamps
+from .primitives_calibdb_maroonx import CalibDBMAROONX
 
 
 @parameter_override
-class MAROONX(Gemini, CCD, NearIR):
+class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
     """Any primitives specific to MAROON-X can go here."""
 
     tagset = {"GEMINI", "MAROONX"}

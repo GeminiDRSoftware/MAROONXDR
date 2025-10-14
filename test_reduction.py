@@ -10,15 +10,15 @@ import astrodata
 import maroonx_instruments  # noqa : important to load adclass tags
 
 
+# Get all files in the science_dir. Change the path here to suit your installation.
+science_dir = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir')
+os.chdir(science_dir)
+
 # =============================================================================
 # Step 0 - Reduction setup
 # =============================================================================
 # Configure logging
 logutils.config(file_name="test_reduction.log", mode="debug", stomp=True)
-
-# Get all files in the science_dir. Change the path here to suit your installation.
-science_dir = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir')
-os.chdir(science_dir)
 
 # Calibration files paths
 proc_dark = science_dir / "calibrations" / "processed_dark"
@@ -148,3 +148,21 @@ for arm in arm_tags:
     myreduce.files.extend(selected_spect)
     myreduce.drpkg = 'maroonxdr'
     myreduce.runr()
+
+# =============================================================================
+# Step 8 - Export Science Bundles
+# =============================================================================
+
+selected_spect = dataselect.select_data(
+    get_files(), 
+    tags=['PROCESSED', 'SCI', '300s'])
+
+# Run reduce on all selected files
+myreduce = Reduce()
+myreduce.files.extend(selected_spect)
+myreduce.drpkg = 'maroonxdr'
+myreduce.recipename = 'exportReducedBundle'
+myreduce.uparms = {
+    'bundleArmStreams:suffix': '_exported',
+}
+myreduce.runr()
