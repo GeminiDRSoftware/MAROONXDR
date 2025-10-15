@@ -542,28 +542,46 @@ def docs(session: nox.Session):
         external=True,
     )
 
-    # Create docs directories if they don't exist
-    docs_source = Path('docs/source')
-    docs_build = Path('docs/build/html')
+    # Define documentation directories
+    doc_dir = Path('doc')
+    user_source = doc_dir / 'usermanuals' / 'MAROONXDR_UserManual'
+    user_build = user_source / 'build' / 'html'
+    prog_source = doc_dir / 'progmanuals' / 'MAROONXDR_ProgManual'
+    prog_build = prog_source / 'build' / 'html'
+    tutorial_source = doc_dir / 'tutorials' / 'MAROONXDR_Tutorial'
+    tutorial_build = tutorial_source / 'build' / 'html'
 
-    if not docs_source.exists():
-        session.error(
-            f"Documentation source directory {docs_source} does not exist. "
-            "Please create it and add your Sphinx configuration."
-        )
-
-    # Build the documentation
+    # Build user manual
+    session.log("Building user manual...")
     session.run(
         'sphinx-build',
-        '-b', 'html',
-        '-W',  # Treat warnings as errors
-        '--keep-going',  # Continue on errors to see all issues
-        str(docs_source),
-        str(docs_build)
+        '-M', 'html',
+        str(user_source),
+        str(user_source / 'build')
     )
 
-    session.log(f"Documentation built successfully in {docs_build}")
-    session.log(f"Open {docs_build}/index.html in your browser to view the docs")
+    # Build programmer manual
+    session.log("Building programmer manual...")
+    session.run(
+        'sphinx-build',
+        '-M', 'html',
+        str(prog_source),
+        str(prog_source / 'build')
+    )
+
+    # Build tutorial
+    session.log("Building tutorial...")
+    session.run(
+        'sphinx-build',
+        '-M', 'html',
+        str(tutorial_source),
+        str(tutorial_source / 'build')
+    )
+
+    session.log("Documentation built successfully!")
+    session.log(f"User manual: {user_build}/index.html")
+    session.log(f"Programmer manual: {prog_build}/index.html")
+    session.log(f"Tutorial: {tutorial_build}/index.html")
 
 @nox.session(venv_backend='virtualenv')
 def docstyle(session: nox.Session):

@@ -1,0 +1,44 @@
+/* Custom styling for Legacy and DRAGONS topic blocks */
+
+/* Legacy pipeline blocks - warm amber/beige background */
+.topic.legacy-block {
+    background-color: #fff8e7;
+    border-left: 4px solid #d4a574;
+    padding: 1em;
+    margin: 1em 0;
+}
+
+.topic.legacy-block .topic-title {
+    color: #8b6914;
+    font-weight: bold;
+    font-size: 1.1em;
+    margin-bottom: 0.5em;
+}
+
+/* DRAGONS pipeline blocks - cool blue/cyan background */
+.topic.dragons-block {
+    background-color: #e8f4f8;
+    border-left: 4px solid #4a90a4;
+    padding: 1em;
+    margin: 1em 0;
+}
+
+.topic.dragons-block .topic-title {
+    color: #1e5a6e;
+    font-weight: bold;
+    font-size: 1.1em;
+    margin-bottom: 0.5em;
+}
+
+/* Ensure code blocks inside topics maintain readability */
+.topic.legacy-block .highlight,
+.topic.dragons-block .highlight {
+    margin: 0.5em 0;
+}
+
+/* Add subtle shadow for depth */
+.topic.legacy-block,
+.topic.dragons-block {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border-radius: 3px;
+}
