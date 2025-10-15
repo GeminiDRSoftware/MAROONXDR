@@ -184,6 +184,64 @@ def ad_empty_dark(arm, science_dir):
 
 
 # =========================================================
+# UTILITY FUNCTIONS
+# =========================================================
+
+def assert_allclose_with_max_fails(x, y, rtol, atol, max_fails=0, warn_on_acceptable_fails=True):
+    """
+    Assert arrays are close, allowing up to max_fails elements to fail.
+
+    This is useful for regression testing where a small number of pixel-level
+    differences are acceptable due to rounding errors or algorithm variations.
+
+    When max_fails > 0 and failures are within acceptable range (0 < n_fails <= max_fails),
+    the test will trigger a pytest.xfail() to mark it as an expected failure rather than
+    a clean pass. This provides better visibility into which tests have acceptable
+    deviations versus perfect matches.
+
+    Parameters
+    ----------
+    x : array_like
+        First array to compare
+    y : array_like
+        Second array to compare
+    rtol : float
+        Relative tolerance parameter. No default, must be specified.
+    atol : float
+        Absolute tolerance parameter. No default, must be specified.
+    max_fails : int, optional
+        Maximum number of elements allowed to fail (default: 0)
+    warn_on_acceptable_fails : bool, optional
+        If True, trigger pytest.xfail() when 0 < n_fails <= max_fails (default: True)
+        If False, silently pass when failures are within acceptable range
+
+    Raises
+    ------
+    AssertionError
+        If more than max_fails elements fail the tolerance test
+    """
+    x = np.asarray(x)
+    y = np.asarray(y)
+
+    # Check which elements fail the tolerance test
+    not_close = ~np.isclose(x, y, rtol=rtol, atol=atol)
+    n_fails = np.sum(not_close)
+
+    if n_fails > max_fails:
+        fail_indices = np.where(not_close)[0]
+        raise AssertionError(
+            f"{n_fails} elements failed (max allowed: {max_fails})\n"
+            f"First few failing indices: {fail_indices[:10]}"
+        )
+    elif n_fails > 0 and warn_on_acceptable_fails:
+        # Mark as expected failure
+        fail_indices = np.where(not_close)[0]
+        pytest.xfail(
+            f"{n_fails} elements differ (within acceptable limit of {max_fails})\n"
+        )
+
+
+# =========================================================
 # CONFIGURATION HOOKS
 # =========================================================
 

@@ -1330,7 +1330,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             fiber_wls = {}
             for fib in combine_fibers:
                 fiber_data[fib] = getattr(ad[0], f"OPTIMAL_REDUCED_FIBER_{fib}")
-                fiber_errors[fib] = getattr(ad[0], f"OPTIMAL_REDUCED_ERR_{fib}")
+                fiber_errors[fib] = getattr(ad[0], f"OPTIMAL_REDUCED_VAR_{fib}")
 
                 if symmetric_linefits:
                     fiber_wls[fib] = getattr(ad[0], f"WLS_SIMULTANEOUS_FIBER_{fib}")
@@ -1583,7 +1583,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             setattr(
                 ad[0], f"OPTIMAL_REDUCED_FIBER_{target_fiber}", combined_intensity_array
             )
-            setattr(ad[0], f"OPTIMAL_REDUCED_ERR_{target_fiber}", combined_error_array)
+            setattr(ad[0], f"OPTIMAL_REDUCED_VAR_{target_fiber}", combined_error_array)
             setattr(ad[0], f"REDUCED_ORDER_{target_fiber}", orders)
 
             if symmetric_linefits:

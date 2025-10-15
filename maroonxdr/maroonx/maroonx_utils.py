@@ -41,38 +41,38 @@ def load_recordings(ad, guess_file, fibers, orders):
             if fiber_number == 1:
                 reduced_orders = ad[0].REDUCED_ORDERS_FIBER_1
                 reduced_fiber = ad[0].BOX_REDUCED_FIBER_1
-                reduced_err = ad[0].BOX_REDUCED_ERR_1
+                reduced_var = ad[0].BOX_REDUCED_VAR_1
                 reduced_flat = ad[0].BOX_REDUCED_FLAT_1
                 guess_fiber = guess[0].BOX_REDUCED_FIBER_1
-                guess_err = guess[0].BOX_REDUCED_ERR_1
+                guess_var = guess[0].BOX_REDUCED_VAR_1
             if fiber_number == 2:
                 reduced_orders = ad[0].REDUCED_ORDERS_FIBER_2
                 reduced_fiber = ad[0].BOX_REDUCED_FIBER_2
-                reduced_err = ad[0].BOX_REDUCED_ERR_2
+                reduced_var = ad[0].BOX_REDUCED_VAR_2
                 reduced_flat = ad[0].BOX_REDUCED_FLAT_2
                 guess_fiber = guess[0].BOX_REDUCED_FIBER_2
-                guess_err = guess[0].BOX_REDUCED_ERR_2
+                guess_var = guess[0].BOX_REDUCED_VAR_2
             if fiber_number == 3:
                 reduced_orders = ad[0].REDUCED_ORDERS_FIBER_3
                 reduced_fiber = ad[0].BOX_REDUCED_FIBER_3
-                reduced_err = ad[0].BOX_REDUCED_ERR_3
+                reduced_var = ad[0].BOX_REDUCED_VAR_3
                 reduced_flat = ad[0].BOX_REDUCED_FLAT_3
                 guess_fiber = guess[0].BOX_REDUCED_FIBER_3
-                guess_err = guess[0].BOX_REDUCED_ERR_3
+                guess_var = guess[0].BOX_REDUCED_VAR_3
             if fiber_number == 4:
                 reduced_orders = ad[0].REDUCED_ORDERS_FIBER_4
                 reduced_fiber = ad[0].BOX_REDUCED_FIBER_4
-                reduced_err = ad[0].BOX_REDUCED_ERR_4
+                reduced_var = ad[0].BOX_REDUCED_VAR_4
                 reduced_flat = ad[0].BOX_REDUCED_FLAT_4
                 guess_fiber = guess[0].BOX_REDUCED_FIBER_4
-                guess_err = guess[0].BOX_REDUCED_ERR_4
+                guess_var = guess[0].BOX_REDUCED_VAR_4
             if fiber_number == 5:
                 reduced_orders = ad[0].REDUCED_ORDERS_FIBER_5
                 reduced_fiber = ad[0].BOX_REDUCED_FIBER_5
-                reduced_err = ad[0].BOX_REDUCED_ERR_5
+                reduced_var = ad[0].BOX_REDUCED_VAR_5
                 reduced_flat = ad[0].BOX_REDUCED_FLAT_5
                 guess_fiber = guess[0].BOX_REDUCED_FIBER_5
-                guess_err = guess[0].BOX_REDUCED_ERR_5
+                guess_var = guess[0].BOX_REDUCED_VAR_5
 
                 for order in reduced_orders:
                     # REDUCED_ORDERS_FIBER_X is a list of order keys
@@ -97,7 +97,7 @@ def load_recordings(ad, guess_file, fibers, orders):
             # Access the data from the input file
             reduced_fiber = getattr(ad[0], f"BOX_REDUCED_FIBER_{fiber}")
             reduced_orders = getattr(ad[0], f"REDUCED_ORDERS_FIBER_{fiber}")
-            reduced_err = getattr(ad[0], f"BOX_REDUCED_ERR_{fiber}")
+            reduced_var = getattr(ad[0], f"BOX_REDUCED_VAR_{fiber}")
             reduced_flat = getattr(ad[0], f"BOX_REDUCED_FLAT_{fiber}")
             
             if reduced_fiber.size == 1:

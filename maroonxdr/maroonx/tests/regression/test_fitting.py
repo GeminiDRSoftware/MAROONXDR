@@ -114,7 +114,7 @@ def test_load_recordings(legacy_reduced_path, legacy_flats_path):
         # Test data shapes are equal
         assert old_data.shape == new_data.shape
         # Test data values are equal
-        np.testing.assert_allclose(old_data, new_data, rtol=0, atol=1e-4)
+        np.testing.assert_allclose(old_data, new_data, rtol=0, atol=1e-5)
 
 @pytest.mark.skip(reason="This test is for debuging purposes only.")
 def test_iterative_fit_legacy():

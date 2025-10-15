@@ -90,9 +90,9 @@ class MXSpectrum:
 
             reduced_orders = getattr(adinput[0], f'REDUCED_ORDERS_FIBER_{fiber_number}', None)
             box_data = getattr(adinput[0], f'BOX_REDUCED_FIBER_{fiber_number}', None)
-            box_err = getattr(adinput[0], f'BOX_REDUCED_ERR_{fiber_number}', None)
+            box_var = getattr(adinput[0], f'BOX_REDUCED_VAR_{fiber_number}', None)
             opt_data = getattr(adinput[0], f'OPTIMAL_REDUCED_FIBER_{fiber_number}', None)
-            opt_err = getattr(adinput[0], f'OPTIMAL_REDUCED_ERR_{fiber_number}', None)
+            opt_var = getattr(adinput[0], f'OPTIMAL_REDUCED_VAR_{fiber_number}', None)
             wls_static_data = getattr(adinput[0], f'WLS_STATIC_FIBER_{fiber_number}', None)
 
             if reduced_orders.size == 1:
@@ -110,9 +110,9 @@ class MXSpectrum:
             self.spectra[fiber_number] = spectra_cls(
                 peak_data=peaks,
                 box_data=box_data,
-                box_err=box_err,
+                box_err=box_var,
                 opt_data=opt_data,
-                opt_err=opt_err,
+                opt_err=opt_var,
                 orders=reduced_orders,
                 wavelength_data=wls_static_data,
                 fiber=fiber_number,

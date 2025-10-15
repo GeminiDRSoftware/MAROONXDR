@@ -547,9 +547,9 @@ class MAROONXEchelle(MAROONX, Spect):
             optimal_extraction_fibers = [2, 3, 4]
         optimal_reduced_stripes = {}
         box_reduced_stripes = {}
-        box_reduced_err = {}
+        box_reduced_var = {}
         box_reduced_flat = {}
-        optimal_reduced_err = {}
+        optimal_reduced_var = {}
         optimal_reduced_2d_arrays = {}
         extracted_bpms = {}
 
@@ -558,15 +558,15 @@ class MAROONXEchelle(MAROONX, Spect):
         for ad, dark_ad in zip(*gt.make_lists(adinputs, darks)):
 
             # For each fiber, we need extensions for the reduced orders,
-            # the optimal reduced fiber, the error of the optimal reduced
-            # fiber, the box reduced fiber, the error of the box reduced
+            # the optimal reduced fiber, the variance of the optimal reduced
+            # fiber, the box reduced fiber, the variance of the box reduced
             # fiber, and the bad pixel mask.
             for f in range(1, 6):
                 setattr(ad[0], f"REDUCED_ORDERS_FIBER_{f}", np.zeros(shape=[1, 1]))
                 setattr(ad[0], f"OPTIMAL_REDUCED_FIBER_{f}", np.zeros(shape=[1, 1]))
-                setattr(ad[0], f"OPTIMAL_REDUCED_ERR_{f}", np.zeros(shape=[1, 1]))
+                setattr(ad[0], f"OPTIMAL_REDUCED_VAR_{f}", np.zeros(shape=[1, 1]))
                 setattr(ad[0], f"BOX_REDUCED_FIBER_{f}", np.zeros(shape=[1, 1]))
-                setattr(ad[0], f"BOX_REDUCED_ERR_{f}", np.zeros(shape=[1, 1]))
+                setattr(ad[0], f"BOX_REDUCED_VAR_{f}", np.zeros(shape=[1, 1]))
                 setattr(ad[0], f"BOX_REDUCED_FLAT_{f}", np.zeros(shape=[1, 1]))
                 setattr(ad[0], f"BPM_FIBER_{f}", np.zeros(shape=[1, 1]))
 
@@ -597,7 +597,7 @@ class MAROONXEchelle(MAROONX, Spect):
                             f"penalty={penalty}, s_clip={s_clip}"
                         )
 
-                        (flux, var, stand_spec, stand_err, stand_flat, fo) = (
+                        (flux, var, stand_spec, stand_var, stand_flat, fo) = (
                             _optimal_extraction_single_stripe(
                                 stripe,
                                 flat_stripes[f][o],
@@ -648,21 +648,21 @@ class MAROONXEchelle(MAROONX, Spect):
                             optimal_reduced_stripes[f].update({o: flux})
                             # TODO: When we add the addVAR() method,
                             # we need to deal with the variance before this
-                            optimal_reduced_err[f].update({o: var})
+                            optimal_reduced_var[f].update({o: var})
                             optimal_reduced_2d_arrays[f].update({o: fo})
                             box_reduced_flat[f].update({o: stand_flat})
                             box_reduced_stripes[f].update({o: stand_spec})
-                            box_reduced_err[f].update({o: stand_err})
+                            box_reduced_var[f].update({o: stand_var})
                             bpm_array = np.array(np.sum(mask[f][o], axis=0).T).flatten()
                             extracted_bpms[f].update({o: bpm_array})
                         else:
                             # We do not have the extensions yet, so create them
                             optimal_reduced_stripes[f] = {o: flux}
-                            optimal_reduced_err[f] = {o: var}
+                            optimal_reduced_var[f] = {o: var}
                             optimal_reduced_2d_arrays[f] = {o: fo}
                             box_reduced_flat[f] = {o: stand_flat}
                             box_reduced_stripes[f] = {o: stand_spec}
-                            box_reduced_err[f] = {o: stand_err}
+                            box_reduced_var[f] = {o: stand_var}
                             extracted_bpms[f] = {
                                 o: np.array(np.sum(mask[f][o], axis=0).T).flatten()
                             }
@@ -675,19 +675,19 @@ class MAROONXEchelle(MAROONX, Spect):
                             flat_stripes[f][o], mask[f][o]
                         )
                         stand_spec = _box_extract_single_stripe(stripe, mask[f][o])
-                        stand_err = np.sqrt(stand_spec / gain)
+                        stand_var = stand_spec / gain
                         if f in box_reduced_stripes:
                             # Update the extensions we created earlier
                             box_reduced_flat[f].update({o: stand_flat})
                             box_reduced_stripes[f].update({o: stand_spec})
-                            box_reduced_err[f].update({o: stand_err})
+                            box_reduced_var[f].update({o: stand_var})
                             bpm_array = np.array(np.sum(mask[f][o], axis=0).T).flatten()
                             extracted_bpms[f].update({o: bpm_array})
                         else:
                             # We do not have the extensions yet, create them
                             box_reduced_flat[f] = {o: stand_flat}
                             box_reduced_stripes[f] = {o: stand_spec}
-                            box_reduced_err[f] = {o: stand_err}
+                            box_reduced_var[f] = {o: stand_var}
                             bpm_array = np.array(np.sum(mask[f][o], axis=0).T).flatten()
                             extracted_bpms[f] = {o: bpm_array}
             for f in stripes.keys():
@@ -698,14 +698,14 @@ class MAROONXEchelle(MAROONX, Spect):
                     optimal_reduced_single_fiber_order_key = np.array(
                         list(optimal_reduced_stripes[f].keys()), dtype=float
                     )
-                    optimal_reduced_single_fiber_err = np.array(
-                        list(optimal_reduced_err[f].values()), dtype=float
+                    optimal_reduced_single_fiber_var = np.array(
+                        list(optimal_reduced_var[f].values()), dtype=float
                     )
                     box_reduced_single_fiber = np.array(
                         list(box_reduced_stripes[f].values()), dtype=float
                     )
-                    box_reduced_single_err = np.array(
-                        list(box_reduced_err[f].values()), dtype=float
+                    box_reduced_single_var = np.array(
+                        list(box_reduced_var[f].values()), dtype=float
                     )
                     box_reduced_single_flat = np.array(
                         list(box_reduced_flat[f].values()), dtype=float
@@ -728,13 +728,13 @@ class MAROONXEchelle(MAROONX, Spect):
                     )
                     setattr(
                         ad[0],
-                        f"OPTIMAL_REDUCED_ERR_{f_num}",
-                        optimal_reduced_single_fiber_err,
+                        f"OPTIMAL_REDUCED_VAR_{f_num}",
+                        optimal_reduced_single_fiber_var,
                     )
                     setattr(
                         ad[0], f"BOX_REDUCED_FIBER_{f_num}", box_reduced_single_fiber
                     )
-                    setattr(ad[0], f"BOX_REDUCED_ERR_{f_num}", box_reduced_single_err)
+                    setattr(ad[0], f"BOX_REDUCED_VAR_{f_num}", box_reduced_single_var)
                     setattr(ad[0], f"BOX_REDUCED_FLAT_{f_num}", box_reduced_single_flat)
                     setattr(ad[0], f"BPM_FIBER_{f_num}", bpm_single_fiber)
                 else:
@@ -747,8 +747,8 @@ class MAROONXEchelle(MAROONX, Spect):
                     box_reduced_single_fiber = np.array(
                         list(box_reduced_stripes[f].values()), dtype=float
                     )
-                    box_reduced_single_err = np.array(
-                        list(box_reduced_err[f].values()), dtype=float
+                    box_reduced_single_var = np.array(
+                        list(box_reduced_var[f].values()), dtype=float
                     )
                     box_reduced_single_flat = np.array(
                         list(box_reduced_flat[f].values()), dtype=float
@@ -767,7 +767,7 @@ class MAROONXEchelle(MAROONX, Spect):
                     setattr(
                         ad[0], f"BOX_REDUCED_FIBER_{f_num}", box_reduced_single_fiber
                     )
-                    setattr(ad[0], f"BOX_REDUCED_ERR_{f_num}", box_reduced_single_err)
+                    setattr(ad[0], f"BOX_REDUCED_VAR_{f_num}", box_reduced_single_var)
                     setattr(ad[0], f"BOX_REDUCED_FLAT_{f_num}", box_reduced_single_flat)
                     setattr(ad[0], f"BPM_FIBER_{f_num}", bpm_single_fiber)
 
@@ -800,18 +800,18 @@ class MAROONXEchelle(MAROONX, Spect):
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
         box_reduced_stripes = {}
-        box_reduced_err = {}
+        box_reduced_var = {}
         box_reduced_flats = {}
         extracted_bpms = {}
 
         for ad in adinputs:
             # For each fiber, we need extensions for the reduced orders,
-            # the box reduced fiber, the error of the boxreduced fiber,
+            # the box reduced fiber, the variance of the box reduced fiber,
             # and the bad pixel mask.
             for f in range(1, 6):
                 setattr(ad[0], f"REDUCED_ORDERS_FIBER_{f}", np.zeros(shape=[1, 1]))
                 setattr(ad[0], f"BOX_REDUCED_FIBER_{f}", np.zeros(shape=[1, 1]))
-                setattr(ad[0], f"BOX_REDUCED_ERR_{f}", np.zeros(shape=[1, 1]))
+                setattr(ad[0], f"BOX_REDUCED_VAR_{f}", np.zeros(shape=[1, 1]))
                 setattr(ad[0], f"BOX_REDUCED_FLAT_{f}", np.zeros(shape=[1, 1]))
                 setattr(ad[0], f"BPM_FIBER_{f}", np.zeros(shape=[1, 1]))
 
@@ -830,14 +830,14 @@ class MAROONXEchelle(MAROONX, Spect):
                     log.fullinfo(f"Box extraction in {f}, order {o}")
 
                     stand_spec = _box_extract_single_stripe(stripe, mask[f][o])
-                    stand_err = np.sqrt(stand_spec / gain)
+                    stand_var = stand_spec / gain
                     stand_flat = _box_extract_single_stripe(
                         flat_stripes[f][o], mask[f][o]
                     )
                     if f in box_reduced_stripes:
                         # Update the extensions we created earlier
                         box_reduced_stripes[f].update({o: stand_spec})
-                        box_reduced_err[f].update({o: stand_err})
+                        box_reduced_var[f].update({o: stand_var})
                         box_reduced_flats[f].update({o: stand_flat})
                         extracted_bpms[f] = {
                             o: np.array(np.sum(mask[f][o], axis=0).T).flatten()
@@ -845,7 +845,7 @@ class MAROONXEchelle(MAROONX, Spect):
                     else:
                         # We do not have the extensions yet, so create them
                         box_reduced_stripes[f] = {o: stand_spec}
-                        box_reduced_err[f] = {o: stand_err}
+                        box_reduced_var[f] = {o: stand_var}
                         box_reduced_flats[f] = {o: stand_flat}
                         extracted_bpms[f] = {
                             o: np.array(np.sum(mask[f][o], axis=0).T).flatten()
@@ -857,8 +857,8 @@ class MAROONXEchelle(MAROONX, Spect):
                 box_reduced_single_fiber = np.array(
                     list(box_reduced_stripes[f].values()), dtype=float
                 )
-                box_reduced_single_err = np.array(
-                    list(box_reduced_err[f].values()), dtype=float
+                box_reduced_single_var = np.array(
+                    list(box_reduced_var[f].values()), dtype=float
                 )
                 box_reduced_flat = np.array(
                     list(box_reduced_flats[f].values()), dtype=float
@@ -873,7 +873,7 @@ class MAROONXEchelle(MAROONX, Spect):
                     box_reduced_single_fiber_order_key,
                 )
                 setattr(ad[0], f"BOX_REDUCED_FIBER_{f_num}", box_reduced_single_fiber)
-                setattr(ad[0], f"BOX_REDUCED_ERR_{f_num}", box_reduced_single_err)
+                setattr(ad[0], f"BOX_REDUCED_VAR_{f_num}", box_reduced_single_var)
                 setattr(ad[0], f"BOX_REDUCED_FLAT_{f_num}", box_reduced_flat)
                 setattr(ad[0], f"BPM_FIBER_{f_num}", bpm_single_fiber)
 
@@ -1259,7 +1259,7 @@ def _optimal_extraction_single_stripe_NEW(
     # box extracted spectrum
     stand_spec0 = _box_extract_single_stripe(stripe, mask)  # direct box extraction,
     stand_spec = stand_spec0.copy()
-    stand_err = np.sqrt(stand_spec / gain)  # error of box extracted spectrum
+    stand_var = stand_spec / gain  # variance of box extracted spectrum
 
     # flat data
     box_extracted_flat_stripe = _box_extract_single_stripe(
@@ -1426,7 +1426,7 @@ def _optimal_extraction_single_stripe_NEW(
     var[var == 0] = np.nan
 
     stand_spec0[stand_spec0 == 0] = np.nan
-    stand_err[stand_err == 0] = np.nan
+    stand_var[stand_var == 0] = np.nan
 
     total_count = np.sum(reject_tracker > 0)
     substantial_count = np.sum(
@@ -1461,7 +1461,7 @@ def _optimal_extraction_single_stripe_NEW(
             flux,
             var,
             stand_spec0,
-            stand_err,
+            stand_var,
             {
                 "noise": var,
                 "acceptancemask": mask,
@@ -1471,7 +1471,7 @@ def _optimal_extraction_single_stripe_NEW(
         )  # {'noise': var, 'profile': profile,
         # 'rejectionmask': sparse.csr_matrix(mask),
         # 'expected': expected, 'actual': actual}
-    return flux, var, stand_spec0, stand_err, {"noise": var}
+    return flux, var, stand_spec0, stand_var, {"noise": var}
 
 
 # =========================================================================
@@ -1537,7 +1537,7 @@ def _optimal_extraction_single_stripe(
     # box extracted spectrum
     stand_spec0 = _box_extract_single_stripe(stripe, mask)  # direct box extraction,
     stand_spec = stand_spec0.copy()
-    stand_err = np.sqrt(stand_spec / gain)
+    stand_var = stand_spec / gain
 
     # flat data
     box_extracted_flat_stripe = _box_extract_single_stripe(
@@ -1702,7 +1702,7 @@ def _optimal_extraction_single_stripe(
     var[var == 0] = np.nan
 
     stand_spec0[stand_spec0 == 0] = np.nan
-    stand_err[stand_err == 0] = np.nan
+    stand_var[stand_var == 0] = np.nan
 
     total_count = np.sum(reject_tracker > 0)
     substantial_count = np.sum(
@@ -1751,7 +1751,7 @@ def _optimal_extraction_single_stripe(
             flux,
             var,
             stand_spec0,
-            stand_err,
+            stand_var,
             box_extracted_flat_stripe,
             {
                 "noise": var,
@@ -1767,7 +1767,7 @@ def _optimal_extraction_single_stripe(
             flux,
             var,
             stand_spec0,
-            stand_err,
+            stand_var,
             box_extracted_flat_stripe,
             {"noise": var},
         )

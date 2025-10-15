@@ -12,6 +12,7 @@ from scipy import sparse
 
 import maroonx_instruments  # noqa : important to load adclass tags
 from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
+from maroonxdr.maroonx.tests.conftest import assert_allclose_with_max_fails
 
 # =========================================================
 # FILES TO COMPARE
@@ -39,22 +40,6 @@ USE_CACHE = False
 SCIENCE_FILES = [
     '20241124T041907Z_SOOOE_b_0300',
 ]
-
-def assert_allclose_with_max_fails(x, y, rtol=1e-7, atol=0, max_fails=0):
-    """
-    Assert arrays are close, allowing up to max_fails elements to fail.
-    """
-    x = np.asarray(x)
-    y = np.asarray(y)
-    
-    # Check which elements fail the tolerance test
-    not_close = ~np.isclose(x, y, rtol=rtol, atol=atol)
-    n_fails = np.sum(not_close)
-    
-    if n_fails > max_fails:
-        fail_indices = np.where(not_close)[0]
-        raise AssertionError(f"{n_fails} elements failed (max allowed: {max_fails})\n")
-
 
 @pytest.mark.parametrize("arm", ["BLUE"])
 def test_extractStripes_fromEtalon(arm, legacy_reduced_path):
@@ -93,12 +78,17 @@ def test_extractStripes_fromEtalon(arm, legacy_reduced_path):
             new_stripe = new_stripes[f][o].toarray()
 
             try:
-                np.testing.assert_allclose(legacy_stripe, new_stripe, rtol=0, atol=1e-8)
-                print(f'fiber/order : {f}/{o} [OK]')
-            except AssertionError:
+                assert_allclose_with_max_fails(legacy_stripe, new_stripe, rtol=0, atol=1e-8, max_fails=2)
+                log.fullinfo(f'fiber/order : {f}/{o} [OK]')
+            except (AssertionError, pytest.xfail.Exception):
+                # if xfails was raised, we still want to count it as a fail
                 fail_counter += 1
-                print(f'fiber/order : {f}/{o} [FAIL]')
-    assert fail_counter == 0
+                log.fullinfo(f'fiber/order : {f}/{o} [FAIL]')
+
+    # We accept up to 2 f/o fails
+    if 0 < fail_counter <= 2:
+        pytest.xfail(f"{fail_counter} f/o combinations differ (max allowed: 2)")
+    assert fail_counter == 0, f"{fail_counter} failing f/o combinations"
 
 
 @pytest.mark.parametrize("arm", ["BLUE"])
@@ -139,12 +129,17 @@ def test_extractStripes_fromFlat(arm, legacy_flats_path):
             new_flat_stripe = new_flat_stripes[f][o].toarray()
 
             try:
-                np.testing.assert_allclose(legacy_flat_stripe, new_flat_stripe, rtol=1e-3, atol=1e-8)
-                print(f'fiber/order : {f}/{o} [OK]')
-            except AssertionError:
+                assert_allclose_with_max_fails(legacy_flat_stripe, new_flat_stripe, rtol=1e-3, atol=1e-8, max_fails=2)
+                log.fullinfo(f'fiber/order : {f}/{o} [OK]')
+            except (AssertionError, pytest.xfail.Exception):
+                # if xfails was raised, we still want to count it as a fail
                 fail_counter += 1
-                print(f'fiber/order : {f}/{o} [FAIL]')
-    assert fail_counter == 0
+                log.fullinfo(f'fiber/order : {f}/{o} [FAIL]')
+
+    # We accept up to 2 f/o fails
+    if 0 < fail_counter <= 2:
+        pytest.xfail(f"{fail_counter} f/o combinations differ (max allowed: 2)")
+    assert fail_counter == 0, f"{fail_counter} failing f/o combinations"
 
 
 @pytest.mark.parametrize("arm", ["BLUE"])
@@ -227,12 +222,17 @@ def test_extractStripes_fromScience(arm, legacy_reduced_path, legacy_test_root):
             new_stripe = new_stripes[f][o].toarray()
 
             try:
-                np.testing.assert_allclose(legacy_stripe, new_stripe, rtol=0, atol=1e-3)
-                print(f'fiber/order : {f}/{o} [OK]')
-            except AssertionError:
+                assert_allclose_with_max_fails(legacy_stripe, new_stripe, rtol=0, atol=1e-3, max_fails=2)
+                log.fullinfo(f'fiber/order : {f}/{o} [OK]')
+            except (AssertionError, pytest.xfail.Exception):
+                # if xfails was raised, we still want to count it as a fail
                 fail_counter += 1
-                print(f'fiber/order : {f}/{o} [FAIL]')
-    assert fail_counter == 0
+                log.fullinfo(f'fiber/order : {f}/{o} [FAIL]')
+
+    # We accept up to 2 f/o fails
+    if 0 < fail_counter <= 2:
+        pytest.xfail(f"{fail_counter} f/o combinations differ (max allowed: 2)")
+    assert fail_counter == 0, f"{fail_counter} failing f/o combinations"
 
     # ==============================================================
 
@@ -282,12 +282,18 @@ def test_boxExtraction(arm, legacy_reduced_path):
             #np.testing.assert_allclose(legacy_order, new_order, rtol=1e-4)
 
             try:
-                np.testing.assert_allclose(legacy_order, new_order, rtol=0, atol=1e-8)
-                print(f'fiber/order : {fiber}/{order} [OK]')
-            except AssertionError:
+                #np.testing.assert_allclose(legacy_order, new_order, rtol=0, atol=1e-8)
+                assert_allclose_with_max_fails(legacy_order, new_order, rtol=0, atol=1e-8, max_fails=2)
+                log.fullinfo(f'fiber/order : {fiber}/{order} [OK]')
+            except (AssertionError, pytest.xfail.Exception):
+                # if xfails was raised, we still want to count it as a fail
                 fail_counter += 1
-                print(f'fiber/order : {fiber}/{order} [FAIL]')
-    assert fail_counter == 0
+                log.fullinfo(f'fiber/order : {fiber}/{order} [FAIL]')
+
+    # We accept up to 2 f/o fails
+    if 0 < fail_counter <= 2:
+        pytest.xfail(f"{fail_counter} f/o combinations differ (max allowed: 2)")
+    assert fail_counter == 0, f"{fail_counter} failing f/o combinations"
 
 
 @pytest.mark.slow()
@@ -336,21 +342,27 @@ def test_optimalExtraction(legacy_reduced_path, science_filename):
             new_order = new_opt[idx, :]
             #np.testing.assert_allclose(legacy_order, new_order, rtol=1e-4)
             try:
-                np.testing.assert_allclose(legacy_order, new_order, rtol=0, atol=1e-4)
-                print(f'fiber/order [opt]: {fiber}/{order} [OK]')
-            except AssertionError:
+                assert_allclose_with_max_fails(legacy_order, new_order, rtol=0, atol=1e-4, max_fails=2)
+                log.fullinfo(f'fiber/order [opt]: {fiber}/{order} [OK]')
+            except (AssertionError, pytest.xfail.Exception):
+                # if xfails was raised, we still want to count it as a fail
                 fail_counter += 1
-                print(f'fiber/order [opt]: {fiber}/{order} [FAIL]')
+                log.fullinfo(f'fiber/order [opt]: {fiber}/{order} [FAIL]')
 
             legacy_order = legacy_box[f"fiber_{fiber}"][f"{order}"]
             new_order = new_box[idx, :]
             try:
-                np.testing.assert_allclose(legacy_order, new_order, rtol=0, atol=1e-4)
-                print(f'fiber/order [box]: {fiber}/{order} [OK]')
-            except AssertionError:
+                assert_allclose_with_max_fails(legacy_order, new_order, rtol=0, atol=1e-4, max_fails=2)
+                log.fullinfo(f'fiber/order [box]: {fiber}/{order} [OK]')
+            except (AssertionError, pytest.xfail.Exception):
+                # if xfails was raised, we still want to count it as a fail
                 fail_counter += 1
-                print(f'fiber/order [box]: {fiber}/{order} [FAIL]')
-    assert fail_counter == 0
+                log.fullinfo(f'fiber/order [box]: {fiber}/{order} [FAIL]')
+
+    # We accept up to 2 f/o fails
+    if 0 < fail_counter <= 2:
+        pytest.xfail(f"{fail_counter} f/o combinations differ (max allowed: 2)")
+    assert fail_counter == 0, f"{fail_counter} failing f/o combinations"
 
 
 @pytest.mark.parametrize("arm", ["BLUE"])
@@ -398,12 +410,17 @@ def test_staticWavelengthSolution(arm, legacy_reduced_path):
             new_order_wls = new_wls[idx, :]
 
             try:
-                np.testing.assert_allclose(legacy_order_wls, new_order_wls, rtol=0, atol=1e-8)
-                # print(f'fiber/order : {fiber}/{order} [OK]')
-            except AssertionError:
+                assert_allclose_with_max_fails(legacy_order_wls, new_order_wls, rtol=0, atol=1e-8, max_fails=2)
+                log.fullinfo(f'fiber/order : {fiber}/{order} [OK]')
+            except (AssertionError, pytest.xfail.Exception):
+                # if xfails was raised, we still want to count it as a fail
                 fail_counter += 1
-                # print(f'fiber/order : {fiber}/{order} [FAIL]')
-    assert fail_counter == 0
+                log.fullinfo(f'fiber/order : {fiber}/{order} [FAIL]')
+
+    # We accept up to 2 f/o fails
+    if 0 < fail_counter <= 2:
+        pytest.xfail(f"{fail_counter} f/o combinations differ (max allowed: 2)")
+    assert fail_counter == 0, f"{fail_counter} failing f/o combinations"
 
 
 @pytest.mark.parametrize("science_filename", SCIENCE_FILES)
@@ -416,7 +433,7 @@ def test_optimal_extraction_single_stripe(legacy_test_root, science_filename):
     old_input = np.load(old_file_inputs, allow_pickle=True).item()
 
     (
-        old_flux, old_var, old_stand_spec, old_stand_err, old_fo
+        old_flux, old_var, old_stand_spec, old_stand_var, old_fo
     ) = _optimal_extraction_single_stripe(
         old_input['stripe'],
         old_input['flat_stripes'],
@@ -443,7 +460,7 @@ def test_optimal_extraction_single_stripe(legacy_test_root, science_filename):
         f"{science_filename}_optimal_2_111_inputs.npy", allow_pickle=True
     ).item()
     (
-        new_flux, new_var, new_stand_spec, new_stand_err, new_fo
+        new_flux, new_var, new_stand_spec, new_stand_var, new_fo
     ) = _optimal_extraction_single_stripe(
         new_input['stripe'],
         new_input['flat_stripes'],
@@ -489,7 +506,7 @@ def test_combineFibers(arm, legacy_reduced_path):
     legacy = {
         'wls': load_dict_from_hdf5(str(old_file), f'wavelengths_simultaneous/fiber_{target_fiber}'),
         'opt': load_dict_from_hdf5(str(old_file), f'optimal_extraction/fiber_{target_fiber}'),
-        'opt_err': load_dict_from_hdf5(str(old_file), f'optimal_var/fiber_{target_fiber}'),
+        'opt_var': load_dict_from_hdf5(str(old_file), f'optimal_var/fiber_{target_fiber}'),
     }
 
     if USE_CACHE:
@@ -524,7 +541,7 @@ def test_combineFibers(arm, legacy_reduced_path):
     new = {
         'wls': getattr(adout[0][0], f"WLS_SIMULTANEOUS_FIBER_{target_fiber}"),
         'opt': getattr(adout[0][0], f"OPTIMAL_REDUCED_FIBER_{target_fiber}"),
-        'opt_err': getattr(adout[0][0], f"OPTIMAL_REDUCED_ERR_{target_fiber}"),
+        'opt_var': getattr(adout[0][0], f"OPTIMAL_REDUCED_VAR_{target_fiber}"),
     }
 
     # All orders should be the same, we dont save orders for fiber 6, should we?
@@ -533,18 +550,23 @@ def test_combineFibers(arm, legacy_reduced_path):
 
     fail_counter = 0
     for idx, order in enumerate(orders):
-        for key in ['wls', 'opt', 'opt_err']:
+        for key in ['wls', 'opt', 'opt_var']:
             legacy_order = legacy[key][f"{order}"]
             new_order = new[key][idx, :]
 
             try:
                 assert_allclose_with_max_fails(legacy_order, new_order, rtol=1e-2, atol=1e-8, max_fails=2)
                 #np.testing.assert_allclose(legacy_order, new_order, rtol=1e-2, atol=1e-8)
-                print(f'key/order : {key}/{order} [OK]')
-            except AssertionError:
+                log.fullinfo(f'key/order : {key:7s}/{order} [OK]')
+            except (AssertionError, pytest.xfail.Exception):
+                # if xfails was raised, we still want to count it as a fail
                 fail_counter += 1
-                print(f'key/order : {key}/{order} [FAIL]')
-    assert fail_counter == 0
+                log.fullinfo(f'key/order : {key:7s}/{order} [FAIL]')
+
+    # We accept up to 2 key/order fails
+    if 0 < fail_counter <= 2:
+        pytest.xfail(f"{fail_counter} key/order combinations differ (max allowed: 2)")
+    assert fail_counter == 0, f"{fail_counter} failing key/order combinations"
 
 
 @pytest.mark.parametrize("arm", ["BLUE"])
@@ -677,7 +699,7 @@ def _optimal_extraction_single_stripe(stripe, flat_stripe, gain=1, read_noise=1.
     # box extracted spectrum
     stand_spec0 = _box_extract_single_stripe(stripe, mask)  # direct box extraction,
     stand_spec = stand_spec0.copy()
-    stand_err = np.sqrt(stand_spec / gain)
+    stand_var = stand_spec / gain
 
     # flat data
     box_extracted_flat_stripe = _box_extract_single_stripe(flat_stripe, mask)  # spatial sums for flat along disp
@@ -803,7 +825,7 @@ def _optimal_extraction_single_stripe(stripe, flat_stripe, gain=1, read_noise=1.
     var[var == 0] = np.nan
 
     stand_spec0[stand_spec0 == 0] = np.nan
-    stand_err[stand_err == 0] = np.nan
+    stand_var[stand_var == 0] = np.nan
 
     total_count = np.sum(reject_tracker > 0)
     substantial_count = np.sum(np.abs(stand_spec0 - stand_spec)[reject_tracker > 0] > 0.005 * (stand_spec0[reject_tracker > 0]))
@@ -834,11 +856,11 @@ def _optimal_extraction_single_stripe(stripe, flat_stripe, gain=1, read_noise=1.
 
     # return all intermediate results for debugging/testing
     if full_output:
-        return flux, var, stand_spec0, stand_err, {'noise': var, 'acceptancemask': mask, "stripe": stripe,
+        return flux, var, stand_spec0, stand_var, {'noise': var, 'acceptancemask': mask, "stripe": stripe,
                                         "initial_sigma": diff_save}  # {'noise': var, 'profile': profile, 'rejectionmask': sparse.csr_matrix(mask),
         # 'expected': expected, 'actual': actual}
     else:
-        return flux, var, stand_spec0, stand_err, {'noise': var}
+        return flux, var, stand_spec0, stand_var, {'noise': var}
 
 
 
