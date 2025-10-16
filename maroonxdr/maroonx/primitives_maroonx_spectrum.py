@@ -1584,7 +1584,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 ad[0], f"OPTIMAL_REDUCED_FIBER_{target_fiber}", combined_intensity_array
             )
             setattr(ad[0], f"OPTIMAL_REDUCED_VAR_{target_fiber}", combined_error_array)
-            setattr(ad[0], f"REDUCED_ORDER_{target_fiber}", orders)
+            setattr(ad[0], f"REDUCED_ORDERS_FIBER_{target_fiber}", orders)
 
             if symmetric_linefits:
                 setattr(
