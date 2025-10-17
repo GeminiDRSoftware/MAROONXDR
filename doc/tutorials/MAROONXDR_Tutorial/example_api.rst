@@ -2,9 +2,9 @@
 
 .. _maroonx_reduction:
 
-*********************************************
-MAROON-X Data Reduction Pipeline with DRAGONS
-*********************************************
+****************************************
+MAROON-X DRP: Using the Reduce class API
+****************************************
 
 Complete Reduction Workflow
 ============================
