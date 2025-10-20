@@ -4,6 +4,7 @@ science_dir/
 *.hdf
 *.h5
 DevDocs/
+doc/_build/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
