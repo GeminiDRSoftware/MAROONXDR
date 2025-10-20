@@ -29,9 +29,6 @@ PATH = Path(__file__).parent.resolve()
 
 # Define the following paths to be set as environment variables
 NEW_ENV_VARIABLES = {
-    "MAROONX_LEGACY_TEST": Path(
-        "/home/martin/Projects/MaroonX/legacy/maroonx_base/data2"
-    ),
     "MAROONX_DRAGONS_TEST": Path(PATH),
 }
 
@@ -176,7 +173,7 @@ def devenv(session: nox.Session):
     + Install any other dependencies needed.
     """
     session.install('poetry', 'poetry-plugin-export')
-    dependencies = get_dependencies(session, only='main,dev,test')
+    dependencies = get_dependencies(session, only='main,dev,docs,test')
 
     env_name = 'mx_dev'
     session.run(
@@ -593,10 +590,3 @@ def docstyle(session: nox.Session):
         '--convention=numpy',
         '--add-ignore=D100,D104'  # Ignore missing docstrings in modules and __init__.py
     )
-
-# Building
-@nox.session(venv_backend='virtualenv')
-def build(session: nox.Session):
-    """Build the project."""
-    session.install('poetry')
-    session.run('poetry', 'build', '--output=dist')
