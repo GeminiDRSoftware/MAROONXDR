@@ -278,9 +278,22 @@ def devconda(session: nox.Session):
 
     env_python = env_path / 'bin' / 'python'
 
-    # Install dependencies from pyproject.toml without version constraints
+    # Packages that are only available via pip (not in conda)
+    # or that we prefer to install via pip
+    pip_only_packages = {'barycorrpy', 'tables'}
+
+    # Separate conda and pip dependencies
+    conda_deps = []
+    pip_deps = []
     for dependency in dependencies:
-        dep = dependency  # .split('==')[0]
+        package_name = dependency.split('==')[0].lower()
+        if package_name in pip_only_packages:
+            pip_deps.append(dependency)
+        else:
+            conda_deps.append(dependency)
+
+    # Install conda dependencies
+    for dep in conda_deps:
         session.run(
             'conda', 'install', f'--name={env_name}', '--yes', dep, external=True
         )
@@ -323,6 +336,17 @@ def devconda(session: nox.Session):
 
     # Install DRAGONS
     install_dragons(session, python=env_python)
+
+    # Install pip-only dependencies that aren't available in conda
+    if pip_deps:
+        session.run(
+            str(env_python),
+            '-m',
+            'pip',
+            'install',
+            *pip_deps,
+            external=True,
+        )
 
     # Install maroonxdr and maroonx_instruments
     session.run(
