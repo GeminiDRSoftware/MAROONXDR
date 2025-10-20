@@ -21,13 +21,4 @@ DRAGONS MAROONX Data Reduction Programmer Manual
    parameters
    tests
    legacy
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
-
-.. todolist::
+   

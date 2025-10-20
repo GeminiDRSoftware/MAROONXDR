@@ -21,27 +21,4 @@ DRAGONS MAROONX Data Reduction User Manual
    tips
    issues
    primitives
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
-
-Appendices
-==========
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Appendices
-
-.. _primitives_index:
-
-Primitives Index
-================
-
-:ref:`primitives`
-
-.. todolist::
+   

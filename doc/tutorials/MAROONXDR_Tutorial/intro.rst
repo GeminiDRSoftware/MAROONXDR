@@ -24,7 +24,6 @@ Before beginning, ensure you have:
 * **Python 3.12** installed on your system
 * **Git** for cloning repositories
 * **Poetry** for dependency management (will be installed automatically by nox if missing)
-* **Internet connection** for downloading DRAGONS and dependencies
 
 .. note:: The MAROON-X pipeline requires Python 3.12 specifically. Using other Python versions may cause compatibility issues.
 
@@ -115,6 +114,22 @@ Once the setup completes, activate the virtual environment:
     source venv/bin/activate mx_dev
 
 Your shell prompt should now show ``(mx_dev)`` indicating the environment is active.
+
+.. note:: The ``devenv`` session automatically sets the ``MAROONX_DRAGONS_TEST`` environment variable to the project root. If you need to run regression tests against legacy pipeline data, please set ``MAROONX_LEGACY_TEST`` to point to your legacy data directory:
+
+    .. code-block:: bash
+
+        export MAROONX_LEGACY_TEST=/path/to/legacy/maroonx/dataX
+
+    ``dataX/`` should be the data directory that conatins the raw and reduced data:
+
+    .. code-block:: bash
+
+        data10/
+        ├── logs
+        ├── MaroonX_spectra
+        └── MaroonX_spectra_reduced
+
 
 Step 5: Verify Installation
 ----------------------------

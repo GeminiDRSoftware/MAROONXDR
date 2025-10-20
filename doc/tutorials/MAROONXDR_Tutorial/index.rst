@@ -13,18 +13,6 @@ DRAGONS MAROONX Data Reduction Tutorial
    :maxdepth: 2
    :caption: Table of Contents
 
-   .. todo:: Add installation instructions section in intro.
-
    intro
    example_api
    example_cli
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
-
-.. todolist::
