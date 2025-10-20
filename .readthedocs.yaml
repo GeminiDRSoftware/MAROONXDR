@@ -14,17 +14,9 @@ build:
       - pip install poetry
     post_install:
       # Install project dependencies including docs group
-      - poetry install --with docs
+      - poetry install --with docs --no-root
 
 # Build documentation with Sphinx
 sphinx:
   configuration: doc/conf.py
   fail_on_warning: false
-
-# Install the package with its dependencies
-python:
-  install:
-    - method: pip
-      path: .
-      extra_requirements:
-        - docs

@@ -7,7 +7,6 @@
 DRAGONS MAROONX Data Reduction Tutorial
 =======================================
 
-
 .. toctree::
    :numbered:
    :maxdepth: 2
