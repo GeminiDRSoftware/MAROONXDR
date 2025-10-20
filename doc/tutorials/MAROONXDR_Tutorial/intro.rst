@@ -68,7 +68,7 @@ View all available nox sessions to understand what tasks are available:
     # List all nox sessions
     nox -l
 
-You should see output similar to:
+You should see an output similar to:
 
 .. code-block:: text
 
@@ -110,7 +110,7 @@ Once the setup completes, activate the virtual environment:
     # Activate the virtual environment
     source venv/bin/activate
 
-    # Or use the custom prompt name
+    # Or use the env name
     source venv/bin/activate mx_dev
 
 Your shell prompt should now show ``(mx_dev)`` indicating the environment is active.
