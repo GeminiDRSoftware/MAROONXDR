@@ -67,6 +67,9 @@ for arm in arm_tags:
     myreduce.files.extend(selected_flats)
     myreduce.drpkg = 'maroonxdr'
     myreduce.recipename = 'makeProcessedFlatDFFFF'
+    myreduce.uparms = {
+        'removeStrayLight:legacy': False,
+    }
     myreduce.runr()
 
 
@@ -147,6 +150,9 @@ for arm in arm_tags:
     myreduce = Reduce()
     myreduce.files.extend(selected_spect)
     myreduce.drpkg = 'maroonxdr'
+    myreduce.uparms = {
+        'extractStripes:legacy': False,
+    }
     myreduce.runr()
 
 # =============================================================================
