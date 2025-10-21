@@ -1,3 +1,4 @@
+import re
 from astrodata import (
     Section,
     TagSet,
@@ -226,22 +227,43 @@ class AstroDataMAROONX(AstroDataGemini):
         return arrays
 
     @astro_data_descriptor
-    def fiber_setup(self):
+    def fiber_setup(self, short=False):
         """
         Returns the 5 fiber setup for the observation as a list of str
 
+        Parameters
+        ----------
+        short : bool
+            If True, returns short pattern extracted from filename
+            (e.g., 'DFFFD' from '20241114T181028Z_DFFFD_b_0008.fits')
+
         Returns
         -------
-        list of str
-
+        list of str or str
+            If short=False: list of fiber names
+            If short=True: pattern string extracted from filename
         """
-        return [
+        fibers = [
             self.phu.get('FIBER1'),
             self.phu.get('FIBER2'),
             self.phu.get('FIBER3'),
             self.phu.get('FIBER4'),
             self.phu.get('FIBER5'),
         ]
+
+        if short:
+            # Extract pattern from filename
+            # Expected format: 
+            #  YYYYMMDDTHHMMSSZ_PATTERN_arm_exptime.fits
+            # Match pattern between timestamp and arm (b/r)
+            filename = self.filename
+            match = re.search(r'_([A-Z]{5})_[br]_', filename)
+            if match:
+                return match.group(1)
+            else:
+                # Fallback to first letters
+                return ''.join([f[0].upper() if f else 'X' for f in fibers])
+        return fibers
 
     @astro_data_descriptor
     def overscan_section(self, pretty=False):
