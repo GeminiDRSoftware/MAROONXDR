@@ -5,6 +5,7 @@ from pathlib import Path
 import astrodata
 import numpy as np
 import pytest
+from astrodata.testing import download_from_archive
 from gempy.adlibrary import dataselect
 
 # =========================================================
@@ -268,7 +269,7 @@ def pytest_configure(config):
 def pytest_collection_modifyitems(config, items):
     """
     Modify test collection to add automatic markers based on test location and names.
-    
+
     Parameters
     ----------
     config : pytest.Config
@@ -279,3 +280,127 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if "regression" in str(item.path):
             item.add_marker(pytest.mark.regression)
+
+# =========================================================
+# MANIFEST AND ARCHIVE DOWNLOAD
+# =========================================================
+
+# Manifest of MaroonX raw files available in the Gemini Archive
+# These files were used for MaroonX DRAGONS development and testing
+MAROONX_TEST_FILES = [
+    'N20241114M3271.fits',
+    'N20241114M3290.fits',
+    'N20241114M3295.fits',
+    'N20241114M3300.fits',
+    'N20241114M3305.fits',
+    'N20241114M3310.fits',
+    'N20241114M3442.fits',
+    'N20241114M3450.fits',
+    'N20241114M3456.fits',
+    'N20241114M3461.fits',
+    'N20241114M3466.fits',
+    'N20241114M3471.fits',
+    'N20241115M3421.fits',
+    'N20241115M3433.fits',
+    'N20241115M3444.fits',
+    'N20241115M3455.fits',
+    'N20241115M3466.fits',
+    'N20241115M3477.fits',
+    'N20241115M3486.fits',
+    'N20241115M3494.fits',
+    'N20241115M3502.fits',
+    'N20241115M3510.fits',
+    'N20241115M3519.fits',
+    'N20241115M3539.fits',
+    'N20241115M3559.fits',
+    'N20241115M3579.fits',
+    'N20241115M3600.fits',
+    'N20241115M3620.fits',
+    'N20241115M3655.fits',
+    'N20241115M3690.fits',
+    'N20241115M3726.fits',
+    'N20241115M3761.fits',
+    'N20241115M3796.fits',
+    'N20241115M3846.fits',
+    'N20241115M3897.fits',
+    'N20241115M3947.fits',
+    'N20241115M3997.fits',
+    'N20241115M4047.fits',
+    'N20241115M4112.fits',
+    'N20241115M4178.fits',
+    'N20241115M4243.fits',
+    'N20241115M4308.fits',
+    'N20241116M0054.fits',
+    'N20241116M0149.fits',
+    'N20241116M0244.fits',
+    'N20241116M0339.fits',
+    'N20241116M0434.fits',
+    'N20241124M0542.fits',
+    'N20241124M0547.fits',
+    'N20241124M0554.fits',
+    'N20241124M0559.fits',
+    'N20241124M0617.fits',
+    'N20241124M0622.fits',
+    'N20241124M0639.fits',
+    'N20241124M0655.fits',
+    'N20241124M0659.fits',
+    'N20241124M0663.fits',
+    'N20241124M0672.fits',
+    'N20241124M0804.fits',
+    'N20241124M1008.fits',
+    'N20241124M1116.fits',
+    'N20241124M1196.fits',
+    'N20241124M1298.fits',
+    'N20241124M1363.fits',
+    'N20241124M1413.fits',
+    'N20241124M1465.fits',
+    'N20241124M1565.fits',
+    'N20241124M1615.fits',
+    'N20241124M2024.fits',
+    'N20241124M2073.fits',
+    'N20241124M2123.fits',
+    'N20241124M2223.fits',
+    'N20241124M2562.fits',
+    'N20241124M2678.fits',
+    'N20241124M2783.fits',
+    'N20241124M2827.fits',
+    'N20241124M2838.fits',
+    'N20241124M2957.fits',
+    'N20241124M3018.fits',
+    'N20241124M3023.fits',
+    'N20241124M3032.fits',
+    'N20241124M3038.fits',
+    'N20241124M3043.fits',
+    'N20241124M3047.fits',
+    'N20241124M3051.fits',
+]
+
+
+@pytest.fixture
+def download_maroonx_file():
+    """
+    Fixture that provides a function to download MaroonX files from the Gemini Archive.
+    """
+    def _download(filename, sub_path='science_dir'):
+        return download_from_archive(
+            filename,
+            sub_path=sub_path,
+            env_var='MAROONX_DRAGONS_TEST'
+        )
+    return _download
+
+
+@pytest.fixture
+def download_maroonx_test_files(download_maroonx_file):
+    """
+    Fixture that downloads all MaroonX test files from the manifest.
+    """
+    paths = []
+    for filename in MAROONX_TEST_FILES:
+        try:
+            path = download_maroonx_file(filename)
+            paths.append(path)
+        except Exception as e:
+            # Log warning but continue with other files
+            pytest.warn(f"Could not download {filename}: {e}")
+    return paths

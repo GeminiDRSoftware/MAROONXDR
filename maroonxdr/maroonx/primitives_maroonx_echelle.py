@@ -377,17 +377,29 @@ class MAROONXEchelle(MAROONX, Spect):
                 dark_ad = self.trimOverscan(adinputs=[dark_ad])[0]
                 dark_ad = self.correctImageOrientation(adinputs=[dark_ad])[0]
 
+            # Record stripes reference to science frame
+            ad[0].STRIPES_ID = flat_ad[0].STRIPES_ID
+            ad[0].INDEX_FIBER = flat_ad[0].INDEX_FIBER
+            ad[0].INDEX_ORDER = flat_ad[0].INDEX_ORDER
+            
             if any(straylight_removal_fibers):
-                ad_sl_removed = self.removeStrayLight(adinputs=[copy.deepcopy(ad)])[0]
+                if params["legacy"]:
+                    # This block is here for development purposes but 
+                    # should be removed as soon as the removeStrayLight primitive
+                    # gets accepted.
+                    log.debug("Running the legacy patch")
+                    ad_sl_removed = self.removeStrayLight_legacyPatch(
+                        adinputs=[copy.deepcopy(ad)])[0]
+                else:
+                    ad_sl_removed = self.removeStrayLight(
+                        adinputs=[copy.deepcopy(ad)])[0]
 
             stripes = {}
             f_stripes = {}
             stripes_masks = {}
-            p_id = flat_ad[0].STRIPES_ID
-
-            ad[0].STRIPES_ID = p_id  # record reference to science frame
 
             # repackage p_id as dict expected format for extraction
+            p_id = ad[0].STRIPES_ID
             p_id_new = {}
             for i, f in enumerate(flat_ad[0].STRIPES_FIBERS):
                 # the table has 6 coefficient per fiber, in ascending order
@@ -585,6 +597,8 @@ class MAROONXEchelle(MAROONX, Spect):
                 dark_ad = self.trimOverscan(adinputs=[dark_ad])[0]
                 dark_ad = self.correctImageOrientation(adinputs=[dark_ad])[0]
                 back_var = np.abs(dark_ad[0].data) / gain * np.sqrt(2)
+            else:
+                back_var = np.full_like(ad[0].data, fill_value=back_var)
 
             for f in stripes.keys():
                 if int(f[-1]) in optimal_extraction_fibers:

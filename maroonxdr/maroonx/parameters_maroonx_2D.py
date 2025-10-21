@@ -123,7 +123,20 @@ class removeStrayLightConfig(config.Config):
     snapshot = config.Field('save difference', bool, False)
     box_size = config.Field('Photutils box size', int, 20)
     filter_size = config.Field('Photutils filter size', int, 19)
+    legacy = config.Field('Legacy patch', bool, False)
 
+class removeStrayLight_legacyPatchConfig(config.Config):
+    """
+    Legacy Patch for removeStrayLight primitive. 
+    
+    Serves for debuging purposes during development. The reason is photutils Background2D
+    api changes from legacy dependency versions to this DRP.
+    """
+
+    suffix = config.Field('Filename suffix', str, '')
+    snapshot = config.Field('save difference', bool, False)
+    box_size = config.Field('Photutils box size', int, 20)
+    filter_size = config.Field('Photutils filter size', int, 19)
 
 class separateFlatStreamsConfig(config.Config):
     """

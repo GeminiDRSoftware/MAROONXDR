@@ -1568,7 +1568,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
 
-    def removeStrayLight_NEW(self, adinputs=None, **params):
+    def removeStrayLight(self, adinputs=None, **params):
         """
         Remove stray light from full frame images.
 
@@ -1603,6 +1603,12 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
         timestamp_key = self.timestamp_keys[self.myself()]
+
+        if params.pop("legacy"):
+            # Run the legacy patch version and exit
+            log.debug("Running Legacy Patch removeStrayLigth")
+            adoutputs = self.removeStrayLight_legacyPatch(adinputs, **params)
+            return adoutputs
 
         box_size = params["box_size"]
         filter_size = params["filter_size"]
@@ -1723,28 +1729,6 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
             )
             adout[0].data[adout[0].data < 0] = 0.01
 
-            # ==========================================================================
-            # At the end, before return result:
-            arrays_to_save = {
-                "data": ad[0].data,
-                "data_masked": adint[0].data,
-                "bkg_background": bkg.background,
-                "data2": adint2[0].data,
-                "bkg2_background": bkg2.background,
-                "result": adout[0].data,
-            }
-            import os
-            from pathlib import Path
-
-            base = Path(ad.filename).stem  # Remove extension from outfile
-            print(f"ad.filename: {ad.filename}")
-            print(f"base.npy: {base}.npy")
-            save_dir = "./new_bkg_arrays"
-            os.makedirs(save_dir, exist_ok=True)
-            save_path = os.path.join(save_dir, f"{base}.npy")
-            np.save(save_path, arrays_to_save)
-            # ==========================================================================
-
             if snapshot:
                 # used for unit testing, save straylight difference
                 # but return original data so it can be compared in test
@@ -1757,7 +1741,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         return adoutputs
 
-    def removeStrayLight(self, adinputs=None, **params):
+    def removeStrayLight_legacyPatch(self, adinputs=None, **params):
         """
         Remove stray light from full frame images using legacy arrays.
 
@@ -1790,16 +1774,19 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
             Single MX astrodata object with stray light removed from SCI
         """
         log = self.log
-        log.debug(gt.log_message("primitive", self.myself(), "starting"))
-        timestamp_key = self.timestamp_keys[self.myself()]
+        log.debug(gt.log_message("primitive", "removeStrayLight", "starting"))
+        timestamp_key = self.timestamp_keys["removeStrayLight"]
 
         snapshot = params["snapshot"]
 
         from pathlib import Path
 
         legacy_path = Path(
-            "/home/martin/Projects/MaroonX/legacy/maroonx_base/" "legacy_bkg_arrays"
+            "/home/martin/Projects/MaroonX/legacy/maroonx_base/legacy_bkg_arrays"
         )
+        if not legacy_path.exists():
+            raise FileNotFoundError("Legacy path not found.")
+
         file_dict = {
             "20241114T181028Z_DFFFD_b_0008": (
                 legacy_path / "20241114T18_masterflat_DFFFD_b_0008.npy"
@@ -1851,7 +1838,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
             adout.update_filename(suffix=params["suffix"], strip=True)
             adoutputs.append(adout)
 
-        gt.mark_history(adoutputs, primname=self.myself(), keyword=timestamp_key)
+        gt.mark_history(adoutputs, primname="removeStrayLight", keyword=timestamp_key)
 
         return adoutputs
 

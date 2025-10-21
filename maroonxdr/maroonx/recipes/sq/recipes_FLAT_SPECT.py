@@ -48,8 +48,12 @@ def makeProcessedFlat(p):
     p.defineFlatStripes()
     p.defineFlatStripes(stream='DFFFD_flats')
     # Remove straylight (requires 2 partial illumination flat sets)
-    p.removeStrayLight(filter_size=19, box_size=20)
+    p.removeStrayLight(stream='main', filter_size=19, box_size=20)
     p.removeStrayLight(stream='DFFFD_flats', filter_size=19, box_size=20)
+
+    # Legacy patch for removeStrayLight
+    # p.removeStrayLight_legacyPatch(stream='main', filter_size=19, box_size=20)
+    # p.removeStrayLight_legacyPatch(stream='DFFFD_flats', filter_size=19, box_size=20) 
 
     # Combine straylight-removed images
     p.combineFlatStreams(stream='main', stream_2='DFFFD_flats')
@@ -60,7 +64,11 @@ def makeProcessedFlat(p):
     p.findStripes()
     p.identifyStripes(selected_fibers=[1, 2, 3, 4, 5])
     p.defineFlatStripes(extract=True)
-    # Run 5-illuminated-fiber frame through extraction for reduced flat
+    
+    # Perform optimal extraction on flat field to create 1D spectra
+    p.extractStripes()
+    p.optimalExtraction(optimal_extraction_fibers=[2, 3, 4, 5])
+
     p.storeProcessedFlat(suffix='_FFFFF_flat')
 
 _default = makeProcessedFlat
@@ -201,6 +209,10 @@ def makeProcessedFlatDFFFF(p):
     p.removeStrayLight(stream='main', filter_size=19, box_size=20)
     p.removeStrayLight(stream='DFFFD_flats', filter_size=19, box_size=20)
 
+    # Legacy patch for removeStrayLight
+    # p.removeStrayLight_legacyPatch(stream='main', filter_size=19, box_size=20)
+    # p.removeStrayLight_legacyPatch(stream='DFFFD_flats', filter_size=19, box_size=20)
+
     # Combine straylight-removed images
     p.combineFlatStreams(stream='main', stream_2='DFFFD_flats')
     # Remove second stream
@@ -210,5 +222,9 @@ def makeProcessedFlatDFFFF(p):
     p.findStripes()
     p.identifyStripes(selected_fibers=[2,3,4,5])
     p.defineFlatStripes(extract=True)
-    # Run 5-illuminated-fiber frame through extraction for reduced flat
+    
+    # Perform optimal extraction on flat field to create 1D spectra
+    p.extractStripes()
+    p.optimalExtraction(optimal_extraction_fibers=[2, 3, 4, 5])
+
     p.storeProcessedFlat(suffix='_DFFFF_flat')
