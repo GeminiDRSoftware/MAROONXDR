@@ -564,15 +564,17 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         Returns
         -------
         list of AstroData
-            Modified AstroData objects with new extensions and header keywords:
+            Modified AstroData objects with new extensions and header keywords.
 
-            Extensions added:
+            **Extensions added:**
+
             - WLS_DYNAMIC_FIBER_* (1-5): 2D arrays of wavelength values (nm)
               indexed by [order, pixel] for each fiber
             - PEAK_DATA: Updated table with wavelength assignments and peak
               order numbers
 
-            Header keywords added:
+            **Header keywords added:**
+
             - DRIFT_FIBER_* (1-5): Measured instrumental drift in m/s for
               each processed fiber
 
@@ -875,13 +877,15 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         Returns
         -------
         list of AstroData
-            Modified AstroData objects with new extensions and header keywords:
+            Modified AstroData objects with new extensions and header keywords.
 
-            Extensions added:
+            **Extensions added:**
+
             - WLS_SIMULTANEOUS_FIBER_* (fibers + ref_fiber): 2D arrays of
               drift-corrected wavelength values (nm) indexed by [order, pixel]
 
-            Header keywords added:
+            **Header keywords added:**
+
             - INSTRUME_DRIFT: Instrumental drift measured from reference
               fiber in m/s
             - RELATIVE_DRIFT: Relative drift between science and calibration
@@ -1675,16 +1679,18 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         -------
         list of AstroData
             Modified AstroData objects with barycentric velocity corrections and
-            exposure meter statistics added to the first extension header:
+            exposure meter statistics added to the first extension header.
 
-            BERV values (m/s):
+            **BERV values (m/s):**
+
             - BERV_MIDPOINT: BERV at nominal exposure midpoint
             - BERV_FLUXWEIGHTED_PC: BERV at flux-weighted midpoint (PC channel)
             - BERV_FLUXWEIGHTED_FRD: BERV at flux-weighted midpoint (FRD channel)
             - BERV_DIFFERENCE_PC: Difference between flux-weighted and nominal
             - BERV_DIFFERENCE_FRD: Difference between flux-weighted and nominal
 
-            Timing information:
+            **Timing information:**
+
             - UTC_START: Corrected UTC start time (ISO format)
             - UTC_MIDPOINT: UTC midpoint time
             - UTC_FLUXWEIGHTED_PC: Flux-weighted UTC (PC channel)
@@ -1695,14 +1701,16 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             - JD_UTC_FLUXWEIGHTED_PC: Flux-weighted JD (PC channel)
             - JD_UTC_FLUXWEIGHTED_FRD: Flux-weighted JD (FRD channel)
 
-            Exposure meter statistics (counts):
+            **Exposure meter statistics (counts):**
+
             - COUNTS_PC_MIN/MAX/MEDIAN/STD: PC channel statistics
             - COUNTS_FRD_MIN/MAX/MEDIAN/STD: FRD channel statistics
             - COUNTS_PC_ZP: Applied PC zeropoint
             - COUNTS_FRD_ZP: Applied FRD zeropoint
             - SCALEFACTOR: Ratio of FRD to PC median counts
 
-            Target information:
+            **Target information:**
+
             - BERV_SIMBAD_TARGET: Target name used for BERV calculation
 
         References

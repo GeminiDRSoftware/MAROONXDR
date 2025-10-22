@@ -164,6 +164,30 @@ man_pages = [
 ]
 
 
+# -- Autodoc configuration ------------------------------------------------
+
+# Mock imports for DRAGONS modules that won't be installed on RTD
+autodoc_mock_imports = [
+    'astrodata',
+    'gempy',
+    'geminidr',
+    'recipe_system',
+]
+
+# Autodoc options - keep it simple to avoid hanging
+autodoc_default_options = {
+    'members': True,
+    'undoc-members': False,
+    'show-inheritance': True,
+    'member-order': 'bysource',
+}
+
+# Don't inherit docstrings to avoid deep introspection
+autodoc_inherit_docstrings = False
+
+# Suppress specific warnings
+suppress_warnings = ['app.add_directive']
+
 # -- Options for Texinfo output -------------------------------------------
 
 # Grouping the document tree into Texinfo files. List of tuples

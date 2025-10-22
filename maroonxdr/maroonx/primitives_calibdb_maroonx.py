@@ -8,7 +8,11 @@ from recipe_system.utils.decorators import parameter_override
 
 # Extend REQUIRED_TAG_DICT with MaroonX-specific calibration types
 from recipe_system.cal_service.caldb import REQUIRED_TAG_DICT
-REQUIRED_TAG_DICT['processed_wavecal'] = ['PROCESSED', 'WAVECAL']
+try:
+    REQUIRED_TAG_DICT['processed_wavecal'] = ['PROCESSED', 'WAVECAL']
+except (TypeError, AttributeError):
+    # Handle mocked environment (e.g., during documentation builds)
+    pass
 
 # ------------------------------------------------------------------------------
 @parameter_override

@@ -93,6 +93,11 @@ html_theme_options = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
+# Custom CSS files
+html_css_files = [
+    'custom.css',
+]
+
 # Custom sidebar templates
 # html_sidebars = {}
 
@@ -138,6 +143,31 @@ texinfo_documents = [
      'Data reduction pipeline for MaroonX spectrograph using DRAGONS framework',
      'Miscellaneous'),
 ]
+
+
+# -- Autodoc configuration ------------------------------------------------
+
+# Mock imports for DRAGONS modules that won't be installed on RTD
+autodoc_mock_imports = [
+    'astrodata',
+    'gempy',
+    'geminidr',
+    'recipe_system',
+]
+
+# Autodoc options - keep it simple to avoid hanging
+autodoc_default_options = {
+    'members': True,
+    'undoc-members': False,
+    'show-inheritance': True,
+    'member-order': 'bysource',
+}
+
+# Don't inherit docstrings to avoid deep introspection
+autodoc_inherit_docstrings = False
+
+# Suppress specific warnings
+suppress_warnings = ['app.add_directive']
 
 
 # -- Intersphinx configuration --------------------------------------------
