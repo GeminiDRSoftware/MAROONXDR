@@ -9,7 +9,20 @@ including User Manual, Programmer Manual, and Tutorial.
 """
 
 import os
+import pathlib
 import sys
+
+# -- Path setup ----------------------------------------------------------
+
+# If extensions (or modules to document with autodoc) are in another directory,
+# add these directories to sys.path here. If the directory is relative to the
+# documentation root, use os.path.abspath to make it absolute, like shown here.
+
+# this path is pointing to MAROONXDR/doc/
+CURRENT_PATH = pathlib.Path(os.path.abspath(os.path.dirname(__file__)))
+MX_PATH = CURRENT_PATH.parent
+
+sys.path.insert(0, str(MX_PATH))
 
 # -- General configuration ------------------------------------------------
 
