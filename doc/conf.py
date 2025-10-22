@@ -160,15 +160,20 @@ texinfo_documents = [
 
 # -- Autodoc configuration ------------------------------------------------
 
-# Mock imports for DRAGONS modules that won't be installed on RTD
+# Mock imports for modules that won't be installed on RTD
 autodoc_mock_imports = [
     'astrodata',
+    'astropy',
     'gempy',
     'geminidr',
     'recipe_system',
     'photutils',
     'bokeh',
     'barycorrpy',
+    'numpy',
+    'numba',
+    'pandas',
+    'scipy'
 ]
 
 # Autodoc options - keep it simple to avoid hanging
