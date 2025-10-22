@@ -173,7 +173,10 @@ autodoc_mock_imports = [
     'numpy',
     'numba',
     'pandas',
-    'scipy'
+    'scipy',
+    'lmfit',
+    'astroquery',
+    'matplotlib'
 ]
 
 # Autodoc options - keep it simple to avoid hanging
