@@ -153,6 +153,9 @@ autodoc_mock_imports = [
     'gempy',
     'geminidr',
     'recipe_system',
+    'photutils',
+    'bokeh',
+    'barycorrpy',
 ]
 
 # Autodoc options - keep it simple to avoid hanging

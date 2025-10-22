@@ -172,12 +172,15 @@ autodoc_mock_imports = [
     'gempy',
     'geminidr',
     'recipe_system',
+    'photutils',
+    'bokeh',
+    'barycorrpy',
 ]
 
-# Autodoc options - keep it simple to avoid hanging
+# Autodoc options - include all members with or without docstrings
 autodoc_default_options = {
     'members': True,
-    'undoc-members': False,
+    'undoc-members': True,
     'show-inheritance': True,
     'member-order': 'bysource',
 }
