@@ -1,2 +1,6 @@
 # requirements only used for building documentation
 sphinx-rtd-theme
+
+# Install the maroonxdr package with all its dependencies
+# This reads dependencies from pyproject.toml automatically
+-e ..
