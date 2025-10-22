@@ -159,6 +159,40 @@ man_pages = [
      [author], 1)
 ]
 
+# -- Autodoc configuration ------------------------------------------------
+
+# Mock imports for DRAGONS modules that won't be installed on RTD
+autodoc_mock_imports = [
+    'astrodata',
+    'astropy',
+    'gempy',
+    'geminidr',
+    'recipe_system',
+    'photutils',
+    'bokeh',
+    'barycorrpy',
+    'numpy',
+    'numba',
+    'pandas',
+    'scipy',
+    'lmfit',
+    'astroquery',
+    'matplotlib'
+]
+
+# Autodoc options - include all members with or without docstrings
+autodoc_default_options = {
+    'members': True,
+    'undoc-members': False,
+    'show-inheritance': False,
+    'member-order': 'bysource',
+}
+
+# Don't inherit docstrings to avoid deep introspection
+autodoc_inherit_docstrings = False
+
+# Suppress specific warnings
+suppress_warnings = ['app.add_directive']
 
 # -- Options for Texinfo output -------------------------------------------
 

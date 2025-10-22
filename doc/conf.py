@@ -183,7 +183,7 @@ autodoc_mock_imports = [
 autodoc_default_options = {
     'members': True,
     'undoc-members': False,
-    'show-inheritance': True,
+    'show-inheritance': False,
     'member-order': 'bysource',
 }
 
