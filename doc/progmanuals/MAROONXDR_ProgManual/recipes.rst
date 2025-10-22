@@ -24,7 +24,7 @@ Bundle Processing Recipes
 
 .. automodule:: maroonxdr.maroonx.recipes.sq.recipes_BUNDLE
    :members:
-   :undoc-members:
+   :no-inherited-members:
    :show-inheritance:
 
 Calibration Recipes
@@ -35,7 +35,7 @@ Dark Frame Processing
 
 .. automodule:: maroonxdr.maroonx.recipes.sq.recipes_DARK
    :members:
-   :undoc-members:
+   :no-inherited-members:
    :show-inheritance:
 
 Flat Field Processing
@@ -43,20 +43,26 @@ Flat Field Processing
 
 .. automodule:: maroonxdr.maroonx.recipes.sq.recipes_FLAT_SPECT
    :members:
-   :undoc-members:
+   :no-inherited-members:
    :show-inheritance:
 
 Wavelength Calibration Recipes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+Static Wavelength Calibration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 .. automodule:: maroonxdr.maroonx.recipes.sq.recipes_STATICWAVECAL
    :members:
-   :undoc-members:
+   :no-inherited-members:
    :show-inheritance:
+
+Dynamic Wavelength Calibration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. automodule:: maroonxdr.maroonx.recipes.sq.recipes_DYNAMIC_WAVECAL
    :members:
-   :undoc-members:
+   :no-inherited-members:
    :show-inheritance:
 
 Science Data Recipes
@@ -64,5 +70,5 @@ Science Data Recipes
 
 .. automodule:: maroonxdr.maroonx.recipes.sq.recipes_ECHELLE_SPECT
    :members:
-   :undoc-members:
+   :no-inherited-members:
    :show-inheritance:

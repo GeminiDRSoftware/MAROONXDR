@@ -18,24 +18,21 @@ These parameters control the behavior of primitives and are organized by process
 
 .. automodule:: maroonxdr.maroonx.parameters_maroonx_2D
    :members:
-   :undoc-members:
+   :no-inherited-members:
    :show-inheritance:
-   :special-members: __init__
 
 Echelle Extraction Parameters
 ==============================
 
 .. automodule:: maroonxdr.maroonx.parameters_maroonx_echelle
    :members:
-   :undoc-members:
+   :no-inherited-members:
    :show-inheritance:
-   :special-members: __init__
 
 Spectrum Processing Parameters
 ===============================
 
 .. automodule:: maroonxdr.maroonx.parameters_maroonx_spectrum
    :members:
-   :undoc-members:
+   :no-inherited-members:
    :show-inheritance:
-   :special-members: __init__

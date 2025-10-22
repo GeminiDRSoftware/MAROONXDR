@@ -2,7 +2,16 @@
 # -*- coding: utf-8 -*-
 
 import os
+import pathlib
 import sys
+
+# -- Path setup ----------------------------------------------------------
+
+# Add paths to sys.path so autoapi can find the modules
+CURRENT_PATH = pathlib.Path(os.path.abspath(os.path.dirname(__file__)))
+MX_PATH = CURRENT_PATH.parent.parent.parent  # Go up to MAROONXDR/
+
+sys.path.insert(0, str(MX_PATH))
 
 # -- General configuration ------------------------------------------------
 
@@ -162,6 +171,9 @@ man_pages = [
      [author], 1)
 ]
 
+
+# -- Autoapi configuration removed ------------------------------------------------
+# AutoAPI has been removed - using sphinx.ext.autodoc instead
 
 # -- Autodoc configuration ------------------------------------------------
 

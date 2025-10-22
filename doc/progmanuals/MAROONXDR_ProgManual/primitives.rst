@@ -17,25 +17,19 @@ These primitives are organized by functionality and processing stage.
 ===============================
 
 .. automodule:: maroonxdr.maroonx.primitives_maroonx_2D
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :special-members: __init__
+   :members: stackFlats
+   :no-inherited-members:
 
 Echelle Extraction Primitives
 ==============================
 
 .. automodule:: maroonxdr.maroonx.primitives_maroonx_echelle
    :members:
-   :undoc-members:
-   :show-inheritance:
-   :special-members: __init__
+   :no-inherited-members:
 
 Spectrum Processing Primitives
 ===============================
 
 .. automodule:: maroonxdr.maroonx.primitives_maroonx_spectrum
    :members:
-   :undoc-members:
-   :show-inheritance:
-   :special-members: __init__
+   :no-inherited-members:

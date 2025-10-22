@@ -157,6 +157,8 @@ texinfo_documents = [
      'Miscellaneous'),
 ]
 
+# -- Autoapi configuration removed ------------------------------------------------
+# AutoAPI has been removed - using sphinx.ext.autodoc instead
 
 # -- Autodoc configuration ------------------------------------------------
 
@@ -184,11 +186,15 @@ autodoc_default_options = {
     'members': True,
     'undoc-members': False,
     'show-inheritance': False,
-    'member-order': 'bysource',
+    # 'member-order': 'bysource',
+    # 'exclude-members': '__init__, __weakref__, __dict__, __module__, __annotations__',
 }
 
 # Don't inherit docstrings to avoid deep introspection
 autodoc_inherit_docstrings = False
+
+# Timeout for autodoc imports (10 seconds)
+autodoc_warningiserror = False
 
 # Suppress specific warnings
 suppress_warnings = ['app.add_directive']

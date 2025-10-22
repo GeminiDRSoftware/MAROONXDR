@@ -2,8 +2,16 @@
 # -*- coding: utf-8 -*-
 
 import os
+import pathlib
 import sys
 
+# -- Path setup ----------------------------------------------------------
+
+# Add paths to sys.path so autodoc can find the modules
+CURRENT_PATH = pathlib.Path(os.path.abspath(os.path.dirname(__file__)))
+MX_PATH = CURRENT_PATH.parent.parent.parent  # Go up to MAROONXDR/
+
+sys.path.insert(0, str(MX_PATH))
 
 # -- General configuration ------------------------------------------------
 
