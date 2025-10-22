@@ -11,6 +11,12 @@ including User Manual, Programmer Manual, and Tutorial.
 import os
 import sys
 
+# Add the project root and package directories to sys.path for autodoc
+# This allows Sphinx to import modules even if the package isn't installed
+sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath('../maroonxdr'))
+sys.path.insert(0, os.path.abspath('../maroonx_instruments'))
+
 # -- General configuration ------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
