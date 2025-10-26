@@ -224,7 +224,9 @@ def makeProcessedFlatDFFFF(p):
     p.defineFlatStripes(extract=True)
     
     # Perform optimal extraction on flat field to create 1D spectra
-    p.extractStripes()
-    p.optimalExtraction(optimal_extraction_fibers=[2, 3, 4, 5])
+    # TODO: optimal extraction requires a flat calibration which is the product
+    # of this recipe. This needs to be a new recipe that is run after this one (?).
+    # p.extractStripes()
+    # p.optimalExtraction(optimal_extraction_fibers=[2, 3, 4, 5])
 
     p.storeProcessedFlat(suffix='_DFFFF_flat')
