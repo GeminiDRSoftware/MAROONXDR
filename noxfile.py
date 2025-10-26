@@ -19,8 +19,13 @@ nox.options.error_on_external_run = True
 
 # Dragons installation resources
 DRAGONS_URL = R'https://github.com/GeminiDRSoftware/DRAGONS'
-CALMGR_URL = R'https://github.com/GeminiDRSoftware/GeminiCalMgr.git@release/1.1.x'
-OBSDB_URL = R'https://github.com/GeminiDRSoftware/GeminiObsDB.git@release/1.0.x'
+CALMGR_URL = R'https://github.com/GeminiDRSoftware/GeminiCalMgr.git@release/1.1.x' # deprecated
+OBSDB_URL = R'https://github.com/GeminiDRSoftware/GeminiObsDB.git@release/1.0.x'  # deprecated
+
+# Meeting with Paul H. indicated that fits_storage is needed
+FITSS_URL = R'https://github.com/GeminiDRSoftware/FitsStorage' 
+
+
 
 DRAGONS_BRANCH = 'master'
 DRAGONS_LOCATION = 'DRAGONS/'
@@ -116,6 +121,8 @@ def install_dragons(session: nox.Session, python: Path | None = None):
 
     session.install('-e', str(dragons_path))
     session.install(f'git+{CALMGR_URL}', f'git+{OBSDB_URL}')
+    # TODO: fix fits_storage installation
+    # session.install(f'git+{FITSS_URL}')
 
 
 def get_dependencies(session: nox.Session, only: str = '') -> list[str]:
