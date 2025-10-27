@@ -16,20 +16,23 @@ These primitives are organized by functionality and processing stage.
 2D Image Processing Primitives
 ===============================
 
-.. automodule:: maroonxdr.maroonx.primitives_maroonx_2D
-   :members: stackFlats
-   :no-inherited-members:
+.. note::
+   automodule commented out to avoid ReadTheDocs build timeout.
+
+.. .. automodule:: maroonxdr.maroonx.primitives_maroonx_2D
+..    :members: stackFlats
+..    :no-inherited-members:
 
 Echelle Extraction Primitives
 ==============================
 
-.. automodule:: maroonxdr.maroonx.primitives_maroonx_echelle
-   :members:
-   :no-inherited-members:
+.. .. automodule:: maroonxdr.maroonx.primitives_maroonx_echelle
+..    :members:
+..    :no-inherited-members:
 
 Spectrum Processing Primitives
 ===============================
 
-.. automodule:: maroonxdr.maroonx.primitives_maroonx_spectrum
-   :members:
-   :no-inherited-members:
+.. .. automodule:: maroonxdr.maroonx.primitives_maroonx_spectrum
+..    :members:
+..    :no-inherited-members:
