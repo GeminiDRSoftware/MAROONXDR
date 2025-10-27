@@ -1,15 +1,15 @@
 /* Custom styling for Legacy and DRAGONS topic blocks */
 
-/* Legacy pipeline blocks - warm amber/beige background */
+/* Legacy pipeline blocks - maroon background matching MaroonX logo */
 .topic.legacy-block {
-    background-color: #fff8e7;
-    border-left: 4px solid #d4a574;
+    background-color: #FEE8DD;
+    border-left: 4px solid #A1342D;
     padding: 1em;
     margin: 1em 0;
 }
 
 .topic.legacy-block .topic-title {
-    color: #8b6914;
+    color: #65241F;
     font-weight: bold;
     font-size: 1.1em;
     margin-bottom: 0.5em;
