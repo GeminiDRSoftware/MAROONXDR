@@ -43,26 +43,29 @@
     border-radius: 3px;
 }
 
-/* Copy button styling for better visibility with RTD theme */
-.highlight {
-    position: relative;
-}
-
+/* Fix clipboard button icon size for sphinx-copybutton */
 button.copybtn {
     position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     top: 0.3em;
     right: 0.3em;
-    opacity: 0.3;
-    transition: opacity 0.1s;
-    padding: 0.3em 0.5em;
+    width: 1.7em;
+    height: 1.7em;
+    padding: 0;
     border: none;
-    background-color: rgba(0, 0, 0, 0.1);
-    border-radius: 3px;
     cursor: pointer;
-    font-size: 0.9em;
+    transition: opacity 0.3s;
+}
+
+button.copybtn img,
+button.copybtn svg {
+    width: 1.5em !important;
+    height: 1.5em !important;
+    display: block;
 }
 
 button.copybtn:hover {
-    opacity: 1;
-    background-color: rgba(0, 0, 0, 0.2);
+    opacity: 0.7;
 }
