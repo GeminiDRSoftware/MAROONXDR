@@ -32,6 +32,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.intersphinx',
     'sphinx_rtd_theme',
+    'sphinx_copybutton',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -77,8 +78,15 @@ pygments_style = 'sphinx'
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
-todo_link_only = True 
+todo_link_only = True
 
+# -- Copybutton configuration ---------------------------------------------
+
+# Configure copybutton to exclude prompts and comment lines
+copybutton_prompt_text = r">>> |\.\.\. |\$ |In \[\d*\]: | {2,5}\.\.\.: | {5,8}: "
+copybutton_prompt_is_regexp = True
+# Exclude lines starting with # (comments)
+copybutton_exclude = '.highlight-bash .c1, .highlight-python .c1, .highlight .c1'
 
 # -- Options for HTML output ----------------------------------------------
 
