@@ -121,6 +121,10 @@ class AstroDataMAROONX(AstroDataGemini):
             return TagSet([f'{int(self.hdr.get("EXPTIME"))}s'])
         if len(self.indices) == 1:
             return TagSet([f'{int(self[0].hdr.get("EXPTIME"))}s'])
+        elif len(self.indices) == 2:
+            exptimes = set(self.hdr.get("EXPTIME"))
+            if len(exptimes) == 1:
+                return TagSet([f'{int(exptimes.pop())}s'])
 
     @astro_data_tag
     def _tag_dark(self):
@@ -191,6 +195,18 @@ class AstroDataMAROONX(AstroDataGemini):
     # ----------------------
     # Descriptor definitions
     # ----------------------
+
+    @astro_data_descriptor
+    def arm(self):
+        """
+        Returns the arm of the instrument for this extension.
+
+        Returns
+        -------
+        list
+            ['BLUE'] or ['RED'] or ['BLUE', 'RED'] for bundles
+        """
+        return self.hdr.get('ARM')
 
     @astro_data_descriptor
     def instrument(self, generic=False):

@@ -222,7 +222,7 @@ class splitBundleConfig(config.Config):
     """
 
     suffix = config.Field('Filename suffix', str, '')
-
+    keep_suffix = config.Field('Keep suffix of processed file', bool, True)
 
 class fitDarkCoefficientsConfig(config.Config):
     """

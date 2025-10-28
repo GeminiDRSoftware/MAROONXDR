@@ -11,7 +11,7 @@ from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 
 
 @pytest.mark.parametrize('bundle_filename', ['N20241114M3271.fits'])
-def test_splitBundle(caplog, bundle_filename):
+def test_splitBundle(caplog, download_maroonx_file, bundle_filename):
     """
     Test that a Bundle is splitted in Blue and Red astrodata objects.
 
@@ -25,6 +25,8 @@ def test_splitBundle(caplog, bundle_filename):
     None
     """
     caplog.set_level(logging.DEBUG)
+
+    download_maroonx_file(bundle_filename)
 
     ad_bundle = astrodata.open(bundle_filename)
 
@@ -45,6 +47,36 @@ def test_splitBundle(caplog, bundle_filename):
     assert ad_1.phu.get('ARCHNAME') == ad_2.phu.get('ARCHNAME')
 
     assert ad_bundle.tables == ad_1.tables == ad_2.tables
+
+@pytest.mark.parametrize('bundle_filename', ['N20241124M1413.fits'])
+def test_splitBundle_exposuremeter(caplog, download_maroonx_file, bundle_filename):
+    """
+    Test that a Bundle is splitted in Blue and Red astrodata objects.
+
+    Parameters
+    ----------
+    caplog : fixture
+    bundle_filename : str
+
+    Returns
+    -------
+    None
+    """
+    caplog.set_level(logging.DEBUG)
+
+    download_maroonx_file(bundle_filename)
+
+    ad_bundle = astrodata.open(bundle_filename)
+
+    p = MAROONX([ad_bundle])
+    out = p.splitBundle()
+
+    ad_1, ad_2 = out
+
+    assert (ad_1.EXPOSUREMETER.meta['header']["ZP_PC"] ==
+            ad_bundle.EXPOSUREMETER.meta['header']["TZERO2"])
+    assert (ad_1.EXPOSUREMETER.meta['header']["ZP_FRD"] ==
+            ad_bundle.EXPOSUREMETER.meta['header']["TZERO3"])
 
 
 @pytest.mark.parametrize('filename_r', ['20241114T181028Z_DFFFD_r_0002.fits'])

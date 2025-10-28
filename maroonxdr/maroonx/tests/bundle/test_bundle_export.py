@@ -7,7 +7,7 @@ import astrodata
 import pytest
 
 import maroonx_instruments  # noqa - import is necessary for astrodata
-from maroonxdr.maroonx.primitives_maroonx_spectrum import MAROONXSpectrum
+from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
 
 
 @pytest.mark.parametrize('bundle_filename', ['N20241114M3271.fits'])
@@ -40,7 +40,7 @@ def test_separate_and_bundle_arms(caplog, bundle_filename):
     original_filename = ad_bundle.filename
 
     # Split the bundle into separate arm files
-    p = MAROONXSpectrum([ad_bundle])
+    p = MaroonXSpectrum([ad_bundle])
     arm_list = p.splitBundle()
 
     assert len(arm_list) == 2, 'Should split into 2 arms'
@@ -55,7 +55,7 @@ def test_separate_and_bundle_arms(caplog, bundle_filename):
     assert archnames[0] == original_filename, 'ARCHNAME should be original filename'
 
     # Separate arms into streams
-    p2 = MAROONXSpectrum(arm_list)
+    p2 = MaroonXSpectrum(arm_list)
     blue_list = p2.separateArmStreams()
 
     assert 'RED' in p2.streams, 'RED stream should be created'
@@ -69,7 +69,7 @@ def test_separate_and_bundle_arms(caplog, bundle_filename):
     assert 'RED' in red_list[0].tags, 'Red list should have RED tag'
 
     # Re-bundle the arms
-    p3 = MAROONXSpectrum(blue_list)
+    p3 = MaroonXSpectrum(blue_list)
     p3.streams['RED'] = red_list
     bundled_list = p3.bundleArmStreams()
 
@@ -115,14 +115,14 @@ def test_separate_arms_error_handling(caplog, bundle_filename):
 
     # Load and split bundle
     ad_bundle = astrodata.open(bundle_filename)
-    p = MAROONXSpectrum([ad_bundle])
+    p = MaroonXSpectrum([ad_bundle])
     arm_list = p.splitBundle()
 
     # Remove ARCHNAME from one arm
     arm_list[0].phu['ARCHNAME'] = None
 
     # Try to separate - should log warning
-    p2 = MAROONXSpectrum(arm_list)
+    p2 = MaroonXSpectrum(arm_list)
     p2.separateArmStreams()
 
     # Check that appropriate warning was logged
@@ -150,14 +150,14 @@ def test_bundle_arms_requires_red_stream(caplog, bundle_filename):
     """
     # Load and split bundle
     ad_bundle = astrodata.open(bundle_filename)
-    p = MAROONXSpectrum([ad_bundle])
+    p = MaroonXSpectrum([ad_bundle])
     arm_list = p.splitBundle()
 
     # Get just the blue arm
     blue_arm = [ad for ad in arm_list if 'BLUE' in ad.tags]
 
     # Try to bundle without running separateArmStreams first
-    p2 = MAROONXSpectrum(blue_arm)
+    p2 = MaroonXSpectrum(blue_arm)
 
     with pytest.raises(ValueError, match='RED stream not found'):
         p2.bundleArmStreams()

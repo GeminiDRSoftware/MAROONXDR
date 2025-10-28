@@ -1989,6 +1989,9 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
         adinputs : list of AstroData objects
             List of multi-extension AstroData objects to be split.
 
+        keep_suffix : bool
+            If True, retains the suffix from the processed file name.
+
         Returns
         -------
         adouputs : list of AstroData objects
@@ -1996,6 +1999,8 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
+
+        keep_suffix = params.get("keep_suffix", False)
 
         adoutputs = []
 
@@ -2023,7 +2028,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
                 # Rename keywords of exposumeter table meta header
                 # This is patch because the EXPOSUMETER.meta header looses
                 # these particular keywords when writing to file
-                if "SCI" in ad.tags:
+                if {"RAW", "SCI"}.issubset(ad.tags):
                     arm_ad.EXPOSUREMETER.meta["header"].rename_keyword(
                         "TZERO2", "ZP_PC"
                     )
@@ -2031,6 +2036,12 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
                         "TZERO3", "ZP_FRD"
                     )
 
+                # if processed file has sufix, add the same sufix to split files
+                if "PROCESSED" in ad.tags and keep_suffix:
+                    suffix = ad.filename.split("_")[-1].replace(".fits", "")
+                    arm_ad.update_filename(
+                        suffix="_" + suffix, strip=False
+                    )
                 adoutputs.append(arm_ad)
 
         return adoutputs

@@ -1,6 +1,7 @@
 import os
 from contextlib import contextmanager
 from pathlib import Path
+from urllib.error import HTTPError
 
 import astrodata
 import numpy as np
@@ -37,6 +38,16 @@ def get_maroonx_legacy_test_path():
     p = os.environ.get("MAROONX_LEGACY_TEST")
     return Path(p) if p else None
 
+@contextmanager
+def change_cwd_context(target_dir):
+    """Context manager to temporarily change working directory."""
+    original_dir = Path.cwd()
+    target_path = Path(target_dir)
+    try:
+        os.chdir(target_path)
+        yield target_path
+    finally:
+        os.chdir(original_dir)
 
 # =========================================================
 # PATH FIXTURES
@@ -129,26 +140,15 @@ def science_dir_context(science_dir):
 
     @contextmanager
     def change_dir():
-        original_dir = Path.cwd()
-        try:
-            os.chdir(science_dir)
-            yield
-        finally:
-            os.chdir(original_dir)
+        with change_cwd_context(science_dir) as path:
+            yield path
     return change_dir
 
 @pytest.fixture(autouse=True)
 def change_to_science_dir(science_dir):
-    """Automatically change to science directory before each test and restore after"""
-    original_dir = Path.cwd()
-
-    # Change to science directory
-    os.chdir(science_dir)
-
-    yield science_dir
-
-    # Restore original directory
-    os.chdir(original_dir)
+    """Automatically change to science dir before each test and restore after"""
+    with change_cwd_context(science_dir) as path:
+        yield path
 
 @pytest.fixture(scope="function")
 def processed_dark_path(science_dir):
@@ -249,13 +249,17 @@ def assert_allclose_with_max_fails(x, y, rtol, atol, max_fails=0, warn_on_accept
 def pytest_configure(config):
     """
     Configure pytest with custom markers and settings.
-    
+
     Parameters
     ----------
     config : pytest.Config
         Pytest configuration object
     """
     # Register custom markers
+    config.addinivalue_line(
+        "markers",
+        "maroonx: marks tests as MAROON-X instrument tests"
+    )
     config.addinivalue_line(
         "markers",
         "regression: marks tests as regression tests "
@@ -278,6 +282,11 @@ def pytest_collection_modifyitems(config, items):
         List of collected test items
     """
     for item in items:
+        # Auto-apply maroonx marker to all tests in maroonx test suite
+        if "maroonx/tests" in str(item.path):
+            item.add_marker(pytest.mark.maroonx)
+
+        # Auto-apply regression marker to tests in regression directories
         if "regression" in str(item.path):
             item.add_marker(pytest.mark.regression)
 
@@ -287,106 +296,110 @@ def pytest_collection_modifyitems(config, items):
 
 # Manifest of MaroonX raw files available in the Gemini Archive
 # These files were used for MaroonX DRAGONS development and testing
-MAROONX_TEST_FILES = [
-    'N20241114M3271.fits',
-    'N20241114M3290.fits',
-    'N20241114M3295.fits',
-    'N20241114M3300.fits',
-    'N20241114M3305.fits',
-    'N20241114M3310.fits',
-    'N20241114M3442.fits',
-    'N20241114M3450.fits',
-    'N20241114M3456.fits',
-    'N20241114M3461.fits',
-    'N20241114M3466.fits',
-    'N20241114M3471.fits',
-    'N20241115M3421.fits',
-    'N20241115M3433.fits',
-    'N20241115M3444.fits',
-    'N20241115M3455.fits',
-    'N20241115M3466.fits',
-    'N20241115M3477.fits',
-    'N20241115M3486.fits',
-    'N20241115M3494.fits',
-    'N20241115M3502.fits',
-    'N20241115M3510.fits',
-    'N20241115M3519.fits',
-    'N20241115M3539.fits',
-    'N20241115M3559.fits',
-    'N20241115M3579.fits',
-    'N20241115M3600.fits',
-    'N20241115M3620.fits',
-    'N20241115M3655.fits',
-    'N20241115M3690.fits',
-    'N20241115M3726.fits',
-    'N20241115M3761.fits',
-    'N20241115M3796.fits',
-    'N20241115M3846.fits',
-    'N20241115M3897.fits',
-    'N20241115M3947.fits',
-    'N20241115M3997.fits',
-    'N20241115M4047.fits',
-    'N20241115M4112.fits',
-    'N20241115M4178.fits',
-    'N20241115M4243.fits',
-    'N20241115M4308.fits',
-    'N20241116M0054.fits',
-    'N20241116M0149.fits',
-    'N20241116M0244.fits',
-    'N20241116M0339.fits',
-    'N20241116M0434.fits',
-    'N20241124M0542.fits',
-    'N20241124M0547.fits',
-    'N20241124M0554.fits',
-    'N20241124M0559.fits',
-    'N20241124M0617.fits',
-    'N20241124M0622.fits',
-    'N20241124M0639.fits',
-    'N20241124M0655.fits',
-    'N20241124M0659.fits',
-    'N20241124M0663.fits',
-    'N20241124M0672.fits',
-    'N20241124M0804.fits',
-    'N20241124M1008.fits',
-    'N20241124M1116.fits',
-    'N20241124M1196.fits',
-    'N20241124M1298.fits',
-    'N20241124M1363.fits',
-    'N20241124M1413.fits',
-    'N20241124M1465.fits',
-    'N20241124M1565.fits',
-    'N20241124M1615.fits',
-    'N20241124M2024.fits',
-    'N20241124M2073.fits',
-    'N20241124M2123.fits',
-    'N20241124M2223.fits',
-    'N20241124M2562.fits',
-    'N20241124M2678.fits',
-    'N20241124M2783.fits',
-    'N20241124M2827.fits',
-    'N20241124M2838.fits',
-    'N20241124M2957.fits',
-    'N20241124M3018.fits',
-    'N20241124M3023.fits',
-    'N20241124M3032.fits',
-    'N20241124M3038.fits',
-    'N20241124M3043.fits',
-    'N20241124M3047.fits',
-    'N20241124M3051.fits',
-]
+MAROONX_TEST_MANIFEST = {
+    "DARK": [
+        "N20241115M3421.fits",
+        "N20241115M3433.fits",
+        "N20241115M3444.fits",
+        "N20241115M3455.fits",
+        "N20241115M3466.fits",
+        "N20241115M3477.fits",
+        "N20241115M3486.fits",
+        "N20241115M3494.fits",
+        "N20241115M3502.fits",
+        "N20241115M3510.fits",
+        "N20241115M3519.fits",
+        "N20241115M3539.fits",
+        "N20241115M3559.fits",
+        "N20241115M3579.fits",
+        "N20241115M3600.fits",
+        "N20241115M3620.fits",
+        "N20241115M3655.fits",
+        "N20241115M3690.fits",
+        "N20241115M3726.fits",
+        "N20241115M3761.fits",
+        "N20241115M3796.fits",
+        "N20241115M3846.fits",
+        "N20241115M3897.fits",
+        "N20241115M3947.fits",
+        "N20241115M3997.fits",
+        "N20241115M4047.fits",
+        "N20241115M4112.fits",
+        "N20241115M4178.fits",
+        "N20241115M4243.fits",
+        "N20241115M4308.fits",
+        "N20241116M0054.fits",
+        "N20241116M0149.fits",
+        "N20241116M0244.fits",
+        "N20241116M0339.fits",
+        "N20241116M0434.fits",
+        "N20241124M0655.fits",
+        "N20241124M0659.fits",
+        "N20241124M0663.fits",
+        "N20241124M0668.fits",
+        "N20241124M0672.fits",
+        "N20241124M3038.fits",
+        "N20241124M3043.fits",
+        "N20241124M3047.fits",
+        "N20241124M3051.fits",
+        "N20241124M3055.fits",
+        "N20241125M0774.fits",
+    ],
+    "FLAT": [
+        "N20241114M3271.fits",
+        "N20241114M3290.fits",
+        "N20241114M3295.fits",
+        "N20241114M3300.fits",
+        "N20241114M3305.fits",
+        "N20241114M3310.fits",
+        "N20241114M3442.fits",
+        "N20241114M3450.fits",
+        "N20241114M3456.fits",
+        "N20241114M3461.fits",
+        "N20241114M3466.fits",
+        "N20241114M3471.fits",
+    ],
+    "WAVECAL": [
+        "N20240814M0349.fits",
+        "N20241124M0542.fits",
+        "N20241124M0547.fits",
+        "N20241124M0554.fits",
+        "N20241124M0559.fits",
+        "N20241124M0617.fits",
+        "N20241124M0622.fits",
+        "N20241124M0639.fits",
+        "N20241124M2945.fits",
+        "N20241124M2951.fits",
+        "N20241124M2957.fits",
+        "N20241124M2962.fits",
+        "N20241124M3018.fits",
+        "N20241124M3023.fits",
+        "N20241124M3032.fits",
+    ],
+    "SCIENCE": [
+        "N20241124M1116.fits",
+    ],
+}
 
 
 @pytest.fixture
 def download_maroonx_file():
     """
     Fixture that provides a function to download MaroonX files from the Gemini Archive.
+
+    If a file returns HTTP 403 (Access Forbidden), the test will be skipped.
     """
     def _download(filename, sub_path='science_dir'):
-        return download_from_archive(
-            filename,
-            sub_path=sub_path,
-            env_var='MAROONX_DRAGONS_TEST'
-        )
+        try:
+            return download_from_archive(
+                filename,
+                sub_path=sub_path,
+                env_var='MAROONX_DRAGONS_TEST'
+            )
+        except HTTPError as e:
+            msg = f"{filename}: {e}"
+            pytest.skip(msg)
+        raise
     return _download
 
 
@@ -404,3 +417,42 @@ def download_maroonx_test_files(download_maroonx_file):
             # Log warning but continue with other files
             pytest.warn(f"Could not download {filename}: {e}")
     return paths
+
+
+@pytest.fixture
+def request_manifest_file():
+    """
+    Fixture that provides a function to get filenames from the manifest by category and index.
+
+    Usage
+    -----
+    def test_example(request_manifest_file):
+        # Get first FLAT file
+        filename = request_manifest_file("FLAT", 0)
+
+        # Get multiple FLAT files by index
+        filenames = request_manifest_file("FLAT", [0, 1, 2])
+
+        # Get all FLAT files
+        filenames = request_manifest_file("FLAT")
+    """
+    def _request(category, index=None):
+
+        if category not in MAROONX_TEST_MANIFEST:
+            raise ValueError(
+                f"Category '{category}' not found in manifest. "
+                f"Available: {list(MAROONX_TEST_MANIFEST.keys())}"
+            )
+
+        files = MAROONX_TEST_MANIFEST[category]
+
+        if index is None:
+            return files
+
+        # If list of indices, return list of files
+        if isinstance(index, list):
+            return [files[i] for i in index]
+
+        # Single index, return single file
+        return files[index]
+    return _request

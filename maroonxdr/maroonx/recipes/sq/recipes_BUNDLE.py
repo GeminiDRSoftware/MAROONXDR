@@ -1,6 +1,6 @@
 """Recipes available to data with tags ``['MAROONX', `BUNDLE`]``."""
 
-recipe_tags = {'MAROONX', 'BUNDLE', 'UNPREPARED'}
+recipe_tags = {'MAROONX', 'BUNDLE'}
 
 
 def processBundle(p):
