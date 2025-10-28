@@ -444,7 +444,8 @@ def unit_tests(session: nox.Session):
         # '--ignore=maroonxdr/maroonx/tests/complete',
         # '--ignore=maroonxdr/maroonx/tests/regression',
         '-v',
-        '--tb=no',
+        '-rs',  # Show reason for skipped tests
+        '--tb=short',
         '--rootdir=.',
     ]
 
