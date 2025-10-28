@@ -127,11 +127,10 @@ def legacy_flats_path(legacy_test_root):
 @pytest.fixture(scope="function")
 def science_dir(dragons_test_root):
     """
-    Fixture providing path to test legacy data directory.
+    Fixture providing path to test data directory.
     """
     path = dragons_test_root / "science_dir"
-    if not path.exists():
-        pytest.skip(f"Science dir directory does not exist: {path}")
+    path.mkdir(parents=True, exist_ok=True)
     return path
 
 @pytest.fixture(scope="function")
