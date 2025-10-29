@@ -8,14 +8,11 @@ import pytest
 import maroonx_instruments  # noqa : import is necesary for astrodata.instrument()
 from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 
-# Test data should be under science_dir
-# science_dir = Path(__file__).parents[4] / 'science_dir'
-# os.chdir(science_dir)
 
 
-
+@pytest.mark.slow
 @pytest.mark.parametrize("filename", ["20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits"])
-def test_find_stripes(caplog, filename):
+def test_find_stripes(caplog, preprocess_flat, filename):
     """
     Test that the findStripe routine works to identify all stripes that have
     been previously found in an extracted frame as well the possible set of
@@ -49,8 +46,9 @@ def test_find_stripes(caplog, filename):
     assert missing_stripes == 0
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("filename", ["20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits"])
-def test_identify_stripes(caplog, filename):
+def test_identify_stripes(caplog, preprocess_flat, filename):
     """
     Test that the identifyStripe routine works to give order and number
     identification to stripes that have been located on MX-frames.
@@ -94,8 +92,9 @@ def test_identify_stripes(caplog, filename):
            == len(ad[0].REMOVED_STRIPES)
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("filename", ["20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits"])
-def test_full_stripe_definition(caplog, filename):
+def test_full_stripe_definition(caplog, preprocess_flat, filename):
     """
     Test that the same exact stripes are found in reference masterflat frame
     from a previous extraction

@@ -22,7 +22,7 @@ from gempy.utils import logutils
 from recipe_system.reduction.coreReduce import Reduce
 
 import maroonx_instruments  # noqa - import is necessary for astrodata
-from maroonxdr.maroonx.tests.conftest import change_cwd_context
+from maroonxdr.maroonx.tests.test_utils import change_cwd_context
 
 # Get all files in the science_dir.
 test_path = Path(os.environ.get("MAROONX_DRAGONS_TEST"))

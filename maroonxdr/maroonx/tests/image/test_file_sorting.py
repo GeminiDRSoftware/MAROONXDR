@@ -10,15 +10,15 @@ import pytest
 from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 
 
-@pytest.mark.parametrize('bundle_filename', ['N20241114M3271.fits'])
-def test_splitBundle(caplog, download_maroonx_file, bundle_filename):
+@pytest.mark.parametrize('filename', ['N20241114M3271.fits'])
+def test_splitBundle(caplog, download_mx_file, filename):
     """
     Test that a Bundle is splitted in Blue and Red astrodata objects.
 
     Parameters
     ----------
     caplog : fixture
-    bundle_filename : str
+    filename : str
 
     Returns
     -------
@@ -26,9 +26,9 @@ def test_splitBundle(caplog, download_maroonx_file, bundle_filename):
     """
     caplog.set_level(logging.DEBUG)
 
-    download_maroonx_file(bundle_filename)
+    download_mx_file(filename)
 
-    ad_bundle = astrodata.open(bundle_filename)
+    ad_bundle = astrodata.open(filename)
 
     p = MAROONX([ad_bundle])
     out = p.splitBundle()
@@ -48,15 +48,15 @@ def test_splitBundle(caplog, download_maroonx_file, bundle_filename):
 
     assert ad_bundle.tables == ad_1.tables == ad_2.tables
 
-@pytest.mark.parametrize('bundle_filename', ['N20241124M1413.fits'])
-def test_splitBundle_exposuremeter(caplog, download_maroonx_file, bundle_filename):
+@pytest.mark.parametrize('filename', ['N20241124M1413.fits'])
+def test_splitBundle_exposuremeter(caplog, download_mx_file, filename):
     """
     Test that a Bundle is splitted in Blue and Red astrodata objects.
 
     Parameters
     ----------
     caplog : fixture
-    bundle_filename : str
+    filename : str
 
     Returns
     -------
@@ -64,9 +64,9 @@ def test_splitBundle_exposuremeter(caplog, download_maroonx_file, bundle_filenam
     """
     caplog.set_level(logging.DEBUG)
 
-    download_maroonx_file(bundle_filename)
+    download_mx_file(filename)
 
-    ad_bundle = astrodata.open(bundle_filename)
+    ad_bundle = astrodata.open(filename)
 
     p = MAROONX([ad_bundle])
     out = p.splitBundle()

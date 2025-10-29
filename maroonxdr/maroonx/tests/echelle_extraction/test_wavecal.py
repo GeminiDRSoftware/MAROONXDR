@@ -8,8 +8,9 @@ import maroonx_instruments  # noqa : import is necesary for astrodata
 from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("filename", ["20241124T030227Z_DEEEE_b_0030_wavecal.fits"])
-def test_staticWavelengthSolution(caplog, science_dir, filename):
+def test_staticWavelengthSolution(caplog, preprocess_wavecal, filename):
     """
     This test checks that the static wavelength solution is correct.
     """
@@ -35,8 +36,9 @@ def test_staticWavelengthSolution(caplog, science_dir, filename):
             assert wls.shape == (1, 1), f"Unrequested static solution for fiber {fiber} found"
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("filename", ["20241124T030227Z_DEEEE_b_0030_wavecal.fits"])
-def test_getPeaksAndPolynomials(caplog, filename):
+def test_getPeaksAndPolynomials(caplog, preprocess_wavecal, filename):
     """
     This test checks that PEAKS and POLY tables are correct.
     """
@@ -52,8 +54,9 @@ def test_getPeaksAndPolynomials(caplog, filename):
     assert hasattr(out_ad[0], 'POLY'), "POLY table should be present"
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("filename", ["20241124T030227Z_DEEEE_b_0030_wavecal.fits"])
-def test_fitAndApplyEtalonWls(caplog, filename):
+def test_fitAndApplyEtalonWls(caplog, preprocess_wavecal, filename):
     """
     This test checks that the dynamic wavelength solution is correct.
     """

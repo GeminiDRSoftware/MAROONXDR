@@ -439,12 +439,10 @@ def unit_tests(session: nox.Session):
     # Run the tests with corrected paths
     test_args = [
         'pytest',
-        'maroonxdr/maroonx/tests/bundle/test_bundle.py',
-        # 'maroonxdr/maroonx/tests/',
-        # '--ignore=maroonxdr/maroonx/tests/complete',
-        # '--ignore=maroonxdr/maroonx/tests/regression',
+        'maroonxdr/maroonx/tests/',
+        '--ignore=maroonxdr/maroonx/tests/regression',
         '-v',
-        '-rs',  # Show reason for skipped tests
+        '-rs',
         '--tb=short',
         '--rootdir=.',
     ]

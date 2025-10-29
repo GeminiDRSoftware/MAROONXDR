@@ -10,17 +10,15 @@ import maroonx_instruments  # noqa - import is necessary for astrodata
 from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 
 
-def test_split_bundle(download_maroonx_file, request_manifest_file):
+@pytest.mark.parametrize('filename', ['N20241114M3271.fits'])
+def test_split_bundle(download_mx_file, filename):
     """
     Test that splitBundle() correctly splits a MAROON-X bundle into separate arms.
     """
-    # Get first FLAT file from manifest
-    bundle_filename = request_manifest_file("FLAT", 0)
-
     # Download file from archive if not present
-    download_maroonx_file(bundle_filename)
+    download_mx_file(filename)
 
-    ad = astrodata.open(bundle_filename)
+    ad = astrodata.open(filename)
 
     # Verify this is a bundle with 2 extensions
     assert len(ad) == 2, "Input should be a bundle with 2 extensions"

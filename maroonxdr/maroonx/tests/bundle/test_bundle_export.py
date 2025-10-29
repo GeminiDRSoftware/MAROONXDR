@@ -10,8 +10,8 @@ import maroonx_instruments  # noqa - import is necessary for astrodata
 from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
 
 
-@pytest.mark.parametrize('bundle_filename', ['N20241114M3271.fits'])
-def test_separate_and_bundle_arms(caplog, bundle_filename):
+@pytest.mark.parametrize('filename', ['N20241114M3271.fits'])
+def test_separate_and_bundle_arms(caplog, download_mx_file, filename):
     """
     Test that separateArmStreams and bundleArmStreams correctly split and
     re-bundle MAROON-X data.
@@ -21,22 +21,13 @@ def test_separate_and_bundle_arms(caplog, bundle_filename):
     2. Separate arms into streams (separateArmStreams)
     3. Re-bundle them back together (bundleArmStreams)
     4. Verify the result matches the original structure
-
-    Parameters
-    ----------
-    caplog : fixture
-        pytest logging fixture
-    bundle_filename : str
-        Name of the bundle file to test
-
-    Returns
-    -------
-    None
     """
     caplog.set_level(logging.DEBUG)
 
+    download_mx_file(filename)
+
     # Load the bundle
-    ad_bundle = astrodata.open(bundle_filename)
+    ad_bundle = astrodata.open(filename)
     original_filename = ad_bundle.filename
 
     # Split the bundle into separate arm files
@@ -71,7 +62,7 @@ def test_separate_and_bundle_arms(caplog, bundle_filename):
     # Re-bundle the arms
     p3 = MaroonXSpectrum(blue_list)
     p3.streams['RED'] = red_list
-    bundled_list = p3.bundleArmStreams()
+    bundled_list = p3.bundleArmStreams(suffix='')
 
     assert len(bundled_list) == 1, 'Should produce one bundle'
 
@@ -95,26 +86,17 @@ def test_separate_and_bundle_arms(caplog, bundle_filename):
         'ARCHNAME should be removed after bundling'
 
 
-@pytest.mark.parametrize('bundle_filename', ['N20241114M3271.fits'])
-def test_separate_arms_error_handling(caplog, bundle_filename):
+@pytest.mark.parametrize('filename', ['N20241114M3271.fits'])
+def test_separate_arms_error_handling(caplog, download_mx_file, filename):
     """
     Test error handling in separateArmStreams when ARCHNAME is missing.
-
-    Parameters
-    ----------
-    caplog : fixture
-        pytest logging fixture
-    bundle_filename : str
-        Name of the bundle file to test
-
-    Returns
-    -------
-    None
     """
     caplog.set_level(logging.WARNING)
 
+    download_mx_file(filename)
+
     # Load and split bundle
-    ad_bundle = astrodata.open(bundle_filename)
+    ad_bundle = astrodata.open(filename)
     p = MaroonXSpectrum([ad_bundle])
     arm_list = p.splitBundle()
 
@@ -123,33 +105,22 @@ def test_separate_arms_error_handling(caplog, bundle_filename):
 
     # Try to separate - should log warning
     p2 = MaroonXSpectrum(arm_list)
-    p2.separateArmStreams()
 
-    # Check that appropriate warning was logged
-    assert any('No BLUE or RED tag found' in r.message or
-              'No BLUE or RED tagged files found' in r.message
-              for r in caplog.records), \
-        'Should warn about missing/unmatched files'
+    with pytest.raises(ValueError, match='No BLUE or RED'):
+        p2.separateArmStreams()
 
 
-@pytest.mark.parametrize('bundle_filename', ['N20241114M3271.fits'])
-def test_bundle_arms_requires_red_stream(caplog, bundle_filename):
+@pytest.mark.parametrize('filename', ['N20241114M3271.fits'])
+def test_bundle_arms_requires_red_stream(caplog, download_mx_file, filename):
     """
     Test that bundleArmStreams raises error when RED stream is missing.
-
-    Parameters
-    ----------
-    caplog : fixture
-        pytest logging fixture
-    bundle_filename : str
-        Name of the bundle file to test
-
-    Returns
-    -------
-    None
     """
+    caplog.set_level(logging.DEBUG)
+    download_mx_file(filename)
+
     # Load and split bundle
-    ad_bundle = astrodata.open(bundle_filename)
+    ad_bundle = astrodata.open(filename)
+
     p = MaroonXSpectrum([ad_bundle])
     arm_list = p.splitBundle()
 

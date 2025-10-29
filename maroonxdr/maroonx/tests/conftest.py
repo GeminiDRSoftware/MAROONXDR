@@ -1,5 +1,4 @@
 import os
-from contextlib import contextmanager
 from pathlib import Path
 from urllib.error import HTTPError
 
@@ -8,6 +7,16 @@ import numpy as np
 import pytest
 from astrodata.testing import download_from_archive
 from gempy.adlibrary import dataselect
+
+# Import shared utilities to avoid circular import with complete modules
+from maroonxdr.maroonx.tests.test_utils import change_cwd_context
+
+from maroonxdr.maroonx.tests.complete import (
+    complete_bundle_reduction,
+    complete_masterdark_reduction,
+    complete_masterflat_reduction,
+    complete_wavecal_reduction
+)
 
 # =========================================================
 # DRAGONS TEST CONFIGURATION
@@ -37,17 +46,6 @@ def get_maroonx_legacy_test_path():
     """
     p = os.environ.get("MAROONX_LEGACY_TEST")
     return Path(p) if p else None
-
-@contextmanager
-def change_cwd_context(target_dir):
-    """Context manager to temporarily change working directory."""
-    original_dir = Path.cwd()
-    target_path = Path(target_dir)
-    try:
-        os.chdir(target_path)
-        yield target_path
-    finally:
-        os.chdir(original_dir)
 
 # =========================================================
 # PATH FIXTURES
@@ -382,7 +380,7 @@ MAROONX_TEST_MANIFEST = {
 
 
 @pytest.fixture
-def download_maroonx_file():
+def download_mx_file(science_dir):
     """
     Fixture that provides a function to download MaroonX files from the Gemini Archive.
 
@@ -403,55 +401,58 @@ def download_maroonx_file():
 
 
 @pytest.fixture
-def download_maroonx_test_files(download_maroonx_file):
+def download_all_test_files(download_mx_file):
     """
     Fixture that downloads all MaroonX test files from the manifest.
     """
     paths = []
-    for filename in MAROONX_TEST_FILES:
-        try:
-            path = download_maroonx_file(filename)
-            paths.append(path)
-        except Exception as e:
-            # Log warning but continue with other files
-            pytest.warn(f"Could not download {filename}: {e}")
+    # Iterate through all categories in the manifest
+    for category, filenames in MAROONX_TEST_MANIFEST.items():
+        for filename in filenames:
+            try:
+                path = download_mx_file(filename)
+                paths.append(path)
+            except Exception as e:
+                # Log warning but continue with other files
+                pytest.warn(f"Could not download {filename}: {e}")
     return paths
 
+# =========================================================
+# PREPROCESSING FIXTURES
+# =========================================================
 
-@pytest.fixture
-def request_manifest_file():
+@pytest.fixture(scope="session")
+def preprocess_bundles(download_all_test_files):
     """
-    Fixture that provides a function to get filenames from the manifest by category and index.
-
-    Usage
-    -----
-    def test_example(request_manifest_file):
-        # Get first FLAT file
-        filename = request_manifest_file("FLAT", 0)
-
-        # Get multiple FLAT files by index
-        filenames = request_manifest_file("FLAT", [0, 1, 2])
-
-        # Get all FLAT files
-        filenames = request_manifest_file("FLAT")
+    Autouse fixture that runs preprocessing based on collected tests.
     """
-    def _request(category, index=None):
+    # Always preprocess bundles
+    complete_bundle_reduction()
+    return True
 
-        if category not in MAROONX_TEST_MANIFEST:
-            raise ValueError(
-                f"Category '{category}' not found in manifest. "
-                f"Available: {list(MAROONX_TEST_MANIFEST.keys())}"
-            )
 
-        files = MAROONX_TEST_MANIFEST[category]
+@pytest.fixture(scope="session")
+def preprocess_dark(preprocess_bundles):
+    """
+    Session fixture that creates master dark frames.
+    """
+    complete_dark_reduction()
+    return True
 
-        if index is None:
-            return files
 
-        # If list of indices, return list of files
-        if isinstance(index, list):
-            return [files[i] for i in index]
+@pytest.fixture(scope="session")
+def preprocess_flat(preprocess_bundles):
+    """
+    Session fixture that creates master flat frames.
+    """
+    complete_flat_reduction()
+    return True
 
-        # Single index, return single file
-        return files[index]
-    return _request
+
+@pytest.fixture(scope="session")
+def preprocess_wavecal(preprocess_bundles):
+    """
+    Session fixture that creates wavelength calibration solutions.
+    """
+    complete_wavecal_reduction()
+    return True

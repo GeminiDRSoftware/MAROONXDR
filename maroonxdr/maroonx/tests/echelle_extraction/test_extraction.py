@@ -10,7 +10,7 @@ import maroonx_instruments  # noqa : import is necesary for astrodata.instrument
 from maroonxdr.maroonx.primitives_maroonx_echelle import MAROONXEchelle
 
 
-@pytest.mark.slow()
+@pytest.mark.slow
 @pytest.mark.parametrize("filename", ["20241124T041907Z_SOOOE_r_0300_reduced.fits",
                                       "20241124T041907Z_SOOOE_b_0300_reduced.fits"])
 def test_optimal_extracting_science_data(caplog, filename):

@@ -7,12 +7,9 @@ import pytest
 import maroonx_instruments  # noqa : import is necesary for astrodata.instrument()
 from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 
-# Test data should be under science_dir
-# science_dir = Path(__file__).parents[4] / 'science_dir'
-# os.chdir(science_dir)
 
 
-#Change the path names below to suit your installation and the files given to you
+@pytest.mark.slow
 @pytest.mark.parametrize("DFFFD_file", ["20241114T182328Z_DFFFD_b_0008_straylight_flat.fits"])
 @pytest.mark.parametrize("FDDDF_file", ["20241114T190714Z_DDDDF_b_0007_straylight_flat.fits"])
 def test_stray_light_removal(caplog, DFFFD_file, FDDDF_file):
