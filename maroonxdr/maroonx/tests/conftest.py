@@ -445,10 +445,8 @@ def preprocess_bundles(request, download_all_test_files):
     Session fixture that runs bundle preprocessing when --preprocess-bundles flag is set.
 
     This autouse fixture runs automatically at session start. It checks the
-    --preprocess-bundles command-line flag and runs bundle reduction if set.
-
-    Returns True if preprocessing ran, False otherwise. Other preprocessing
-    fixtures can depend on this and check the return value.
+    --preprocess-bundles command-line flag and runs bundle reduction to
+    populate with individual arms fits.
     """
     if request.config.getoption("--preprocess-bundles"):
         complete_bundle_reduction()

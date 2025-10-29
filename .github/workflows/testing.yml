@@ -43,10 +43,22 @@ jobs:
         - name: Checkout repository
           uses: actions/checkout@v2
 
+        - name: Cache test data files
+          uses: actions/cache@v4
+          env:
+            # Increase this value to reset cache if test data changes
+            CACHE_NUMBER: 0
+          with:
+            path: ~/science_dir
+            key: ${{ runner.os }}-mx-test-data-${{ env.CACHE_NUMBER }}
+
         - name: Setup python
           uses: actions/setup-python@v2
           with:
             python-version: ${{ matrix.python-version }}
+
+        - name: Setup MAROONX_DRAGONS_TEST environment variable
+          run: echo "MAROONX_DRAGONS_TEST=~/" >> $GITHUB_ENV
 
         - name: Install nox
           run: python -m pip install --upgrade pip nox
