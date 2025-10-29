@@ -66,6 +66,9 @@ def test_splitBundle_exposuremeter(caplog, download_mx_file, filename):
 
     download_mx_file(filename)
 
+    if not Path(filename).is_file():
+        pytest.skip(f"{filename} not available for testing.")
+
     ad_bundle = astrodata.open(filename)
 
     p = MAROONX([ad_bundle])
