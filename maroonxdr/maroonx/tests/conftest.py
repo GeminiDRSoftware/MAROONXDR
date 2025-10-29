@@ -412,7 +412,7 @@ def download_mx_file(science_dir):
             )
         except HTTPError as e:
             # dont fail if one file is not accessible
-            pytest.warn(f"{filename}: {e}")
+            warnings.warn(f"{filename}: {e}")
             return
     return _download
 
@@ -431,7 +431,7 @@ def download_all_test_files(download_mx_file):
                 paths.append(path)
             except Exception as e:
                 # Log warning but continue with other files
-                pytest.warn(f"Could not download {filename}: {e}")
+                warnings.warn(f"Could not download {filename}: {e}")
     return paths
 
 # =========================================================
