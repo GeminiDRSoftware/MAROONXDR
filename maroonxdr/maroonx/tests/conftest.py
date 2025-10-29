@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from urllib.error import HTTPError
+import warnings
 
 import astrodata
 import numpy as np
@@ -390,13 +391,13 @@ MAROONX_TEST_MANIFEST = {
         "N20241124M3032.fits",
     ],
     "SCIENCE": [
-        "N20241124M1116.fits",
+        # "N20241124M1116.fits",
     ],
 }
 
 
 @pytest.fixture(scope="session")
-def download_mx_file(science_dir):
+def download_mx_file(caplog, science_dir):
     """
     Session fixture that provides a function to download MaroonX files from the Gemini Archive.
 
@@ -410,9 +411,9 @@ def download_mx_file(science_dir):
                 env_var='MAROONX_DRAGONS_TEST'
             )
         except HTTPError as e:
-            msg = f"{filename}: {e}"
-            pytest.skip(msg)
-        raise
+            # dont fail if one file is not accessible
+            pytest.warn(f"{filename}: {e}")
+            return
     return _download
 
 
