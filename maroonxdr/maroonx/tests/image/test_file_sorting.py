@@ -6,6 +6,7 @@ from copy import deepcopy
 import astrodata
 import numpy as np
 import pytest
+from pathlib import Path
 
 from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 
