@@ -465,7 +465,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
             log.stdinfo(f"Adding variance extension for {ad.filename}")
 
             npix_x, npix_y = ad[0].data.shape
-            var = np.zeros((npix_x, npix_y))
+            var = np.zeros((npix_x, npix_y), dtype=np.float32)
 
             if read_noise:
                 # Check if the frame was from the blue arm by looking at the tags.
