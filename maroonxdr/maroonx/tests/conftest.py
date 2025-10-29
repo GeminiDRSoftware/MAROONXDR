@@ -122,10 +122,10 @@ def legacy_flats_path(legacy_test_root):
         pytest.skip(f"Legacy data directory does not exist: {path}")
     return path
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def science_dir(dragons_test_root):
     """
-    Fixture providing path to test data directory.
+    Session fixture providing path to test data directory.
     """
     path = dragons_test_root / "science_dir"
     path.mkdir(parents=True, exist_ok=True)
@@ -242,6 +242,22 @@ def assert_allclose_with_max_fails(x, y, rtol, atol, max_fails=0, warn_on_accept
 # =========================================================
 # CONFIGURATION HOOKS
 # =========================================================
+
+def pytest_addoption(parser):
+    """
+    Add custom command-line options for MaroonX tests.
+
+    Parameters
+    ----------
+    parser : pytest.Parser
+        Pytest argument parser
+    """
+    parser.addoption(
+        "--preprocess-bundles",
+        action="store_true",
+        default=False,
+        help="Run bundle preprocessing before tests (splits bundles)"
+    )
 
 def pytest_configure(config):
     """
@@ -379,10 +395,10 @@ MAROONX_TEST_MANIFEST = {
 }
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def download_mx_file(science_dir):
     """
-    Fixture that provides a function to download MaroonX files from the Gemini Archive.
+    Session fixture that provides a function to download MaroonX files from the Gemini Archive.
 
     If a file returns HTTP 403 (Access Forbidden), the test will be skipped.
     """
@@ -400,10 +416,10 @@ def download_mx_file(science_dir):
     return _download
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def download_all_test_files(download_mx_file):
     """
-    Fixture that downloads all MaroonX test files from the manifest.
+    Session fixture that downloads all MaroonX test files from the manifest.
     """
     paths = []
     # Iterate through all categories in the manifest
@@ -421,36 +437,47 @@ def download_all_test_files(download_mx_file):
 # PREPROCESSING FIXTURES
 # =========================================================
 
-@pytest.fixture(scope="session")
-def preprocess_bundles(download_all_test_files):
+
+
+@pytest.fixture(scope="session", autouse=True)
+def preprocess_bundles(request, download_all_test_files):
     """
-    Autouse fixture that runs preprocessing based on collected tests.
+    Session fixture that runs bundle preprocessing when --preprocess-bundles flag is set.
+
+    This autouse fixture runs automatically at session start. It checks the
+    --preprocess-bundles command-line flag and runs bundle reduction if set.
+
+    Returns True if preprocessing ran, False otherwise. Other preprocessing
+    fixtures can depend on this and check the return value.
     """
-    # Always preprocess bundles
-    complete_bundle_reduction()
-    return True
+    if request.config.getoption("--preprocess-bundles"):
+        complete_bundle_reduction()
+        return True
+    return False
 
 
 @pytest.fixture(scope="session")
-def preprocess_dark(preprocess_bundles):
+def preprocess_dark():
     """
     Session fixture that creates master dark frames.
+
+    Depends on preprocess_bundles. Only runs if preprocess_bundles returned True.
     """
-    complete_dark_reduction()
+    complete_masterdark_reduction()
     return True
 
 
 @pytest.fixture(scope="session")
-def preprocess_flat(preprocess_bundles):
+def preprocess_flat():
     """
     Session fixture that creates master flat frames.
     """
-    complete_flat_reduction()
+    complete_masterflat_reduction()
     return True
 
 
 @pytest.fixture(scope="session")
-def preprocess_wavecal(preprocess_bundles):
+def preprocess_wavecal():
     """
     Session fixture that creates wavelength calibration solutions.
     """

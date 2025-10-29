@@ -52,4 +52,4 @@ jobs:
           run: python -m pip install --upgrade pip nox
 
         - name: Run unit tests
-          run: nox -s ${{ matrix.test-session }}-${{ matrix.python-version }} -- -m "not slow"
+          run: nox -s ${{ matrix.test-session }}-${{ matrix.python-version }} -- -m "not slow" --preprocess-bundles
