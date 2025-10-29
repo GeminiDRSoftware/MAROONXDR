@@ -397,7 +397,7 @@ MAROONX_TEST_MANIFEST = {
 
 
 @pytest.fixture(scope="session")
-def download_mx_file(caplog, science_dir):
+def download_mx_file(science_dir):
     """
     Session fixture that provides a function to download MaroonX files from the Gemini Archive.
 
