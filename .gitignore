@@ -4,7 +4,6 @@ science_dir/
 *.hdf
 *.h5
 DevDocs/
-doc/_build/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -75,7 +74,8 @@ instance/
 .scrapy
 
 # Sphinx documentation
-docs/build/
+doc/**/_build/
+doc/**/build/
 
 # PyBuilder
 target/
