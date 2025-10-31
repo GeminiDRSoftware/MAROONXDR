@@ -51,7 +51,7 @@ def makeDynamicWavecal(p):
     # Extracts spectra from stripes
     p.boxExtraction()
     # Fits etalon peaks and polynomials
-    p.getPeaksAndPolynomials(fibers=(2, 3, 4, 5), multithreading=True)
+    p.getPeaksAndPolynomials()
 
     p.staticWavelengthSolution()
     p.fitAndApplyEtalonWls()

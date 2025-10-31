@@ -597,6 +597,9 @@ def test_barycentricCorrection(arm, legacy_reduced_path):
 
     assert str(_decode(legacy_target)) == str(hdr.get("BERV_SIMBAD_TARGET"))
 
+    print(f"Legacy BERV_PC: {_decode(legacy_pc)}, New BERV_PC: {hdr.get('BERV_FLUXWEIGHTED_PC')}")
+    print(f"Legacy BERV_FRD: {_decode(legacy_frd)}, New BERV_FRD: {hdr.get('BERV_FLUXWEIGHTED_FRD')}")
+    
     # BERV is in (m/s); atol=0.1 -> 10 cm/s tolerance, rtol=0
     np.testing.assert_allclose(
         float(_decode(legacy_pc)),

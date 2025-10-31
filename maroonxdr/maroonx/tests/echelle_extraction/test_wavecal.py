@@ -40,7 +40,7 @@ def test_staticWavelengthSolution(caplog, preprocess_wavecal, filename):
 @pytest.mark.parametrize("filename", ["20241124T030227Z_DEEEE_b_0030_wavecal.fits"])
 def test_getPeaksAndPolynomials(caplog, preprocess_wavecal, filename):
     """
-    This test checks that PEAKS and POLY tables are correct.
+    This test checks that PEAKS and POLY tables are set.
     """
     caplog.set_level(logging.DEBUG)
 
