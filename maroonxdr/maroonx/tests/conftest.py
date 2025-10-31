@@ -459,8 +459,6 @@ def preprocess_bundles(request, download_all_test_files):
 def preprocess_dark():
     """
     Session fixture that creates master dark frames.
-
-    Depends on preprocess_bundles. Only runs if preprocess_bundles returned True.
     """
     complete_masterdark_reduction()
     return True

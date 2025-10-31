@@ -96,22 +96,26 @@ def _get_calibration_flat(adinputs):
     Match and return calibration flat file as astrodata object.
     Should probably be deprecated when dragons calib is implemented.
     """
+    # Get the calibration flats
     calib_flat_path = _get_calibration_flat_path()
+
+    arm_tag = "BLUE" if "BLUE" in adinputs[0].tags else "RED"
+    flats = dataselect.select_data(
+        list(calib_flat_path.glob("*.fits")), tags=[arm_tag, "FLAT"]
+    )
+    ad_flats = [astrodata.open(f) for f in flats]
 
     adoutputs = []
     for ad in adinputs:
-        if "BLUE" in ad.tags:
-            flat_file = "20241114T190714Z_DDDDF_b_0007_DFFFF_flat.fits"
-            flat_ad = astrodata.open(str(calib_flat_path / flat_file))
-        elif "RED" in ad.tags:
-            flat_file = "20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits"
-            flat_ad = astrodata.open(str(calib_flat_path / flat_file))
-        else:
-            msg = "Unknown file arm."
-            raise ValueError(msg)
+        science_time = ad.ut_datetime()
 
-        adoutputs.append(copy.deepcopy(flat_ad))
+        # Find the flat with minimum time difference
+        def time_diff(flat):
+            return abs((flat.ut_datetime() - science_time).total_seconds())
 
+        closest_flat = min(ad_flats, key=time_diff)
+
+        adoutputs.append(closest_flat)
     return adoutputs
 
 

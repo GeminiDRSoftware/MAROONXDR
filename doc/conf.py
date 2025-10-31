@@ -30,6 +30,7 @@ sys.path.insert(0, str(MX_PATH))
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'sphinx.ext.coverage',
@@ -85,6 +86,12 @@ pygments_style = 'sphinx'
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
 todo_link_only = True
+
+# -- Autosummary configuration --------------------------------------------
+
+# Generate autosummary stub pages
+autosummary_generate = True
+autosummary_imported_members = False
 
 # -- Copybutton configuration ---------------------------------------------
 
