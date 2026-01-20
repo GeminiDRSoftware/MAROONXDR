@@ -10,6 +10,9 @@ import maroonx_instruments  # noqa : important to load adclass tags
 
 from gempy.utils import logutils
 logutils.config(file_name="test.log", mode="debug", stomp=True)
+log = logutils.get_logger("test.log")
+log.setLevel("DEBUG")
+
 
 # Get all files in the science_dir.  Change the path here to suit your installation.
 science_dir = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir')
@@ -69,7 +72,7 @@ for exptime, arm in it.product(exptime_tags, arm_tags):
 
 # master darks coefficients
 calib_darks = Path('/home/martin/Projects/MaroonX/MAROONXDR/calibrations/processed_dark')
-selected_darks = dataselect.select_data(calib_darks, tags=['DARK', 'PROCESSED', 'BLUE'])
+selected_darks = dataselect.select_data(calib_darks.glob("*fits"), tags=['DARK', 'PROCESSED', 'BLUE'])
 selected_darks = [str(f) for f in selected_darks]
 
 # Run reduce on all selected files
@@ -151,7 +154,7 @@ p.removeStrayLight(stream='DFFFD_flats', filter_size=21, box_size=21, snapshot=T
 
 
 # =============================================================================
-# Spectrum reduction
+# Wavecal reduction
 # =============================================================================
 # Reduction fragments for testing on ipython
 
@@ -172,7 +175,7 @@ selected_spect = dataselect.select_data(get_files(), tags=['RAW', 'WAVECAL', 'BL
 # selected_spect = dataselect.select_data(get_files(), tags=['PROCESSED'])  # all_files used
 
 # read files and instantiate the primitive class
-adinput = [astrodata.open(f) for f in selected_spect[3:6]]
+adinput = [astrodata.open(f) for f in selected_spect[1:3]]
 p = MaroonXSpectrum(adinput)
 
 p.prepare()
@@ -185,12 +188,13 @@ p.addVAR(read_noise=True, poisson_noise=True)
 # first perform echelle extraction of fibers
 p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
 p.boxExtraction() # extracts spectra from stripes
-p.getPeaksAndPolynomials(fibers=(2,), multithreading=False) # fits etalon peaks and polynomials
+p.getPeaksAndPolynomials(multithreading=True) # fits etalon peaks and polynomials
 # p.writeOutputs(suffix='_dynamic_wavecal')  # save reduced 1D spectra
 
 p.staticWavelengthSolution()
 p.fitAndApplyEtalonWls()
 
+p.writeOutputs(suffix='_wavecal') 
 
 # =============================================================================
 # Spectrum reduction
@@ -224,10 +228,75 @@ p.overscanCorrect()
 p.correctImageOrientation()
 p.addVAR(read_noise=True,poisson_noise=True)
 # get and save wavelength solution (either static reference or frame's unique sim cal solved)
-p.darkSubtraction()
-p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra TODO Skip dark for fiber 5
+#p.darkSubtraction()
+p.extractStripes(skip_dark=[0,0,0,0,5], remove_straylight=[0,0,0,0,5])  # gets relevant flat and dark to cut out frame's spectra TODO Skip dark for fiber 5
 p.optimalExtraction()  # does 2D to 1D conversion of cut out spectra (only for fibers 2,3,4)
-# TODO: perform echelle peak fitting on fiber 5
-# TODO: Get wavelength solution from dynamic wavecal recipe
-# TODO: Take Fiber 5 peak positions and 
+
+p.getPeaksAndPolynomials(fibers=(5,) , multithreading=True)
+
+p.staticWavelengthSolution()
+p.applyWavelengthSolution(fibers=(2,3,4), ref_fiber=5)
+p.combineFibers()
+
+selected_spect = dataselect.select_data(get_files(), tags=['PROCESSED', 'SCI', 'BLUE', '300s'])
+adinput = [astrodata.open(f) for f in selected_spect]
+p = MaroonXSpectrum(adinput)
+
+p.barycentricCorrection()
+
 p.storeProcessedScience(suffix='_reduced')
+
+
+# =============================================================================
+# Synthetic dark
+# =============================================================================
+# Reduction fragments for testing on ipython
+
+from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
+from copy import deepcopy
+
+selected_spect = dataselect.select_data(get_files(), tags=['RAW', 'SCI', 'BLUE', '300s'])
+#selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'WAVECAL', 'RED'], xtags=['LFC'])
+
+# selected_spect = dataselect.select_data(get_files(), tags=['PROCESSED'])  # all_files used
+
+# read files and instantiate the primitive class
+adinput = [astrodata.open(f) for f in selected_spect]
+p = MaroonXSpectrum(adinput)
+
+p.prepare()
+p.checkArm()
+p.addVAR(read_noise=True, poisson_noise=True)
+
+p.createSyntheticDark()
+p.storeProcessedDark(suffix="_synth_dark")
+
+
+# =============================================================================
+# Display spectra
+# =============================================================================
+
+import astrodata
+import maroonx_instruments  # noqa : important to load adclass tags
+from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
+
+from gempy.utils import logutils
+logutils.config(file_name="test_display.log", mode="debug", stomp=True)
+log = logutils.get_logger("test_display.log")
+log.setLevel("DEBUG")
+
+f = '20241124T041907Z_SOOOE_r_0300_reduced.fits'
+ad = astrodata.open(f)
+p = MaroonXSpectrum([ad])
+p.displaySpectra(fibers=[2,3,4], show_wavelength=True)
+
+
+# QA reduction recipe
+selected_spect = dataselect.select_data(get_files(), tags=['RAW', 'SCI', 'BLUE', '300s'])
+
+# Run reduce on all selected files
+myreduce = Reduce()
+myreduce.files.extend(selected_spect)
+myreduce.drpkg = 'maroonxdr'
+myreduce.mode = 'qa'
+myreduce.runr()

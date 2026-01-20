@@ -199,6 +199,8 @@ class stackFlatsConfig(parameters_stack.stackFlatsConfig, stackFramesMXCalConfig
     # scale_mode can be 'first_frame' (darks) or 'mean_frame' (flats)
     scale_mode = config.Field('Scaling method for frames', str, 'mean_frame')
 
+    report = config.Field('Write PDF report', bool, True)
+
     def setDefaults(self):
         self.reject_method = 'sigclip'
         self.hsigma = 3.0

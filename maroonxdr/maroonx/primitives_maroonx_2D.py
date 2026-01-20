@@ -21,6 +21,9 @@ from recipe_system.utils.decorators import parameter_override
 from recipe_system.utils.md5 import md5sum
 from scipy.ndimage import gaussian_filter, measurements, median_filter
 
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
+
 from . import maroonx_utils, parameters_maroonx_2D
 from .lookups import timestamp_keywords as maroonx_stamps
 from .primitives_calibdb_maroonx import CalibDBMAROONX
@@ -1165,6 +1168,10 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
         ad_out[0].data = data_mean
         # ================================================================
 
+        # Plot the stacked flat for QA
+        if params["report"]:
+            plot_masterflat(ad_out)
+
         # Add suffix to datalabel to distinguish from the reference frame
         if sfx[0] == "_":
             extension = sfx.replace("_", "-", 1).upper()
@@ -2207,3 +2214,31 @@ def _scaleCube(cube, scale_mode="first_frame"):
         raise ValueError(msg)
 
     return cube
+
+def plot_masterflat(ad, **kwargs):
+    """
+    Plot master flat data for visual inspection.
+
+    Parameters
+    ----------
+    ad : AstroData
+        The AstroData object containing the master flat data.
+
+    **kwargs : dict
+        Additional keyword arguments for customization.
+
+    Returns
+    -------
+    None
+    """
+
+    with PdfPages(f"masterflat_{ad.filename.replace('.fits', '.pdf')}") as pdf:
+        fig, ax = plt.subplots(figsize=(10, 8))
+        im = ax.imshow(ad[0].data, cmap="viridis", origin="lower")
+        ax.set_title(f"Master Flat Field - {ad.filename}")
+        ax.set_xlabel("Pixel X")
+        ax.set_ylabel("Pixel Y")
+        cbar = fig.colorbar(im, ax=ax)
+        cbar.set_label("Flux")
+        pdf.savefig(fig)
+        plt.close()
