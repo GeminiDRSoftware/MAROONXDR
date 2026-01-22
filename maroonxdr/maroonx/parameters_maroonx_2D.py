@@ -40,6 +40,7 @@ class checkMasterConfig(config.Config):
 
     suffix = config.Field('Filename suffix', str, '')
 
+
 class checkNDConfig(config.Config):
     """
     This parameter set controls the checkND primitive for MAROON-X.
@@ -93,8 +94,12 @@ class identifyStripesConfig(config.Config):
     """
 
     suffix = config.Field('Filename suffix', str, '')
-    positions_dir = config.Field('Stripe identification lookup file', str, None, optional=True)
-    selected_fibers = config.ListField('List of illuminated fibers', int, None, optional=True, single=False)
+    positions_dir = config.Field(
+        'Stripe identification lookup file', str, None, optional=True
+    )
+    selected_fibers = config.ListField(
+        'List of illuminated fibers', int, None, optional=True, single=False
+    )
 
 
 class overscanCorrectConfig(parameters_ccd.overscanCorrectConfig):
@@ -124,11 +129,13 @@ class removeStrayLightConfig(config.Config):
     box_size = config.Field('Photutils box size', int, 20)
     filter_size = config.Field('Photutils filter size', int, 19)
     legacy = config.Field('Legacy patch', bool, False)
+    report = config.Field('Generate PDF diagnostic report', bool, False)
+
 
 class removeStrayLight_legacyPatchConfig(config.Config):
     """
-    Legacy Patch for removeStrayLight primitive. 
-    
+    Legacy Patch for removeStrayLight primitive.
+
     Serves for debuging purposes during development. The reason is photutils Background2D
     api changes from legacy dependency versions to this DRP.
     """
@@ -137,6 +144,7 @@ class removeStrayLight_legacyPatchConfig(config.Config):
     snapshot = config.Field('save difference', bool, False)
     box_size = config.Field('Photutils box size', int, 20)
     filter_size = config.Field('Photutils filter size', int, 19)
+
 
 class separateFlatStreamsConfig(config.Config):
     """
@@ -166,7 +174,7 @@ class stackDarksConfig(parameters_stack.stackDarksConfig):
 
     # scale_mode can be 'first_frame' (darks) or 'mean_frame' (flats)
     scale_mode = config.Field('Scaling method for frames', str, 'first_frame')
-    
+
     def setDefaults(self):
         self.reject_method = 'sigclip'
         self.hsigma = 2.0
@@ -189,6 +197,7 @@ class stackFlatsOldConfig(parameters_stack.stackFlatsConfig, stackFramesMXCalCon
         self.max_iters = 5
         self.scale = True
 
+
 class stackFlatsConfig(parameters_stack.stackFlatsConfig, stackFramesMXCalConfig):
     """
     This parameter set controls the stackFlats primitive for MAROON-X.
@@ -199,13 +208,12 @@ class stackFlatsConfig(parameters_stack.stackFlatsConfig, stackFramesMXCalConfig
     # scale_mode can be 'first_frame' (darks) or 'mean_frame' (flats)
     scale_mode = config.Field('Scaling method for frames', str, 'mean_frame')
 
-    report = config.Field('Write PDF report', bool, True)
-
     def setDefaults(self):
         self.reject_method = 'sigclip'
         self.hsigma = 3.0
         self.lsigma = 3.0
         self.max_iters = 5
+
 
 class validateDataConfig(parameters_standardize.validateDataConfig):
     """
@@ -225,6 +233,7 @@ class splitBundleConfig(config.Config):
 
     suffix = config.Field('Filename suffix', str, '')
     keep_suffix = config.Field('Keep suffix of processed file', bool, True)
+
 
 class fitDarkCoefficientsConfig(config.Config):
     """
