@@ -340,6 +340,8 @@ class MAROONXEchelle(MAROONX, Spect):
             Used in unit test for this function, saves
             science extraction, flat extraction, and the bpm-extraction in
             FITS-readable format (STRIPES, F_STRIPES, STRIPES_MASK)
+        report : bool
+            Passed along to the straylight removal primitive.
         individual : bool
             If False uses one calib call for all frames per arm,
             if True performs a calib call for each frame
@@ -361,6 +363,7 @@ class MAROONXEchelle(MAROONX, Spect):
         straylight_removal_fibers = params.get("straylight_removal_fibers", None)
         slit_height = params["slit_height"]
         test_extraction = params["test_extraction"]
+        report = params.get("report")
 
         if dark_subtraction_skip_fibers is None:
             # skip all dark subtraction by default
@@ -396,7 +399,7 @@ class MAROONXEchelle(MAROONX, Spect):
                         adinputs=[copy.deepcopy(ad)])[0]
                 else:
                     ad_sl_removed = self.removeStrayLight(
-                        adinputs=[copy.deepcopy(ad)])[0]
+                        adinputs=[copy.deepcopy(ad)], report=report)[0]
 
             stripes = {}
             f_stripes = {}

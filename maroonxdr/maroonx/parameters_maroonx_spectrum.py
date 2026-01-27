@@ -11,7 +11,7 @@ class staticWavelengthSolutionConfig(config.Config):
     This parameter set controls the staticWavelengthSolution primitive for MAROON-X.
     """
 
-    suffix = config.Field('Filename suffix', str, '_staticwls')
+    suffix = config.Field('Filename suffix', str, '')
     fibers = config.ListField(
         'List of fibers to process.',
         int,
@@ -26,7 +26,7 @@ class getPeaksAndPolynomialsConfig(config.Config):
     This parameter set controls the getPeaksAndPolynomials primitive for MAROON-X.
     """
 
-    suffix = config.Field('Filename suffix', str, '_peaks')
+    suffix = config.Field('Filename suffix', str, '')
     guess_file = config.Field(
         'Name of file containing initial guess spectrum.',
         str,
@@ -84,7 +84,11 @@ class fitAndApplyEtalonWlsConfig(config.Config):
     )
     ref_file = config.Field('Reference file', str, None, optional=True)
     ref_fiber = config.Field('Reference fiber', int, None, optional=True)
-    #plot_path = config.Field('Path to save plots', str, '')
+    report = config.Field(
+        'Write PDF report with diagnostic plots',
+        bool,
+        False,
+    )
 
 
 class applyWavelengthSolutionConfig(config.Config):
@@ -118,7 +122,7 @@ class combineFibersConfig(config.Config):
     This parameter set controls the combineFibers primitive for MAROON-X.
     """
 
-    suffix = config.Field('Filename suffix', str, '_combined')
+    suffix = config.Field('Filename suffix', str, '')
     combine_fibers = config.ListField(
         'List of fibers to combine.',
         int,

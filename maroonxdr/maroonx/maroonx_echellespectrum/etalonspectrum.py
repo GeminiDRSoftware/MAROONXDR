@@ -304,28 +304,29 @@ class EtalonSpectrum(EchelleSpectrum):
         ax2.set_xlabel('Wavelength (nm)')
         ax2.set_ylabel('Residuals (m/s)')
         residuals = (self.peak_to_wavelength \
-                    (self.peak_data.loc[:, 'm'].values) - \
-                    self.peak_data.loc[:, 'wavelength_by_thar'])
-        residuals = residuals * c / self.peak_data.loc[:, 'wavelength_by_thar'] # Convert to m/s and normalize
-        ax2.scatter(self.peak_data.loc[:, 'wavelength_by_thar'], residuals,
-                    c=self.peak_data.loc[:, 'order'], cmap='nipy_spectral',
+                    (self.peak_data.loc[:, 'M'].values) - \
+                    self.peak_data.loc[:, 'WAVELENGTH_BY_THAR'])
+        residuals = residuals * c / self.peak_data.loc[:, 'WAVELENGTH_BY_THAR'] # Convert to m/s and normalize
+        ax2.scatter(self.peak_data.loc[:, 'WAVELENGTH_BY_THAR'], residuals,
+                    c=self.peak_data.loc[:, 'ORDER'], cmap='nipy_spectral',
                     rasterized=True, marker='.', s=2)
+        ax2.set_ylim(np.nanmean(residuals) - 30,np.nanmean(residuals) + 30)
         ax2.text(0.6, 0.05,
                  f'std: {np.std(residuals):.1f} m/s, mean: {np.mean(residuals):.2f} m/s',
                  transform=ax2.transAxes)
         if 'knot_0' in self.etalon_parameters:
-            dispersion = (self.peak_to_wavelength_nodispersion(self.peak_data.loc[:, 'm'].values) -
-                          self.peak_to_wavelength(self.peak_data.loc[:, 'm'].values))
-            dispersion = dispersion / self.peak_data.loc[:, 'wavelength_by_thar'] * c
+            dispersion = (self.peak_to_wavelength_nodispersion(self.peak_data.loc[:, 'M'].values) -
+                          self.peak_to_wavelength(self.peak_data.loc[:, 'M'].values))
+            dispersion = dispersion / self.peak_data.loc[:, 'WAVELENGTH_BY_THAR'] * c
             ax1.set_title('Etalon residuals ' + plot_title)
             ax1.set_xlabel('Wavelength (nm)')
             ax1.set_ylabel('Residuals (m/s)')
-            uresiduals = (self.peak_to_wavelength_nodispersion(self.peak_data.loc[:, 'm'].values) -
-                         self.peak_data.loc[:, 'wavelength_by_thar'])
-            uresiduals = uresiduals * 3e8 / self.peak_data.loc[:,'wavelength_by_thar']
-            ax1.scatter(self.peak_data.loc[:, 'wavelength_by_thar'], uresiduals,
-                        c=self.peak_data.loc[:, 'order'], cmap='nipy_spectral', rasterized=True, marker='.', s=2)
-            ax1.plot(self.peak_data.loc[:, 'wavelength_by_thar'], dispersion, 'r-', rasterized=True)
+            uresiduals = (self.peak_to_wavelength_nodispersion(self.peak_data.loc[:, 'M'].values) -
+                         self.peak_data.loc[:, 'WAVELENGTH_BY_THAR'])
+            uresiduals = uresiduals * 3e8 / self.peak_data.loc[:,'WAVELENGTH_BY_THAR']
+            ax1.scatter(self.peak_data.loc[:, 'WAVELENGTH_BY_THAR'], uresiduals,
+                        c=self.peak_data.loc[:, 'ORDER'], cmap='nipy_spectral', rasterized=True, marker='.', s=2)
+            ax1.plot(self.peak_data.loc[:, 'WAVELENGTH_BY_THAR'], dispersion, 'r-', rasterized=True)
             ax1.text(0.6, 0.05,
                      f'std: {np.std(residuals):.1f} m/s, mean: {np.mean(residuals):.2f} m/s',
                      transform=ax1.transAxes)
@@ -337,17 +338,17 @@ class EtalonSpectrum(EchelleSpectrum):
                 ax3.set_ylabel('Fractional order #')
                 ax3.set_xlim(ax2.get_xlim()[0], ax2.get_xlim()[1])
                 ax3.set_ylim(ax2.get_ylim()[0] / 8000, ax2.get_ylim()[1] / 8000)
-                ax3.scatter(self.peak_data.loc[:, 'wavelength_by_thar'], self.peak_data.loc[:, 'm_fraction'],
-                            c=self.peak_data.loc[:, 'order'], cmap='nipy_spectral', rasterized=True, marker='.', s=2)
+                ax3.scatter(self.peak_data.loc[:, 'WAVELENGTH_BY_THAR'], self.peak_data.loc[:, 'M_FRACTION'],
+                            c=self.peak_data.loc[:, 'ORDER'], cmap='nipy_spectral', rasterized=True, marker='.', s=2)
 
             else:
                 ax3.set_title('Etalon residuals after dispersion correction ' + plot_title)
-                ax3.set_xlabel('X (normalized')
+                ax3.set_xlabel('X (normalized)')
                 ax3.set_ylabel('Residuals (m/s)')
                 ax3.set_xlim(-1,1)
                 ax3.set_ylim(ax2.get_ylim()[0], ax2.get_ylim()[1])
-                x = self.normalize_x(self.peak_data.loc[:, 'center'])
+                x = self.normalize_pixel(self.peak_data.loc[:, 'CENTER'])
                 ax3.scatter(x, residuals,
-                            c=self.peak_data.loc[:, 'order'], cmap='nipy_spectral', rasterized=True, marker='.', s=2)
+                            c=self.peak_data.loc[:, 'ORDER'], cmap='nipy_spectral', rasterized=True, marker='.', s=2)
 
         return fig

@@ -58,6 +58,7 @@ class extractStripesConfig(config.Config):
     slit_height = config.Field("Pixel illumination in cross-dispersion",int, 10)
     test_extraction = config.Field("Save in FITS-readable format for testing", bool, False)
     legacy = config.Field('Legacy patch', bool, False)
+    report = config.Field('Generate PDF diagnostic report', bool, False)
 
 class optimalExtractionConfig(config.Config):
     '''

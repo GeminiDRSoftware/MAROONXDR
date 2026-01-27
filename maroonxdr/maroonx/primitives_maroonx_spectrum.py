@@ -23,6 +23,8 @@ from astroquery.simbad import Simbad
 from geminidr.core import Spect
 from gempy.adlibrary import dataselect
 from gempy.gemini import gemini_tools as gt
+from matplotlib import pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 from recipe_system.utils.decorators import parameter_override
 from scipy.interpolate import interp1d
 from scipy.signal import medfilt
@@ -606,6 +608,8 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         n_knots = params.get("n_knots")
         thar = params.get("thar")
         ref_file = params.get("ref_file")
+        report = params.get("report")
+
 
         for ad in adinputs:
             if "ETALON" not in ad.tags:
@@ -614,6 +618,11 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     ad.filename
                 )
                 continue
+ 
+            if report:
+                # Create pdf for plots
+                report_prefix = "spline_symmetrical_" if symmetric_linefits else "spline_"
+                pdf = PdfPages(report_prefix + ad.filename.replace('.fits', '.pdf'))
 
             # Load the etalon spectrum
             mx_spectrum = MXSpectrum(ad, etalon_peaks_symmetric=symmetric_linefits)
@@ -694,6 +703,12 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             for fiber in fibers:
                 log.info("Guess Etalon peak numbers for fiber %s", fiber)
                 peak_data = mx_spectrum.spectra[fiber].guess_peak_numbers(debug=0)
+
+                if report:
+                    fig = mx_spectrum.spectra[fiber].plot_etalon_dispersion(
+                        plot_title=f'(Fiber {fiber})', plot_mfraction=False)
+                    pdf.savefig(fig)
+                    plt.close('all')
 
                 if wl is not None:
                     wl = np.concatenate((wl, peak_data["WAVELENGTH_BY_THAR"].values))
@@ -802,6 +817,23 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     else:
                         wave[fiber] = {str(int(o)): wavelengths}
 
+                # Plot residuals if report is True
+                if report:
+                    normalize_x = lambda x: x / np.max(x) * 2. - 1.
+                    normalize_order = lambda o: (o - np.min(o)) / (np.max(o) - np.min(o)) * 2. - 1.
+                    
+                    fig = plot_residuals(
+                        plottitle=f'Etalon residuals after Etalon-based spline fit (n_knots: {n_knots}) for fiber {fiber}',
+                        residuals=residuals_all,
+                        wavelengths=wavelengths_all,
+                        orders_norm=normalize_order(orders_all),
+                        x_norm=normalize_x(xs_all),
+                        weights=None,
+                        zoom=True
+                    )
+                    pdf.savefig(fig)
+                    plt.close('all')
+
                 new_peak_data.append(speactra_peaks.copy())
 
                 # Concatenate wavelengths arrays for each fiber and save them
@@ -828,6 +860,8 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 log.info("Drift for fiber %s: %.2f m/s", fiber, drifts[fiber])
 
             ad.update_filename(suffix=params["suffix"], strip=True)
+            if report:
+                pdf.close()
 
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
@@ -2572,3 +2606,68 @@ def _peak_to_wavelength_spline(mm, pars):
 def _fc2min(p, m, etalonwl):
     # residuals are in 'nm' not m/s. Good? bad? Should we normalize?
     return _peak_to_wavelength_spline(m, p) - etalonwl
+
+
+def plot_residuals(plottitle='',residuals=None, wavelengths=None, orders_norm=None, x_norm=None, weights=None,zoom=False):
+
+    fig = plt.figure(figsize=(8, 8))
+    fig.subplots_adjust(bottom=.07, left=0.14, right=0.96, top=0.95, hspace=0.40)
+    ax1 = fig.add_subplot(311)
+    ax3 = fig.add_subplot(312)
+    ax2 = fig.add_subplot(313)
+
+    ax1.set_title(plottitle)
+    ax1.set_ylabel('Residuals [m/s]')
+    ax1.set_xlabel('Wavelength [nm]')
+    ax1.set_ylim(-22,22)
+
+    ax1.scatter(wavelengths, residuals / wavelengths * 3e8,
+                c=orders_norm, marker='o', cmap='nipy_spectral',s=2,rasterized=True)
+    # adjust plot range
+    #lim = np.max(np.abs(residuals / wavelengths * 3e8))
+    #ax1.set_ylim((-lim * 1.2, lim * 1.2))
+
+    # plot order means
+    ordermeans = []
+    orderaverages = []
+    orderrmss = []
+    wavemeans = []
+    unique_orders = np.unique(orders_norm)
+    wavelengths = np.asarray(wavelengths)
+
+    if weights is None:
+        weights = residuals*0 + 1.
+
+    for o in unique_orders:
+        oa = np.average((residuals / wavelengths*3e8)[np.where(orders_norm == o)],weights=weights[np.where(orders_norm == o)])
+        om = np.nanmean((residuals / wavelengths * 3e8)[np.where(orders_norm == o)])
+        wm = np.nanmean(wavelengths[np.where(orders_norm == o)])
+        os = np.nanstd((residuals / wavelengths * 3e8)[np.where(orders_norm == o)])
+        ordermeans.append(om)
+        orderaverages.append(oa)
+        orderrmss.append(os)
+        wavemeans.append(wm)
+
+    scatter = np.std(residuals / wavelengths * 3e8)
+    ax1.scatter(wavemeans, ordermeans,    marker='p', c='k', s=50, label='Unweighted mean')
+    ax1.scatter(wavemeans, orderaverages, marker='*', c='k', s=50, label='Weighted mean')
+    ax1.legend(loc=1)
+    ax1.hlines(np.mean(residuals / wavelengths * 3e8), np.min(wavelengths), np.max(wavelengths))
+
+    ax1.text(0.05, 0.05,
+             f'std: {scatter:.1f} m/s, mean: {np.mean(residuals / wavelengths * 3e8):.2f} m/s', transform=ax1.transAxes)
+
+    ax3.set_title(plottitle)
+    ax3.set_ylabel('Residual rms [m/s]')
+    ax3.set_xlabel('Wavelength [nm]')
+    ax3.set_ylim(0,15)
+    ax3.scatter(wavemeans, orderrmss, marker='o', c=unique_orders, s=50, cmap='nipy_spectral',rasterized=True)
+
+    ax2.set_title(plottitle)
+    ax2.set_ylabel('Residuals [m/s]')
+    ax2.set_xlabel('X (normalized)')
+    ax2.set_ylim(-22,22)
+    if len(x_norm) == len(residuals):
+       ax2.scatter(x_norm, residuals / wavelengths * 3e8, s=2, c=orders_norm, marker='o', cmap='nipy_spectral',rasterized=True)
+
+    return fig

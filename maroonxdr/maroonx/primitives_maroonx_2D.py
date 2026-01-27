@@ -1744,7 +1744,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
             if report:
                 # Capture result before clipping negative values
                 result_before_clip = adout[0].data.copy()
-                report_file = make_report_masterflat(
+                report_file = make_report_backgroundfit(
                     ad,
                     data_original=ad[0].data,
                     data_masked=adint[0].data,
@@ -1753,9 +1753,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
                     result=result_before_clip,
                     max_val_masked=max_val_masked,
                 )
-                log.stdinfo(
-                    f"Straylight diagnostic report written to '{report_file}'"
-                )
+                log.stdinfo(f"Straylight diagnostic report written to '{report_file}'")
 
             adout[0].data[adout[0].data < 0] = 0.01
 
@@ -2237,7 +2235,7 @@ def _scaleCube(cube, scale_mode='first_frame'):
     return cube
 
 
-def make_report_masterflat(ad, **kwargs):
+def make_report_backgroundfit(ad, **kwargs):
     """
     Generate a PDF diagnostic report for straylight removal.
 
@@ -2266,7 +2264,7 @@ def make_report_masterflat(ad, **kwargs):
     str
         Filename of the generated PDF report.
     """
-    pdf_name = f"masterflat_{ad.filename.replace('.fits', '.pdf')}"
+    pdf_name = f"{ad.filename.replace('.fits', '_backgroundfit.pdf')}"
 
     # get array from kwargs
     data_original = kwargs.get('data_original')
@@ -2308,9 +2306,7 @@ def make_report_masterflat(ad, **kwargs):
         # Figure 4: Background subtracted data (first iteration)
         fig4 = plt.figure(figsize=figsize)
         plt.title('Background subtracted data')
-        plt.imshow(
-            data_original - bkg1.background, origin='lower', vmin=-30, vmax=30
-        )
+        plt.imshow(data_original - bkg1.background, origin='lower', vmin=-30, vmax=30)
         plt.colorbar()
         pdf.savefig(fig4)
         plt.close(fig4)

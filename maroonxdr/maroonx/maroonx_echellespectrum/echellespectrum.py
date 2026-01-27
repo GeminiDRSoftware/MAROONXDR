@@ -119,25 +119,23 @@ class EchelleSpectrum:
         norm_order = (order - min_order)/(max_order - min_order) * 2. - 1.
         return norm_order
 
-    def normalize_pixel(self, pixel, min_pixel, max_pixel):
+    def normalize_pixel(self, pixel):
         '''
-        Converts the physical pixel to a normalized pixel.
+        Converts the physical pixel to a normalized pixel in the range [-1, 1].
+        The normalization is done based on the number of pixels in box_data.
 
         Parameters
         ----------
         pixel : int
             Physical pixel.
-        min_pixel : int
-            Minimum physical pixel.
-        max_pixel : int
-            Maximum physical pixel.
 
         Returns
         -------
         norm_pixel : float
             Normalized pixel.
         '''
-        norm_pixel = (pixel - min_pixel)/(max_pixel - min_pixel) * 2. - 1.
+        # norm_pixel = (pixel - min_pixel)/(max_pixel - min_pixel) * 2. - 1.
+        norm_pixel = pixel / self.box_data.shape[1] * 2. - 1.
         return norm_pixel
 
     def data_flattened(self, box_data=False):
