@@ -170,7 +170,10 @@ class EtalonSpectrum(EchelleSpectrum):
         # Calculate the wavelength for peaks:
         for i, order in enumerate(self.orders):
             try:
-                y = self.wavelength_data[i]
+                # y = self.wavelength_data[i]
+                # keeps original (potentially unsorted) order
+                y = np.asarray(self.data.loc[order, 'wavelength'])
+
                 x = np.arange(len(y))
                 if y[0] > y[-1]:
                     y = y[::-1]
@@ -235,7 +238,9 @@ class EtalonSpectrum(EchelleSpectrum):
                 dropindex = self.peak_data.loc[order].iloc[np.where(bad)].index
                 log.warning(f"Dropping {list(dropindex)} indices in order {order}")
                 for idx in dropindex:
+                    # Commented this out to reproduce legacy issue
                     self.peak_data.drop(index=(order, idx), inplace=True)
+                    # log.warning(f"Could not drop peak data for {idx} in order {order}.")
 
         # correct jumps between orders
         for order in (self.orders[1:])[::-1]:

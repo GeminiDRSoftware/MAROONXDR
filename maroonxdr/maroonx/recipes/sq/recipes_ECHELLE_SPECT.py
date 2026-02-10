@@ -49,7 +49,7 @@ def reduce(p):
     p.staticWavelengthSolution()
     p.applyWavelengthSolution(fibers=(2, 3, 4), ref_fiber=5)
     p.combineFibers()
-    p.barycentricCorrection()
+    # p.barycentricCorrection()
     p.storeProcessedScience(suffix='_reduced')
 
 
@@ -118,3 +118,19 @@ def exportReducedBundle(p):
     p.separateArmStreams()
     p.bundleArmStreams()
     p.storeProcessedScience(suffix='_reduced')
+
+
+def applyBarycentricCorrection(p):
+    """
+    Apply barycentric velocity correction to already-reduced MAROON-X spectra.
+
+    Use this recipe to apply target-specific barycentric correction parameters
+    after the main extraction workflow.
+
+    Parameters
+    ----------
+    p : Primitives object
+        A primitive set matching the recipe_tags.
+    """
+    p.barycentricCorrection()
+    p.storeProcessedScience(suffix='_barycor')

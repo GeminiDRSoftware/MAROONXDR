@@ -87,7 +87,7 @@ class fitAndApplyEtalonWlsConfig(config.Config):
     report = config.Field(
         'Write PDF report with diagnostic plots',
         bool,
-        False,
+        True,
     )
 
 
@@ -115,7 +115,11 @@ class applyWavelengthSolutionConfig(config.Config):
         False,
     )
     ref_fiber = config.Field('Reference fiber', int, None, optional=True)
-    #plot_path = config.Field('Path to save plots', str, '')
+    report = config.Field(
+        'Write PDF report with diagnostic plots',
+        bool,
+        True,
+    )
 
 class combineFibersConfig(config.Config):
     """
@@ -143,6 +147,8 @@ class combineFibersConfig(config.Config):
         5000,
         optional=True,
     )
+    report = config.Field('Generate PDF diagnostic report', bool, True)
+
 
 class barycentricCorrectionConfig(config.Config):
     """

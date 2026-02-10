@@ -101,7 +101,7 @@ class MXSpectrum:
                 continue
 
             if fiber != 'Target':
-                peaks = peak_data.loc[fiber_number]
+                peaks = peak_data.loc[fiber_number].copy()
             else:
                 peaks = None
 

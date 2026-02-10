@@ -129,7 +129,7 @@ class removeStrayLightConfig(config.Config):
     box_size = config.Field('Photutils box size', int, 20)
     filter_size = config.Field('Photutils filter size', int, 19)
     legacy = config.Field('Legacy patch', bool, False)
-    report = config.Field('Generate PDF diagnostic report', bool, False)
+    report = config.Field('Generate PDF diagnostic report', bool, True)
 
 
 class removeStrayLight_legacyPatchConfig(config.Config):

@@ -905,6 +905,8 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             Corresponding etalon calibration files with dynamic wavelength
             solutions from fitAndApplyEtalonWls. If None, calibration database
             is queried for matching etalon frames. Default is None.
+        report : bool, optional
+            If True, generate diagnostic plots of pixel shifts and spline fits.
         suffix : str, optional
             Suffix to append to output filenames. Default is empty string.
 
@@ -955,6 +957,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         symmetric_linefits = params.get("symmetric_linefits", False)
         n_knots = params.get("n_knots", 30)
         etalons = params.get("etalon_file")
+        report = params.get("report")
 
         if etalons is None:
             etalons = _get_calibration_wavecal(adinputs)
@@ -962,6 +965,12 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         for science_ad, etalon_ad in zip(*gt.make_lists(adinputs, etalons)):
             log.fullinfo(f"Processing: {science_ad.filename} , {etalon_ad.filename}")
             log.fullinfo(f"Etalon reference fiber: {ref_fiber}")
+
+            if report:
+                # Create pdf for plots
+                pdf_filename = science_ad.filename.replace('.fits', '_spline.pdf')
+                pdf = PdfPages(pdf_filename)
+                fig = None
 
             # Load the science and etalon spectrum
             science = MXSpectrum(science_ad, etalon_peaks_symmetric=symmetric_linefits)
@@ -982,6 +991,27 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             for fiber in fibers:
                 etalon.spectra[fiber].apply_wavelength_vector()
             etalon.spectra[ref_fiber].apply_wavelength_vector()
+
+            # # DEBUG TEST 1 output
+            # debug_fibers = [2, 3, 4, 5]
+            # debug_science = {}
+            # debug_etalon = {}
+            # for fiber in debug_fibers:
+            #     sci_spec = science.spectra.get(fiber)
+            #     eta_spec = etalon.spectra.get(fiber)
+            #     if fiber in science.spectra and hasattr(science.spectra[fiber], 'peak_data'):
+            #         debug_science[fiber] = {
+            #             "peak_data": sci_spec.peak_data.to_dict(),
+            #         }
+            #     if fiber in etalon.spectra and hasattr(etalon.spectra[fiber], 'peak_data'):
+            #         debug_etalon[fiber] = {
+            #             "peak_data": eta_spec.peak_data.to_dict(),
+            #         }
+            # np.save(f"debug_test1_{science_ad.filename.replace('.fits', '.npy')}", debug_science, allow_pickle=True)
+            # np.save(f"debug_test1_{etalon_ad.filename.replace('.fits', '.npy')}", debug_etalon, allow_pickle=True)
+            # log.debug("DEBUG TEST 1: Saved debug_test1_science.npy and debug_test1_etalon.npy")
+            # --------------
+
 
             # Calculate offsets in pixel space between science and etalon
             # frame for reference fiber
@@ -1043,19 +1073,69 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 )
 
                 # Apply offsets (smoothed with spline) to etalon frame
-                # for science fibers
-                for fiber in fibers:
-                    etalon.spectra[fiber].peak_data["CENTER"][o] = etalon.spectra[
-                        fiber
-                    ].peak_data["CENTER"][o] - spl(
-                        etalon.spectra[fiber].peak_data["CENTER"][o].index
-                    )
+                # for science fibers (spline is evaluated at peak indices, not pixel positions)
+                for fiber in fibers:                   
+                    # pk = etalon.spectra[fiber].peak_data
+                    # idx = pk.index.get_level_values('ORDER') == o
+                    # peak_nums = pk.loc[idx].index.get_level_values('CENTER')
+                    # pk.loc[idx, 'CENTER'] -= spl(peak_nums)
+                    center_values = etalon.spectra[fiber].peak_data.loc[o, 'CENTER'].values
+                    center_spl = spl(center_values)
+
+                    log.stdinfo("BEFORE shift fiber %s order %s: %s", fiber, o, center_values[:5])
+                    log.stdinfo("APPLYING shift fiber %s order %s: %s", fiber, o, center_spl[:5])
+                    etalon.spectra[fiber].peak_data.loc[o, 'CENTER'] = center_values - center_spl
+                    log.stdinfo("AFTER shift fiber %s order %s: %s", fiber, o, etalon.spectra[fiber].peak_data.loc[o, 'CENTER'].values[:5])
+
+            # DEBUG TEST 2 output
+            # 
+            # --------------
+
+            if report:
+                fig = plot_calibfiber_offset(xs, x_refs, shifts, orders, wavelengths, splfits,
+                    fig=fig, plottitle=f'to {etalon_ad.filename}')
+
+                pdf.savefig(fig)
+                plt.close(fig)
+
 
             # Guess the order #s of the etalon peak positions in the measured
             # spectrum of the science fibers in the etalon spectrum
-            for fiber in fibers + [ref_fiber]:
+            # for fiber in fibers + [ref_fiber]:
+            #     etalon.spectra[fiber].apply_wavelength_vector()
+            #     etalon.spectra[fiber].guess_peak_numbers(debug=0)
+            
+
+            fig=None
+            for fiber in fibers:
                 etalon.spectra[fiber].apply_wavelength_vector()
-                etalon.spectra[fiber].guess_peak_numbers(debug=0)
+                etalon_peak_data = etalon.spectra[fiber].guess_peak_numbers(debug=0)
+                if report:
+                    residuals = _fc2min(
+                        parameters, 
+                        etalon_peak_data["M"].values, 
+                        etalon_peak_data["WAVELENGTH_BY_THAR"].values) / etalon_peak_data["WAVELENGTH_BY_THAR"].values * 3e8
+                    # residuals = _fc2min(
+                    #     parameters,
+                    #     etalon_peak_data["M"].values,
+                    #     np.zeros_like(etalon_peak_data["WAVELENGTH_BY_THAR"].values))
+
+                    bad = np.where(np.abs(residuals-np.nanmedian(residuals)) > 4.0 * np.nanstd(residuals))
+                    residuals[bad] = np.nan
+                    fig = plot_etalon_residuals(wavelengths=etalon_peak_data["WAVELENGTH_BY_THAR"].values,
+                                                residuals=residuals,
+                                                orders=etalon_peak_data["ORDER"].values,
+                                                plottitle=f'after sim cal correction (Fiber {fiber})',
+                                                plotnumber=fiber-2,
+                                                fig=fig)
+                    
+                    fig_debug = _plot_debug(fiber, etalon_peak_data, parameters, residuals)
+                    pdf_debug = PdfPages(f"debug_fiber{fiber}.pdf")
+                    pdf_debug.savefig(fig_debug)
+                    pdf_debug.close()
+                    plt.close(fig_debug)
+
+            etalon.spectra[ref_fiber].apply_wavelength_vector()
 
             # Guess the order #s of the etalon peak positions in the measured
             # spectrum for reference fiber in science spectrum
@@ -1076,6 +1156,15 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             )
             residuals[bad] = np.nan
             inst_drift = np.nanmean(residuals)
+            
+            if report:
+                fig = plot_etalon_residuals(wavelengths = peak_data["WAVELENGTH_BY_THAR"].values,
+                                            residuals=residuals,
+                                            orders=peak_data["ORDER"].values,
+                                            plottitle=f'(Fiber {ref_fiber})',
+                                            plotnumber=ref_fiber-2,
+                                            fig=fig)
+                pdf.savefig(fig)
 
             # Create new wls from etalon peaks based on the given etalon gap
             # size and dispersion model.
@@ -1155,6 +1244,20 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     else:
                         wave[f] = {str(o): wavelengths}
 
+                if report:
+                    normalize_x = lambda x: x / np.max(x) * 2. - 1.
+                    normalize_order = lambda o: (o - np.min(o)) / (
+                            np.max(o) - np.min(o)) * 2. - 1.
+                    fig = plot_residuals(
+                        plottitle=f'Etalon residuals after spline fit (n_knots: {n_knots}) for fiber {fiber}',
+                        residuals=residuals_all,
+                        wavelengths=wavelengths_all,
+                        orders_norm=normalize_order(orders_all),
+                        x_norm=normalize_x(xs_all),
+                        weights=None,
+                        zoom=True)
+                    pdf.savefig(fig)            
+
             # Now for the reference fiber in the science spectrum. This should
             # be refactored at some point
             wavelengths_all = []
@@ -1232,6 +1335,19 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     wave[f].update({str(o): wavelengths})
                 else:
                     wave[f] = {str(o): wavelengths}
+
+            if report:
+                fig = plot_residuals(
+                    plottitle=f'Etalon residuals after spline fit (n_knots: {n_knots}) for fiber {ref_fiber}',
+                    residuals=residuals_all,
+                    wavelengths=wavelengths_all,
+                    orders_norm=normalize_order(orders_all),
+                    x_norm=normalize_x(xs_all),
+                    weights=None,
+                    zoom=True)
+                pdf.savefig(fig)
+                pdf.close()
+                log.stdinfo(f"Saved report file to {pdf_filename}")
 
             # Calculate mean drift in reference fiber
             rel_drift = np.nanmean(shifts)
@@ -1356,11 +1472,18 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         symmetric_linefits = params["symmetric_linefits"]
         kappa_sigma = params["kappa_sigma"]
         max_clips = params["max_clips"]
+        report = params.get("report")
 
         if combine_fibers is None:
             combine_fibers = [2, 3, 4]
 
         for ad in adinputs:
+
+            if report:
+                # Create pdf for plots
+                tag = "fiber7_symmetrical" if symmetric_linefits else "fiber6"
+                pdf_filename = ad.filename.replace('.fits', f'_{tag}.pdf')
+                pdf = PdfPages(pdf_filename)
 
             # Get fiber data
             fiber_data = {}
@@ -1603,6 +1726,24 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 combined_wavelength.update({order: wave2})
                 combined_intensity.update({order: intensity})
                 combined_error.update({order: error})
+
+                # Generate diagnostic plot for this order
+                if report:
+                    fig = plot_fiber_combination(
+                        order, wave1, wave2, wave3,
+                        intensity1_2, intensity2, intensity3_2,
+                        weights1_2, weights2, weights3_2,
+                        intensity, error,
+                        error1_2, error2, error3_2,
+                        median_intensity, kappa_sigma
+                    )
+                    pdf.savefig(fig)
+                    plt.close(fig)
+
+            # Close PDF after all orders
+            if report:
+                pdf.close()
+                log.stdinfo(f"Saved diagnostic report to {pdf_filename}")
 
             # ====================================================================
 
@@ -2027,7 +2168,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             wavelength = None
             if show_wavelength:
                 # Try dynamic first, then static
-                wavelength = getattr(ad[ext_index], f"WLS_DYNAMIC_FIBER_{fiber}", None)
+                wavelength = getattr(ad[ext_index], f"WLS_SIMULTANEOUS_FIBER_{fiber}", None)
                 if wavelength is None:
                     wavelength = getattr(ad[ext_index], f"WLS_STATIC_FIBER_{fiber}", None)
 
@@ -2608,6 +2749,95 @@ def _fc2min(p, m, etalonwl):
     return _peak_to_wavelength_spline(m, p) - etalonwl
 
 
+def _plot_debug(fiber, etalon_peak_data, parameters, residuals):
+    """
+    Create debug plots for wavelength solution diagnostics.
+
+    Parameters
+    ----------
+    fiber : int
+        Fiber number
+    etalon_peak_data : DataFrame
+        Peak data with columns: M, WAVELENGTH_BY_THAR, ORDER, CENTER, M_FRACTION
+    parameters : lmfit.Parameters
+        Etalon parameters used in the fit
+    residuals : array
+        Residuals in m/s
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        Debug figure with 6 subplots
+    """
+    fig, axes = plt.subplots(3, 2, figsize=(14, 12))
+    fig.suptitle(f'Debug Plot - Fiber {fiber}', fontsize=14)
+
+    M = etalon_peak_data["M"].values
+    wl = etalon_peak_data["WAVELENGTH_BY_THAR"].values
+    orders = etalon_peak_data["ORDER"].values
+    center = etalon_peak_data["CENTER"].values
+
+    # Compute predicted wavelength from parameters
+    wl_predicted = _peak_to_wavelength_spline(M, parameters)
+
+    # 1. M vs index (color by order)
+    ax = axes[0, 0]
+    sc = ax.scatter(np.arange(len(M)), M, c=orders, cmap='nipy_spectral', s=2)
+    ax.set_xlabel('Index')
+    ax.set_ylabel('M (interference order)')
+    ax.set_title('M values')
+    plt.colorbar(sc, ax=ax, label='Order')
+
+    # 2. WAVELENGTH_BY_THAR vs index (color by order)
+    ax = axes[0, 1]
+    sc = ax.scatter(np.arange(len(wl)), wl, c=orders, cmap='nipy_spectral', s=2)
+    ax.set_xlabel('Index')
+    ax.set_ylabel('Wavelength [nm]')
+    ax.set_title('WAVELENGTH_BY_THAR')
+    plt.colorbar(sc, ax=ax, label='Order')
+
+    # 3. CENTER vs index (color by order)
+    ax = axes[1, 0]
+    sc = ax.scatter(np.arange(len(center)), center, c=orders, cmap='nipy_spectral', s=2)
+    ax.set_xlabel('Index')
+    ax.set_ylabel('CENTER [pixels]')
+    ax.set_title('CENTER values')
+    plt.colorbar(sc, ax=ax, label='Order')
+
+    # 4. Residuals vs wavelength (color by order)
+    ax = axes[1, 1]
+    sc = ax.scatter(wl, residuals, c=orders, cmap='nipy_spectral', s=2)
+    ax.set_xlabel('Wavelength [nm]')
+    ax.set_ylabel('Residuals [m/s]')
+    ax.set_title('Residuals vs Wavelength')
+    ax.axhline(0, color='k', linestyle='--', alpha=0.5)
+    plt.colorbar(sc, ax=ax, label='Order')
+
+    # 5. Predicted vs observed wavelength
+    ax = axes[2, 0]
+    sc = ax.scatter(wl, wl_predicted, c=orders, cmap='nipy_spectral', s=2)
+    ax.set_xlabel('WAVELENGTH_BY_THAR [nm]')
+    ax.set_ylabel('Predicted wavelength [nm]')
+    ax.set_title('Predicted vs Observed')
+    # Add 1:1 line
+    lims = [min(wl.min(), wl_predicted.min()), max(wl.max(), wl_predicted.max())]
+    ax.plot(lims, lims, 'k--', alpha=0.5)
+    plt.colorbar(sc, ax=ax, label='Order')
+
+    # 6. Histogram of residuals
+    ax = axes[2, 1]
+    valid_res = residuals[~np.isnan(residuals)]
+    ax.hist(valid_res, bins=50, edgecolor='black', alpha=0.7)
+    ax.set_xlabel('Residuals [m/s]')
+    ax.set_ylabel('Count')
+    ax.set_title(f'Residuals histogram (median={np.nanmedian(residuals):.1f}, std={np.nanstd(residuals):.1f})')
+    ax.axvline(np.nanmedian(residuals), color='r', linestyle='--', label='median')
+    ax.legend()
+
+    plt.tight_layout()
+    return fig
+
+
 def plot_residuals(plottitle='',residuals=None, wavelengths=None, orders_norm=None, x_norm=None, weights=None,zoom=False):
 
     fig = plt.figure(figsize=(8, 8))
@@ -2669,5 +2899,161 @@ def plot_residuals(plottitle='',residuals=None, wavelengths=None, orders_norm=No
     ax2.set_ylim(-22,22)
     if len(x_norm) == len(residuals):
        ax2.scatter(x_norm, residuals / wavelengths * 3e8, s=2, c=orders_norm, marker='o', cmap='nipy_spectral',rasterized=True)
+
+    return fig
+
+
+def plot_fiber_combination(order, wave1, wave2, wave3,
+                           intensity1_2, intensity2, intensity3_2,
+                           weights1_2, weights2, weights3_2,
+                           intensity, error,
+                           error1_2, error2, error3_2,
+                           median_intensity, kappa_sigma):
+    """
+    Create diagnostic plot for fiber combination for one order.
+
+    Parameters
+    ----------
+    order : int
+        Order number for title.
+    wave1, wave2, wave3 : array
+        Wavelength arrays for fibers 2, 3, 4.
+    intensity1_2, intensity2, intensity3_2 : array
+        Intensity arrays (1 and 3 interpolated to fiber 2 grid).
+    weights1_2, weights2, weights3_2 : array
+        Weight arrays (1/variance).
+    intensity : array
+        Combined intensity.
+    error : array
+        Combined error.
+    error1_2, error2, error3_2 : array
+        Error arrays for individual fibers.
+    median_intensity : array
+        Median intensity across fibers.
+    kappa_sigma : float
+        Sigma clipping threshold used.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        Figure with 4 subplots: intensity, sigma deviations, weights, SNR.
+    """
+    fig = plt.figure(figsize=(8, 8))
+    fig.subplots_adjust(bottom=0.07, left=0.14, right=0.96, top=0.95, hspace=0.40)
+    ax0 = fig.add_subplot(411)
+    ax1 = fig.add_subplot(412, sharex=ax0)
+    ax2 = fig.add_subplot(413, sharex=ax0)
+    ax3 = fig.add_subplot(414, sharex=ax0)
+
+    ax0.set_title(f'Order: {order}')
+    ax3.set_xlabel('Wavelength (nm)')
+
+    # ax0 - Intensity
+    ax0.set_ylabel('Intensity (DN)')
+    ax0.plot(wave2, intensity1_2, 'r', label='Fiber 2', rasterized=True)
+    ax0.plot(wave2, intensity2, 'g', label='Fiber 3', rasterized=True)
+    ax0.plot(wave2, intensity3_2, 'b', label='Fiber 4', rasterized=True)
+    ax0.plot(wave2, intensity, 'k', label='Combined', rasterized=True)
+    ax0.legend()
+
+    # ax1 - Sigma deviations from median
+    ax1.set_title('Sigma deviations from median')
+    ax1.set_ylabel('Sigma')
+    ax1.set_ylim(0, kappa_sigma + 1)
+    ax1.plot([np.min(wave2), np.max(wave2)], [kappa_sigma, kappa_sigma],
+             'k:', rasterized=True)
+    ax1.plot(wave2, np.abs(intensity1_2 - median_intensity) / np.sqrt(error1_2),
+             'r', rasterized=True)
+    ax1.plot(wave2, np.abs(intensity2 - median_intensity) / np.sqrt(error2),
+             'g', rasterized=True)
+    ax1.plot(wave2, np.abs(intensity3_2 - median_intensity) / np.sqrt(error3_2),
+             'b', rasterized=True)
+
+    # ax2 - Weights
+    ax2.set_title('Weights')
+    ax2.set_ylabel('Weights (1/variance)')
+    ax2.plot(wave1, weights1_2, 'r', rasterized=True)
+    ax2.plot(wave2, weights2, 'g', rasterized=True)
+    ax2.plot(wave3, weights3_2, 'b', rasterized=True)
+
+    # ax3 - SNR
+    ax3.set_title('SNR')
+    ax3.set_ylabel('SNR')
+    ax3.plot(wave2, intensity / np.sqrt(error), 'k', rasterized=True)
+
+    return fig
+
+
+def plot_calibfiber_offset(xs, x_refs, shifts, orders, wavelengths, splfits, fig=None, plottitle=''):
+
+    if fig is None:
+        fig = plt.figure(figsize=(8, 10))
+        fig.subplots_adjust(bottom=.07, left=0.14, right=0.96, top=0.95, hspace=0.40)
+        ax1 = fig.add_subplot(411)
+        ax2 = fig.add_subplot(412, sharex=ax1)
+        ax3 = fig.add_subplot(413)
+        ax4 = fig.add_subplot(414)
+
+        ax1.set_title('Reference fiber offset ' + plottitle)
+        ax1.set_xlabel('Wavelength (nm)')
+        ax1.set_ylabel('Offset (m/s)')
+        ax1.set_ylim(np.nanmean(shifts)- 30, np.nanmean(shifts) + 30)
+
+        ax2.set_title('Reference fiber offset ' + plottitle)
+        ax2.set_xlabel('Wavelength (nm)')
+        ax2.set_ylabel('Offset (m/s)')
+        ax2.set_ylim(np.nanmin(splfits) -2, np.nanmax(splfits) + 2)
+
+        ax3.set_title('Reference fiber offset ' + plottitle)
+        ax3.set_xlabel('X (normalized)')
+        ax3.set_ylabel('Offset (m/s)')
+        ax3.set_ylim(np.nanmean(shifts) -30, np.nanmean(shifts) + 30)
+
+    ax = fig.axes
+
+
+    ax[0].scatter(wavelengths, shifts, c=orders, cmap='nipy_spectral', rasterized=True, marker='.',s=2)
+    ax[2].scatter(xs, shifts, c=orders, cmap='nipy_spectral', rasterized=True,marker='.', s=2)
+
+    wavelenths_o = []
+    splfits_mean_o = []
+    splfits_std_o = []
+    unique_orders = np.unique(orders)
+
+    for o in unique_orders:
+        idx = np.where(orders==o)
+        ax[0].plot(wavelengths[idx], splfits[idx],c='k', rasterized=True)
+        ax[2].plot(xs[idx],splfits[idx], c='k', rasterized=True)
+        wavelenths_o = np.append(wavelenths_o, np.nanmean(wavelengths[idx]))
+        splfits_mean_o = np.append(splfits_mean_o,np.nanmean(splfits[idx]))
+        splfits_std_o = np.append(splfits_std_o, np.nanstd(splfits[idx]))
+
+    ax[1].set_ylim(np.nanmin(splfits_mean_o) - 1, np.nanmax(splfits_mean_o) + 1)
+    ax[1].hlines(0, np.min(wavelengths), np.max(wavelengths))
+    ax[1].scatter(wavelenths_o,splfits_mean_o,c=unique_orders, cmap='nipy_spectral', rasterized=True,marker='o')
+    ax[1].text(0.05, 0.05,
+             f'mean: {np.mean(splfits_mean_o):.2f} m/s',transform=ax[1].transAxes)
+    return fig #, splfits_mean_o, splfits_std_o
+
+def plot_etalon_residuals(wavelengths=None, residuals=None, orders=None, plottitle='', plotnumber=0, fig=None):
+
+    if fig is None:
+        fig = plt.figure(figsize=(8, 10))
+        fig.subplots_adjust(bottom=.07, left=0.14, right=0.96, top=0.95, hspace=0.40)
+        ax1 = fig.add_subplot(411)
+        ax2 = fig.add_subplot(412, sharex=ax1)
+        ax3 = fig.add_subplot(413, sharex=ax1)
+        ax4 = fig.add_subplot(414, sharex=ax1)
+
+    ax = fig.axes
+
+    ax[plotnumber].set_title('Etalon residuals ' + plottitle)
+    ax[plotnumber].set_xlabel('Wavelength (nm)')
+    ax[plotnumber].set_ylabel('Residuals (m/s)')
+    ax[plotnumber].scatter(wavelengths, residuals, c=orders, cmap='nipy_spectral', rasterized=True, marker='.',s=2)
+    ax[plotnumber].set_ylim(np.nanmean(residuals) - 30, np.nanmean(residuals) + 30)
+    ax[plotnumber].text(0.6, 0.05,
+             f'std: {np.nanstd(residuals):.1f} m/s, mean: {np.nanmean(residuals):.2f} m/s',
+             transform=ax[plotnumber].transAxes)
 
     return fig
