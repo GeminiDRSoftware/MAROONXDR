@@ -25,6 +25,12 @@ from gempy.adlibrary import dataselect
 from gempy.gemini import gemini_tools as gt
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
+from maroonxdr.maroonx.maroonx_plots import (
+    plot_residuals,
+    plot_fiber_combination,
+    plot_calibfiber_offset,
+    plot_etalon_residuals,
+)
 from recipe_system.utils.decorators import parameter_override
 from scipy.interpolate import interp1d
 from scipy.signal import medfilt
@@ -823,13 +829,9 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     normalize_order = lambda o: (o - np.min(o)) / (np.max(o) - np.min(o)) * 2. - 1.
                     
                     fig = plot_residuals(
+                        residuals_all, wavelengths_all,
+                        normalize_order(orders_all), normalize_x(xs_all),
                         plottitle=f'Etalon residuals after Etalon-based spline fit (n_knots: {n_knots}) for fiber {fiber}',
-                        residuals=residuals_all,
-                        wavelengths=wavelengths_all,
-                        orders_norm=normalize_order(orders_all),
-                        x_norm=normalize_x(xs_all),
-                        weights=None,
-                        zoom=True
                     )
                     pdf.savefig(fig)
                     plt.close('all')
@@ -1092,7 +1094,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             # --------------
 
             if report:
-                fig = plot_calibfiber_offset(xs, x_refs, shifts, orders, wavelengths, splfits,
+                fig = plot_calibfiber_offset(xs, shifts, orders, wavelengths, splfits,
                     fig=fig, plottitle=f'to {etalon_ad.filename}')
 
                 pdf.savefig(fig)
@@ -1122,12 +1124,14 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
                     bad = np.where(np.abs(residuals-np.nanmedian(residuals)) > 4.0 * np.nanstd(residuals))
                     residuals[bad] = np.nan
-                    fig = plot_etalon_residuals(wavelengths=etalon_peak_data["WAVELENGTH_BY_THAR"].values,
-                                                residuals=residuals,
-                                                orders=etalon_peak_data["ORDER"].values,
-                                                plottitle=f'after sim cal correction (Fiber {fiber})',
-                                                plotnumber=fiber-2,
-                                                fig=fig)
+                    fig = plot_etalon_residuals(
+                        etalon_peak_data["WAVELENGTH_BY_THAR"].values,
+                        residuals,
+                        etalon_peak_data["ORDER"].values,
+                        plottitle=f'after sim cal correction (Fiber {fiber})',
+                        plotnumber=fiber-2,
+                        fig=fig,
+                    )
                     
                     fig_debug = _plot_debug(fiber, etalon_peak_data, parameters, residuals)
                     pdf_debug = PdfPages(f"debug_fiber{fiber}.pdf")
@@ -1158,12 +1162,14 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             inst_drift = np.nanmean(residuals)
             
             if report:
-                fig = plot_etalon_residuals(wavelengths = peak_data["WAVELENGTH_BY_THAR"].values,
-                                            residuals=residuals,
-                                            orders=peak_data["ORDER"].values,
-                                            plottitle=f'(Fiber {ref_fiber})',
-                                            plotnumber=ref_fiber-2,
-                                            fig=fig)
+                fig = plot_etalon_residuals(
+                    peak_data["WAVELENGTH_BY_THAR"].values,
+                    residuals,
+                    peak_data["ORDER"].values,
+                    plottitle=f'(Fiber {ref_fiber})',
+                    plotnumber=ref_fiber-2,
+                    fig=fig,
+                )
                 pdf.savefig(fig)
 
             # Create new wls from etalon peaks based on the given etalon gap
@@ -1249,13 +1255,10 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     normalize_order = lambda o: (o - np.min(o)) / (
                             np.max(o) - np.min(o)) * 2. - 1.
                     fig = plot_residuals(
+                        residuals_all, wavelengths_all,
+                        normalize_order(orders_all), normalize_x(xs_all),
                         plottitle=f'Etalon residuals after spline fit (n_knots: {n_knots}) for fiber {fiber}',
-                        residuals=residuals_all,
-                        wavelengths=wavelengths_all,
-                        orders_norm=normalize_order(orders_all),
-                        x_norm=normalize_x(xs_all),
-                        weights=None,
-                        zoom=True)
+                    )
                     pdf.savefig(fig)            
 
             # Now for the reference fiber in the science spectrum. This should
@@ -1338,13 +1341,10 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
             if report:
                 fig = plot_residuals(
+                    residuals_all, wavelengths_all,
+                    normalize_order(orders_all), normalize_x(xs_all),
                     plottitle=f'Etalon residuals after spline fit (n_knots: {n_knots}) for fiber {ref_fiber}',
-                    residuals=residuals_all,
-                    wavelengths=wavelengths_all,
-                    orders_norm=normalize_order(orders_all),
-                    x_norm=normalize_x(xs_all),
-                    weights=None,
-                    zoom=True)
+                )
                 pdf.savefig(fig)
                 pdf.close()
                 log.stdinfo(f"Saved report file to {pdf_filename}")
@@ -2835,225 +2835,4 @@ def _plot_debug(fiber, etalon_peak_data, parameters, residuals):
     ax.legend()
 
     plt.tight_layout()
-    return fig
-
-
-def plot_residuals(plottitle='',residuals=None, wavelengths=None, orders_norm=None, x_norm=None, weights=None,zoom=False):
-
-    fig = plt.figure(figsize=(8, 8))
-    fig.subplots_adjust(bottom=.07, left=0.14, right=0.96, top=0.95, hspace=0.40)
-    ax1 = fig.add_subplot(311)
-    ax3 = fig.add_subplot(312)
-    ax2 = fig.add_subplot(313)
-
-    ax1.set_title(plottitle)
-    ax1.set_ylabel('Residuals [m/s]')
-    ax1.set_xlabel('Wavelength [nm]')
-    ax1.set_ylim(-22,22)
-
-    ax1.scatter(wavelengths, residuals / wavelengths * 3e8,
-                c=orders_norm, marker='o', cmap='nipy_spectral',s=2,rasterized=True)
-    # adjust plot range
-    #lim = np.max(np.abs(residuals / wavelengths * 3e8))
-    #ax1.set_ylim((-lim * 1.2, lim * 1.2))
-
-    # plot order means
-    ordermeans = []
-    orderaverages = []
-    orderrmss = []
-    wavemeans = []
-    unique_orders = np.unique(orders_norm)
-    wavelengths = np.asarray(wavelengths)
-
-    if weights is None:
-        weights = residuals*0 + 1.
-
-    for o in unique_orders:
-        oa = np.average((residuals / wavelengths*3e8)[np.where(orders_norm == o)],weights=weights[np.where(orders_norm == o)])
-        om = np.nanmean((residuals / wavelengths * 3e8)[np.where(orders_norm == o)])
-        wm = np.nanmean(wavelengths[np.where(orders_norm == o)])
-        os = np.nanstd((residuals / wavelengths * 3e8)[np.where(orders_norm == o)])
-        ordermeans.append(om)
-        orderaverages.append(oa)
-        orderrmss.append(os)
-        wavemeans.append(wm)
-
-    scatter = np.std(residuals / wavelengths * 3e8)
-    ax1.scatter(wavemeans, ordermeans,    marker='p', c='k', s=50, label='Unweighted mean')
-    ax1.scatter(wavemeans, orderaverages, marker='*', c='k', s=50, label='Weighted mean')
-    ax1.legend(loc=1)
-    ax1.hlines(np.mean(residuals / wavelengths * 3e8), np.min(wavelengths), np.max(wavelengths))
-
-    ax1.text(0.05, 0.05,
-             f'std: {scatter:.1f} m/s, mean: {np.mean(residuals / wavelengths * 3e8):.2f} m/s', transform=ax1.transAxes)
-
-    ax3.set_title(plottitle)
-    ax3.set_ylabel('Residual rms [m/s]')
-    ax3.set_xlabel('Wavelength [nm]')
-    ax3.set_ylim(0,15)
-    ax3.scatter(wavemeans, orderrmss, marker='o', c=unique_orders, s=50, cmap='nipy_spectral',rasterized=True)
-
-    ax2.set_title(plottitle)
-    ax2.set_ylabel('Residuals [m/s]')
-    ax2.set_xlabel('X (normalized)')
-    ax2.set_ylim(-22,22)
-    if len(x_norm) == len(residuals):
-       ax2.scatter(x_norm, residuals / wavelengths * 3e8, s=2, c=orders_norm, marker='o', cmap='nipy_spectral',rasterized=True)
-
-    return fig
-
-
-def plot_fiber_combination(order, wave1, wave2, wave3,
-                           intensity1_2, intensity2, intensity3_2,
-                           weights1_2, weights2, weights3_2,
-                           intensity, error,
-                           error1_2, error2, error3_2,
-                           median_intensity, kappa_sigma):
-    """
-    Create diagnostic plot for fiber combination for one order.
-
-    Parameters
-    ----------
-    order : int
-        Order number for title.
-    wave1, wave2, wave3 : array
-        Wavelength arrays for fibers 2, 3, 4.
-    intensity1_2, intensity2, intensity3_2 : array
-        Intensity arrays (1 and 3 interpolated to fiber 2 grid).
-    weights1_2, weights2, weights3_2 : array
-        Weight arrays (1/variance).
-    intensity : array
-        Combined intensity.
-    error : array
-        Combined error.
-    error1_2, error2, error3_2 : array
-        Error arrays for individual fibers.
-    median_intensity : array
-        Median intensity across fibers.
-    kappa_sigma : float
-        Sigma clipping threshold used.
-
-    Returns
-    -------
-    matplotlib.figure.Figure
-        Figure with 4 subplots: intensity, sigma deviations, weights, SNR.
-    """
-    fig = plt.figure(figsize=(8, 8))
-    fig.subplots_adjust(bottom=0.07, left=0.14, right=0.96, top=0.95, hspace=0.40)
-    ax0 = fig.add_subplot(411)
-    ax1 = fig.add_subplot(412, sharex=ax0)
-    ax2 = fig.add_subplot(413, sharex=ax0)
-    ax3 = fig.add_subplot(414, sharex=ax0)
-
-    ax0.set_title(f'Order: {order}')
-    ax3.set_xlabel('Wavelength (nm)')
-
-    # ax0 - Intensity
-    ax0.set_ylabel('Intensity (DN)')
-    ax0.plot(wave2, intensity1_2, 'r', label='Fiber 2', rasterized=True)
-    ax0.plot(wave2, intensity2, 'g', label='Fiber 3', rasterized=True)
-    ax0.plot(wave2, intensity3_2, 'b', label='Fiber 4', rasterized=True)
-    ax0.plot(wave2, intensity, 'k', label='Combined', rasterized=True)
-    ax0.legend()
-
-    # ax1 - Sigma deviations from median
-    ax1.set_title('Sigma deviations from median')
-    ax1.set_ylabel('Sigma')
-    ax1.set_ylim(0, kappa_sigma + 1)
-    ax1.plot([np.min(wave2), np.max(wave2)], [kappa_sigma, kappa_sigma],
-             'k:', rasterized=True)
-    ax1.plot(wave2, np.abs(intensity1_2 - median_intensity) / np.sqrt(error1_2),
-             'r', rasterized=True)
-    ax1.plot(wave2, np.abs(intensity2 - median_intensity) / np.sqrt(error2),
-             'g', rasterized=True)
-    ax1.plot(wave2, np.abs(intensity3_2 - median_intensity) / np.sqrt(error3_2),
-             'b', rasterized=True)
-
-    # ax2 - Weights
-    ax2.set_title('Weights')
-    ax2.set_ylabel('Weights (1/variance)')
-    ax2.plot(wave1, weights1_2, 'r', rasterized=True)
-    ax2.plot(wave2, weights2, 'g', rasterized=True)
-    ax2.plot(wave3, weights3_2, 'b', rasterized=True)
-
-    # ax3 - SNR
-    ax3.set_title('SNR')
-    ax3.set_ylabel('SNR')
-    ax3.plot(wave2, intensity / np.sqrt(error), 'k', rasterized=True)
-
-    return fig
-
-
-def plot_calibfiber_offset(xs, x_refs, shifts, orders, wavelengths, splfits, fig=None, plottitle=''):
-
-    if fig is None:
-        fig = plt.figure(figsize=(8, 10))
-        fig.subplots_adjust(bottom=.07, left=0.14, right=0.96, top=0.95, hspace=0.40)
-        ax1 = fig.add_subplot(411)
-        ax2 = fig.add_subplot(412, sharex=ax1)
-        ax3 = fig.add_subplot(413)
-        ax4 = fig.add_subplot(414)
-
-        ax1.set_title('Reference fiber offset ' + plottitle)
-        ax1.set_xlabel('Wavelength (nm)')
-        ax1.set_ylabel('Offset (m/s)')
-        ax1.set_ylim(np.nanmean(shifts)- 30, np.nanmean(shifts) + 30)
-
-        ax2.set_title('Reference fiber offset ' + plottitle)
-        ax2.set_xlabel('Wavelength (nm)')
-        ax2.set_ylabel('Offset (m/s)')
-        ax2.set_ylim(np.nanmin(splfits) -2, np.nanmax(splfits) + 2)
-
-        ax3.set_title('Reference fiber offset ' + plottitle)
-        ax3.set_xlabel('X (normalized)')
-        ax3.set_ylabel('Offset (m/s)')
-        ax3.set_ylim(np.nanmean(shifts) -30, np.nanmean(shifts) + 30)
-
-    ax = fig.axes
-
-
-    ax[0].scatter(wavelengths, shifts, c=orders, cmap='nipy_spectral', rasterized=True, marker='.',s=2)
-    ax[2].scatter(xs, shifts, c=orders, cmap='nipy_spectral', rasterized=True,marker='.', s=2)
-
-    wavelenths_o = []
-    splfits_mean_o = []
-    splfits_std_o = []
-    unique_orders = np.unique(orders)
-
-    for o in unique_orders:
-        idx = np.where(orders==o)
-        ax[0].plot(wavelengths[idx], splfits[idx],c='k', rasterized=True)
-        ax[2].plot(xs[idx],splfits[idx], c='k', rasterized=True)
-        wavelenths_o = np.append(wavelenths_o, np.nanmean(wavelengths[idx]))
-        splfits_mean_o = np.append(splfits_mean_o,np.nanmean(splfits[idx]))
-        splfits_std_o = np.append(splfits_std_o, np.nanstd(splfits[idx]))
-
-    ax[1].set_ylim(np.nanmin(splfits_mean_o) - 1, np.nanmax(splfits_mean_o) + 1)
-    ax[1].hlines(0, np.min(wavelengths), np.max(wavelengths))
-    ax[1].scatter(wavelenths_o,splfits_mean_o,c=unique_orders, cmap='nipy_spectral', rasterized=True,marker='o')
-    ax[1].text(0.05, 0.05,
-             f'mean: {np.mean(splfits_mean_o):.2f} m/s',transform=ax[1].transAxes)
-    return fig #, splfits_mean_o, splfits_std_o
-
-def plot_etalon_residuals(wavelengths=None, residuals=None, orders=None, plottitle='', plotnumber=0, fig=None):
-
-    if fig is None:
-        fig = plt.figure(figsize=(8, 10))
-        fig.subplots_adjust(bottom=.07, left=0.14, right=0.96, top=0.95, hspace=0.40)
-        ax1 = fig.add_subplot(411)
-        ax2 = fig.add_subplot(412, sharex=ax1)
-        ax3 = fig.add_subplot(413, sharex=ax1)
-        ax4 = fig.add_subplot(414, sharex=ax1)
-
-    ax = fig.axes
-
-    ax[plotnumber].set_title('Etalon residuals ' + plottitle)
-    ax[plotnumber].set_xlabel('Wavelength (nm)')
-    ax[plotnumber].set_ylabel('Residuals (m/s)')
-    ax[plotnumber].scatter(wavelengths, residuals, c=orders, cmap='nipy_spectral', rasterized=True, marker='.',s=2)
-    ax[plotnumber].set_ylim(np.nanmean(residuals) - 30, np.nanmean(residuals) + 30)
-    ax[plotnumber].text(0.6, 0.05,
-             f'std: {np.nanstd(residuals):.1f} m/s, mean: {np.nanmean(residuals):.2f} m/s',
-             transform=ax[plotnumber].transAxes)
-
     return fig

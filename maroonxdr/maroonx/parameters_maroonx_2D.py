@@ -144,7 +144,7 @@ class removeStrayLight_legacyPatchConfig(config.Config):
     snapshot = config.Field('save difference', bool, False)
     box_size = config.Field('Photutils box size', int, 20)
     filter_size = config.Field('Photutils filter size', int, 19)
-
+    report = config.Field('Generate PDF diagnostic report', bool, True)
 
 class separateFlatStreamsConfig(config.Config):
     """

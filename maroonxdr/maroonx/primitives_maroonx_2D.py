@@ -5,6 +5,7 @@ from copy import deepcopy
 
 import astrodata
 import matplotlib.pyplot as plt
+from maroonxdr.maroonx.maroonx_plots import plot_backgroundfit
 import numpy as np
 import pandas as pd
 from astrodata.fits import windowedOp
@@ -1744,16 +1745,16 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
             if report:
                 # Capture result before clipping negative values
                 result_before_clip = adout[0].data.copy()
-                report_file = make_report_backgroundfit(
-                    ad,
-                    data_original=ad[0].data,
-                    data_masked=adint[0].data,
-                    bkg1=bkg,
-                    bkg2=bkg2,
-                    result=result_before_clip,
-                    max_val_masked=max_val_masked,
+                pdf_name = ad.filename.replace('.fits', '_backgroundfit.pdf')
+                figs = plot_backgroundfit(
+                    ad[0].data, adint[0].data, bkg, bkg2,
+                    result_before_clip, max_val_masked,
                 )
-                log.stdinfo(f"Straylight diagnostic report written to '{report_file}'")
+                with PdfPages(pdf_name) as pdf:
+                    for fig in figs:
+                        pdf.savefig(fig)
+                        plt.close(fig)
+                log.stdinfo(f"Straylight diagnostic report written to '{pdf_name}'")
 
             adout[0].data[adout[0].data < 0] = 0.01
 
@@ -1806,6 +1807,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
         timestamp_key = self.timestamp_keys['removeStrayLight']
 
         snapshot = params['snapshot']
+        report = params['report']
 
         from pathlib import Path
 
@@ -1815,42 +1817,61 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
         if not legacy_path.exists():
             raise FileNotFoundError('Legacy path not found.')
 
-        file_dict = {
-            '20241114T181028Z_DFFFD_b_0008': (
-                legacy_path / '20241114T18_masterflat_DFFFD_b_0008.npy'
-            ),
-            '20241114T181028Z_DFFFD_r_0002': (
-                legacy_path / '20241114T18_masterflat_DFFFD_r_0002.npy'
-            ),
-            '20241114T190714Z_DDDDF_b_0007': (
-                legacy_path / '20241114T19_masterflat_DDDDF_b_0007.npy'
-            ),
-            '20241114T190714Z_DDDDF_r_0002': (
-                legacy_path / '20241114T19_masterflat_DDDDF_r_0002.npy'
-            ),
-            '20241124T041907Z_SOOOE_b_0300': (
-                legacy_path
-                / '20241124T041907Z_SOOOE_b_0300_backgroundfit_straylight.npy'
-            ),
-            '20241124T041907Z_SOOOE_r_0300': (
-                legacy_path
-                / '20241124T041907Z_SOOOE_r_0300_backgroundfit_straylight.npy'
-            ),
-            '20241124T062858Z_SOOOE_b_0300': (
-                legacy_path
-                / '20241124T062858Z_SOOOE_b_0300_backgroundfit_straylight.npy'
-            ),
-            '20241124T062858Z_SOOOE_r_0300': (
-                legacy_path
-                / '20241124T062858Z_SOOOE_r_0300_backgroundfit_straylight.npy'
-            ),
-        }
+        # file_dict = {
+        #     '20241114T181028Z_DFFFD_b_0008': (
+        #         legacy_path / '20241114T18_masterflat_DFFFD_b_0008.npy'
+        #     ),
+        #     '20241114T181028Z_DFFFD_r_0002': (
+        #         legacy_path / '20241114T18_masterflat_DFFFD_r_0002.npy'
+        #     ),
+        #     '20241114T190714Z_DDDDF_b_0007': (
+        #         legacy_path / '20241114T19_masterflat_DDDDF_b_0007.npy'
+        #     ),
+        #     '20241114T190714Z_DDDDF_r_0002': (
+        #         legacy_path / '20241114T19_masterflat_DDDDF_r_0002.npy'
+        #     ),
+        #     '20241124T041907Z_SOOOE_b_0300': (
+        #         legacy_path
+        #         / '20241124T041907Z_SOOOE_b_0300_backgroundfit_straylight.npy'
+        #     ),
+        #     '20241124T041907Z_SOOOE_r_0300': (
+        #         legacy_path
+        #         / '20241124T041907Z_SOOOE_r_0300_backgroundfit_straylight.npy'
+        #     ),
+        #     '20241124T062858Z_SOOOE_b_0300': (
+        #         legacy_path
+        #         / '20241124T062858Z_SOOOE_b_0300_backgroundfit_straylight.npy'
+        #     ),
+        #     '20241124T062858Z_SOOOE_r_0300': (
+        #         legacy_path
+        #         / '20241124T062858Z_SOOOE_r_0300_backgroundfit_straylight.npy'
+        #     ),
+        # }
+
+        def _legacy_straylight_filename(base, legacy_path):
+            parts = base.split('_')
+            timestamp = parts[0]
+            fiber_cfg = parts[1]
+            arm = parts[2]
+            seq = parts[3]
+
+            if fiber_cfg in ('DFFFD', 'DDDDF'):
+                short_ts = timestamp[:11]  # 'YYYYMMDDTHH', e.g. '20241114T18'
+                name = f'{short_ts}_masterflat_{fiber_cfg}_{arm}_{seq}.npy'
+            elif fiber_cfg == 'SOOOE':
+                name = f'{timestamp}_{fiber_cfg}_{arm}_{seq}_backgroundfit_straylight.npy'
+            else:
+                raise ValueError(f'Unknown fiber configuration: {fiber_cfg}')
+
+            return legacy_path / name
 
         adoutputs = []
         for ad in adinputs:
             # Remove extension from outfile
             base = Path(ad.filename).stem.removesuffix('_overscanSubtracted')
-            data_dict = np.load(file_dict[base], allow_pickle=True).item()
+            # data_dict = np.load(file_dict[base], allow_pickle=True).item()
+            file_name = _legacy_straylight_filename(base, legacy_path)
+            data_dict = np.load(file_name, allow_pickle=True).item()
 
             adout = deepcopy(ad)
 
@@ -1862,6 +1883,24 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
             if snapshot:
                 adout[0].STRAYLIGHT_DIFFERENCE = adout[0].data - ad[0].data
                 adout[0].data = ad[0].data
+
+            # Generate PDF report if requested
+            if report:
+                # Capture result before clipping negative values
+                result_before_clip = adout[0].data.copy()
+                pdf_name = ad.filename.replace('.fits', '_backgroundfit_legacy.pdf')
+                figs = plot_backgroundfit(
+                    data_dict['data'], data_dict['data_masked'],
+                    data_dict['bkg_background'], data_dict['bkg2_background'],
+                    result_before_clip, data_dict['max_val_masked'],
+                    bkg1_mesh_nmasked=data_dict['bkg_mesh_nmasked'],
+                    box_size=data_dict['box_size'],
+                )
+                with PdfPages(pdf_name) as pdf:
+                    for fig in figs:
+                        pdf.savefig(fig)
+                        plt.close(fig)
+                log.stdinfo(f"Straylight diagnostic report written to '{pdf_name}'")
 
             adout.update_filename(suffix=params['suffix'], strip=True)
             adoutputs.append(adout)
@@ -2274,9 +2313,22 @@ def make_report_backgroundfit(ad, **kwargs):
     result = kwargs.get('result')
     max_val_masked = kwargs.get('max_val_masked')
 
-    figsize = (10, 8)
+    # for legacy patch
+    if hasattr(bkg1, 'background'):
+        bkg1_background = bkg1.background
+        bkg1_mesh_nmasked = bkg1.mesh_nmasked
+        bkg2_background = bkg2.background
+        box_size = bkg1.box_size[0]
+    else:    
+        bkg1_background = bkg1
+        bkg1_mesh_nmasked = kwargs.get('bkg1_mesh_nmasked')
+        bkg2_background = bkg2
+        box_size = kwargs.get('box_size')
+        pdf_name = f"{ad.filename.replace('.fits', '_backgroundfit_legacy.pdf')}"    
+    
 
     with PdfPages(pdf_name) as pdf:
+        figsize = (10, 8)
         # Figure 1: Raw frame, bias corrected
         fig1 = plt.figure(figsize=figsize)
         plt.title(
@@ -2298,7 +2350,7 @@ def make_report_backgroundfit(ad, **kwargs):
         # Figure 3: Background model (first iteration)
         fig3 = plt.figure(figsize=figsize)
         plt.title('Background model')
-        plt.imshow(bkg1.background, origin='lower', vmin=0, vmax=np.nanmax(data_masked))
+        plt.imshow(bkg1_background, origin='lower', vmin=0, vmax=np.nanmax(data_masked))
         plt.colorbar()
         pdf.savefig(fig3)
         plt.close(fig3)
@@ -2306,7 +2358,7 @@ def make_report_backgroundfit(ad, **kwargs):
         # Figure 4: Background subtracted data (first iteration)
         fig4 = plt.figure(figsize=figsize)
         plt.title('Background subtracted data')
-        plt.imshow(data_original - bkg1.background, origin='lower', vmin=-30, vmax=30)
+        plt.imshow(data_original - bkg1_background, origin='lower', vmin=-30, vmax=30)
         plt.colorbar()
         pdf.savefig(fig4)
         plt.close(fig4)
@@ -2314,8 +2366,8 @@ def make_report_backgroundfit(ad, **kwargs):
         # Figure 5: Number of masked pixels in background mesh
         fig5 = plt.figure(figsize=figsize)
         plt.title('Number of masked pixels in background mesh')
-        box_size = bkg1.box_size[0]
-        plt.imshow(bkg1.mesh_nmasked, origin='lower', vmin=0, vmax=box_size**2)
+        #box_size = bkg1.box_size[0]
+        plt.imshow(bkg1_mesh_nmasked, origin='lower', vmin=0, vmax=box_size**2)
         plt.colorbar()
         pdf.savefig(fig5)
         plt.close(fig5)
@@ -2323,7 +2375,7 @@ def make_report_backgroundfit(ad, **kwargs):
         # Figure 6: Background model, correction step
         fig6 = plt.figure(figsize=figsize)
         plt.title('Background model, correction step')
-        plt.imshow(bkg2.background, origin='lower', vmin=-10, vmax=10)
+        plt.imshow(bkg2_background, origin='lower', vmin=-10, vmax=10)
         plt.colorbar()
         pdf.savefig(fig6)
         plt.close(fig6)
