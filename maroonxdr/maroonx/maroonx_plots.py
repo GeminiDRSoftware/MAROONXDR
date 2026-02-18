@@ -451,6 +451,8 @@ def plot_exposuremeter(context_times_pc, context_readings_pc,
     t_pc = context_times_pc.to_value('datetime64')
     ax1.plot(t_pc, context_readings_pc, 'b', label='PC')
     ax1.axhline(zp_pc, color='b', linestyle='--', alpha=0.7)
+    ax1.text(0.01, zp_pc, f'{zp_pc:.3f}', color='b', va='bottom',
+             transform=ax1.get_yaxis_transform(), fontsize=8)
     ax1.set_ylabel('PC (counts/ms)', color='b')
     ax1.set_xlabel('Time (UTC)')
     ax1.tick_params(axis='y', labelcolor='b')
@@ -460,6 +462,8 @@ def plot_exposuremeter(context_times_pc, context_readings_pc,
     t_frd = context_times_frd.to_value('datetime64')
     ax2.plot(t_frd, context_readings_frd, 'r', label='FRD')
     ax2.axhline(zp_frd, color='r', linestyle='--', alpha=0.7)
+    ax2.text(0.99, zp_frd, f'{zp_frd:.3f}', color='r', va='top', ha='right',
+             transform=ax2.get_yaxis_transform(), fontsize=8)
     ax2.set_ylabel('FRD (counts/ms)', color='r')
     ax2.tick_params(axis='y', labelcolor='r')
 
