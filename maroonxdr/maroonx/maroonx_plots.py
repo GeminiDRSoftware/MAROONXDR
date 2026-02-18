@@ -404,13 +404,11 @@ def plot_etalon_residuals(wavelengths, residuals, orders,
     return fig
 
 
-def plot_exposuremeter(
-    context_times_pc, context_readings_pc,
+def plot_exposuremeter(context_times_pc, context_readings_pc,
     context_times_frd, context_readings_frd,
     starttime, endtime,
     zp_pc, zp_frd,
-    target, exptime,
-):
+    target, exptime):
     """
     Create a diagnostic plot of the exposure meter time series.
 
