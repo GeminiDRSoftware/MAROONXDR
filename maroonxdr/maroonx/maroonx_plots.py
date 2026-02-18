@@ -402,3 +402,72 @@ def plot_etalon_residuals(wavelengths, residuals, orders,
                         transform=ax[plotnumber].transAxes)
 
     return fig
+
+
+def plot_exposuremeter(
+    context_times_pc, context_readings_pc,
+    context_times_frd, context_readings_frd,
+    starttime, endtime,
+    zp_pc, zp_frd,
+    target, exptime,
+):
+    """
+    Create a diagnostic plot of the exposure meter time series.
+
+    Produces a dual-axis figure showing both PC and FRD channel count rates
+    over a ±300 s window around the exposure, with exposure boundaries and
+    zeropoints marked.
+
+    Parameters
+    ----------
+    context_times_pc : astropy.time.Time
+        Timestamps for PC channel context window (±300 s around exposure).
+    context_readings_pc : numpy.ndarray
+        Raw PC channel flux readings for the context window (counts/ms).
+    context_times_frd : astropy.time.Time
+        Timestamps for FRD channel context window (±300 s around exposure).
+    context_readings_frd : numpy.ndarray
+        Raw FRD channel flux readings for the context window (counts/ms).
+    starttime : astropy.time.Time
+        UTC start time of the exposure.
+    endtime : astropy.time.Time
+        UTC end time of the exposure.
+    zp_pc : float
+        Zeropoint applied to the PC channel (counts/ms).
+    zp_frd : float
+        Zeropoint applied to the FRD channel (counts/ms).
+    target : str
+        Target name for the plot title.
+    exptime : float
+        Exposure time in seconds for the plot title.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        Diagnostic figure with dual-axis time series.
+    """
+    fig, ax1 = plt.subplots(figsize=(10, 4))
+    ax1.set_title(f'Target: {target}, Exptime: {exptime} s')
+
+    # PC channel (left axis, blue)
+    t_pc = context_times_pc.to_value('datetime64')
+    ax1.plot(t_pc, context_readings_pc, 'b', label='PC')
+    ax1.axhline(zp_pc, color='b', linestyle='--', alpha=0.7)
+    ax1.set_ylabel('PC (counts/ms)', color='b')
+    ax1.set_xlabel('Time (UTC)')
+    ax1.tick_params(axis='y', labelcolor='b')
+
+    # FRD channel (right axis, red)
+    ax2 = ax1.twinx()
+    t_frd = context_times_frd.to_value('datetime64')
+    ax2.plot(t_frd, context_readings_frd, 'r', label='FRD')
+    ax2.axhline(zp_frd, color='r', linestyle='--', alpha=0.7)
+    ax2.set_ylabel('FRD (counts/ms)', color='r')
+    ax2.tick_params(axis='y', labelcolor='r')
+
+    # Exposure start/end vertical lines
+    ax1.axvline(starttime.to_value('datetime64'), color='k', linestyle='-')
+    ax1.axvline(endtime.to_value('datetime64'), color='k', linestyle='-')
+
+    plt.tight_layout()
+    return fig

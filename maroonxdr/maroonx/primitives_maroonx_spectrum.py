@@ -30,6 +30,7 @@ from maroonxdr.maroonx.maroonx_plots import (
     plot_fiber_combination,
     plot_calibfiber_offset,
     plot_etalon_residuals,
+    plot_exposuremeter,
 )
 from recipe_system.utils.decorators import parameter_override
 from scipy.interpolate import interp1d
@@ -1903,6 +1904,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         zp_pc = params.get("zp_pc")
         zp_frd = params.get("zp_frd")
         start_time = params.get("start_time")
+        report = params.get("report")
 
         for ad in adinputs:
             # Read target name from header
@@ -2105,6 +2107,28 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             log.fullinfo(
                 f"Barycentric velocity calculation completed for {ad.filename}"
             )
+
+            if report:
+                dt1 = TimeDelta(exptime.sec, format="sec")
+                utc_end = utc_start + dt1
+                fig = plot_exposuremeter(
+                    emeter["pc"]["context"]["times"],
+                    emeter["pc"]["context"]["readings"],
+                    emeter["frd"]["context"]["times"],
+                    emeter["frd"]["context"]["readings"],
+                    utc_start,
+                    utc_end,
+                    emeter["pc"]["stats"]["zeropoint"],
+                    emeter["frd"]["stats"]["zeropoint"],
+                    target,
+                    exptime.sec,
+                )
+                pdf_filename = ad.filename.replace('.fits', '_exposuremeter.pdf')
+                with PdfPages(pdf_filename) as pdf:
+                    pdf.savefig(fig)
+                plt.close(fig)
+                log.fullinfo("Saved exposure meter diagnostic plot to %s", pdf_filename)
+
             ad.update_filename(suffix=params["suffix"], strip=True)
 
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
@@ -2608,13 +2632,20 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         n_cutoff = 20
         start_cut = (utc_start - dt3).iso
         end_cut = (utc_end + dt3).iso
+
+        # Fetch context window data unconditionally for both zp determination and plotting
+        context_pc_series = exposuremeter.loc[start_cut:end_cut]["Flux PC Channel"]
+        context_frd_series = exposuremeter.loc[start_cut:end_cut]["Flux FRD Channel"]
+        context_times_pc = Time(context_pc_series.index.values, format="datetime64", scale="utc")
+        context_times_frd = Time(context_frd_series.index.values, format="datetime64", scale="utc")
+        context_readings_pc = context_pc_series.values.flatten()
+        context_readings_frd = context_frd_series.values.flatten()
+
         if zp_frd == 0.0:
-            flux_frd = exposuremeter.loc[start_cut:end_cut]["Flux FRD Channel"]
-            zp_frd = np.nanmedian(np.sort(flux_frd)[:n_cutoff])
+            zp_frd = np.nanmedian(np.sort(context_frd_series)[:n_cutoff])
             log.fullinfo(f"Automatic zeropoint determination for FRD channel: {zp_frd}")
         if zp_pc == 0.0:
-            flux_pc = exposuremeter.loc[start_cut:end_cut]["Flux PC Channel"]
-            zp_pc = np.nanmedian(np.sort(flux_pc)[:n_cutoff])
+            zp_pc = np.nanmedian(np.sort(context_pc_series)[:n_cutoff])
             log.fullinfo(f"Automatic zeropoint determination for PC channel: {zp_pc}")
 
         # Check if zp are valid
@@ -2693,6 +2724,10 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     "std": np.nanstd(readings_pc),
                     "zeropoint": zp_pc,
                 },
+                "context": {
+                    "times": context_times_pc,
+                    "readings": context_readings_pc,
+                },
             },
             "frd": {
                 "times": times_frd,
@@ -2703,6 +2738,10 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     "median": np.nanmedian(readings_frd),
                     "std": np.nanstd(readings_frd),
                     "zeropoint": zp_frd,
+                },
+                "context": {
+                    "times": context_times_frd,
+                    "readings": context_readings_frd,
                 },
             },
         }

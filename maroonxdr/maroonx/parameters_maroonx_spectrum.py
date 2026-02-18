@@ -191,6 +191,11 @@ class barycentricCorrectionConfig(config.Config):
                  "mjd_end": "Telescope MJD written at end of readout",
                  "filename": "UTC from filename"},
         default="filename")
+    report = config.Field(
+        "Generate diagnostic PDF of exposure meter time series.",
+        bool,
+        True,
+    )
 
 
 class separateArmStreamsConfig(config.Config):
