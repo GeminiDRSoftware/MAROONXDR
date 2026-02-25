@@ -192,6 +192,11 @@ class AstroDataMAROONX(AstroDataGemini):
         if set(self.phu) & kwords:
             return TagSet(['PROCESSED'])
 
+    @astro_data_tag
+    def _tag_barycor(self):
+        if 'BARYCENTRIC_CORRECTION_APPLIED' in self.phu:
+            return TagSet(['BARYCOR'])
+
     # ----------------------
     # Descriptor definitions
     # ----------------------

@@ -195,7 +195,10 @@ All Tags
   Processed dark with fitted coefficients
 
 ``DARK_SYNTH``
-  Synthetic dark from OBJECT frame
+  Synthetic dark from science frame
+
+``BARYCOR``
+  Barycentric velocity correction has been applied
 
 
 See Also
