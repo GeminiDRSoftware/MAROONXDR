@@ -1,7 +1,7 @@
 """Diagnostic plotting functions for the MaroonX DRAGONS pipeline."""
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 def plot_backgroundfit(data_original, data_masked, bkg1, bkg2, result,
