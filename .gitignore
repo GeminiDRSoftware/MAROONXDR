@@ -1,11 +1,15 @@
 # Dragons and MX dev files
 DRAGONS/
 science_dir/
+science_dir_legacy_patch/
+playdata/
 *.hdf
 *.h5
 DevDocs/
 *.pdf
 my_reduction.py
+new_bkg_arrays/
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
