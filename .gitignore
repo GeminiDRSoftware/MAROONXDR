@@ -4,6 +4,8 @@ science_dir/
 *.hdf
 *.h5
 DevDocs/
+*.pdf
+my_reduction.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
