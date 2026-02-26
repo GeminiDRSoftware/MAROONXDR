@@ -11,14 +11,15 @@ import maroonx_instruments  # noqa : important to load adclass tags
 
 
 # Get all files in the science_dir. Change the path here to suit your installation.
-science_dir = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir')
+# science_dir = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir')
+science_dir = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir_legacy_patch')
 os.chdir(science_dir)
 
 # =============================================================================
 # Step 0 - Reduction setup
 # =============================================================================
 # Configure logging
-logutils.config(file_name="test_reduction.log", mode="debug", stomp=True)
+logutils.config(file_name="test_reduction_legacy.log", mode="debug", stomp=True)
 
 # Calibration files paths
 proc_dark = science_dir / "calibrations" / "processed_dark"
@@ -68,7 +69,7 @@ for arm in arm_tags:
     myreduce.drpkg = 'maroonxdr'
     myreduce.recipename = 'makeProcessedFlatDFFFF'
     myreduce.uparms = {
-        'removeStrayLight:legacy': False,
+        'removeStrayLight:legacy': True,
     }
     myreduce.runr()
 
@@ -142,16 +143,19 @@ for arm in arm_tags:
 # =============================================================================
 # Step 7 - Science frames
 # =============================================================================
-for arm in arm_tags:
+sci_exptime_tags = ['120s', '300s', '600s', '900s', '1800s']
 
-    selected_spect = dataselect.select_data(get_files(), tags=['RAW', 'SCI', arm, '300s'])
+# for arm in arm_tags:
+#     selected_spect = dataselect.select_data(get_files(), tags=['RAW', 'SCI', arm, '300s'])
+for exptime, arm in it.product(sci_exptime_tags, arm_tags):
+    selected_spect = dataselect.select_data(get_files(), tags=['RAW', 'SCI', arm, exptime])
 
     # Run reduce on all selected files
     myreduce = Reduce()
     myreduce.files.extend(selected_spect)
     myreduce.drpkg = 'maroonxdr'
     myreduce.uparms = {
-        'extractStripes:legacy': False,
+        'extractStripes:legacy': True,
     }
     myreduce.runr()
 
@@ -172,3 +176,48 @@ myreduce.uparms = {
     'bundleArmStreams:suffix': '_exported',
 }
 myreduce.runr()
+
+
+# =============================================================================
+# Step 9 - Barycentric Velocity Correction (with target-specific parameters)
+# =============================================================================
+
+# Define target-specific barycentric correction parameters
+BARYCOR_TARGETS = [
+    # (target_name, simbad_target_name, use_coords, zp_frd, zp_pc, exptime_tag)
+    ('HD 203030', 'HD 203030', False, 0., 0., '300s'),
+    ('Ross 248', 'Ross 248', False, 0., 0., '1800s'),
+    ('Gl 12', 'G 32-5', False, 0., 0., '1800s'),
+    ('TOI 4527', 'G 2-33', False, 0., 0., '1800s'),
+    ('TOI 3686', 'TYC 3699-237-1', False, 0., 0., '600s'),
+    ('TOI 4529', None, True, 0., 0., '1800s'),  # use_coords when SIMBAD fails
+    ('NGTS-11', 'NGTS-11', False, 0., 0., '900s'),
+    ('TOI-6662.01', None, True, 1.0, 7.7, '900s'),  # custom zeropoints
+    ('TOI 4353', 'CD-34 1169', False, 0., 0., '1800s'),
+    ('TOI-1634', 'PM J03455+3706', False, 0., 0., '600s'),
+    ('TOI 4324', None, True, 0., 0., '1800s'),  # use_coords
+    ('Gaia DR2 1146658793750549248', 'LSPM J1006+8305', False, 0., 0., '1800s'),
+    ('Lalande 21185', 'HD 95735', False, 0., 0., '120s'),
+]
+
+for target_name, simbad_name, use_coords, zp_frd, zp_pc, exptime in BARYCOR_TARGETS:
+    # Select reduced science files for this target and exposure time
+    selected_files = dataselect.select_data(
+        get_files(),
+        tags=['PROCESSED', 'SCI', exptime]
+    )
+    # Build uparms dict for this target
+    uparms = {
+        'barycentricCorrection:target_name': target_name,
+        'barycentricCorrection:use_coords': use_coords,
+        'barycentricCorrection:simbad_target_name': simbad_name,
+        'barycentricCorrection:zp_frd': zp_frd,
+        'barycentricCorrection:zp_pc': zp_pc,
+        'barycentricCorrection:report': True,
+    }
+    myreduce = Reduce()
+    myreduce.files.extend(selected_files)
+    myreduce.drpkg = 'maroonxdr'
+    myreduce.recipename = 'applyBarycentricCorrection'
+    myreduce.uparms = uparms
+    myreduce.runr()
