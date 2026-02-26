@@ -36,7 +36,7 @@ class FlatSpectrum(EchelleSpectrum):
             try:
                 xx = np.arange(len(self.data.loc[o]['box_data']))
                 t = np.rint(np.linspace(0, len(xx), n_knots))[1:-1]
-                intensity = self.data.loc[o]['box_data'].copy()
+                intensity = np.asarray(self.data.loc[o]['box_data'], dtype=float)
                 w = np.any((np.isnan(intensity), (intensity == 0)), axis=0)  # weights where the data are NAN or truly zero
                 intensity[w] = 0
                 t_start = time()

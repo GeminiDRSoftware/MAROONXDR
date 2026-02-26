@@ -20,4 +20,5 @@ timestamp_keys = {
     "bundleArmStreams": "ARMS_BUNDLED",
     "separateArmStreams": "ARMS_SEPARATED",
     "splitBundle": "BUNDLE_SPLIT",
+    "measureBlaze": "BLAZE_MEASURED",
 }

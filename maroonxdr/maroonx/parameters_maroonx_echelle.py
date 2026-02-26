@@ -79,6 +79,25 @@ class optimalExtractionConfig(config.Config):
         self.read_noise = 1.14
         self.gain = 2.72
 
+class measureBlazeConfig(config.Config):
+    """
+    Parameter set controlling the measureBlaze primitive for MAROON-X.
+    """
+    suffix = config.Field("Filename suffix", str, "_blazeMeasured")
+    n_knots = config.Field("Number of spline knots for blaze fit", int, 50)
+    outlier_threshold = config.Field(
+        "Relative outlier rejection threshold (fraction of blaze fit value)",
+        float,
+        0.05,
+    )
+    fibers = config.ListField(
+        "Fiber numbers to fit blaze for. None = all fibers present in input.",
+        int,
+        None,
+        optional=True,
+        single=False,
+    )
+
 class boxExtractionConfig(config.Config):
     '''
     This parameter set controls the boxExtraction primitive for MAROON-X.

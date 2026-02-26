@@ -374,7 +374,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
                 log.warning(warning_msg)
                 continue
 
-            ad.update_filename(suffix=params['suffix'], strip=True)
+            ad.update_filename(suffix=params['suffix'], strip=False)
             adoutputs.append(ad)
         return adoutputs
 

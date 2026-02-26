@@ -19,10 +19,12 @@ from geminidr.core import Spect
 from gempy.adlibrary import dataselect
 from gempy.gemini import gemini_tools as gt
 from recipe_system.utils.decorators import parameter_override
+from astrodata.provenance import add_provenance
 from scipy import sparse
 from scipy.ndimage import median_filter
 
 from . import parameters_maroonx_echelle
+from .maroonx_echellespectrum.flatspectrum import FlatSpectrum
 from .primitives_maroonx_2D import MAROONX
 
 # ------------------------------------------------------------------------------
@@ -506,7 +508,7 @@ class MAROONXEchelle(MAROONX, Spect):
                     keyword="REDUCTION_DARK",
                     comment=dark_ad.filename,
                 )
-            ad.update_filename(suffix=params["suffix"], strip=True)
+            ad.update_filename(suffix=params["suffix"], strip=False)
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
 
@@ -802,6 +804,71 @@ class MAROONXEchelle(MAROONX, Spect):
             log.fullinfo(f"frame {ad.filename} extracted")
         return adinputs
 
+    def measureBlaze(self, adinputs=None, **params):
+        """
+        Fit a blaze function to each fiber of a processed masterflat and store
+        the results as named AstroData extensions.
+
+        Instantiates a :class:`FlatSpectrum` per fiber from the
+        ``BOX_REDUCED_FLAT_{f}`` and ``REDUCED_ORDERS_FIBER_{f}`` extensions
+        produced by :meth:`optimalExtraction`, calls
+        :meth:`~FlatSpectrum.fit_blaze`, then stores the resulting normalised
+        blaze as ``BLAZE_FIBER_{f}`` — a 2-D float32 array of shape
+        ``[n_orders, n_pixels_per_order]`` with ``max == 1`` per order row.
+
+        Parameters
+        ----------
+        adinputs : list of AstroData
+            Processed flat AstroData objects that contain
+            ``BOX_REDUCED_FLAT_{f}`` extensions.
+        suffix : str
+            Filename suffix appended to output files.
+        n_knots : int
+            Number of spline knots used in the blaze fit (default 50).
+        fibers : list of int
+            Fiber numbers to process.
+
+        Returns
+        -------
+        list of AstroData
+            Input objects augmented with ``BLAZE_FIBER_{f}`` extensions.
+        """
+        log = self.log
+        log.debug(gt.log_message("primitive", self.myself(), "starting"))
+
+        n_knots = params["n_knots"]
+        fibers = params["fibers"]
+
+        if fibers is None:
+            fibers = [1, 2, 3, 4, 5]
+
+        for ad in adinputs:
+            for f in fibers:
+                box_flat = getattr(ad[0], f"BOX_REDUCED_FLAT_{f}", None)
+                if box_flat is None or box_flat.size == 1:
+                    # we skip this fiber, set empty array
+                    setattr(ad[0], f"BLAZE_FIBER_{f}", np.zeros(shape=[1, 1]))
+                    log.warning(f"{ad.filename}: BOX_REDUCED_FLAT_{f} not found or empty, skipping fiber {f}")
+                    continue
+
+                orders = getattr(ad[0], f"REDUCED_ORDERS_FIBER_{f}")
+
+                flat_spec = FlatSpectrum(box_data=box_flat, orders=orders, fiber=f)
+                blaze_dict = flat_spec.fit_blaze(n_knots=n_knots)
+
+                blaze_array = np.full(box_flat.shape, np.nan)
+                for idx, order in enumerate(flat_spec.orders):
+                    if order in blaze_dict:
+                        blaze_array[idx] = blaze_dict[order]
+
+                setattr(ad[0], f"BLAZE_FIBER_{f}", blaze_array)
+                log.fullinfo(f"{ad.filename}: stored BLAZE_FIBER_{f}")
+
+            ad.update_filename(suffix=params["suffix"], strip=False)
+
+        log.debug(gt.log_message("primitive", self.myself(), "complete"))
+        return adinputs
+
     def boxExtraction(self, adinputs, **params):
         """
         This primitive performs box extraction on a 2d echelle spectrum.
@@ -820,12 +887,13 @@ class MAROONXEchelle(MAROONX, Spect):
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
-        box_reduced_stripes = {}
-        box_reduced_var = {}
-        box_reduced_flats = {}
-        extracted_bpms = {}
 
         for ad in adinputs:
+            box_reduced_stripes = {}
+            box_reduced_var = {}
+            box_reduced_flats = {}
+            extracted_bpms = {}
+
             # For each fiber, we need extensions for the reduced orders,
             # the box reduced fiber, the variance of the box reduced fiber,
             # and the bad pixel mask.
