@@ -52,6 +52,18 @@ def complete_masterflat_reduction():
         myreduce.recipename = 'makeProcessedFlatDFFFF'
         myreduce.runr()
 
+    # Measure Blaze function on masterflats
+    all_files = list(Path().glob('*.fits'))
+    all_files = [str(p) for p in all_files]
+    all_files.sort()
+
+    for arm in ['BLUE', 'RED']:
+        selected_mflats = dataselect.select_data(all_files, tags=['PROCESSED', 'FLAT', arm])
+        myreduce = Reduce()
+        myreduce.files.extend(selected_mflats)
+        myreduce.drpkg = 'maroonxdr'
+        myreduce.recipename = 'measureBlaze'
+        myreduce.runr()
 
 if __name__ == '__main__':
 
