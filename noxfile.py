@@ -19,6 +19,7 @@ nox.options.error_on_external_run = True
 
 # Dragons installation resources
 DRAGONS_URL = R'https://github.com/GeminiDRSoftware/DRAGONS'
+PYTEST_DRAGONS_URL = R'git+https://github.com/GeminiDRSoftware/pytest_dragons.git@v1.0.0'
 CALMGR_URL = R'https://github.com/GeminiDRSoftware/GeminiCalMgr.git@release/1.1.x' # deprecated
 OBSDB_URL = R'https://github.com/GeminiDRSoftware/GeminiObsDB.git@release/1.0.x'  # deprecated
 
@@ -34,7 +35,7 @@ PATH = Path(__file__).parent.resolve()
 
 # Define the following paths to be set as environment variables
 NEW_ENV_VARIABLES = {
-    "MAROONX_DRAGONS_TEST": Path(PATH),
+    "DRAGONS_TEST": Path(PATH).parent / "mx_test",
 }
 
 
@@ -208,6 +209,16 @@ def devenv(session: nox.Session):
         'pip',
         'install',
         *dependencies,
+        external=True,
+    )
+
+    # Install pytest_dragons
+    session.run(
+        str(venv_python),
+        '-m',
+        'pip',
+        'install',
+        PYTEST_DRAGONS_URL,
         external=True,
     )
 
@@ -433,6 +444,9 @@ def unit_tests(session: nox.Session):
     dependencies = get_dependencies(session, only='main,test')
     session.install(*dependencies)
 
+    # Install pytest_dragons
+    session.install(f'{PYTEST_DRAGONS_URL}')
+
     # Install maroonxdr and maroonx_instruments in editable mode
     session.install('-e', '.')
 
@@ -440,7 +454,7 @@ def unit_tests(session: nox.Session):
     test_args = [
         'pytest',
         'maroonxdr/maroonx/tests/',
-        '--ignore=maroonxdr/maroonx/tests/regression',
+        '--ignore=maroonxdr/maroonx/tests/legacy_regression',
         '-v',
         '-rs',
         '--tb=short',
@@ -467,13 +481,16 @@ def regression_tests(session: nox.Session):
     dependencies = get_dependencies(session, only='main,test')
     session.install(*dependencies)
 
+    # Install pytest_dragons
+    session.install(f'{PYTEST_DRAGONS_URL}')
+
     # Install maroonxdr and maroonx_instruments in editable mode
     session.install('-e', '.')
 
     # Run the tests with corrected paths
     test_args = [
         'pytest',
-        'maroonxdr/maroonx/tests/regression',
+        'maroonxdr/maroonx/tests/legacy_regression',
         '-v',
         '--tb=no',
         '--rootdir=.',

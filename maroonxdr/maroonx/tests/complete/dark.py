@@ -24,71 +24,76 @@ from recipe_system.reduction.coreReduce import Reduce
 import maroonx_instruments  # noqa - import is necessary for astrodata
 from maroonxdr.maroonx.tests.test_utils import change_cwd_context
 
-# Get all files in the science_dir.
-test_path = Path(os.environ.get("MAROONX_DRAGONS_TEST"))
-science_dir = test_path / 'science_dir'
+
+def _get_science_dir():
+    p = os.environ.get("DRAGONS_TEST")
+    if p is None:
+        raise RuntimeError("DRAGONS_TEST environment variable not set")
+    return Path(p) / 'science_dir'
 
 
-@change_cwd_context(science_dir)
 def complete_masterdark_reduction():
     """Test reduction of dark frames across all arms and exposure times."""
+    science_dir = _get_science_dir()
 
-    # Configure test logging
-    logutils.config(file_name="test_dark.log", stomp=False)
-    log = logutils.get_logger("test_dark.log")
-    log.setLevel("DEBUG")
+    with change_cwd_context(science_dir):
+        # Configure test logging
+        logutils.config(file_name="test_dark.log", stomp=False)
+        log = logutils.get_logger("test_dark.log")
+        log.setLevel("DEBUG")
 
-    # Get all files
-    all_files = list(Path().glob('*.fits'))
-    all_files = [str(p) for p in all_files]
-    all_files.sort()
+        # Get all files
+        all_files = list(Path().glob('*.fits'))
+        all_files = [str(p) for p in all_files]
+        all_files.sort()
 
-    arms = ['BLUE', 'RED']
-    exptimes = ["60s", "120s", "300s", "600s", "900s", "1200s", "1800s"]
+        arms = ['BLUE', 'RED']
+        exptimes = ["60s", "120s", "300s", "600s", "900s", "1200s", "1800s"]
 
-    for exptime, arm in it.product(exptimes, arms):
+        for exptime, arm in it.product(exptimes, arms):
 
-        only_darks = dataselect.select_data(
-            all_files, tags=['RAW', 'DARK', arm, exptime])
+            only_darks = dataselect.select_data(
+                all_files, tags=['RAW', 'DARK', arm, exptime])
 
-        # Run reduce on all selected files
-        myreduce = Reduce()
-        myreduce.files.extend(only_darks)
-        myreduce.drpkg = 'maroonxdr'
-        # coment out this line for default reduction
-        #myreduce.recipename = 'testRegressionDark'
-        myreduce.runr()
+            # Run reduce on all selected files
+            myreduce = Reduce()
+            myreduce.files.extend(only_darks)
+            myreduce.drpkg = 'maroonxdr'
+            # coment out this line for default reduction
+            #myreduce.recipename = 'testRegressionDark'
+            myreduce.runr()
 
 
-@change_cwd_context(science_dir)
 def complete_dark_coeff_reduction():
     """Test creation of dark scaling coefficients from processed darks."""
+    science_dir = _get_science_dir()
 
-    # Configure test logging
-    logutils.config(file_name="test_dark.log", stomp=False)
-    log = logutils.get_logger("test_dark.log")
-    log.setLevel("DEBUG")
+    with change_cwd_context(science_dir):
+        # Configure test logging
+        logutils.config(file_name="test_dark.log", stomp=False)
+        log = logutils.get_logger("test_dark.log")
+        log.setLevel("DEBUG")
 
-    # Get all files
-    masterdark_path = Path() / 'calibrations' / 'processed_dark'
-    all_files = list(Path(masterdark_path).glob('*.fits'))
-    all_files = [str(p) for p in all_files]
-    all_files.sort()
+        # Get all files
+        masterdark_path = Path() / 'calibrations' / 'processed_dark'
+        all_files = list(Path(masterdark_path).glob('*.fits'))
+        all_files = [str(p) for p in all_files]
+        all_files.sort()
 
-    arms = ['BLUE', 'RED']
+        arms = ['BLUE', 'RED']
 
-    for arm in arms:
+        for arm in arms:
 
-        only_darks = dataselect.select_data(all_files, 
-            tags=['PROCESSED', 'DARK', arm], xtags=['DARK_COEFF', 'DARK_SYNTH'])
+            only_darks = dataselect.select_data(all_files,
+                tags=['PROCESSED', 'DARK', arm], xtags=['DARK_COEFF', 'DARK_SYNTH'])
 
-        # Run reduce on all selected files
-        myreduce = Reduce()
-        myreduce.files.extend(only_darks)
-        myreduce.drpkg = 'maroonxdr'
-        # coment out this line for default reduction
-        myreduce.recipename = 'makeDarkCoefficients'
-        myreduce.runr()
+            # Run reduce on all selected files
+            myreduce = Reduce()
+            myreduce.files.extend(only_darks)
+            myreduce.drpkg = 'maroonxdr'
+            # coment out this line for default reduction
+            myreduce.recipename = 'makeDarkCoefficients'
+            myreduce.runr()
 
 
 if __name__ == '__main__':

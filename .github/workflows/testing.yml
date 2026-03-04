@@ -57,8 +57,8 @@ jobs:
           with:
             python-version: ${{ matrix.python-version }}
 
-        - name: Setup MAROONX_DRAGONS_TEST environment variable
-          run: echo "MAROONX_DRAGONS_TEST=$HOME/mx_test" >> $GITHUB_ENV
+        - name: Setup DRAGONS_TEST environment variable
+          run: echo "DRAGONS_TEST=$HOME/mx_test" >> $GITHUB_ENV
 
         - name: Install nox
           run: python -m pip install --upgrade pip nox

@@ -18,6 +18,33 @@ log = logutils.get_logger("test_masterdarks.log")
 log.setLevel("DEBUG")
 
 # =========================================================
+# LOCAL FIXTURES
+# =========================================================
+
+@pytest.fixture(scope="function")
+def processed_dark_path(dragons_test_root):
+    """
+    Fixture providing path to processed dark calibrations.
+    """
+    path = dragons_test_root / "science_dir" / "calibrations" / "processed_dark"
+    if not path.exists():
+        pytest.skip(f"Processed dark directory does not exist: {path}")
+    return path
+
+@pytest.fixture(scope="function")
+def ad_empty_dark(arm, dragons_test_root):
+    """
+    Fixture providing an astrodata object with empty data.
+    """
+    science_dir = dragons_test_root / "science_dir"
+    dark_list = dataselect.select_data(
+        science_dir.glob("*.fits"), tags=['RAW', 'DARK', arm]
+    )
+    dark_ad = astrodata.open(dark_list[0])
+    dark_ad[0].data = np.zeros((1, 1))
+    return dark_ad
+
+# =========================================================
 # TESTS
 # =========================================================
 

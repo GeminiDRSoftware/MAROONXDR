@@ -7,7 +7,7 @@ Tests
 
 Set the required environment variable::
 
-    export MAROONX_DRAGONS_TEST="/path/to/test/data"
+    export DRAGONS_TEST="/path/to/test/data"
 
 In this path will be created a ``science_dir/`` directory and automatically download test files from the Gemini Archive on first run if they are not already present.
 

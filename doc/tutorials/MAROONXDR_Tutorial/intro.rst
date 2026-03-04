@@ -115,7 +115,7 @@ Once the setup completes, activate the virtual environment:
 
 Your shell prompt should now show ``(mx_dev)`` indicating the environment is active.
 
-.. note:: The ``devenv`` session automatically sets the ``MAROONX_DRAGONS_TEST`` environment variable to the project root. If you need to run regression tests against legacy pipeline data, please set ``MAROONX_LEGACY_TEST`` to point to your legacy data directory:
+.. note:: The ``devenv`` session automatically sets the ``DRAGONS_TEST`` environment variable to the project root. If you need to run regression tests against legacy pipeline data, please set ``MAROONX_LEGACY_TEST`` to point to your legacy data directory:
 
     .. code-block:: bash
 

@@ -26,34 +26,38 @@ from recipe_system.reduction.coreReduce import Reduce
 import maroonx_instruments  # noqa - import is necessary for astrodata
 from maroonxdr.maroonx.tests.test_utils import change_cwd_context
 
-# Get all files in the science_dir.
-test_path = Path(os.environ.get("MAROONX_DRAGONS_TEST"))
-science_dir = test_path / 'science_dir'
+
+def _get_science_dir():
+    p = os.environ.get("DRAGONS_TEST")
+    if p is None:
+        raise RuntimeError("DRAGONS_TEST environment variable not set")
+    return Path(p) / 'science_dir'
 
 
-@change_cwd_context(science_dir)
 def complete_science_reduction():
     """Test reduction of science frames across both arms (300s)."""
+    science_dir = _get_science_dir()
 
-    # Configure test logging
-    logutils.config(file_name="test_science.log", stomp=False)
-    log = logutils.get_logger("test_science.log")
-    log.setLevel("DEBUG")
+    with change_cwd_context(science_dir):
+        # Configure test logging
+        logutils.config(file_name="test_science.log", stomp=False)
+        log = logutils.get_logger("test_science.log")
+        log.setLevel("DEBUG")
 
-    # Get all files
-    all_files = list(Path().glob('*.fits'))
-    all_files = [str(p) for p in all_files]
-    all_files.sort()
+        # Get all files
+        all_files = list(Path().glob('*.fits'))
+        all_files = [str(p) for p in all_files]
+        all_files.sort()
 
-    for arm in ['BLUE', 'RED']:
-        only_science = dataselect.select_data(all_files, 
-            tags=['RAW', 'SCI', arm, '300s'])
+        for arm in ['BLUE', 'RED']:
+            only_science = dataselect.select_data(all_files,
+                tags=['RAW', 'SCI', arm, '300s'])
 
-        # Run reduce on all selected files
-        myreduce = Reduce()
-        myreduce.files.extend(only_science)
-        myreduce.drpkg = 'maroonxdr'
-        myreduce.runr()
+            # Run reduce on all selected files
+            myreduce = Reduce()
+            myreduce.files.extend(only_science)
+            myreduce.drpkg = 'maroonxdr'
+            myreduce.runr()
 
 
 if __name__ == '__main__':

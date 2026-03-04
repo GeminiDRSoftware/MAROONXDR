@@ -7,7 +7,7 @@ playdata/
 *.h5
 DevDocs/
 *.pdf
-my_reduction.py
+
 new_bkg_arrays/
 
 

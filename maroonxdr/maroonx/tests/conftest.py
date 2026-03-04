@@ -3,18 +3,11 @@ from pathlib import Path
 from urllib.error import HTTPError
 import warnings
 
-import astrodata
 import numpy as np
 import pytest
 from astrodata.testing import download_from_archive
-from gempy.adlibrary import dataselect
-
-# Import shared utilities to avoid circular import with complete modules
-from maroonxdr.maroonx.tests.test_utils import change_cwd_context
 
 from maroonxdr.maroonx.tests.complete import (
-    complete_bundle_reduction,
-    complete_masterdark_reduction,
     complete_masterflat_reduction,
     complete_wavecal_reduction
 )
@@ -23,23 +16,23 @@ from maroonxdr.maroonx.tests.complete import (
 # DRAGONS TEST CONFIGURATION
 # =========================================================
 
-def get_maroonx_dragons_test_path():
+def get_dragons_test_path():
     """
     Get the DRAGONS_TEST environment variable path.
-    
+
     Returns
     -------
     Path or None
         Path to DRAGONS test data directory, or None if not set
     """
-    p = os.environ.get("MAROONX_DRAGONS_TEST")
+    p = os.environ.get("DRAGONS_TEST")
     return Path(p) if p else None
 
 def get_maroonx_legacy_test_path():
     """
     Get the legacy environment variable path to all
     maroonx reduced files using the legacy pipeline.
-    
+
     Returns
     -------
     Path or None
@@ -57,15 +50,15 @@ def get_maroonx_legacy_test_path():
 def dragons_test_root():
     """
     Fixture providing the root DRAGONS test data directory.
-    
+
     Returns
     -------
     Path
         Root path to DRAGONS test data
     """
-    root = get_maroonx_dragons_test_path()
+    root = get_dragons_test_path()
     if root is None:
-        pytest.skip("MAROONX_DRAGONS_TEST environment variable not set")
+        pytest.skip("DRAGONS_TEST environment variable not set")
     if not root.exists():
         pytest.skip(f"DRAGONS test root does not exist: {root}")
     return root
@@ -74,7 +67,7 @@ def dragons_test_root():
 def legacy_test_root():
     """
     Fixture providing the root legacy test data directory.
-    
+
     Returns
     -------
     Path
@@ -123,41 +116,6 @@ def legacy_flats_path(legacy_test_root):
         pytest.skip(f"Legacy data directory does not exist: {path}")
     return path
 
-@pytest.fixture(scope="session")
-def science_dir(dragons_test_root):
-    """
-    Session fixture providing path to test data directory.
-    """
-    path = dragons_test_root / "science_dir"
-    path.mkdir(parents=True, exist_ok=True)
-    return path
-
-@pytest.fixture(scope="function")
-def science_dir_context(science_dir):
-    """Fixture that provides a context manager to change the working directory"""
-
-    @contextmanager
-    def change_dir():
-        with change_cwd_context(science_dir) as path:
-            yield path
-    return change_dir
-
-@pytest.fixture(autouse=True)
-def change_to_science_dir(science_dir):
-    """Automatically change to science dir before each test and restore after"""
-    with change_cwd_context(science_dir) as path:
-        yield path
-
-@pytest.fixture(scope="function")
-def processed_dark_path(science_dir):
-    """
-    Fixture providing path to test processed dark calibrations.
-    """
-    path = science_dir / "calibrations" / "processed_dark"
-    if not path.exists():
-        pytest.skip(f"Science dir directory does not exist: {path}")
-    return path
-
 # =========================================================
 # FIXTURES
 # =========================================================
@@ -168,18 +126,6 @@ def arm(request):
     Fixture providing color tag name for the arm.
     """
     return request.param
-
-@pytest.fixture(scope="function")
-def ad_empty_dark(arm, science_dir):
-    """
-    Fixture providing an astrodata object with empty data.
-    """
-    dark_list = dataselect.select_data(
-        science_dir.glob("*.fits"), tags=['RAW', 'DARK', arm]
-    )
-    dark_ad = astrodata.open(dark_list[0])
-    dark_ad[0].data = np.zeros((1, 1))
-    return dark_ad
 
 
 # =========================================================
@@ -259,6 +205,12 @@ def pytest_addoption(parser):
         default=False,
         help="Run bundle preprocessing before tests (splits bundles)"
     )
+    parser.addoption(
+        "--create-inputs",
+        action="store_true",
+        default=False,
+        help="Create test input files in $DRAGONS_TEST directory structure"
+    )
 
 def pytest_configure(config):
     """
@@ -278,6 +230,11 @@ def pytest_configure(config):
         "markers",
         "regression: marks tests as regression tests "
         "(deselect with '-m \"not regression\"')"
+    )
+    config.addinivalue_line(
+        "markers",
+        "legacy_regression: marks tests as legacy pipeline regression tests "
+        "(deselect with '-m \"not legacy_regression\"')"
     )
     config.addinivalue_line(
         "markers",
@@ -303,6 +260,10 @@ def pytest_collection_modifyitems(config, items):
         # Auto-apply regression marker to tests in regression directories
         if "regression" in str(item.path):
             item.add_marker(pytest.mark.regression)
+
+        # Auto-apply legacy_regression marker to tests in legacy_regression directory
+        if "legacy_regression" in str(item.path):
+            item.add_marker(pytest.mark.legacy_regression)
 
 # =========================================================
 # MANIFEST AND ARCHIVE DOWNLOAD
@@ -397,7 +358,7 @@ MAROONX_TEST_MANIFEST = {
 
 
 @pytest.fixture(scope="session")
-def download_mx_file(science_dir):
+def download_mx_file(dragons_test_root):
     """
     Session fixture that provides a function to download MaroonX files from the Gemini Archive.
 
@@ -408,7 +369,7 @@ def download_mx_file(science_dir):
             return download_from_archive(
                 filename,
                 sub_path=sub_path,
-                env_var='MAROONX_DRAGONS_TEST'
+                env_var='DRAGONS_TEST'
             )
         except HTTPError as e:
             # dont fail if one file is not accessible
@@ -417,51 +378,12 @@ def download_mx_file(science_dir):
     return _download
 
 
-@pytest.fixture(scope="session")
-def download_all_test_files(download_mx_file):
-    """
-    Session fixture that downloads all MaroonX test files from the manifest.
-    """
-    paths = []
-    # Iterate through all categories in the manifest
-    for category, filenames in MAROONX_TEST_MANIFEST.items():
-        for filename in filenames:
-            try:
-                path = download_mx_file(filename)
-                paths.append(path)
-            except Exception as e:
-                # Log warning but continue with other files
-                warnings.warn(f"Could not download {filename}: {e}")
-    return paths
-
 # =========================================================
 # PREPROCESSING FIXTURES
 # =========================================================
-
-
-
-@pytest.fixture(scope="session", autouse=True)
-def preprocess_bundles(request, download_all_test_files):
-    """
-    Session fixture that runs bundle preprocessing when --preprocess-bundles flag is set.
-
-    This autouse fixture runs automatically at session start. It checks the
-    --preprocess-bundles command-line flag and runs bundle reduction to
-    populate with individual arms fits.
-    """
-    if request.config.getoption("--preprocess-bundles"):
-        complete_bundle_reduction()
-        return True
-    return False
-
-
-@pytest.fixture(scope="session")
-def preprocess_dark():
-    """
-    Session fixture that creates master dark frames.
-    """
-    complete_masterdark_reduction()
-    return True
+# Note: preprocess_flat and preprocess_wavecal are kept temporarily.
+# They will be removed when tests are migrated to use path_to_inputs
+# (Steps 6-7 of the test convention migration).
 
 
 @pytest.fixture(scope="session")
