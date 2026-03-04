@@ -1,12 +1,11 @@
-import os
 import itertools as it
+import os
 from pathlib import Path
 
 from gempy.adlibrary import dataselect
 from gempy.utils import logutils
 from recipe_system.reduction.coreReduce import Reduce
 
-import astrodata
 import maroonx_instruments  # noqa : important to load adclass tags
 
 # Run with Legacy patch?
@@ -14,7 +13,9 @@ LEGACY = False
 
 # Get all files in the science_dir. Change the path here to suit your installation.
 if LEGACY:
-    science_dir = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir_legacy_patch')
+    science_dir = Path(
+        '/home/martin/Projects/MaroonX/MAROONXDR/science_dir_legacy_patch'
+    )
 else:
     science_dir = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir')
 os.chdir(science_dir)
@@ -24,13 +25,14 @@ os.chdir(science_dir)
 # =============================================================================
 # Configure logging
 if LEGACY:
-    logutils.config(file_name="test_reduction_legacy.log", mode="debug", stomp=True)
+    logutils.config(file_name='test_reduction_legacy.log', mode='debug', stomp=True)
 else:
-    logutils.config(file_name="test_reduction.log", mode="debug", stomp=True)
+    logutils.config(file_name='test_reduction.log', mode='debug', stomp=True)
 
 # Calibration files paths
-proc_dark = science_dir / "calibrations" / "processed_dark"
-proc_flat = science_dir / "calibrations" / "processed_flat"
+proc_dark = science_dir / 'calibrations' / 'processed_dark'
+proc_flat = science_dir / 'calibrations' / 'processed_flat'
+
 
 def get_files(path=None):
     """Get all files in a directory."""
@@ -41,6 +43,7 @@ def get_files(path=None):
     all_files = [str(f) for f in all_files]
     all_files.sort()
     return all_files
+
 
 # Define tags for file selection
 exptime_tags = ['60s', '120s', '300s', '600s', '900s', '1200s', '1800s']
@@ -66,7 +69,6 @@ myreduce.runr()
 # =============================================================================
 # Flats should be run for red and blue arms separately
 for arm in arm_tags:
-
     # Select both DFFFD and FDDDF files
     selected_flats = dataselect.select_data(get_files(), tags=['RAW', 'FLAT', arm])
 
@@ -81,7 +83,9 @@ for arm in arm_tags:
     myreduce.runr()
 
     # Select masterflats
-    selected_mflats = dataselect.select_data(get_files(), tags=['PROCESSED', 'FLAT', arm])
+    selected_mflats = dataselect.select_data(
+        get_files(), tags=['PROCESSED', 'FLAT', arm]
+    )
 
     myreduce = Reduce()
     myreduce.files.extend(selected_mflats)
@@ -95,8 +99,9 @@ for arm in arm_tags:
 # =============================================================================
 # Dark frames should be run for each exposure time and arm
 for exptime, arm in it.product(exptime_tags, arm_tags):
-
-    selected_darks = dataselect.select_data(get_files(), tags=['RAW', 'DARK', exptime, arm])
+    selected_darks = dataselect.select_data(
+        get_files(), tags=['RAW', 'DARK', exptime, arm]
+    )
 
     # Run reduce on all selected files
     myreduce = Reduce()
@@ -109,13 +114,13 @@ for exptime, arm in it.product(exptime_tags, arm_tags):
 # Step 4 - Create Coefficient Darks
 # =============================================================================
 for arm in arm_tags:
-
     # Select master darks with PROCESSED tag
     # Exclude already created darks with DARK_SYNTH or DARK_COEFF tags
     selected_darks = dataselect.select_data(
-        get_files(proc_dark), 
+        get_files(proc_dark),
         tags=['PROCESSED', 'DARK', arm],
-        xtags=['DARK_COEFF', 'DARK_SYNTH'])
+        xtags=['DARK_COEFF', 'DARK_SYNTH'],
+    )
 
     # Run reduce on all selected files
     myreduce = Reduce()
@@ -130,7 +135,6 @@ for arm in arm_tags:
 # =============================================================================
 # synthetic darks
 for arm in arm_tags:
-
     selected_darks = dataselect.select_data(get_files(), tags=['RAW', 'SCI', arm])
 
     # Run reduce on all selected files
@@ -145,7 +149,6 @@ for arm in arm_tags:
 # Step 6 - Wavecal frames
 # =============================================================================
 for arm in arm_tags:
-
     selected_spect = dataselect.select_data(get_files(), tags=['RAW', 'WAVECAL', arm])
 
     # Run reduce on all selected files
@@ -164,7 +167,9 @@ sci_exptime_tags = ['120s', '300s', '600s', '900s', '1800s']
 # for arm in arm_tags:
 #     selected_spect = dataselect.select_data(get_files(), tags=['RAW', 'SCI', arm, '300s'])
 for exptime, arm in it.product(sci_exptime_tags, arm_tags):
-    selected_spect = dataselect.select_data(get_files(), tags=['RAW', 'SCI', arm, exptime])
+    selected_spect = dataselect.select_data(
+        get_files(), tags=['RAW', 'SCI', arm, exptime]
+    )
 
     # Run reduce on all selected files
     myreduce = Reduce()
@@ -179,9 +184,7 @@ for exptime, arm in it.product(sci_exptime_tags, arm_tags):
 # Step 8 - Export Science Bundles
 # =============================================================================
 
-selected_spect = dataselect.select_data(
-    get_files(), 
-    tags=['PROCESSED', 'SCI', '300s'])
+selected_spect = dataselect.select_data(get_files(), tags=['PROCESSED', 'SCI', '300s'])
 
 # Run reduce on all selected files
 myreduce = Reduce()
@@ -201,26 +204,25 @@ myreduce.runr()
 # Define target-specific barycentric correction parameters
 BARYCOR_TARGETS = [
     # (target_name, simbad_target_name, use_coords, zp_frd, zp_pc, exptime_tag)
-    ('HD 203030', 'HD 203030', False, 0., 0., '300s'),
-    ('Ross 248', 'Ross 248', False, 0., 0., '1800s'),
-    ('Gl 12', 'G 32-5', False, 0., 0., '1800s'),
-    ('TOI 4527', 'G 2-33', False, 0., 0., '1800s'),
-    ('TOI 3686', 'TYC 3699-237-1', False, 0., 0., '600s'),
-    ('TOI 4529', None, True, 0., 0., '1800s'),  # use_coords when SIMBAD fails
-    ('NGTS-11', 'NGTS-11', False, 0., 0., '900s'),
+    ('HD 203030', 'HD 203030', False, 0.0, 0.0, '300s'),
+    ('Ross 248', 'Ross 248', False, 0.0, 0.0, '1800s'),
+    ('Gl 12', 'G 32-5', False, 0.0, 0.0, '1800s'),
+    ('TOI 4527', 'G 2-33', False, 0.0, 0.0, '1800s'),
+    ('TOI 3686', 'TYC 3699-237-1', False, 0.0, 0.0, '600s'),
+    ('TOI 4529', None, True, 0.0, 0.0, '1800s'),  # use_coords when SIMBAD fails
+    ('NGTS-11', 'NGTS-11', False, 0.0, 0.0, '900s'),
     ('TOI-6662.01', None, True, 1.0, 7.7, '900s'),  # custom zeropoints
-    ('TOI 4353', 'CD-34 1169', False, 0., 0., '1800s'),
-    ('TOI-1634', 'PM J03455+3706', False, 0., 0., '600s'),
-    ('TOI 4324', None, True, 0., 0., '1800s'),  # use_coords
-    ('Gaia DR2 1146658793750549248', 'LSPM J1006+8305', False, 0., 0., '1800s'),
-    ('Lalande 21185', 'HD 95735', False, 0., 0., '120s'),
+    ('TOI 4353', 'CD-34 1169', False, 0.0, 0.0, '1800s'),
+    ('TOI-1634', 'PM J03455+3706', False, 0.0, 0.0, '600s'),
+    ('TOI 4324', None, True, 0.0, 0.0, '1800s'),  # use_coords
+    ('Gaia DR2 1146658793750549248', 'LSPM J1006+8305', False, 0.0, 0.0, '1800s'),
+    ('Lalande 21185', 'HD 95735', False, 0.0, 0.0, '120s'),
 ]
 
 for target_name, simbad_name, use_coords, zp_frd, zp_pc, exptime in BARYCOR_TARGETS:
     # Select reduced science files for this target and exposure time
     selected_files = dataselect.select_data(
-        get_files(),
-        tags=['PROCESSED', 'SCI', exptime]
+        get_files(), tags=['PROCESSED', 'SCI', exptime]
     )
     # Build uparms dict for this target
     uparms = {
