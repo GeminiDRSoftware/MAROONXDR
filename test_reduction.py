@@ -9,17 +9,24 @@ from recipe_system.reduction.coreReduce import Reduce
 import astrodata
 import maroonx_instruments  # noqa : important to load adclass tags
 
+# Run with Legacy patch?
+LEGACY = False
 
 # Get all files in the science_dir. Change the path here to suit your installation.
-# science_dir = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir')
-science_dir = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir_legacy_patch')
+if LEGACY:
+    science_dir = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir_legacy_patch')
+else:
+    science_dir = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir')
 os.chdir(science_dir)
 
 # =============================================================================
 # Step 0 - Reduction setup
 # =============================================================================
 # Configure logging
-logutils.config(file_name="test_reduction_legacy.log", mode="debug", stomp=True)
+if LEGACY:
+    logutils.config(file_name="test_reduction_legacy.log", mode="debug", stomp=True)
+else:
+    logutils.config(file_name="test_reduction.log", mode="debug", stomp=True)
 
 # Calibration files paths
 proc_dark = science_dir / "calibrations" / "processed_dark"
@@ -69,8 +76,17 @@ for arm in arm_tags:
     myreduce.drpkg = 'maroonxdr'
     myreduce.recipename = 'makeProcessedFlatDFFFF'
     myreduce.uparms = {
-        'removeStrayLight:legacy': True,
+        'removeStrayLight:legacy': LEGACY,
     }
+    myreduce.runr()
+
+    # Select masterflats
+    selected_mflats = dataselect.select_data(get_files(), tags=['PROCESSED', 'FLAT', arm])
+
+    myreduce = Reduce()
+    myreduce.files.extend(selected_mflats)
+    myreduce.drpkg = 'maroonxdr'
+    myreduce.recipename = 'measureBlaze'
     myreduce.runr()
 
 
@@ -155,7 +171,7 @@ for exptime, arm in it.product(sci_exptime_tags, arm_tags):
     myreduce.files.extend(selected_spect)
     myreduce.drpkg = 'maroonxdr'
     myreduce.uparms = {
-        'extractStripes:legacy': True,
+        'extractStripes:legacy': LEGACY,
     }
     myreduce.runr()
 
