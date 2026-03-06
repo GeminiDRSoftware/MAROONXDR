@@ -19,13 +19,18 @@ nox.options.error_on_external_run = True
 
 # Dragons installation resources
 DRAGONS_URL = R'https://github.com/GeminiDRSoftware/DRAGONS'
-PYTEST_DRAGONS_URL = R'git+https://github.com/GeminiDRSoftware/pytest_dragons.git@v1.0.0'
-CALMGR_URL = R'https://github.com/GeminiDRSoftware/GeminiCalMgr.git@release/1.1.x' # deprecated
-OBSDB_URL = R'https://github.com/GeminiDRSoftware/GeminiObsDB.git@release/1.0.x'  # deprecated
+PYTEST_DRAGONS_URL = (
+    R'git+https://github.com/GeminiDRSoftware/pytest_dragons.git@v1.0.0'
+)
+CALMGR_URL = (
+    R'https://github.com/GeminiDRSoftware/GeminiCalMgr.git@release/1.1.x'  # deprecated
+)
+OBSDB_URL = (
+    R'https://github.com/GeminiDRSoftware/GeminiObsDB.git@release/1.0.x'  # deprecated
+)
 
 # Meeting with Paul H. indicated that fits_storage is needed
-FITSS_URL = R'https://github.com/GeminiDRSoftware/FitsStorage' 
-
+FITSS_URL = R'https://github.com/GeminiDRSoftware/FitsStorage'
 
 
 DRAGONS_BRANCH = 'master'
@@ -35,7 +40,7 @@ PATH = Path(__file__).parent.resolve()
 
 # Define the following paths to be set as environment variables
 NEW_ENV_VARIABLES = {
-    "DRAGONS_TEST": Path(PATH).parent / "mx_test",
+    'DRAGONS_TEST': Path(PATH).parent / 'mx_test',
 }
 
 
@@ -265,9 +270,12 @@ def devconda(session: nox.Session):
         '--force',
         '-n',
         env_name,
-        '-c', 'http://astroconda.gemini.edu/public',
-        '-c', 'conda-forge',
-        '-c', 'defaults',
+        '-c',
+        'http://astroconda.gemini.edu/public',
+        '-c',
+        'conda-forge',
+        '-c',
+        'defaults',
         'python=3.12',
         external=True,
     )
@@ -427,7 +435,6 @@ def initialize_commit_hooks(session: nox.Session):
     )
 
 
-
 @nox.session(python='3.12')
 def create_inputs(session: nox.Session):
     """Download and create input files for unit tests.
@@ -538,6 +545,7 @@ def unit_tests(session: nox.Session):
     # Add any additional arguments passed via command line
     test_args.extend(session.posargs)
     session.run(*test_args)
+
 
 @nox.session(python='3.12')
 def legacy_regression_tests(session: nox.Session):
@@ -680,36 +688,32 @@ def docs(session: nox.Session):
     tutorial_build = tutorial_source / 'build' / 'html'
 
     # Build user manual
-    session.log("Building user manual...")
+    session.log('Building user manual...')
     session.run(
-        'sphinx-build',
-        '-M', 'html',
-        str(user_source),
-        str(user_source / 'build')
+        'sphinx-build', '-M', 'html', str(user_source), str(user_source / 'build')
     )
 
     # Build programmer manual
-    session.log("Building programmer manual...")
+    session.log('Building programmer manual...')
     session.run(
-        'sphinx-build',
-        '-M', 'html',
-        str(prog_source),
-        str(prog_source / 'build')
+        'sphinx-build', '-M', 'html', str(prog_source), str(prog_source / 'build')
     )
 
     # Build tutorial
-    session.log("Building tutorial...")
+    session.log('Building tutorial...')
     session.run(
         'sphinx-build',
-        '-M', 'html',
+        '-M',
+        'html',
         str(tutorial_source),
-        str(tutorial_source / 'build')
+        str(tutorial_source / 'build'),
     )
 
-    session.log("Documentation built successfully!")
-    session.log(f"User manual: {user_build}/index.html")
-    session.log(f"Programmer manual: {prog_build}/index.html")
-    session.log(f"Tutorial: {tutorial_build}/index.html")
+    session.log('Documentation built successfully!')
+    session.log(f'User manual: {user_build}/index.html')
+    session.log(f'Programmer manual: {prog_build}/index.html')
+    session.log(f'Tutorial: {tutorial_build}/index.html')
+
 
 @nox.session(venv_backend='virtualenv')
 def docstyle(session: nox.Session):
@@ -719,5 +723,5 @@ def docstyle(session: nox.Session):
         'pydocstyle',
         'maroonxdr/',
         '--convention=numpy',
-        '--add-ignore=D100,D104'  # Ignore missing docstrings in modules and __init__.py
+        '--add-ignore=D100,D104',  # Ignore missing docstrings in modules and __init__.py
     )
