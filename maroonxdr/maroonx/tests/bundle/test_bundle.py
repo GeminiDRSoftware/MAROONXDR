@@ -3,6 +3,11 @@ Unit tests for splitBundle primitive.
 
 This is a suite of tests to be run with pytest.
 """
+import os
+
+import shutil
+from astrodata.testing import download_from_archive
+
 import astrodata
 import pytest
 
@@ -10,15 +15,18 @@ import maroonx_instruments  # noqa - import is necessary for astrodata
 from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 
 
-@pytest.mark.parametrize('filename', ['N20241114M3271.fits'])
-def test_split_bundle(download_mx_file, filename):
+# -- Test datasets -------------------------------------------------------------
+test_datasets = ["N20241114M3271.fits"]
+exposuremeter_datasets = ["N20241124M1413.fits"]
+
+
+# -- Tests ---------------------------------------------------------------------
+@pytest.mark.parametrize('filename', test_datasets)
+def test_split_bundle(path_to_inputs, filename):
     """
     Test that splitBundle() correctly splits a MAROON-X bundle into separate arms.
     """
-    # Download file from archive if not present
-    download_mx_file(filename)
-
-    ad = astrodata.open(filename)
+    ad = astrodata.open(os.path.join(path_to_inputs, filename))
 
     # Verify this is a bundle with 2 extensions
     assert len(ad) == 2, "Input should be a bundle with 2 extensions"
@@ -54,4 +62,63 @@ def test_split_bundle(download_mx_file, filename):
         origname = arm_ad.phu.get("ORIGNAME")
         assert origname is not None, "ORIGNAME should be set"
         assert arm_ad.filename == origname, "Filename should match ORIGNAME"
+
+
+@pytest.mark.parametrize('filename', exposuremeter_datasets)
+def test_splitBundle_exposuremeter(path_to_inputs, filename):
+    """
+    Test that splitBundle preserves EXPOSUREMETER table metadata.
+
+    Parameters
+    ----------
+    path_to_inputs : fixture
+    filename : str
+    """
+    filepath = os.path.join(path_to_inputs, filename)
+    if not os.path.isfile(filepath):
+        pytest.skip(f"{filename} not available for testing.")
+
+    ad_bundle = astrodata.open(filepath)
+
+    p = MAROONX([ad_bundle])
+    out = p.splitBundle()
+
+    ad_1, ad_2 = out
+
+    assert (ad_1.EXPOSUREMETER.meta['header']["ZP_PC"] ==
+            ad_bundle.EXPOSUREMETER.meta['header']["TZERO2"])
+    assert (ad_1.EXPOSUREMETER.meta['header']["ZP_FRD"] ==
+            ad_bundle.EXPOSUREMETER.meta['header']["TZERO3"])
+
+
+# -- Create inputs -------------------------------------------------------------
+def create_inputs():
+    """
+    Create input files for this test module.
+
+    Run with: python -m maroonxdr.maroonx.tests.bundle.test_bundle --create-inputs
+    """
+    input_path = os.path.join(
+        os.environ["DRAGONS_TEST"], "maroonxdr", "maroonx",
+        "bundle", "test_bundle", "inputs"
+    )
+    os.makedirs(input_path, exist_ok=True)
+
+    # Download raw files to default raw_files/ cache
+    for filename in test_datasets + exposuremeter_datasets:
+        print(f"  Downloading {filename}")
+        raw_path = download_from_archive(filename)
+
+        # No preprocessing needed — raw bundles are the test inputs
+        shutil.copy2(raw_path, os.path.join(input_path, filename))
+        print(f"  Copied to {input_path}")
+
+
+if __name__ == '__main__':
+    import sys
+
+    if "--create-inputs" in sys.argv[1:]:
+        create_inputs()
+    else:
+        pytest.main()
 

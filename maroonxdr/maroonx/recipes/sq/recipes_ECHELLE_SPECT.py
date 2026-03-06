@@ -5,6 +5,7 @@ Default is "reduce".
 """
 
 recipe_tags = {'MAROONX', 'SCI'}
+blocked_tags = {'BUNDLE'}
 
 def reduce(p):
     """

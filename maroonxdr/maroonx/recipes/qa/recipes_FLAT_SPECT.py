@@ -3,6 +3,7 @@ Recipes available to data with tags ['MAROONX', 'CAL', 'FLAT'].
 """
 
 recipe_tags = {'MAROONX', 'CAL', 'PROCESSED', 'FLAT'}
+blocked_tags = {'BUNDLE'}
 
 def makeProcessedFlatQA(p):
     """

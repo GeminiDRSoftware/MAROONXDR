@@ -1,4 +1,5 @@
 import logging
+import os
 from copy import deepcopy
 
 import astrodata
@@ -9,14 +10,15 @@ from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
 
 
 @pytest.mark.slow
+@pytest.mark.preprocessed_data
 @pytest.mark.parametrize("filename", ["20241124T030227Z_DEEEE_b_0030_wavecal.fits"])
-def test_staticWavelengthSolution(caplog, preprocess_wavecal, filename):
+def test_staticWavelengthSolution(caplog, path_to_inputs, filename):
     """
     This test checks that the static wavelength solution is correct.
     """
     caplog.set_level(logging.DEBUG)
 
-    ad = astrodata.open(filename)
+    ad = astrodata.open(os.path.join(path_to_inputs, filename))
     p = MaroonXSpectrum([deepcopy(ad)])
 
     requested_fibers = (3, 4)
@@ -37,14 +39,15 @@ def test_staticWavelengthSolution(caplog, preprocess_wavecal, filename):
 
 
 @pytest.mark.slow
+@pytest.mark.preprocessed_data
 @pytest.mark.parametrize("filename", ["20241124T030227Z_DEEEE_b_0030_wavecal.fits"])
-def test_getPeaksAndPolynomials(caplog, preprocess_wavecal, filename):
+def test_getPeaksAndPolynomials(caplog, path_to_inputs, filename):
     """
     This test checks that PEAKS and POLY tables are set.
     """
     caplog.set_level(logging.DEBUG)
 
-    ad = astrodata.open(filename)
+    ad = astrodata.open(os.path.join(path_to_inputs, filename))
     p = MaroonXSpectrum([deepcopy(ad)])
 
     p.getPeaksAndPolynomials(fibers=(4,), orders=(101,))
@@ -55,14 +58,15 @@ def test_getPeaksAndPolynomials(caplog, preprocess_wavecal, filename):
 
 
 @pytest.mark.slow
+@pytest.mark.preprocessed_data
 @pytest.mark.parametrize("filename", ["20241124T030227Z_DEEEE_b_0030_wavecal.fits"])
-def test_fitAndApplyEtalonWls(caplog, preprocess_wavecal, filename):
+def test_fitAndApplyEtalonWls(caplog, path_to_inputs, filename):
     """
     This test checks that the dynamic wavelength solution is correct.
     """
     caplog.set_level(logging.DEBUG)
 
-    ad = astrodata.open(filename)
+    ad = astrodata.open(os.path.join(path_to_inputs, filename))
     p = MaroonXSpectrum([deepcopy(ad)])
 
 

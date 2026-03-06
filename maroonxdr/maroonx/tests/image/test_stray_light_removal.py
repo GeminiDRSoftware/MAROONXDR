@@ -1,4 +1,5 @@
 import logging
+import os
 from copy import deepcopy
 
 import astrodata
@@ -8,11 +9,12 @@ import maroonx_instruments  # noqa : import is necesary for astrodata.instrument
 from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 
 
-
+# -- Tests ---------------------------------------------------------------------
 @pytest.mark.slow
+@pytest.mark.preprocessed_data
 @pytest.mark.parametrize("DFFFD_file", ["20241114T182328Z_DFFFD_b_0008_straylight_flat.fits"])
 @pytest.mark.parametrize("FDDDF_file", ["20241114T190714Z_DDDDF_b_0007_straylight_flat.fits"])
-def test_stray_light_removal(caplog, DFFFD_file, FDDDF_file):
+def test_stray_light_removal(caplog, path_to_inputs, DFFFD_file, FDDDF_file):
     """
     Test that removeStrayLight correctly removes the stray light across the frame.
     Requires two complimentary flat frames of a single arm that have been run
@@ -29,8 +31,8 @@ def test_stray_light_removal(caplog, DFFFD_file, FDDDF_file):
     """
     caplog.set_level(logging.DEBUG)
 
-    ad_DFFFD = astrodata.open(DFFFD_file)
-    ad_FDDDF = astrodata.open(FDDDF_file)
+    ad_DFFFD = astrodata.open(os.path.join(path_to_inputs, DFFFD_file))
+    ad_FDDDF = astrodata.open(os.path.join(path_to_inputs, FDDDF_file))
     test_flats = [deepcopy(ad_FDDDF), deepcopy(ad_DFFFD)]
 
     p = MAROONX(test_flats)

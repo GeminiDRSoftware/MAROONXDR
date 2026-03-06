@@ -376,7 +376,9 @@ class MAROONXEchelle(MAROONX, Spect):
             straylight_removal_fibers = []
 
         flats = _get_calibration_flat(adinputs)
+        log.fullinfo(f"Flats matched to science frames: {[f.filename for f in flats]}")
         darks = _get_calibration_dark(adinputs)
+        log.fullinfo(f"Darks matched to science frames: {[d.filename if d else None for d in darks]}")
 
         for ad, flat_ad, dark_ad in zip(*gt.make_lists(adinputs, flats, darks)):
             dark_fn = getattr(dark_ad, "filename", None)

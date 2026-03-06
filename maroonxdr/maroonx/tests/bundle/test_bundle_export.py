@@ -2,6 +2,7 @@
 Test suite for bundle export primitives and recipe.
 """
 import logging
+import os
 
 import astrodata
 import pytest
@@ -10,8 +11,13 @@ import maroonx_instruments  # noqa - import is necessary for astrodata
 from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
 
 
-@pytest.mark.parametrize('filename', ['N20241114M3271.fits'])
-def test_separate_and_bundle_arms(caplog, download_mx_file, filename):
+# -- Test datasets -------------------------------------------------------------
+test_datasets = ["N20241114M3271.fits"]
+
+
+# -- Tests ---------------------------------------------------------------------
+@pytest.mark.parametrize('filename', test_datasets)
+def test_separate_and_bundle_arms(caplog, path_to_inputs, filename):
     """
     Test that separateArmStreams and bundleArmStreams correctly split and
     re-bundle MAROON-X data.
@@ -24,10 +30,8 @@ def test_separate_and_bundle_arms(caplog, download_mx_file, filename):
     """
     caplog.set_level(logging.DEBUG)
 
-    download_mx_file(filename)
-
     # Load the bundle
-    ad_bundle = astrodata.open(filename)
+    ad_bundle = astrodata.open(os.path.join(path_to_inputs, filename))
     original_filename = ad_bundle.filename
 
     # Split the bundle into separate arm files
@@ -86,17 +90,15 @@ def test_separate_and_bundle_arms(caplog, download_mx_file, filename):
         'ARCHNAME should be removed after bundling'
 
 
-@pytest.mark.parametrize('filename', ['N20241114M3271.fits'])
-def test_separate_arms_error_handling(caplog, download_mx_file, filename):
+@pytest.mark.parametrize('filename', test_datasets)
+def test_separate_arms_error_handling(caplog, path_to_inputs, filename):
     """
     Test error handling in separateArmStreams when ARCHNAME is missing.
     """
     caplog.set_level(logging.WARNING)
 
-    download_mx_file(filename)
-
     # Load and split bundle
-    ad_bundle = astrodata.open(filename)
+    ad_bundle = astrodata.open(os.path.join(path_to_inputs, filename))
     p = MaroonXSpectrum([ad_bundle])
     arm_list = p.splitBundle()
 
@@ -110,16 +112,15 @@ def test_separate_arms_error_handling(caplog, download_mx_file, filename):
         p2.separateArmStreams()
 
 
-@pytest.mark.parametrize('filename', ['N20241114M3271.fits'])
-def test_bundle_arms_requires_red_stream(caplog, download_mx_file, filename):
+@pytest.mark.parametrize('filename', test_datasets)
+def test_bundle_arms_requires_red_stream(caplog, path_to_inputs, filename):
     """
     Test that bundleArmStreams raises error when RED stream is missing.
     """
     caplog.set_level(logging.DEBUG)
-    download_mx_file(filename)
 
     # Load and split bundle
-    ad_bundle = astrodata.open(filename)
+    ad_bundle = astrodata.open(os.path.join(path_to_inputs, filename))
 
     p = MaroonXSpectrum([ad_bundle])
     arm_list = p.splitBundle()
@@ -134,5 +135,36 @@ def test_bundle_arms_requires_red_stream(caplog, download_mx_file, filename):
         p2.bundleArmStreams()
 
 
+# -- Create inputs -------------------------------------------------------------
+def create_inputs():
+    """
+    Create input files for this test module.
+
+    Run with: python -m maroonxdr.maroonx.tests.bundle.test_bundle_export --create-inputs
+    """
+    import shutil
+    from astrodata.testing import download_from_archive
+
+    input_path = os.path.join(
+        os.environ["DRAGONS_TEST"], "maroonxdr", "maroonx",
+        "bundle", "test_bundle_export", "inputs"
+    )
+    os.makedirs(input_path, exist_ok=True)
+
+    # Download raw files to default raw_files/ cache
+    for filename in test_datasets:
+        print(f"  Downloading {filename}")
+        raw_path = download_from_archive(filename)
+
+        # No preprocessing needed — raw bundles are the test inputs
+        shutil.copy2(raw_path, os.path.join(input_path, filename))
+        print(f"  Copied to {input_path}")
+
+
 if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+    import sys
+
+    if "--create-inputs" in sys.argv[1:]:
+        create_inputs()
+    else:
+        pytest.main([__file__, '-v'])

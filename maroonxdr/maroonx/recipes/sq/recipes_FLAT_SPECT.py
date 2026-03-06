@@ -7,6 +7,7 @@ Science.
 """
 
 recipe_tags = {'MAROONX', 'CAL', 'FLAT'}
+blocked_tags = {'BUNDLE'}
 
 def makeProcessedFlat(p):
     """

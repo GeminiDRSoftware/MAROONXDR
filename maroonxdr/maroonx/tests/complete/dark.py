@@ -1,16 +1,13 @@
-"""
-Script used to test the creation of darks for MAROON-X data.
+"""Test the creation of master darks for MAROON-X data.
+
+Reads debundled files from $DRAGONS_TEST/preprocessed_files/ (produced by
+complete/bundle.py) and writes master darks back to the same directory.
 
 It does not rely on pytest, and does not produce a success or fail output like pytest
 does. Instead, if the reduce runs successfully, this will produce a calibrated dark
 file. End users should use this test to test their installation. Only if there is an
 error in this test (or other "complete" tests) should they use the echelle and image
 unit tests to test their installation.
-
-To run this test, simply run the command "python dark_test.py" in the terminal, after
-ensuring the correct path to science_dir in Path().  This test expects you to have a
-science_dir in the root directory of the installation (you have to make this directory)
-and to have got the test fits files from Kathleen.
 """
 
 import itertools as it
@@ -25,27 +22,25 @@ import maroonx_instruments  # noqa - import is necessary for astrodata
 from maroonxdr.maroonx.tests.test_utils import change_cwd_context
 
 
-def _get_science_dir():
+def _get_dragons_test():
     p = os.environ.get("DRAGONS_TEST")
     if p is None:
         raise RuntimeError("DRAGONS_TEST environment variable not set")
-    return Path(p) / 'science_dir'
+    return Path(p)
 
 
 def complete_masterdark_reduction():
     """Test reduction of dark frames across all arms and exposure times."""
-    science_dir = _get_science_dir()
+    dragons_test = _get_dragons_test()
+    preprocessed_dir = dragons_test / 'preprocessed_files'
 
-    with change_cwd_context(science_dir):
-        # Configure test logging
+    # Read debundled files from preprocessed_files/
+    all_files = sorted(str(p) for p in preprocessed_dir.glob('*.fits'))
+
+    with change_cwd_context(preprocessed_dir):
         logutils.config(file_name="test_dark.log", stomp=False)
         log = logutils.get_logger("test_dark.log")
         log.setLevel("DEBUG")
-
-        # Get all files
-        all_files = list(Path().glob('*.fits'))
-        all_files = [str(p) for p in all_files]
-        all_files.sort()
 
         arms = ['BLUE', 'RED']
         exptimes = ["60s", "120s", "300s", "600s", "900s", "1200s", "1800s"]
@@ -55,43 +50,33 @@ def complete_masterdark_reduction():
             only_darks = dataselect.select_data(
                 all_files, tags=['RAW', 'DARK', arm, exptime])
 
-            # Run reduce on all selected files
             myreduce = Reduce()
             myreduce.files.extend(only_darks)
             myreduce.drpkg = 'maroonxdr'
-            # coment out this line for default reduction
-            #myreduce.recipename = 'testRegressionDark'
             myreduce.runr()
 
 
 def complete_dark_coeff_reduction():
     """Test creation of dark scaling coefficients from processed darks."""
-    science_dir = _get_science_dir()
+    dragons_test = _get_dragons_test()
+    preprocessed_dir = dragons_test / 'preprocessed_files'
 
-    with change_cwd_context(science_dir):
-        # Configure test logging
+    # Re-scan to pick up newly produced master darks
+    all_files = sorted(str(p) for p in preprocessed_dir.glob('*.fits'))
+
+    with change_cwd_context(preprocessed_dir):
         logutils.config(file_name="test_dark.log", stomp=False)
         log = logutils.get_logger("test_dark.log")
         log.setLevel("DEBUG")
 
-        # Get all files
-        masterdark_path = Path() / 'calibrations' / 'processed_dark'
-        all_files = list(Path(masterdark_path).glob('*.fits'))
-        all_files = [str(p) for p in all_files]
-        all_files.sort()
-
-        arms = ['BLUE', 'RED']
-
-        for arm in arms:
+        for arm in ['BLUE', 'RED']:
 
             only_darks = dataselect.select_data(all_files,
                 tags=['PROCESSED', 'DARK', arm], xtags=['DARK_COEFF', 'DARK_SYNTH'])
 
-            # Run reduce on all selected files
             myreduce = Reduce()
             myreduce.files.extend(only_darks)
             myreduce.drpkg = 'maroonxdr'
-            # coment out this line for default reduction
             myreduce.recipename = 'makeDarkCoefficients'
             myreduce.runr()
 

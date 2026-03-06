@@ -1,4 +1,5 @@
 import logging
+import os
 from copy import deepcopy
 
 import astrodata
@@ -10,12 +11,13 @@ from maroonxdr.maroonx.primitives_maroonx_echelle import MAROONXEchelle
 
 
 @pytest.mark.slow
+@pytest.mark.preprocessed_data
 @pytest.mark.parametrize("filename", ["20241124T041907Z_SOOOE_r_0300_test_stripes.fits",
                                       "20241124T041907Z_SOOOE_b_0300_test_stripes.fits"])
-def test_getting_stripe_locations(caplog, filename):
+def test_getting_stripe_locations(caplog, path_to_inputs, filename):
     caplog.set_level(logging.DEBUG)
 
-    ad = astrodata.open(filename)
+    ad = astrodata.open(os.path.join(path_to_inputs, filename))
     p = MAROONXEchelle([deepcopy(ad)])
     adtest = p.extractStripes()
     assert len(caplog.records) > 0

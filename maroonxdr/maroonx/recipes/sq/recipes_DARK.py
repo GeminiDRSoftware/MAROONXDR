@@ -5,6 +5,7 @@ Default is "makeProcessedDark".
 """
 
 recipe_tags = {'MAROONX', 'CAL', 'DARK'}
+blocked_tags = {'BUNDLE'}
 
 def makeProcessedDark(p):
     """

@@ -5,6 +5,7 @@ Default is "reduce".
 """
 
 recipe_tags = {'MAROONX', 'WAVECAL', 'ThAr'}
+blocked_tags = {'BUNDLE'}
 
 def makeStaticWavecal(p):
     """

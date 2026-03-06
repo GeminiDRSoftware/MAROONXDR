@@ -1,5 +1,6 @@
 
 import logging
+import os
 from copy import deepcopy
 
 import astrodata
@@ -11,9 +12,10 @@ from maroonxdr.maroonx.primitives_maroonx_echelle import MAROONXEchelle
 
 
 @pytest.mark.slow
+@pytest.mark.preprocessed_data
 @pytest.mark.parametrize("filename", ["20241124T041907Z_SOOOE_r_0300_reduced.fits",
                                       "20241124T041907Z_SOOOE_b_0300_reduced.fits"])
-def test_optimal_extracting_science_data(caplog, filename):
+def test_optimal_extracting_science_data(caplog, path_to_inputs, filename):
     """
     Test that new optimal extraction and box extraction is equal to
     a previously reduced extraction of the same intial dataset
@@ -32,7 +34,7 @@ def test_optimal_extracting_science_data(caplog, filename):
 
 
     # test that optimal extraction is equal to a previously reduced extraction
-    ad = astrodata.open(filename)
+    ad = astrodata.open(os.path.join(path_to_inputs, filename))
     p = MAROONXEchelle([deepcopy(ad)])
     p.extractStripes()
     adtest = p.optimalExtraction()

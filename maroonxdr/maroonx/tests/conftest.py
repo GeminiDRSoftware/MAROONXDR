@@ -7,11 +7,6 @@ import numpy as np
 import pytest
 from astrodata.testing import download_from_archive
 
-from maroonxdr.maroonx.tests.complete import (
-    complete_masterflat_reduction,
-    complete_wavecal_reduction
-)
-
 # =========================================================
 # DRAGONS TEST CONFIGURATION
 # =========================================================
@@ -240,6 +235,11 @@ def pytest_configure(config):
         "markers",
         "slow: mark test as slow tests (deselect with '-m \"not slow\"')"
     )
+    config.addinivalue_line(
+        "markers",
+        "preprocessed_data: marks tests that require preprocessed data in inputs/ "
+        "(deselect with '-m \"not preprocessed_data\"')"
+    )
 
 def pytest_collection_modifyitems(config, items):
     """
@@ -378,27 +378,3 @@ def download_mx_file(dragons_test_root):
     return _download
 
 
-# =========================================================
-# PREPROCESSING FIXTURES
-# =========================================================
-# Note: preprocess_flat and preprocess_wavecal are kept temporarily.
-# They will be removed when tests are migrated to use path_to_inputs
-# (Steps 6-7 of the test convention migration).
-
-
-@pytest.fixture(scope="session")
-def preprocess_flat():
-    """
-    Session fixture that creates master flat frames.
-    """
-    complete_masterflat_reduction()
-    return True
-
-
-@pytest.fixture(scope="session")
-def preprocess_wavecal():
-    """
-    Session fixture that creates wavelength calibration solutions.
-    """
-    complete_wavecal_reduction()
-    return True

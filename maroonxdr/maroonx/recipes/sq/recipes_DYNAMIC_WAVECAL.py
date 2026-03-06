@@ -5,6 +5,7 @@ Default is "makeDynamicWavecal".
 """
 
 recipe_tags = {'MAROONX', 'WAVECAL'}
+blocked_tags = {'BUNDLE'}
 
 def makeDynamicWavecal(p):
     """
