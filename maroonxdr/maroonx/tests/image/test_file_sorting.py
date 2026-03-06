@@ -11,7 +11,6 @@ import pytest
 import maroonx_instruments  # noqa - import is necessary for astrodata
 from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 
-
 # -- Test datasets -------------------------------------------------------------
 # These bundles are needed for debundling into split-arm files
 bundles_needed = [
@@ -24,7 +23,9 @@ bundles_needed = [
 # -- Tests ---------------------------------------------------------------------
 @pytest.mark.parametrize('filename_r', ['20241114T181028Z_DFFFD_r_0002.fits'])
 @pytest.mark.parametrize('filename_b', ['20241114T181028Z_DFFFD_b_0008.fits'])
-def test_checkArm_collection_and_rejection(caplog, path_to_inputs, filename_r, filename_b):
+def test_checkArm_collection_and_rejection(
+    caplog, path_to_inputs, filename_r, filename_b
+):
     """Test that first file and others of its arm-type are included while else are removed.
 
     Parameters
@@ -116,7 +117,6 @@ def test_separating_flat_streams(caplog, path_to_inputs, DFFFD_file, FDDDF_file)
     assert len(p.streams['DFFFD_flats']) == num_DFFFD
 
 
-
 @pytest.mark.parametrize('DFFFD_file', ['20241114T181815Z_DFFFD_b_0008.fits'])
 @pytest.mark.parametrize('FDDDF_file', ['20241114T191006Z_DDDDF_b_0007.fits'])
 def test_combining_flat_streams(caplog, path_to_inputs, DFFFD_file, FDDDF_file):
@@ -149,12 +149,11 @@ def test_combining_flat_streams(caplog, path_to_inputs, DFFFD_file, FDDDF_file):
     assert len(adtest) == 1
 
     np.testing.assert_array_equal(
-        adtest[0].data[0],
-        np.max([ad_DFFFD.data[0], ad_FDDDF.data[0]], axis=0)
+        adtest[0].data[0], np.max([ad_DFFFD.data[0], ad_FDDDF.data[0]], axis=0)
     )
     np.testing.assert_allclose(
         adtest[0].variance[0],
-        np.max([p_var[0].variance[0], p_var[1].variance[0]], axis=0)
+        np.max([p_var[0].variance[0], p_var[1].variance[0]], axis=0),
     )
 
 
@@ -168,27 +167,31 @@ def create_inputs():
     from astrodata.testing import download_from_archive
 
     input_path = os.path.join(
-        os.environ["DRAGONS_TEST"], "maroonxdr", "maroonx",
-        "image", "test_file_sorting", "inputs"
+        os.environ['DRAGONS_TEST'],
+        'maroonxdr',
+        'maroonx',
+        'image',
+        'test_file_sorting',
+        'inputs',
     )
     os.makedirs(input_path, exist_ok=True)
 
     # Download bundles and run splitBundle to produce debundled files
     for filename in bundles_needed:
-        print(f"  Downloading {filename}")
+        print(f'  Downloading {filename}')
         raw_path = download_from_archive(filename)
         ad = astrodata.open(raw_path)
         p = MAROONX([ad])
         split_ads = p.splitBundle()
         for ad_arm in split_ads:
             ad_arm.write(os.path.join(input_path, ad_arm.filename), overwrite=True)
-            print(f"  Wrote {ad_arm.filename} to {input_path}")
+            print(f'  Wrote {ad_arm.filename} to {input_path}')
 
 
 if __name__ == '__main__':
     import sys
 
-    if "--create-inputs" in sys.argv[1:]:
+    if '--create-inputs' in sys.argv[1:]:
         create_inputs()
     else:
         pytest.main()

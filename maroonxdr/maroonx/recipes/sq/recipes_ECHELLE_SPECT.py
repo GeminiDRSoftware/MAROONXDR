@@ -7,6 +7,7 @@ Default is "reduce".
 recipe_tags = {'MAROONX', 'SCI'}
 blocked_tags = {'BUNDLE'}
 
+
 def reduce(p):
     """
     Process MAROON-X science echelle spectrum with tracing and extraction.
@@ -42,9 +43,7 @@ def reduce(p):
     p.overscanCorrect()
     p.correctImageOrientation()
     p.addVAR(read_noise=True, poisson_noise=True)
-    p.extractStripes(
-        dark_subtraction_skip_fibers=[5], straylight_removal_fibers=[5]
-    )
+    p.extractStripes(dark_subtraction_skip_fibers=[5], straylight_removal_fibers=[5])
     p.optimalExtraction()
     p.getPeaksAndPolynomials(fibers=(5,), multithreading=True)
     p.staticWavelengthSolution()
@@ -55,6 +54,7 @@ def reduce(p):
 
 
 _default = reduce
+
 
 def makeStripeExtractionCheck(p):
     """
@@ -82,7 +82,7 @@ def makeStripeExtractionCheck(p):
     p.extractStripes(
         dark_subtraction_skip_fibers=[5],
         straylight_removal_fibers=[5],
-        test_extraction=True
+        test_extraction=True,
     )
     p.storeProcessedScience(suffix='_test_stripes')
 
@@ -104,7 +104,7 @@ def makeSyntheticDark(p):
     p.addVAR(read_noise=True, poisson_noise=True)
 
     p.createSyntheticDark()
-    p.storeProcessedDark(suffix="_synth_dark")
+    p.storeProcessedDark(suffix='_synth_dark')
 
 
 def exportReducedBundle(p):

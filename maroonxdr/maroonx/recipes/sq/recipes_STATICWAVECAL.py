@@ -7,6 +7,7 @@ Default is "reduce".
 recipe_tags = {'MAROONX', 'WAVECAL', 'ThAr'}
 blocked_tags = {'BUNDLE'}
 
+
 def makeStaticWavecal(p):
     """
     Process Thorium Argon and etalon spectra for static wavelength solution.
@@ -36,5 +37,5 @@ def makeStaticWavecal(p):
     #
     p.storeProcessedArc(suffix='_static_wavecal')
 
-_default = makeStaticWavecal
 
+_default = makeStaticWavecal

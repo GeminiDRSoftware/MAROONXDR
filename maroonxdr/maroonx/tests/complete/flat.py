@@ -23,9 +23,9 @@ from maroonxdr.maroonx.tests.test_utils import change_cwd_context
 
 
 def _get_dragons_test():
-    p = os.environ.get("DRAGONS_TEST")
+    p = os.environ.get('DRAGONS_TEST')
     if p is None:
-        raise RuntimeError("DRAGONS_TEST environment variable not set")
+        raise RuntimeError('DRAGONS_TEST environment variable not set')
     return Path(p)
 
 
@@ -38,9 +38,9 @@ def complete_masterflat_reduction():
     all_files = sorted(str(p) for p in preprocessed_dir.glob('*.fits'))
 
     with change_cwd_context(preprocessed_dir):
-        logutils.config(file_name="test_flat.log", stomp=False)
-        log = logutils.get_logger("test_flat.log")
-        log.setLevel("DEBUG")
+        logutils.config(file_name='test_flat.log', stomp=False)
+        log = logutils.get_logger('test_flat.log')
+        log.setLevel('DEBUG')
 
         for arm in ['BLUE', 'RED']:
             only_flats = dataselect.select_data(all_files, tags=['RAW', 'FLAT', arm])
@@ -61,12 +61,14 @@ def complete_blaze_reduction():
     all_files = sorted(str(p) for p in preprocessed_dir.glob('*.fits'))
 
     with change_cwd_context(preprocessed_dir):
-        logutils.config(file_name="test_flat.log", stomp=False)
-        log = logutils.get_logger("test_flat.log")
-        log.setLevel("DEBUG")
+        logutils.config(file_name='test_flat.log', stomp=False)
+        log = logutils.get_logger('test_flat.log')
+        log.setLevel('DEBUG')
 
         for arm in ['BLUE', 'RED']:
-            selected_mflats = dataselect.select_data(all_files, tags=['PROCESSED', 'FLAT', arm])
+            selected_mflats = dataselect.select_data(
+                all_files, tags=['PROCESSED', 'FLAT', arm]
+            )
             myreduce = Reduce()
             myreduce.files.extend(selected_mflats)
             myreduce.drpkg = 'maroonxdr'
@@ -79,13 +81,13 @@ def complete_straylight_prep():
     dragons_test = _get_dragons_test()
     preprocessed_dir = dragons_test / 'preprocessed_files'
 
-    fdddf_file = str(preprocessed_dir / "20241114T190714Z_DDDDF_b_0007.fits")
-    dfffd_file = str(preprocessed_dir / "20241114T182328Z_DFFFD_b_0008.fits")
+    fdddf_file = str(preprocessed_dir / '20241114T190714Z_DDDDF_b_0007.fits')
+    dfffd_file = str(preprocessed_dir / '20241114T182328Z_DFFFD_b_0008.fits')
 
     with change_cwd_context(preprocessed_dir):
-        logutils.config(file_name="test_flat.log", stomp=False)
-        log = logutils.get_logger("test_flat.log")
-        log.setLevel("DEBUG")
+        logutils.config(file_name='test_flat.log', stomp=False)
+        log = logutils.get_logger('test_flat.log')
+        log.setLevel('DEBUG')
 
         myreduce = Reduce()
         myreduce.files.extend([dfffd_file, fdddf_file])
@@ -102,28 +104,44 @@ def populate_inputs():
     base = dragons_test / 'maroonxdr' / 'maroonx'
 
     # image/test_stripe_finding — needs master flat (red)
-    _copy_files(src, base / 'image' / 'test_stripe_finding' / 'inputs', [
-        '20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits',
-    ])
+    _copy_files(
+        src,
+        base / 'image' / 'test_stripe_finding' / 'inputs',
+        [
+            '20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits',
+        ],
+    )
 
     # image/test_stray_light_removal — needs straylight flats
     # straylight prep writes to both preprocessed_files/ and calibrations/
     stray_dst = base / 'image' / 'test_stray_light_removal' / 'inputs'
-    _copy_files(src, stray_dst, [
-        '20241114T182328Z_DFFFD_b_0008_straylight_flat.fits',
-        '20241114T190714Z_DDDDF_b_0007_straylight_flat.fits',
-    ])
+    _copy_files(
+        src,
+        stray_dst,
+        [
+            '20241114T182328Z_DFFFD_b_0008_straylight_flat.fits',
+            '20241114T190714Z_DDDDF_b_0007_straylight_flat.fits',
+        ],
+    )
     # fallback: check calibrations/ if not in main dir
-    _copy_files(cal_src, stray_dst, [
-        '20241114T182328Z_DFFFD_b_0008_straylight_flat.fits',
-        '20241114T190714Z_DDDDF_b_0007_straylight_flat.fits',
-    ])
+    _copy_files(
+        cal_src,
+        stray_dst,
+        [
+            '20241114T182328Z_DFFFD_b_0008_straylight_flat.fits',
+            '20241114T190714Z_DDDDF_b_0007_straylight_flat.fits',
+        ],
+    )
 
     # echelle_extraction/test_measure_blaze — needs master flats (both arms)
-    _copy_files(src, base / 'echelle_extraction' / 'test_measure_blaze' / 'inputs', [
-        '20241114T190714Z_DDDDF_b_0007_DFFFF_flat.fits',
-        '20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits',
-    ])
+    _copy_files(
+        src,
+        base / 'echelle_extraction' / 'test_measure_blaze' / 'inputs',
+        [
+            '20241114T190714Z_DDDDF_b_0007_DFFFF_flat.fits',
+            '20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits',
+        ],
+    )
 
 
 def _copy_files(src_dir, dst_dir, filenames):
@@ -133,9 +151,9 @@ def _copy_files(src_dir, dst_dir, filenames):
         src_file = src_dir / f
         if src_file.exists():
             shutil.copy2(src_file, dst_dir / f)
-            print(f"  Copied {f} -> {dst_dir}")
+            print(f'  Copied {f} -> {dst_dir}')
         else:
-            print(f"  WARNING: {src_file} not found, skipping")
+            print(f'  WARNING: {src_file} not found, skipping')
 
 
 if __name__ == '__main__':
@@ -147,5 +165,5 @@ if __name__ == '__main__':
 
     complete_straylight_prep()
 
-    if "--populate-inputs" in sys.argv[1:]:
+    if '--populate-inputs' in sys.argv[1:]:
         populate_inputs()

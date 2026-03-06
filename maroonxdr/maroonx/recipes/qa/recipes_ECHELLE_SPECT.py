@@ -7,6 +7,7 @@ Default is "reduce".
 recipe_tags = {'MAROONX', 'SCI'}
 blocked_tags = {'BUNDLE'}
 
+
 def reduceQA(p):
     """
     Process MAROON-X science echelle spectrum with interactive QA checkpoints.
@@ -43,7 +44,7 @@ def reduceQA(p):
     """
     p.prepare()
     p.addDQ()  # just placeholder until MX is in caldb
-    
+
     p.overscanCorrect()
     p.correctImageOrientation()
 
@@ -61,4 +62,3 @@ def reduceQA(p):
 
 
 _default = reduceQA
-

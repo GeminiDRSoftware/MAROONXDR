@@ -17,9 +17,9 @@ from maroonxdr.maroonx.tests.test_utils import change_cwd_context
 
 
 def _get_dragons_test():
-    p = os.environ.get("DRAGONS_TEST")
+    p = os.environ.get('DRAGONS_TEST')
     if p is None:
-        raise RuntimeError("DRAGONS_TEST environment variable not set")
+        raise RuntimeError('DRAGONS_TEST environment variable not set')
     return Path(p)
 
 
@@ -36,9 +36,9 @@ def complete_bundle_reduction():
 
     # Write debundled output to preprocessed_files/
     with change_cwd_context(output_dir):
-        logutils.config(file_name="test_bundle.log", stomp=False)
-        log = logutils.get_logger("test_bundle.log")
-        log.setLevel("DEBUG")
+        logutils.config(file_name='test_bundle.log', stomp=False)
+        log = logutils.get_logger('test_bundle.log')
+        log.setLevel('DEBUG')
 
         myreduce = Reduce()
         myreduce.files.extend(only_bundles)
@@ -56,28 +56,44 @@ def populate_inputs():
     # (bundle test create_inputs() downloads from archive directly)
 
     # image/test_file_sorting
-    _copy_files(src, base / 'image' / 'test_file_sorting' / 'inputs', [
-        '20241114T181028Z_DFFFD_r_0002.fits',
-        '20241114T181028Z_DFFFD_b_0008.fits',
-        '20241114T181815Z_DFFFD_b_0008.fits',
-        '20241114T191006Z_DDDDF_b_0007.fits',
-    ])
+    _copy_files(
+        src,
+        base / 'image' / 'test_file_sorting' / 'inputs',
+        [
+            '20241114T181028Z_DFFFD_r_0002.fits',
+            '20241114T181028Z_DFFFD_b_0008.fits',
+            '20241114T181815Z_DFFFD_b_0008.fits',
+            '20241114T191006Z_DDDDF_b_0007.fits',
+        ],
+    )
 
     # image/test_image_orientation_corrector
-    _copy_files(src, base / 'image' / 'test_image_orientation_corrector' / 'inputs', [
-        '20241114T181815Z_DFFFD_r_0002.fits',
-        '20241114T181959Z_DFFFD_b_0008.fits',
-    ])
+    _copy_files(
+        src,
+        base / 'image' / 'test_image_orientation_corrector' / 'inputs',
+        [
+            '20241114T181815Z_DFFFD_r_0002.fits',
+            '20241114T181959Z_DFFFD_b_0008.fits',
+        ],
+    )
 
     # image/test_ND_filter_check
-    _copy_files(src, base / 'image' / 'test_ND_filter_check' / 'inputs', [
-        '20241114T181028Z_DFFFD_r_0002.fits',
-    ])
+    _copy_files(
+        src,
+        base / 'image' / 'test_ND_filter_check' / 'inputs',
+        [
+            '20241114T181028Z_DFFFD_r_0002.fits',
+        ],
+    )
 
     # image/test_var
-    _copy_files(src, base / 'image' / 'test_var' / 'inputs', [
-        '20241115T194624Z_DDDDE_r_0300.fits',
-    ])
+    _copy_files(
+        src,
+        base / 'image' / 'test_var' / 'inputs',
+        [
+            '20241115T194624Z_DDDDE_r_0300.fits',
+        ],
+    )
 
 
 def _copy_files(src_dir, dst_dir, filenames):
@@ -87,9 +103,9 @@ def _copy_files(src_dir, dst_dir, filenames):
         src_file = src_dir / f
         if src_file.exists():
             shutil.copy2(src_file, dst_dir / f)
-            print(f"  Copied {f} -> {dst_dir}")
+            print(f'  Copied {f} -> {dst_dir}')
         else:
-            print(f"  WARNING: {src_file} not found, skipping")
+            print(f'  WARNING: {src_file} not found, skipping')
 
 
 if __name__ == '__main__':
@@ -97,5 +113,5 @@ if __name__ == '__main__':
 
     complete_bundle_reduction()
 
-    if "--populate-inputs" in sys.argv[1:]:
+    if '--populate-inputs' in sys.argv[1:]:
         populate_inputs()

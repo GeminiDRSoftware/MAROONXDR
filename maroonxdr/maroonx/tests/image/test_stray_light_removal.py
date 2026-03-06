@@ -12,8 +12,12 @@ from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 # -- Tests ---------------------------------------------------------------------
 @pytest.mark.slow
 @pytest.mark.preprocessed_data
-@pytest.mark.parametrize("DFFFD_file", ["20241114T182328Z_DFFFD_b_0008_straylight_flat.fits"])
-@pytest.mark.parametrize("FDDDF_file", ["20241114T190714Z_DDDDF_b_0007_straylight_flat.fits"])
+@pytest.mark.parametrize(
+    'DFFFD_file', ['20241114T182328Z_DFFFD_b_0008_straylight_flat.fits']
+)
+@pytest.mark.parametrize(
+    'FDDDF_file', ['20241114T190714Z_DDDDF_b_0007_straylight_flat.fits']
+)
 def test_stray_light_removal(caplog, path_to_inputs, DFFFD_file, FDDDF_file):
     """
     Test that removeStrayLight correctly removes the stray light across the frame.
@@ -40,15 +44,23 @@ def test_stray_light_removal(caplog, path_to_inputs, DFFFD_file, FDDDF_file):
     p.separateFlatStreams()
     p.findStripes()  # define stripe info to ultimately remove stray light in each stream
     p.findStripes(stream='DFFFD_flats')
-    p.identifyStripes(selected_fibers=[1,5])  # identify stripes based on MX architecture files
-    p.identifyStripes(stream='DFFFD_flats', selected_fibers=[2,3,4])
+    p.identifyStripes(
+        selected_fibers=[1, 5]
+    )  # identify stripes based on MX architecture files
+    p.identifyStripes(stream='DFFFD_flats', selected_fibers=[2, 3, 4])
     p.defineFlatStripes()  # defines pixel inclusion for each flat region based on stripe ids
     p.defineFlatStripes(stream='DFFFD_flats')
-    FDDDF_out = p.removeStrayLight(box_size = 20, filter_size = 19)  # remove straylight from frame (this is why 2 partial illumination flat sets are necessary)
+    FDDDF_out = p.removeStrayLight(
+        box_size=20, filter_size=19
+    )  # remove straylight from frame (this is why 2 partial illumination flat sets are necessary)
     DFFFD_out = p.removeStrayLight(stream='DFFFD_flats', box_size=20, filter_size=19)
 
-    assert (FDDDF_out[0].data - ad_FDDDF[0].data == ad_FDDDF[0].STRAYLIGHT_DIFFERENCE).all()
-    assert (DFFFD_out[0].data - ad_DFFFD[0].data == ad_DFFFD[0].STRAYLIGHT_DIFFERENCE).all()
+    assert (
+        FDDDF_out[0].data - ad_FDDDF[0].data == ad_FDDDF[0].STRAYLIGHT_DIFFERENCE
+    ).all()
+    assert (
+        DFFFD_out[0].data - ad_DFFFD[0].data == ad_DFFFD[0].STRAYLIGHT_DIFFERENCE
+    ).all()
 
 
 if __name__ == '__main__':

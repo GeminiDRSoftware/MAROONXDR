@@ -7,6 +7,7 @@ Default is "makeProcessedDark".
 recipe_tags = {'MAROONX', 'CAL', 'DARK'}
 blocked_tags = {'BUNDLE'}
 
+
 def makeProcessedDark(p):
     """
     Perform standardization and corrections to convert raw darks to processed.
@@ -46,6 +47,7 @@ def makeProcessedDark(p):
 
 _default = makeProcessedDark
 
+
 def makeDarkCoefficients(p):
     """
     Produce coefficient arrays 'z0' and 'z1' from pixel-by-pixel fit.
@@ -67,7 +69,7 @@ def makeDarkCoefficients(p):
     p.checkMaster()
 
     p.fitDarkCoefficients()
-    p.storeProcessedDark(suffix="_darkCoefficients")
+    p.storeProcessedDark(suffix='_darkCoefficients')
 
 
 def testVARDark(p):

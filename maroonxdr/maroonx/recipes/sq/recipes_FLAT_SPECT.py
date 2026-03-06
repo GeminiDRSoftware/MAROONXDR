@@ -9,6 +9,7 @@ Science.
 recipe_tags = {'MAROONX', 'CAL', 'FLAT'}
 blocked_tags = {'BUNDLE'}
 
+
 def makeProcessedFlat(p):
     """
     Perform standardization and corrections to convert raw flats to processed.
@@ -34,11 +35,11 @@ def makeProcessedFlat(p):
     p.subtractOverscan()
     p.trimOverscan()
     p.correctImageOrientation()
-    p.addVAR(read_noise=True,poisson_noise=True)
+    p.addVAR(read_noise=True, poisson_noise=True)
     # Creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
     p.separateFlatStreams()
     p.stackFlats(suffix='FDDDF_flats')
-    p.stackFlats(stream='DFFFD_flats',suffix='DFFFD')
+    p.stackFlats(stream='DFFFD_flats', suffix='DFFFD')
     # Define stripe info to ultimately remove stray light in each stream
     p.findStripes()
     p.findStripes(stream='DFFFD_flats')
@@ -54,7 +55,7 @@ def makeProcessedFlat(p):
 
     # Legacy patch for removeStrayLight
     # p.removeStrayLight_legacyPatch(stream='main', filter_size=19, box_size=20)
-    # p.removeStrayLight_legacyPatch(stream='DFFFD_flats', filter_size=19, box_size=20) 
+    # p.removeStrayLight_legacyPatch(stream='DFFFD_flats', filter_size=19, box_size=20)
 
     # Combine straylight-removed images
     p.combineFlatStreams(stream='main', stream_2='DFFFD_flats')
@@ -65,14 +66,16 @@ def makeProcessedFlat(p):
     p.findStripes()
     p.identifyStripes(selected_fibers=[1, 2, 3, 4, 5])
     p.defineFlatStripes(extract=True)
-    
+
     # Perform optimal extraction on flat field to create 1D spectra
     p.extractStripes()
     p.optimalExtraction(optimal_extraction_fibers=[2, 3, 4, 5])
 
     p.storeProcessedFlat(suffix='_FFFFF_flat')
 
+
 _default = makeProcessedFlat
+
 
 def makeStrayLightCheck(p):
     """
@@ -98,7 +101,7 @@ def makeStrayLightCheck(p):
     p.subtractOverscan()
     p.trimOverscan()
     p.correctImageOrientation()
-    p.addVAR(read_noise=True,poisson_noise=True)
+    p.addVAR(read_noise=True, poisson_noise=True)
     # Creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
     p.separateFlatStreams()
     p.stackFlats(suffix='FDDDF_flats')
@@ -114,11 +117,10 @@ def makeStrayLightCheck(p):
     p.defineFlatStripes(stream='DFFFD_flats')
     # Remove straylight (requires 2 partial illumination flat sets)
     p.removeStrayLight(snapshot=True, filter_size=19, box_size=20)
-    p.removeStrayLight(
-        stream='DFFFD_flats', snapshot=True, filter_size=19, box_size=20
-    )
+    p.removeStrayLight(stream='DFFFD_flats', snapshot=True, filter_size=19, box_size=20)
     p.storeProcessedFlat(stream='DFFFD_flats', suffix='_straylight_flat')
     p.storeProcessedFlat(suffix='_straylight_flat')
+
 
 def makeFlatVarCheck(p):
     """
@@ -144,7 +146,7 @@ def makeFlatVarCheck(p):
     p.subtractOverscan()
     p.trimOverscan()
     p.correctImageOrientation()
-    p.addVAR(read_noise=True,poisson_noise=True)
+    p.addVAR(read_noise=True, poisson_noise=True)
     # Creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
     p.separateFlatStreams()
     p.stackFlats(stream='DFFFD_flats', suffix='DFFFD')
@@ -221,10 +223,11 @@ def makeProcessedFlatDFFFF(p):
 
     # Re-run find/identify/define routine on combined frame
     p.findStripes()
-    p.identifyStripes(selected_fibers=[2,3,4,5])
+    p.identifyStripes(selected_fibers=[2, 3, 4, 5])
     p.defineFlatStripes(extract=True)
-    
+
     p.storeProcessedFlat(suffix='_DFFFF_flat')
+
 
 def measureBlaze(p):
     """

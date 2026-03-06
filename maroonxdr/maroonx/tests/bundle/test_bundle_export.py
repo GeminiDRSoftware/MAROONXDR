@@ -1,6 +1,7 @@
 """
 Test suite for bundle export primitives and recipe.
 """
+
 import logging
 import os
 
@@ -10,9 +11,8 @@ import pytest
 import maroonx_instruments  # noqa - import is necessary for astrodata
 from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
 
-
 # -- Test datasets -------------------------------------------------------------
-test_datasets = ["N20241114M3271.fits"]
+test_datasets = ['N20241114M3271.fits']
 
 
 # -- Tests ---------------------------------------------------------------------
@@ -82,12 +82,12 @@ def test_separate_and_bundle_arms(caplog, path_to_inputs, filename):
     assert 'RED' in bundled_arms, 'Bundle should contain RED arm'
 
     # Verify ORIGNAME is set correctly
-    assert bundle_ad.phu.get('ORIGNAME') == original_filename, \
-        'ORIGNAME should be original filename'
+    assert (
+        bundle_ad.phu.get('ORIGNAME') == original_filename
+    ), 'ORIGNAME should be original filename'
 
     # Verify ARCHNAME was removed (it's now the filename)
-    assert 'ARCHNAME' not in bundle_ad.phu, \
-        'ARCHNAME should be removed after bundling'
+    assert 'ARCHNAME' not in bundle_ad.phu, 'ARCHNAME should be removed after bundling'
 
 
 @pytest.mark.parametrize('filename', test_datasets)
@@ -143,28 +143,33 @@ def create_inputs():
     Run with: python -m maroonxdr.maroonx.tests.bundle.test_bundle_export --create-inputs
     """
     import shutil
+
     from astrodata.testing import download_from_archive
 
     input_path = os.path.join(
-        os.environ["DRAGONS_TEST"], "maroonxdr", "maroonx",
-        "bundle", "test_bundle_export", "inputs"
+        os.environ['DRAGONS_TEST'],
+        'maroonxdr',
+        'maroonx',
+        'bundle',
+        'test_bundle_export',
+        'inputs',
     )
     os.makedirs(input_path, exist_ok=True)
 
     # Download raw files to default raw_files/ cache
     for filename in test_datasets:
-        print(f"  Downloading {filename}")
+        print(f'  Downloading {filename}')
         raw_path = download_from_archive(filename)
 
         # No preprocessing needed — raw bundles are the test inputs
         shutil.copy2(raw_path, os.path.join(input_path, filename))
-        print(f"  Copied to {input_path}")
+        print(f'  Copied to {input_path}')
 
 
 if __name__ == '__main__':
     import sys
 
-    if "--create-inputs" in sys.argv[1:]:
+    if '--create-inputs' in sys.argv[1:]:
         create_inputs()
     else:
         pytest.main([__file__, '-v'])

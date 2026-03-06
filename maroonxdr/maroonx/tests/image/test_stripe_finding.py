@@ -13,7 +13,7 @@ from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 # -- Tests ---------------------------------------------------------------------
 @pytest.mark.slow
 @pytest.mark.preprocessed_data
-@pytest.mark.parametrize("filename", ["20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits"])
+@pytest.mark.parametrize('filename', ['20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits'])
 def test_find_stripes(caplog, path_to_inputs, filename):
     """
     Test that the findStripe routine works to identify all stripes that have
@@ -37,8 +37,7 @@ def test_find_stripes(caplog, path_to_inputs, filename):
     adtest = p.findStripes()
     all_known_stripes = np.array([])
     for keys in ad[0].STRIPES_ID.keys():
-        all_known_stripes = np.append(all_known_stripes,
-                                      ad[0].STRIPES_ID[keys].data)
+        all_known_stripes = np.append(all_known_stripes, ad[0].STRIPES_ID[keys].data)
     missing_stripes = 0
     for found_stripe in adtest[0][0].STRIPES_LOC:
         if not _stripe_in_known(all_known_stripes, found_stripe.c):
@@ -50,7 +49,7 @@ def test_find_stripes(caplog, path_to_inputs, filename):
 
 @pytest.mark.slow
 @pytest.mark.preprocessed_data
-@pytest.mark.parametrize("filename", ["20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits"])
+@pytest.mark.parametrize('filename', ['20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits'])
 def test_identify_stripes(caplog, path_to_inputs, filename):
     """
     Test that the identifyStripe routine works to give order and number
@@ -79,25 +78,28 @@ def test_identify_stripes(caplog, path_to_inputs, filename):
     p.findStripes()
     adtest = p.identifyStripes(selected_fibers=[int(fib) for fib in selected_fibers])
     for ifib, fib in enumerate(selected_fibers):
-        fiber = 'fiber_'+fib
+        fiber = 'fiber_' + fib
         idx = ifib * 6
         assert fiber in adtest[0][0].STRIPES_ID.keys()
 
         for order in ad[0].STRIPES_ID.keys():
-            if np.isnan(ad[0].STRIPES_ID[order][idx:idx+6].data).all():
+            if np.isnan(ad[0].STRIPES_ID[order][idx : idx + 6].data).all():
                 assert order not in adtest[0][0].STRIPES_ID[fiber]
             else:
-                assert (adtest[0][0].STRIPES_ID[fiber][order] ==
-                        ad[0].STRIPES_ID[order][idx:idx+6].data).all()
+                assert (
+                    adtest[0][0].STRIPES_ID[fiber][order]
+                    == ad[0].STRIPES_ID[order][idx : idx + 6].data
+                ).all()
 
     assert len(caplog.records) > 0
-    assert sum("could not be identified" in r.message for r in caplog.records) \
-           == len(ad[0].REMOVED_STRIPES)
+    assert sum('could not be identified' in r.message for r in caplog.records) == len(
+        ad[0].REMOVED_STRIPES
+    )
 
 
 @pytest.mark.slow
 @pytest.mark.preprocessed_data
-@pytest.mark.parametrize("filename", ["20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits"])
+@pytest.mark.parametrize('filename', ['20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits'])
 def test_full_stripe_definition(caplog, path_to_inputs, filename):
     """
     Test that the same exact stripes are found in reference masterflat frame

@@ -23,9 +23,9 @@ from maroonxdr.maroonx.tests.test_utils import change_cwd_context
 
 
 def _get_dragons_test():
-    p = os.environ.get("DRAGONS_TEST")
+    p = os.environ.get('DRAGONS_TEST')
     if p is None:
-        raise RuntimeError("DRAGONS_TEST environment variable not set")
+        raise RuntimeError('DRAGONS_TEST environment variable not set')
     return Path(p)
 
 
@@ -38,17 +38,17 @@ def complete_masterdark_reduction():
     all_files = sorted(str(p) for p in preprocessed_dir.glob('*.fits'))
 
     with change_cwd_context(preprocessed_dir):
-        logutils.config(file_name="test_dark.log", stomp=False)
-        log = logutils.get_logger("test_dark.log")
-        log.setLevel("DEBUG")
+        logutils.config(file_name='test_dark.log', stomp=False)
+        log = logutils.get_logger('test_dark.log')
+        log.setLevel('DEBUG')
 
         arms = ['BLUE', 'RED']
-        exptimes = ["60s", "120s", "300s", "600s", "900s", "1200s", "1800s"]
+        exptimes = ['60s', '120s', '300s', '600s', '900s', '1200s', '1800s']
 
         for exptime, arm in it.product(exptimes, arms):
-
             only_darks = dataselect.select_data(
-                all_files, tags=['RAW', 'DARK', arm, exptime])
+                all_files, tags=['RAW', 'DARK', arm, exptime]
+            )
 
             myreduce = Reduce()
             myreduce.files.extend(only_darks)
@@ -65,14 +65,16 @@ def complete_dark_coeff_reduction():
     all_files = sorted(str(p) for p in preprocessed_dir.glob('*.fits'))
 
     with change_cwd_context(preprocessed_dir):
-        logutils.config(file_name="test_dark.log", stomp=False)
-        log = logutils.get_logger("test_dark.log")
-        log.setLevel("DEBUG")
+        logutils.config(file_name='test_dark.log', stomp=False)
+        log = logutils.get_logger('test_dark.log')
+        log.setLevel('DEBUG')
 
         for arm in ['BLUE', 'RED']:
-
-            only_darks = dataselect.select_data(all_files,
-                tags=['PROCESSED', 'DARK', arm], xtags=['DARK_COEFF', 'DARK_SYNTH'])
+            only_darks = dataselect.select_data(
+                all_files,
+                tags=['PROCESSED', 'DARK', arm],
+                xtags=['DARK_COEFF', 'DARK_SYNTH'],
+            )
 
             myreduce = Reduce()
             myreduce.files.extend(only_darks)
@@ -82,7 +84,6 @@ def complete_dark_coeff_reduction():
 
 
 if __name__ == '__main__':
-
     complete_masterdark_reduction()
 
     complete_dark_coeff_reduction()

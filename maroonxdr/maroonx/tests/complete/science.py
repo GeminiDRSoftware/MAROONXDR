@@ -25,10 +25,11 @@ from maroonxdr.maroonx.tests.test_utils import change_cwd_context
 
 
 def _get_dragons_test():
-    p = os.environ.get("DRAGONS_TEST")
+    p = os.environ.get('DRAGONS_TEST')
     if p is None:
-        raise RuntimeError("DRAGONS_TEST environment variable not set")
+        raise RuntimeError('DRAGONS_TEST environment variable not set')
     return Path(p)
+
 
 def complete_synthetic_darks_reduction():
     """Test reduction of synthetic darks for science frames."""
@@ -67,8 +68,9 @@ def complete_science_reduction():
         # log.setLevel("DEBUG")
 
         for arm in ['BLUE', 'RED']:
-            only_science = dataselect.select_data(all_files,
-                tags=['RAW', 'SCI', arm, '300s'])
+            only_science = dataselect.select_data(
+                all_files, tags=['RAW', 'SCI', arm, '300s']
+            )
 
             myreduce = Reduce()
             myreduce.files.extend(only_science)
@@ -85,17 +87,24 @@ def populate_inputs():
     # TODO: populate synth dark inputs
 
     # echelle_extraction/test_extraction
-    _copy_files(src, base / 'echelle_extraction' / 'test_extraction' / 'inputs', [
-        '20241124T041907Z_SOOOE_r_0300_reduced.fits',
-        '20241124T041907Z_SOOOE_b_0300_reduced.fits',
-    ])
+    _copy_files(
+        src,
+        base / 'echelle_extraction' / 'test_extraction' / 'inputs',
+        [
+            '20241124T041907Z_SOOOE_r_0300_reduced.fits',
+            '20241124T041907Z_SOOOE_b_0300_reduced.fits',
+        ],
+    )
 
     # echelle_extraction/test_stripe_retrieval
-    _copy_files(src, base / 'echelle_extraction' / 'test_stripe_retrieval' / 'inputs', [
-        '20241124T041907Z_SOOOE_r_0300_test_stripes.fits',
-        '20241124T041907Z_SOOOE_b_0300_test_stripes.fits',
-    ])
-
+    _copy_files(
+        src,
+        base / 'echelle_extraction' / 'test_stripe_retrieval' / 'inputs',
+        [
+            '20241124T041907Z_SOOOE_r_0300_test_stripes.fits',
+            '20241124T041907Z_SOOOE_b_0300_test_stripes.fits',
+        ],
+    )
 
 
 def _copy_files(src_dir, dst_dir, filenames):
@@ -105,9 +114,9 @@ def _copy_files(src_dir, dst_dir, filenames):
         src_file = src_dir / f
         if src_file.exists():
             shutil.copy2(src_file, dst_dir / f)
-            print(f"  Copied {f} -> {dst_dir}")
+            print(f'  Copied {f} -> {dst_dir}')
         else:
-            print(f"  WARNING: {src_file} not found, skipping")
+            print(f'  WARNING: {src_file} not found, skipping')
 
 
 if __name__ == '__main__':
@@ -116,5 +125,5 @@ if __name__ == '__main__':
     complete_synthetic_darks_reduction()
     complete_science_reduction()
 
-    if "--populate-inputs" in sys.argv[1:]:
+    if '--populate-inputs' in sys.argv[1:]:
         populate_inputs()

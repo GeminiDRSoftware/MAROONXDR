@@ -22,9 +22,9 @@ from maroonxdr.maroonx.tests.test_utils import change_cwd_context
 
 
 def _get_dragons_test():
-    p = os.environ.get("DRAGONS_TEST")
+    p = os.environ.get('DRAGONS_TEST')
     if p is None:
-        raise RuntimeError("DRAGONS_TEST environment variable not set")
+        raise RuntimeError('DRAGONS_TEST environment variable not set')
     return Path(p)
 
 
@@ -37,12 +37,14 @@ def complete_wavecal_reduction():
     all_files = sorted(str(p) for p in preprocessed_dir.glob('*.fits'))
 
     with change_cwd_context(preprocessed_dir):
-        logutils.config(file_name="test_wavecal.log", stomp=False)
-        log = logutils.get_logger("test_wavecal.log")
-        log.setLevel("DEBUG")
+        logutils.config(file_name='test_wavecal.log', stomp=False)
+        log = logutils.get_logger('test_wavecal.log')
+        log.setLevel('DEBUG')
 
         for arm in ['BLUE', 'RED']:
-            only_wavecal = dataselect.select_data(all_files, tags=['RAW', 'WAVECAL', arm])
+            only_wavecal = dataselect.select_data(
+                all_files, tags=['RAW', 'WAVECAL', arm]
+            )
 
             myreduce = Reduce()
             myreduce.files.extend(only_wavecal)
@@ -57,9 +59,13 @@ def populate_inputs():
     base = dragons_test / 'maroonxdr' / 'maroonx'
 
     # echelle_extraction/test_wavecal
-    _copy_files(src, base / 'echelle_extraction' / 'test_wavecal' / 'inputs', [
-        '20241124T030227Z_DEEEE_b_0030_wavecal.fits',
-    ])
+    _copy_files(
+        src,
+        base / 'echelle_extraction' / 'test_wavecal' / 'inputs',
+        [
+            '20241124T030227Z_DEEEE_b_0030_wavecal.fits',
+        ],
+    )
 
 
 def _copy_files(src_dir, dst_dir, filenames):
@@ -69,9 +75,9 @@ def _copy_files(src_dir, dst_dir, filenames):
         src_file = src_dir / f
         if src_file.exists():
             shutil.copy2(src_file, dst_dir / f)
-            print(f"  Copied {f} -> {dst_dir}")
+            print(f'  Copied {f} -> {dst_dir}')
         else:
-            print(f"  WARNING: {src_file} not found, skipping")
+            print(f'  WARNING: {src_file} not found, skipping')
 
 
 if __name__ == '__main__':
@@ -79,5 +85,5 @@ if __name__ == '__main__':
 
     complete_wavecal_reduction()
 
-    if "--populate-inputs" in sys.argv[1:]:
+    if '--populate-inputs' in sys.argv[1:]:
         populate_inputs()
