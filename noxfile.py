@@ -30,7 +30,8 @@ OBSDB_URL = (
 )
 
 # Meeting with Paul H. indicated that fits_storage is needed
-FITSS_URL = R'https://github.com/GeminiDRSoftware/FitsStorage'
+# DRAGONS master (commit 22f4d9ff9) requires FitsStorage >= 3.4.0b1
+FITSS_URL = R'https://github.com/GeminiDRSoftware/FitsStorage.git@v3.4.0b1'
 
 
 DRAGONS_BRANCH = 'master'
@@ -118,17 +119,14 @@ def install_dragons(session: nox.Session, python: Path | None = None):
             '-m',
             'pip',
             'install',
-            f'git+{CALMGR_URL}',
-            f'git+{OBSDB_URL}',
+            f'git+{FITSS_URL}',
             external=True,
         )
 
         return
 
     session.install('-e', str(dragons_path))
-    session.install(f'git+{CALMGR_URL}', f'git+{OBSDB_URL}')
-    # TODO: fix fits_storage installation
-    # session.install(f'git+{FITSS_URL}')
+    session.install(f'git+{FITSS_URL}')
 
 
 def get_dependencies(session: nox.Session, only: str = '') -> list[str]:

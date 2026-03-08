@@ -7,9 +7,11 @@ from . import parameters_calibdb_maroonx
 from recipe_system.utils.decorators import parameter_override
 
 # Extend REQUIRED_TAG_DICT with MaroonX-specific calibration types
+# this should be removed once MaroonX is integrated in DRAGONS
 from recipe_system.cal_service.caldb import REQUIRED_TAG_DICT
 try:
     REQUIRED_TAG_DICT['processed_wavecal'] = ['PROCESSED', 'WAVECAL']
+    REQUIRED_TAG_DICT['processed_dark_coeff'] = ['PROCESSED', 'DARK_COEFF']
 except (TypeError, AttributeError):
     # Handle mocked environment (e.g., during documentation builds)
     pass
@@ -30,6 +32,12 @@ class CalibDBMAROONX(CalibDB):
         self._param_update(parameters_calibdb_maroonx)
 
 
+    def getProcessedDarkCoeff(self, adinputs=None, **params):
+        procmode = 'sq' if self.mode == 'sq' else None
+        cals = self.caldb.get_processed_dark_coeff(adinputs, procmode=procmode)
+        self._assert_calibrations(adinputs, cals)
+        return adinputs
+
     def getProcessedWavecal(self, adinputs=None, **params):
         procmode = 'sq' if self.mode == 'sq' else None
         cals = self.caldb.get_processed_wavecal(adinputs, procmode=procmode)
@@ -37,6 +45,15 @@ class CalibDBMAROONX(CalibDB):
         return adinputs
 
     # =========================== STORE PRIMITIVES =================================
+    def storeProcessedDarkCoeff(self, adinputs=None, suffix=None, force=False):
+        caltype = 'processed_dark_coeff'
+        self.log.debug(gt.log_message("primitive", self.myself(), "starting"))
+
+        adinputs = self._markAsCalibration(adinputs, suffix=suffix, update_datalab=True,
+                                    primname=self.myself(), keyword="PRDKCOEF")
+        self.storeCalibration(adinputs, caltype=caltype)
+        return adinputs
+
     def storeProcessedWavecal(self, adinputs=None, suffix=None, force=False):
         caltype = 'processed_wavecal'
         self.log.debug(gt.log_message("primitive", self.myself(), "starting"))

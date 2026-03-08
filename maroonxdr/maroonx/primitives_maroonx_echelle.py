@@ -159,11 +159,19 @@ class MAROONXEchelle(MAROONX, Spect):
         dark_coeff = params['dark_coeff']
         individual = params['individual']
 
+        # Resolve dark_coeff: use parameter or fall back to caldb
+        if dark_coeff is None:
+            dark_coeff_list = self.caldb.get_processed_dark_coeff(adinputs)
+        else:
+            dark_coeff_list = (dark_coeff, None)
+
         # Cache for storing created darks when individual=False
         dark_cache = {}
         adoutputs = []
 
-        for ad in adinputs:
+        for ad, dark_coeff_ad, _ in zip(
+            *gt.make_lists(adinputs, *dark_coeff_list, force_ad=(1,))
+        ):
             exptime = ad.exposure_time()
             nd_filter = ad.filter_orientation()['ND']
             arm_tag = 'BLUE' if 'BLUE' in ad.tags else 'RED'
@@ -177,11 +185,6 @@ class MAROONXEchelle(MAROONX, Spect):
             synthetic_dark_data = None
 
             if cache_key not in dark_cache:
-                # Create new synthetic dark
-                if dark_coeff is None:
-                    dark_coeff_ad = _get_calibration_dark_coeff(arm_tag)
-                else:
-                    dark_coeff_ad = dark_coeff
 
                 if dark_coeff_ad is not None:
                     # Validate inputs
@@ -316,27 +319,20 @@ class MAROONXEchelle(MAROONX, Spect):
         Reinterpreting the flat reference it iterates over all stripes in the
         image and saves a sparse matrix for each stripe.
 
-        TODO: In current format (without caldb assistance) processed flats need to be
-        manually hardcoded.
-        When MX data is brought into GOA and Caldb, can replace with calls, should
-        use caldb argument to figure out which arm is needed instead of here
-
         Parameters
         ----------
         adinputs : list of AstroData
             Input science frames
         suffix : str
             Suffix to be added to output files
-        flat : AstroData, optional
-            Adinput of relevant processed flat, as processed, will have
-            the STRIPES_ID and STRIPES_FIBERS extensions needed
+        flat : str or AstroData, optional
+            Processed flat frame. If None, queries the calibration database.
+        dark : str or AstroData, optional
+            Processed dark frame. If None, queries the calibration database.
         dark_subtraction_skip_fibers : list of int, optional
             Fiber numbers (1-5) to skip dark frame subtraction.
-            If dark given, which individual fibers dark
-            subtraction should be skipped
         straylight_removal_fibers : list of int, optional
             Fiber numbers (1-5) for which straylight will be removed.
-            Which individual fibers straylight will be removed
         slit_height : int
             Total slit height in px
         test_extraction : bool
@@ -345,9 +341,6 @@ class MAROONXEchelle(MAROONX, Spect):
             FITS-readable format (STRIPES, F_STRIPES, STRIPES_MASK)
         report : bool
             Passed along to the straylight removal primitive.
-        individual : bool
-            If False uses one calib call for all frames per arm,
-            if True performs a calib call for each frame
 
         Returns
         -------
@@ -362,6 +355,8 @@ class MAROONXEchelle(MAROONX, Spect):
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
         timestamp_key = self.timestamp_keys[self.myself()]
 
+        flat = params.get('flat')
+        dark = params.get('dark')
         dark_subtraction_skip_fibers = params.get('dark_subtraction_skip_fibers', None)
         straylight_removal_fibers = params.get('straylight_removal_fibers', None)
         slit_height = params['slit_height']
@@ -376,14 +371,35 @@ class MAROONXEchelle(MAROONX, Spect):
             # skip all
             straylight_removal_fibers = []
 
-        flats = _get_calibration_flat(adinputs)
-        log.fullinfo(f'Flats matched to science frames: {[f.filename for f in flats]}')
-        darks = _get_calibration_dark(adinputs)
-        log.fullinfo(
-            f'Darks matched to science frames: {[d.filename if d else None for d in darks]}'
-        )
+        # When the input is itself a processed flat (e.g. measureBlaze),
+        # use it as its own flat calibration and skip dark lookup.
+        input_is_flat = {'PROCESSED', 'FLAT'}.issubset(adinputs[0].tags)
 
-        for ad, flat_ad, dark_ad in zip(*gt.make_lists(adinputs, flats, darks)):
+        # Resolve calibrations: use parameter or fall back to caldb
+        if flat is None:
+            if input_is_flat:
+                flat_list = (adinputs, None)
+            else:
+                flat_list = self.caldb.get_processed_flat(adinputs)
+        else:
+            flat_list = (flat, None)
+
+        if dark is None:
+            if input_is_flat:
+                dark_list = (None, None)
+            else:
+                dark_list = self.caldb.get_processed_dark(adinputs)
+        else:
+            dark_list = (dark, None)
+
+        for ad, flat_ad, _, dark_ad, _ in zip(
+            *gt.make_lists(adinputs, *flat_list, *dark_list, force_ad=(1, 3))
+        ):
+            if flat_ad is None:
+                raise RuntimeError(
+                    f"No processed flat listed for {ad.filename}"
+                )
+
             dark_fn = getattr(dark_ad, 'filename', None)
             log.fullinfo(f'{ad.filename} : {flat_ad.filename} : {dark_fn}')
 
@@ -563,6 +579,7 @@ class MAROONXEchelle(MAROONX, Spect):
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
         timestamp_key = self.timestamp_keys[self.myself()]
 
+        dark = params.get('dark')
         optimal_extraction_fibers = params.get('optimal_extraction_fibers', None)
         back_var = params.get('back_var', None)
         full_output = params['full_output']
@@ -581,9 +598,15 @@ class MAROONXEchelle(MAROONX, Spect):
         optimal_reduced_2d_arrays = {}
         extracted_bpms = {}
 
-        darks = _get_calibration_dark(adinputs)
+        # Resolve dark: use parameter or fall back to caldb
+        if dark is None:
+            dark_list = self.caldb.get_processed_dark(adinputs)
+        else:
+            dark_list = (dark, None)
 
-        for ad, dark_ad in zip(*gt.make_lists(adinputs, darks)):
+        for ad, dark_ad, _ in zip(
+            *gt.make_lists(adinputs, *dark_list, force_ad=(1,))
+        ):
             # For each fiber, we need extensions for the reduced orders,
             # the optimal reduced fiber, the variance of the optimal reduced
             # fiber, the box reduced fiber, the variance of the box reduced

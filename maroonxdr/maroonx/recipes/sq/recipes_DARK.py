@@ -69,7 +69,7 @@ def makeDarkCoefficients(p):
     p.checkMaster()
 
     p.fitDarkCoefficients()
-    p.storeProcessedDark(suffix='_darkCoefficients')
+    p.storeProcessedDarkCoeff(suffix='_darkCoefficients')
 
 
 def testVARDark(p):

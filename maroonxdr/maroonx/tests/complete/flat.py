@@ -123,15 +123,6 @@ def populate_inputs():
             '20241114T190714Z_DDDDF_b_0007_straylight_flat.fits',
         ],
     )
-    # fallback: check calibrations/ if not in main dir
-    _copy_files(
-        cal_src,
-        stray_dst,
-        [
-            '20241114T182328Z_DFFFD_b_0008_straylight_flat.fits',
-            '20241114T190714Z_DDDDF_b_0007_straylight_flat.fits',
-        ],
-    )
 
     # echelle_extraction/test_measure_blaze — needs master flats (both arms)
     _copy_files(

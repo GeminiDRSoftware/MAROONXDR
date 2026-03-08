@@ -118,8 +118,8 @@ def makeStrayLightCheck(p):
     # Remove straylight (requires 2 partial illumination flat sets)
     p.removeStrayLight(snapshot=True, filter_size=19, box_size=20)
     p.removeStrayLight(stream='DFFFD_flats', snapshot=True, filter_size=19, box_size=20)
-    p.storeProcessedFlat(stream='DFFFD_flats', suffix='_straylight_flat')
-    p.storeProcessedFlat(suffix='_straylight_flat')
+    p.writeOutputs(stream='DFFFD_flats', suffix='_straylight_flat')
+    p.writeOutputs(suffix='_straylight_flat')
 
 
 def makeFlatVarCheck(p):
@@ -247,4 +247,4 @@ def measureBlaze(p):
     p.boxExtraction()
     # p.optimalExtraction()
     p.measureBlaze(n_knots=50)
-    p.storeProcessedFlat(suffix='_blaze')
+    p.writeOutputs(suffix='_blaze')

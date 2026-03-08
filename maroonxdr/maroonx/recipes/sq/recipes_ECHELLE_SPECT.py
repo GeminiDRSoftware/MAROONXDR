@@ -84,7 +84,7 @@ def makeStripeExtractionCheck(p):
         straylight_removal_fibers=[5],
         test_extraction=True,
     )
-    p.storeProcessedScience(suffix='_test_stripes')
+    p.writeOutputs(suffix='_test_stripes')
 
 
 def makeSyntheticDark(p):

@@ -214,6 +214,22 @@ class AstroDataMAROONX(AstroDataGemini):
         return self.hdr.get('ARM')
 
     @astro_data_descriptor
+    def camera(self, stripID=False, pretty=False):
+        """
+        Returns the arm as the camera identifier so that FitsStorage
+        can match calibrations by arm via ``Header.camera``.
+
+        Returns
+        -------
+        str
+            'BLUE' or 'RED'
+        """
+        arm = self.hdr.get('ARM')
+        if isinstance(arm, list):
+            return arm[0] if len(arm) == 1 else None
+        return arm
+
+    @astro_data_descriptor
     def instrument(self, generic=False):
         """
         Remove the "-" in the name so that it matches the directories in

@@ -41,6 +41,10 @@ class extractStripesConfig(config.Config):
     This parameter set controls the extractStripes primitive for MAROON-X.
     '''
     suffix = config.Field("Filename suffix", str, "")
+    flat = config.ListField("Processed flat", (str, AstroData), None,
+                            optional=True, single=True)
+    dark = config.ListField("Processed dark", (str, AstroData), None,
+                            optional=True, single=True)
     dark_subtraction_skip_fibers = config.ListField(
         'Fiber numbers (1-5) to skip dark frame subtraction.',
         int,
@@ -65,6 +69,8 @@ class optimalExtractionConfig(config.Config):
     This parameter set controls the optimalExtraction primitive for MAROON-X.
     '''
     suffix = config.Field("Filename suffix", str, "_reduced")
+    dark = config.ListField("Processed dark", (str, AstroData), None,
+                            optional=True, single=True)
     optimal_extraction_fibers = config.ListField("Fiber numbers (1-5) for optimal extraction", int, None, optional=True, single=False)
     full_output = config.Field("More outputs made", bool, False)
     penalty = config.Field("scaling penalty factor", float, None)

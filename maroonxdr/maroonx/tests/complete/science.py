@@ -78,6 +78,28 @@ def complete_science_reduction():
             myreduce.runr()
 
 
+def complete_stripe_extraction_check():
+    """Create test_stripes files by running makeStripeExtractionCheck recipe."""
+    dragons_test = _get_dragons_test()
+    preprocessed_dir = dragons_test / 'preprocessed_files'
+
+    all_files = sorted(str(p) for p in preprocessed_dir.glob('*.fits'))
+
+    with change_cwd_context(preprocessed_dir):
+        logutils.config(file_name='test_stripe_check.log', mode='debug', stomp=True)
+
+        for arm in ['BLUE', 'RED']:
+            only_science = dataselect.select_data(
+                all_files, tags=['RAW', 'SCI', arm, '300s']
+            )
+
+            myreduce = Reduce()
+            myreduce.files.extend(only_science)
+            myreduce.drpkg = 'maroonxdr'
+            myreduce.recipename = 'makeStripeExtractionCheck'
+            myreduce.runr()
+
+
 def populate_inputs():
     """Copy science outputs from preprocessed_files/ to test inputs/ directories."""
     dragons_test = _get_dragons_test()
@@ -124,6 +146,7 @@ if __name__ == '__main__':
 
     complete_synthetic_darks_reduction()
     complete_science_reduction()
+    complete_stripe_extraction_check()
 
     if '--populate-inputs' in sys.argv[1:]:
         populate_inputs()

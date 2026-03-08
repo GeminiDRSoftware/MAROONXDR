@@ -100,11 +100,16 @@ def test_fitAndApplyEtalonWls(caplog, path_to_inputs, filename):
                 1,
             ), f'Unrequested dynamic solution for fiber {fiber} found'
 
-    # Test Peaks modifications
-    assert hasattr(out_ad[0], 'NEW_PEAKS'), 'PEAKS table should be present'
-    peaks_cols = set(out_ad[0].NEW_PEAKS.columns)
+    # Test that updated peak data is saved with expected columns
+    assert hasattr(out_ad[0], 'PEAK_DATA'), 'PEAK_DATA table should be present'
+    peak_cols = set(out_ad[0].PEAK_DATA.columns)
 
     expected_cols = {'WAVELENGTH_BY_THAR', 'DISPERSION_MPS', 'M', 'M_FRACTION'}
     assert expected_cols.issubset(
-        peaks_cols
-    ), f'PEAKS table should contain columns: {expected_cols}'
+        peak_cols
+    ), f'PEAK_DATA table should contain columns: {expected_cols}'
+
+    # Test that drift header keywords are set for requested fibers
+    for fiber in requested_fibers:
+        key = f'DRIFT_FIBER_{fiber}'
+        assert key in out_ad[0].hdr, f'{key} header keyword should be present'
