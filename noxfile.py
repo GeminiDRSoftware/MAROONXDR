@@ -465,6 +465,8 @@ def create_inputs(session: nox.Session):
         'maroonxdr/maroonx/tests/image/test_image_orientation_corrector.py',
         'maroonxdr/maroonx/tests/image/test_ND_filter_check.py',
         'maroonxdr/maroonx/tests/image/test_var.py',
+        'maroonx_instruments/maroonx/tests/test_maroonx.py',
+        'maroonx_instruments/maroonx/tests/test_calibration.py',
     ]
 
     for script in create_inputs_scripts:
@@ -533,6 +535,7 @@ def unit_tests(session: nox.Session):
     test_args = [
         'pytest',
         'maroonxdr/maroonx/tests/',
+        'maroonx_instruments/maroonx/tests/',
         '--ignore=maroonxdr/maroonx/tests/legacy_regression',
         '-v',
         '-rs',

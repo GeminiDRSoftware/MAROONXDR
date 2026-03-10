@@ -101,7 +101,7 @@ class CalibrationMAROONX(Calibration):
         FitsStorage's REDUCTION_STATUS doesn't include WAVECAL, so
         processed wavecals are ingested as PROCESSED_UNKNOWN.  Filter
         by Header.types instead of Header.reduction until the WAVECAL
-        tag is migrated to ARC (see tasks/refactor_wavecal_to_arc.md).
+        tag is migrated to ARC.
         """
         howmany = howmany if howmany else 1
 

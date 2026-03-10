@@ -19,3 +19,8 @@ from recipe_system.cal_service.localmanager import args_for_cals
 args_for_cals['processed_wavecal'] = ('wavecal', {'processed': True})
 args_for_cals['processed_dark_coeff'] = ('dark_coeff', {'processed': True})
 
+# Register these caltypes with the CalDB validation whitelist
+from recipe_system.cal_service.caldb import REQUIRED_TAG_DICT
+REQUIRED_TAG_DICT['processed_wavecal'] = ['PROCESSED', 'WAVECAL']
+REQUIRED_TAG_DICT['processed_dark_coeff'] = ['PROCESSED', 'DARK_COEFF']
+
