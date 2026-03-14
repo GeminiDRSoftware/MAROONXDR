@@ -21,14 +21,14 @@ log.setLevel("DEBUG")
 # =========================================================
 
 
-def test_exportBundle(legacy_reduced_path):
+def test_exportBundle(legacy_reduced_path, preprocessed_files_path):
 
     # Read legacy HDF5 file for comparison (300s SOOOE_x exposure)
     legacy_file = legacy_reduced_path / "20241124T062858Z_SOOOE_x_0300.hd5"
 
     # Read processed FITS files from DRAGONS reduction
     # These should be the output from a complete reduction workflow
-    files = sorted([str(f) for f in Path().glob('20241124T062858Z*.fits')])
+    files = sorted([str(f) for f in preprocessed_files_path.glob('20241124T062858Z*.fits')])
     selected_spect = dataselect.select_data(files,
         tags=['PROCESSED', 'SCI', '300s'], xtags=['BUNDLE'])
 

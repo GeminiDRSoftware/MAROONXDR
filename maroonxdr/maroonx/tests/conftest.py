@@ -43,6 +43,7 @@ def get_maroonx_legacy_test_path():
 # PATH FIXTURES
 # =========================================================
 
+# Dragons related fixtures
 
 @pytest.fixture(scope='session')
 def dragons_test_root():
@@ -63,6 +64,35 @@ def dragons_test_root():
 
 
 @pytest.fixture(scope='session')
+def preprocessed_files_path(dragons_test_root):
+    """Path to preprocessed (debundled) FITS files."""
+    path = dragons_test_root / 'preprocessed_files'
+    if not path.exists():
+        pytest.skip(f'Preprocessed files directory does not exist: {path}')
+    return path
+
+
+@pytest.fixture(scope='function')
+def processed_dark_path(dragons_test_root):
+    """Path to processed dark calibrations."""
+    path = dragons_test_root / 'preprocessed_files' / 'calibrations' / 'processed_dark'
+    if not path.exists():
+        pytest.skip(f'Processed dark directory does not exist: {path}')
+    return path
+
+
+@pytest.fixture(scope='function')
+def processed_dark_coeff_path(dragons_test_root):
+    """Path to processed dark coefficient files."""
+    path = dragons_test_root / 'preprocessed_files' / 'calibrations' / 'processed_dark_coeff'
+    if not path.exists():
+        pytest.skip(f'Processed dark coeff directory does not exist: {path}')
+    return path
+
+
+# Legacy pipeline fixtures
+
+@pytest.fixture(scope='session')
 def legacy_test_root():
     """
     Fixture providing the root legacy test data directory.
@@ -81,18 +111,7 @@ def legacy_test_root():
 
 
 @pytest.fixture(scope='function')
-def legacy_reduced_path(legacy_test_root):
-    """
-    Fixture providing path to test legacy data directory.
-    """
-    path = legacy_test_root / 'MaroonX_spectra_reduced' / '20241124'
-    if not path.exists():
-        pytest.skip(f'Legacy data directory does not exist: {path}')
-    return path
-
-
-@pytest.fixture(scope='function')
-def legacy_darks_path(legacy_test_root):
+def path_to_legacy_darks(legacy_test_root):
     """
     Fixture providing path to test legacy data directory.
     """
@@ -109,7 +128,7 @@ def legacy_darks_path(legacy_test_root):
 
 
 @pytest.fixture(scope='function')
-def legacy_flats_path(legacy_test_root):
+def path_to_legacy_flats(legacy_test_root):
     """
     Fixture providing path to test legacy data directory.
     """
@@ -122,6 +141,37 @@ def legacy_flats_path(legacy_test_root):
     )
     if not path.exists():
         pytest.skip(f'Legacy data directory does not exist: {path}')
+    return path
+
+
+@pytest.fixture(scope='function')
+def path_to_legacy_wavecal(legacy_test_root):
+    """
+    Fixture providing path to test legacy data directory.
+    """
+    path = legacy_test_root / 'MaroonX_spectra_reduced' / '20241124'
+    if not path.exists():
+        pytest.skip(f'Legacy data directory does not exist: {path}')
+    return path
+
+
+@pytest.fixture(scope='function')
+def path_to_legacy_science(legacy_test_root):
+    """
+    Fixture providing path to test legacy data directory.
+    """
+    path = legacy_test_root / 'MaroonX_spectra_reduced' / '20241124'
+    if not path.exists():
+        pytest.skip(f'Legacy data directory does not exist: {path}')
+    return path
+
+
+@pytest.fixture(scope='session')
+def path_to_legacy_bkg(legacy_test_root):
+    """Path to legacy background/intermediate npy arrays."""
+    path = legacy_test_root.parent / 'legacy_bkg_arrays'
+    if not path.exists():
+        pytest.skip(f'Legacy bkg arrays directory does not exist: {path}')
     return path
 
 

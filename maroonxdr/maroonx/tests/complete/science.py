@@ -53,7 +53,7 @@ def complete_synthetic_darks_reduction():
             myreduce.runr()
 
 
-def complete_science_reduction():
+def complete_science_reduction(legacy_patch=False):
     """Test reduction of science frames across both arms (300s)."""
     dragons_test = _get_dragons_test()
     preprocessed_dir = dragons_test / 'preprocessed_files'
@@ -75,6 +75,7 @@ def complete_science_reduction():
             myreduce = Reduce()
             myreduce.files.extend(only_science)
             myreduce.drpkg = 'maroonxdr'
+            myreduce.uparms = {'extractStripes:legacy': legacy_patch}
             myreduce.runr()
 
 
@@ -145,7 +146,10 @@ if __name__ == '__main__':
     import sys
 
     complete_synthetic_darks_reduction()
-    complete_science_reduction()
+    
+    legacy_patch = '--legacy-patch' in sys.argv[1:]
+    complete_science_reduction(legacy_patch=legacy_patch)
+
     complete_stripe_extraction_check()
 
     if '--populate-inputs' in sys.argv[1:]:

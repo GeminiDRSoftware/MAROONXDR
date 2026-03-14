@@ -29,7 +29,7 @@ def _get_dragons_test():
     return Path(p)
 
 
-def complete_masterflat_reduction():
+def complete_masterflat_reduction(legacy_patch=False):
     """Test reduction of flat frames for both red and blue arms."""
     dragons_test = _get_dragons_test()
     preprocessed_dir = dragons_test / 'preprocessed_files'
@@ -49,6 +49,7 @@ def complete_masterflat_reduction():
             myreduce.files.extend(only_flats)
             myreduce.drpkg = 'maroonxdr'
             myreduce.recipename = 'makeProcessedFlatDFFFF'
+            myreduce.uparms = {'removeStrayLight:legacy': legacy_patch}
             myreduce.runr()
 
 
@@ -134,6 +135,21 @@ def populate_inputs():
         ],
     )
 
+    # Populate legacy_regression/test_masterflat
+    legacy_test = os.environ.get('MAROONX_LEGACY_TEST')
+    if legacy_test is None:
+        # silently skip if legacy test data is not available
+        return
+
+    # legacy_regression/test_masterflat: needs DFFFF processed flats (both arms)
+    _copy_files(
+        cal_src,
+        base / 'legacy_regression' / 'test_masterflat' / 'inputs',
+        [
+            '20241114T190714Z_DDDDF_b_0007_DFFFF_flat.fits',
+            '20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits',
+        ],
+    )
 
 def _copy_files(src_dir, dst_dir, filenames):
     """Copy specific files from src_dir to dst_dir, creating dst_dir if needed."""
@@ -150,7 +166,8 @@ def _copy_files(src_dir, dst_dir, filenames):
 if __name__ == '__main__':
     import sys
 
-    complete_masterflat_reduction()
+    legacy_patch = '--legacy-patch' in sys.argv[1:]
+    complete_masterflat_reduction(legacy_patch=legacy_patch)
 
     complete_blaze_reduction()
 
