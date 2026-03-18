@@ -101,7 +101,7 @@ def complete_stripe_extraction_check():
             myreduce.runr()
 
 
-def populate_inputs():
+def populate_inputs(legacy_patch=False):
     """Copy science outputs from preprocessed_files/ to test inputs/ directories."""
     dragons_test = _get_dragons_test()
     src = dragons_test / 'preprocessed_files'
@@ -129,6 +129,21 @@ def populate_inputs():
         ],
     )
 
+    # Populate legacy_regression/test_reduced_science
+    if not legacy_patch:
+        # silently skip if legacy test data is not available
+        return
+
+    # legacy_regression/test_reduced_science: needs reduced science (both arms)
+    _copy_files(
+        src,
+        base / 'legacy_regression' / 'test_reduced_science' / 'inputs',
+        [
+            '20241124T041907Z_SOOOE_b_0300_reduced.fits',
+            '20241124T041907Z_SOOOE_r_0300_reduced.fits',
+        ],
+    )
+
 
 def _copy_files(src_dir, dst_dir, filenames):
     """Copy specific files from src_dir to dst_dir, creating dst_dir if needed."""
@@ -145,12 +160,11 @@ def _copy_files(src_dir, dst_dir, filenames):
 if __name__ == '__main__':
     import sys
 
-    complete_synthetic_darks_reduction()
-    
     legacy_patch = '--legacy-patch' in sys.argv[1:]
-    complete_science_reduction(legacy_patch=legacy_patch)
 
+    complete_synthetic_darks_reduction()
+    complete_science_reduction(legacy_patch=legacy_patch)
     complete_stripe_extraction_check()
 
     if '--populate-inputs' in sys.argv[1:]:
-        populate_inputs()
+        populate_inputs(legacy_patch=legacy_patch)

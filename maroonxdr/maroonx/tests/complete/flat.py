@@ -97,7 +97,7 @@ def complete_straylight_prep():
         myreduce.runr()
 
 
-def populate_inputs():
+def populate_inputs(legacy_patch=False):
     """Copy flat outputs from preprocessed_files/ to test inputs/ directories."""
     dragons_test = _get_dragons_test()
     src = dragons_test / 'preprocessed_files'
@@ -136,8 +136,7 @@ def populate_inputs():
     )
 
     # Populate legacy_regression/test_masterflat
-    legacy_test = os.environ.get('MAROONX_LEGACY_TEST')
-    if legacy_test is None:
+    if not legacy_patch:
         # silently skip if legacy test data is not available
         return
 
@@ -174,4 +173,4 @@ if __name__ == '__main__':
     complete_straylight_prep()
 
     if '--populate-inputs' in sys.argv[1:]:
-        populate_inputs()
+        populate_inputs(legacy_patch=legacy_patch)

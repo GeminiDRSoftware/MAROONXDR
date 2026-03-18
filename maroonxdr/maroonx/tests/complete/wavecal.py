@@ -28,7 +28,7 @@ def _get_dragons_test():
     return Path(p)
 
 
-def complete_wavecal_reduction():
+def complete_wavecal_reduction(legacy_patch=False):
     """Test reduction of wavelength calibration frames for both red and blue arms."""
     dragons_test = _get_dragons_test()
     preprocessed_dir = dragons_test / 'preprocessed_files'
@@ -52,7 +52,7 @@ def complete_wavecal_reduction():
             myreduce.runr()
 
 
-def populate_inputs():
+def populate_inputs(legacy_patch=False):
     """Copy wavecal outputs from preprocessed_files/ to test inputs/ directories."""
     dragons_test = _get_dragons_test()
     src = dragons_test / 'preprocessed_files'
@@ -64,6 +64,23 @@ def populate_inputs():
         base / 'echelle_extraction' / 'test_wavecal' / 'inputs',
         [
             '20241124T030227Z_DEEEE_b_0030_wavecal.fits',
+        ],
+    )
+
+    # Populate legacy_regression/test_reduced_wavecal
+    if not legacy_patch:
+        # silently skip if legacy test data is not available
+        return
+
+    # legacy_regression/test_reduced_wavecal: etalon and LFC wavecal outputs
+    _copy_files(
+        src,
+        base / 'legacy_regression' / 'test_reduced_wavecal' / 'inputs',
+        [
+            '20241124T030227Z_DEEEE_b_0030_wavecal.fits',
+            '20241124T030227Z_DEEEE_r_0004_wavecal.fits',
+            '20241124T030436Z_DLLLL_b_0005_wavecal.fits',
+            '20241124T030436Z_DLLLL_r_0004_wavecal.fits',
         ],
     )
 
@@ -83,7 +100,8 @@ def _copy_files(src_dir, dst_dir, filenames):
 if __name__ == '__main__':
     import sys
 
-    complete_wavecal_reduction()
+    legacy_patch = '--legacy-patch' in sys.argv[1:]
+    complete_wavecal_reduction(legacy_patch=legacy_patch)
 
     if '--populate-inputs' in sys.argv[1:]:
-        populate_inputs()
+        populate_inputs(legacy_patch=legacy_patch)

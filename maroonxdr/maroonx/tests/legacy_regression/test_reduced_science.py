@@ -1,15 +1,18 @@
+import os
 from pathlib import Path
 
 import astrodata
 import numpy as np
 import pandas as pd
+import pytest
 from gempy.adlibrary import dataselect
 from gempy.utils import logutils
 
 import maroonx_instruments  # noqa : important to load adclass tags
 from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
+from maroonxdr.maroonx.tests.conftest import assert_allclose_with_max_fails
 
-#from maroonxdr.maroonx.primitives_maroonx_echelle import create_synthetic_dark
+from . import legacy_adapter
 
 # Set logger
 logutils.config(file_name="test_reduced_science.log", mode="debug", stomp=True)
@@ -20,7 +23,7 @@ log.setLevel("DEBUG")
 # TESTS
 # =========================================================
 
-
+@pytest.mark.skip
 def test_exportBundle(legacy_reduced_path, preprocessed_files_path):
 
     # Read legacy HDF5 file for comparison (300s SOOOE_x exposure)
@@ -154,3 +157,120 @@ def test_exportBundle(legacy_reduced_path, preprocessed_files_path):
         total_failures = blue_failures + red_failures
         assert total_failures == 0, f"Found {total_failures} mismatches between DRAGONS and legacy data"
 
+# =========================================================
+# NEW TESTS
+# =========================================================
+
+
+@pytest.mark.slow
+@pytest.mark.preprocessed_data
+@pytest.mark.parametrize(
+    'matching_filenames',
+    [
+        # (new DRAGONS file, legacy HDF5 file)
+        ('20241124T041907Z_SOOOE_b_0300_reduced.fits', '20241124T041907Z_SOOOE_b_0300.hdf'),
+        ('20241124T041907Z_SOOOE_r_0300_reduced.fits', '20241124T041907Z_SOOOE_r_0300.hdf'),
+    ],
+)
+def test_optimal_extraction(path_to_inputs, path_to_legacy_science, matching_filenames):
+
+    file_name, legacy_file_name = matching_filenames
+
+    legacy_file = path_to_legacy_science / legacy_file_name
+    file = os.path.join(path_to_inputs, file_name)
+
+    ad = astrodata.open(file)
+
+    legacy_opt = legacy_adapter.load_dict_from_hdf5(str(legacy_file), 'optimal_extraction/')
+    #legacy_wls = legacy_adapter.load_dict_from_hdf5(str(legacy_file), 'wavelengths/')
+    #legacy_var = legacy_adapter.load_dict_from_hdf5(str(legacy_file), 'optimal_var/')
+
+    for fiber in range(1, 6):
+        new_opt = getattr(ad[0], f'OPTIMAL_REDUCED_FIBER_{fiber}')
+        if new_opt.size == 1:
+            continue
+
+        new_wls = getattr(ad[0], f'WLS_SIMULTANEOUS_FIBER_{fiber}')
+        orders = ad[0].REDUCED_ORDERS_FIBER_3.astype(int)
+
+        for idx, order in enumerate(orders):
+            legacy_order_opt = legacy_opt[f'fiber_{fiber}'][f'{order}']
+
+            np.testing.assert_allclose(
+                new_opt[idx, :], legacy_order_opt,
+                rtol=1e-3, atol=1e-4,
+                err_msg=f'fiber {fiber} order {order} optimal_extraction mismatch')
+
+
+@pytest.mark.slow
+@pytest.mark.preprocessed_data
+@pytest.mark.parametrize(
+    'matching_filenames',
+    [
+        # (new DRAGONS file, legacy HDF5 file)
+        ('20241124T041907Z_SOOOE_b_0300_reduced.fits', '20241124T041907Z_SOOOE_b_0300.hdf'),
+        ('20241124T041907Z_SOOOE_r_0300_reduced.fits', '20241124T041907Z_SOOOE_r_0300.hdf'),
+    ],
+)
+def test_optimal_var(path_to_inputs, path_to_legacy_science, matching_filenames):
+
+    file_name, legacy_file_name = matching_filenames
+
+    legacy_file = path_to_legacy_science / legacy_file_name
+    file = os.path.join(path_to_inputs, file_name)
+
+    ad = astrodata.open(file)
+
+    legacy_var = legacy_adapter.load_dict_from_hdf5(str(legacy_file), 'optimal_var/')
+
+    for fiber in range(1, 6):
+        new_var = getattr(ad[0], f'OPTIMAL_REDUCED_VAR_{fiber}')
+        if new_var.size == 1:
+            continue
+
+        orders = ad[0].REDUCED_ORDERS_FIBER_3.astype(int)
+
+        for idx, order in enumerate(orders):
+            legacy_order_var = legacy_var[f'fiber_{fiber}'][f'{order}']
+
+            np.testing.assert_allclose(
+                new_var[idx, :], legacy_order_var,
+                rtol=1e-3, atol=1e-4,
+                err_msg=f'fiber {fiber} order {order} optimal_var mismatch')
+
+
+@pytest.mark.slow
+@pytest.mark.preprocessed_data
+@pytest.mark.parametrize(
+    'matching_filenames',
+    [
+        # (new DRAGONS file, legacy HDF5 file)
+        ('20241124T041907Z_SOOOE_b_0300_reduced.fits', '20241124T041907Z_SOOOE_b_0300.hdf'),
+        ('20241124T041907Z_SOOOE_r_0300_reduced.fits', '20241124T041907Z_SOOOE_r_0300.hdf'),
+    ],
+)
+def test_wavelengths(path_to_inputs, path_to_legacy_science, matching_filenames):
+
+    file_name, legacy_file_name = matching_filenames
+
+    legacy_file = path_to_legacy_science / legacy_file_name
+    file = os.path.join(path_to_inputs, file_name)
+
+    ad = astrodata.open(file)
+
+    legacy_wls = legacy_adapter.load_dict_from_hdf5(str(legacy_file), 'wavelengths/')
+
+    for fiber in range(1, 6):
+        new_wls = getattr(ad[0], f'WLS_SIMULTANEOUS_FIBER_{fiber}')
+        if new_wls.size == 1:
+            continue
+
+        orders = ad[0].REDUCED_ORDERS_FIBER_3.astype(int)
+
+        for idx, order in enumerate(orders):
+            legacy_order_wls = legacy_wls[f'fiber_{fiber}'][f'{order}']
+
+            np.testing.assert_allclose(
+                new_wls[idx, :], legacy_order_wls,
+                rtol=1e-3, atol=1e-4,
+                err_msg=f'fiber {fiber} order {order} wavelength mismatch')

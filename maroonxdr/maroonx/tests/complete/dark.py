@@ -85,7 +85,7 @@ def complete_dark_coeff_reduction():
             myreduce.runr()
 
 
-def populate_inputs():
+def populate_inputs(legacy_patch=False):
     """Copy dark outputs from preprocessed_files/ to test inputs/ directories."""
     dragons_test = _get_dragons_test()
     src = dragons_test / 'preprocessed_files'
@@ -98,9 +98,8 @@ def populate_inputs():
     # Populate inputs as needed
     # ...
 
-    # Populate legacy_regression/test_masterdark    
-    legacy_test = os.environ.get('MAROONX_LEGACY_TEST')
-    if legacy_test is None:
+    # Populate legacy_regression/test_masterdark
+    if not legacy_patch:
         # silently skip if legacy test data is not available
         return
 
@@ -143,9 +142,12 @@ def _copy_files(src_dir, dst_dir, filenames):
 
 
 if __name__ == '__main__':
+
+    legacy_patch = '--legacy-patch' in sys.argv[1:]
+
     complete_masterdark_reduction()
 
     complete_dark_coeff_reduction()
 
     if '--populate-inputs' in sys.argv[1:]:
-        populate_inputs()
+        populate_inputs(legacy_patch=legacy_patch)

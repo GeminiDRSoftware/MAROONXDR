@@ -506,7 +506,7 @@ def complete_tests(session: nox.Session):
 
     # Run each script using the session's Python
     for test_script in completion_tests:
-        session.run('python', test_script, '--populate-inputs')
+        session.run('python', test_script, '--populate-inputs', *session.posargs)
 
 
 @nox.session(python='3.12')

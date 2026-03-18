@@ -166,6 +166,20 @@ def path_to_legacy_science(legacy_test_root):
     return path
 
 
+@pytest.fixture(scope='function')
+def path_to_legacy_reduced(legacy_test_root):
+    """
+    Fixture providing path to legacy reduced science data.
+
+    Contains both intermediate .hdf files and final .hd5 files
+    produced by the legacy MaroonX pipeline.
+    """
+    path = legacy_test_root / 'MaroonX_spectra_reduced' / '20241124'
+    if not path.exists():
+        pytest.skip(f'Legacy reduced data directory does not exist: {path}')
+    return path
+
+
 @pytest.fixture(scope='session')
 def path_to_legacy_bkg(legacy_test_root):
     """Path to legacy background/intermediate npy arrays."""
