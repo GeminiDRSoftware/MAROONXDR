@@ -958,9 +958,9 @@ class MAROONXEchelle(MAROONX, Spect):
                         box_reduced_stripes[f].update({o: stand_spec})
                         box_reduced_var[f].update({o: stand_var})
                         box_reduced_flats[f].update({o: stand_flat})
-                        extracted_bpms[f] = {
+                        extracted_bpms[f].update({
                             o: np.array(np.sum(mask[f][o], axis=0).T).flatten()
-                        }
+                        })
                     else:
                         # We do not have the extensions yet, so create them
                         box_reduced_stripes[f] = {o: stand_spec}
