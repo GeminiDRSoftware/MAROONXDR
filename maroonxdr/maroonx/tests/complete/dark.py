@@ -103,7 +103,8 @@ def populate_inputs(legacy_patch=False):
         # silently skip if legacy test data is not available
         return
 
-    # legacy_regression/test_masterdark: needs master dark, synth dark
+    # legacy_regression/test_masterdark: needs master darks
+    # (synth darks are copied by science.py, which creates them)
     _copy_files(
         dark_src,
         base / 'legacy_regression' / 'test_masterdark' / 'inputs',
@@ -113,8 +114,6 @@ def populate_inputs(legacy_patch=False):
             '20241115T210524Z_DDDDE_b_0900_dark.fits',
             '20241115T210524Z_DDDDE_r_0900_dark.fits',
             '20241116T001751Z_DDDDE_b_1800_dark.fits',
-            '20241124T041907Z_SOOOE_b_0300_synth_dark.fits',
-            '20241124T075055Z_SOOOE_r_0900_synth_dark.fits',
         ],
     )
 

@@ -114,6 +114,9 @@ def test_lfc_box_extraction(path_to_inputs, path_to_legacy_wavecal, matching_fil
     legacy_file = path_to_legacy_wavecal / legacy_file_name
     file = os.path.join(path_to_inputs, file_name)
 
+    if not os.path.exists(file):
+        pytest.skip(f'LFC wavecal input not found: {file_name}')
+
     ad = astrodata.open(file)
 
     legacy_box = legacy_adapter.load_dict_from_hdf5(str(legacy_file), 'box_extraction/')
@@ -152,6 +155,9 @@ def test_lfc_wavelengths(path_to_inputs, path_to_legacy_wavecal, matching_filena
 
     legacy_file = path_to_legacy_wavecal / legacy_file_name
     file = os.path.join(path_to_inputs, file_name)
+
+    if not os.path.exists(file):
+        pytest.skip(f'LFC wavecal input not found: {file_name}')
 
     ad = astrodata.open(file)
 

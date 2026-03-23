@@ -404,6 +404,7 @@ class MAROONXEchelle(MAROONX, Spect):
             log.fullinfo(f'{ad.filename} : {flat_ad.filename} : {dark_fn}')
 
             if dark_ad:
+                dark_ad = self.subtractOverscan(adinputs=[dark_ad])[0]
                 dark_ad = self.trimOverscan(adinputs=[dark_ad])[0]
                 dark_ad = self.correctImageOrientation(adinputs=[dark_ad])[0]
 
@@ -632,6 +633,7 @@ class MAROONXEchelle(MAROONX, Spect):
 
             if dark_ad:
                 # This should be refactored so it is not repeated as in extractStripes
+                dark_ad = self.subtractOverscan(adinputs=[dark_ad])[0]
                 dark_ad = self.trimOverscan(adinputs=[dark_ad])[0]
                 dark_ad = self.correctImageOrientation(adinputs=[dark_ad])[0]
                 back_var = np.abs(dark_ad[0].data) / gain * np.sqrt(2)

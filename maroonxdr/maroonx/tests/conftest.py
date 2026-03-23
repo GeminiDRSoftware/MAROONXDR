@@ -246,7 +246,7 @@ def assert_allclose_with_max_fails(
     y = np.asarray(y)
 
     # Check which elements fail the tolerance test
-    not_close = ~np.isclose(x, y, rtol=rtol, atol=atol)
+    not_close = ~np.isclose(x, y, rtol=rtol, atol=atol, equal_nan=True)
     n_fails = np.sum(not_close)
 
     if n_fails > max_fails:

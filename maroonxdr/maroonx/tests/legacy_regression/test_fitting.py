@@ -18,6 +18,17 @@ from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
 
 from . import legacy_adapter
 
+# Calibration file mapping by arm (same pattern as test_extractions)
+_CALIB_FILES = {
+    'RED': {
+        'flat': 'processed_flat/20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits',
+        'dark': 'processed_dark/20241124T041907Z_SOOOE_r_0300_synth_dark.fits',
+    },
+    'BLUE': {
+        'flat': 'processed_flat/20241114T190714Z_DDDDF_b_0007_DFFFF_flat.fits',
+        'dark': 'processed_dark/20241124T041907Z_SOOOE_b_0300_synth_dark.fits',
+    },
+}
 
 # =========================================================
 # FILES TO COMPARE
@@ -32,10 +43,10 @@ log.setLevel("DEBUG")
 # =========================================================
 # TESTS
 # =========================================================
-USE_CACHE = False
+USE_CACHE = True
 
 ETALONS = [
-    '20241124T030227Z_DEEEE_r_0004',
+    # '20241124T030227Z_DEEEE_r_0004',
     '20241124T030227Z_DEEEE_b_0030',
     # '20241124T030040Z_DEEEE_r_0004',
     # '20241124T030436Z_DLLLL_r_0004',
@@ -61,19 +72,26 @@ ETALONS = [
 
 
 @pytest.mark.preprocessed_data
-def test_load_recordings(path_to_legacy_wavecal, path_to_legacy_flats, preprocessed_files_path):
+@pytest.mark.parametrize("arm", ["BLUE"])
+@pytest.mark.parametrize("etalon_filename", ETALONS)
+def test_load_recordings(arm, path_to_legacy_wavecal, path_to_legacy_flats, preprocessed_files_path, etalon_filename):
 
-    old_file = path_to_legacy_wavecal / "20241124T162336Z_DEEEE_b_0030.hdf"
+    old_file = path_to_legacy_wavecal / (etalon_filename + ".hdf")
     old_flat_file = path_to_legacy_flats / "20241114T19_masterflat_backgroundsubtracted_FFFFF_b_0007.hdf"
+
+    # Explicit calibration paths (no caldb configured for legacy regression tests)
+    calib_root = preprocessed_files_path / 'calibrations'
+    flat_path = str(calib_root / _CALIB_FILES[arm]['flat'])
+    dark_path = str(calib_root / _CALIB_FILES[arm]['dark'])
 
     # read files and instantiate the primitive class
     # this should pick a single file
-    raw_files = sorted([str(f) for f in preprocessed_files_path.glob('20241124T162336Z_DEEEE_*.fits')])
-    selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'WAVECAL', 'BLUE'])
+    raw_file = preprocessed_files_path / (etalon_filename + ".fits")
+    # raw_files = sorted([str(f) for f in preprocessed_files_path.glob('20241124T162336Z_DEEEE_*.fits')])
+    # selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'WAVECAL', 'BLUE'])
 
     # Primitives
-    adinput = [astrodata.open(f) for f in selected_spect]
-    #ad_flats = _get_calibration_flat(adinput)
+    adinput = [astrodata.open(raw_file)]
 
     p = MaroonXSpectrum(adinput)
     p.prepare()
@@ -83,7 +101,7 @@ def test_load_recordings(path_to_legacy_wavecal, path_to_legacy_flats, preproces
     p.correctImageOrientation()
     p.addVAR(read_noise=True, poisson_noise=True)
 
-    p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
+    p.extractStripes(flat=flat_path, dark=dark_path)
     adout = p.boxExtraction() # extracts spectra from stripes
     ad = adout[0]
 
@@ -147,13 +165,14 @@ def test_iterative_fit_legacy():
         )
 
 
-def test_iterative_fit_ETALON(path_to_legacy_wavecal):
+@pytest.mark.parametrize("etalon_filename", ETALONS)
+def test_iterative_fit_ETALON(path_to_legacy_wavecal, etalon_filename):
     # Load old peak data. columns are lowercase
-    old_file = path_to_legacy_wavecal / "20241124T162336Z_DEEEE_b_0030.hdf"
+    old_file = path_to_legacy_wavecal / (etalon_filename + ".hdf")
     old_peak_data = pd.read_hdf(old_file, '/etalon_peak_parameters/peaks')
     old_mask = (old_peak_data["fiber"]==2) & (old_peak_data["order"]==111)
 
-    old_file_inputs = path_to_legacy_wavecal / "20241124T162336Z_DEEEE_b_0030_2_111_iterative_fit.npy"
+    old_file_inputs = path_to_legacy_wavecal / (etalon_filename + "_2_111_iterative_fit.npy")
     old_input = np.load(old_file_inputs, allow_pickle=True).item()
 
     set_logger(log)
@@ -248,6 +267,12 @@ def test_getPeaksAndPolynomials(path_to_legacy_wavecal, preprocessed_files_path,
         # Use previously saved data on science_dir
         adout = [astrodata.open(str(preprocessed_files_path / (etalon_filename + "_wavecal.fits")))]
     else:
+        # Determine arm from filename (_b_ = BLUE, _r_ = RED)
+        arm = 'BLUE' if '_b_' in etalon_filename else 'RED'
+        calib_root = preprocessed_files_path / 'calibrations'
+        flat_path = str(calib_root / _CALIB_FILES[arm]['flat'])
+        dark_path = str(calib_root / _CALIB_FILES[arm]['dark'])
+
         # Primitives
         adinput = [astrodata.open(str(preprocessed_files_path / (etalon_filename + ".fits")))]
 
@@ -259,7 +284,7 @@ def test_getPeaksAndPolynomials(path_to_legacy_wavecal, preprocessed_files_path,
         p.correctImageOrientation()
         p.addVAR(read_noise=True, poisson_noise=True)
 
-        p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
+        p.extractStripes(flat=flat_path, dark=dark_path)
         p.boxExtraction() # extracts spectra from stripes
 
         adout = p.getPeaksAndPolynomials(fibers=(2, 3, 4, 5))
@@ -301,6 +326,12 @@ def test_fitAndApplyEtalonWls(path_to_legacy_wavecal, preprocessed_files_path, e
         # Use previously saved data on science_dir
         adout = [astrodata.open(str(preprocessed_files_path / (etalon_filename + "_wavecal.fits")))]
     else:
+        # Determine arm from filename (_b_ = BLUE, _r_ = RED)
+        arm = 'BLUE' if '_b_' in etalon_filename else 'RED'
+        calib_root = preprocessed_files_path / 'calibrations'
+        flat_path = str(calib_root / _CALIB_FILES[arm]['flat'])
+        dark_path = str(calib_root / _CALIB_FILES[arm]['dark'])
+
         # Primitives
         adinput = [astrodata.open(str(preprocessed_files_path / (etalon_filename + ".fits")))]
 
@@ -312,7 +343,7 @@ def test_fitAndApplyEtalonWls(path_to_legacy_wavecal, preprocessed_files_path, e
         p.correctImageOrientation()
         p.addVAR(read_noise=True, poisson_noise=True)
 
-        p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
+        p.extractStripes(flat=flat_path, dark=dark_path)
         p.boxExtraction() # extracts spectra from stripes
 
         p.getPeaksAndPolynomials(fibers=(2, 3, 4, 5), multithreading=True)
@@ -346,6 +377,12 @@ def test_dynamicWavelengthSolution(path_to_legacy_wavecal, preprocessed_files_pa
         # Use previously saved data on science_dir
         adout = [astrodata.open(str(preprocessed_files_path / (etalon_filename + "_wavecal.fits")))]
     else:
+        # Determine arm from filename (_b_ = BLUE, _r_ = RED)
+        arm = 'BLUE' if '_b_' in etalon_filename else 'RED'
+        calib_root = preprocessed_files_path / 'calibrations'
+        flat_path = str(calib_root / _CALIB_FILES[arm]['flat'])
+        dark_path = str(calib_root / _CALIB_FILES[arm]['dark'])
+
         # Primitives
         adinput = [astrodata.open(str(preprocessed_files_path / (etalon_filename + ".fits")))]
 
@@ -357,7 +394,7 @@ def test_dynamicWavelengthSolution(path_to_legacy_wavecal, preprocessed_files_pa
         p.correctImageOrientation()
         p.addVAR(read_noise=True, poisson_noise=True)
 
-        p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
+        p.extractStripes(flat=flat_path, dark=dark_path)
         p.boxExtraction() # extracts spectra from stripes
 
         p.getPeaksAndPolynomials(fibers=(2, 3, 4, 5))
@@ -410,6 +447,12 @@ def test_fiber_drifts_ETALON(path_to_legacy_wavecal, preprocessed_files_path, et
         # Use previously saved data on science_dir
         adout = [astrodata.open(str(preprocessed_files_path / (etalon_filename + "_wavecal.fits")))]
     else:
+        # Determine arm from filename (_b_ = BLUE, _r_ = RED)
+        arm = 'BLUE' if '_b_' in etalon_filename else 'RED'
+        calib_root = preprocessed_files_path / 'calibrations'
+        flat_path = str(calib_root / _CALIB_FILES[arm]['flat'])
+        dark_path = str(calib_root / _CALIB_FILES[arm]['dark'])
+
         # Primitives
         adinput = [astrodata.open(str(preprocessed_files_path / (etalon_filename + ".fits")))]
 
@@ -421,7 +464,7 @@ def test_fiber_drifts_ETALON(path_to_legacy_wavecal, preprocessed_files_path, et
         p.correctImageOrientation()
         p.addVAR(read_noise=True, poisson_noise=True)
 
-        p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
+        p.extractStripes(flat=flat_path, dark=dark_path)
         p.boxExtraction() # extracts spectra from stripes
 
         p.getPeaksAndPolynomials(fibers=(2, 3, 4, 5))

@@ -107,8 +107,6 @@ def populate_inputs(legacy_patch=False):
     src = dragons_test / 'preprocessed_files'
     base = dragons_test / 'maroonxdr' / 'maroonx'
 
-    # TODO: populate synth dark inputs
-
     # echelle_extraction/test_extraction
     _copy_files(
         src,
@@ -133,6 +131,17 @@ def populate_inputs(legacy_patch=False):
     if not legacy_patch:
         # silently skip if legacy test data is not available
         return
+
+    # legacy_regression/test_masterdark: needs synth darks (created by this script)
+    dark_src = src / 'calibrations' / 'processed_dark'
+    _copy_files(
+        dark_src,
+        base / 'legacy_regression' / 'test_masterdark' / 'inputs',
+        [
+            '20241124T041907Z_SOOOE_b_0300_synth_dark.fits',
+            '20241124T075055Z_SOOOE_r_0900_synth_dark.fits',
+        ],
+    )
 
     # legacy_regression/test_reduced_science: needs reduced science (both arms)
     _copy_files(

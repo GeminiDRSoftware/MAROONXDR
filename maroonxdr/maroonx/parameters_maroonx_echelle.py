@@ -79,7 +79,7 @@ class optimalExtractionConfig(config.Config):
     read_noise = config.Field("read noise", float, None)
     gain = config.Field("gain",float,None)
     def setDefaults(self):
-        self.penalty = 1.0
+        self.penalty = 2.0
         self.s_clip = 5.0
         self.back_var = 0.0
         self.read_noise = 1.14

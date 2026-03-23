@@ -1169,7 +1169,9 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
         # this logic is inherited from the legacy code
         data_mean[data_mean < 0] = 0
 
-        # Set the output data
+        # sigma_clipped_stats promotes float32 input to float64.
+        # Legacy keeps the float64 result (BITPIX=-64) at this stage;
+        # the float32 cast happens later in backgroundfit (removeStrayLight).
         ad_out[0].data = data_mean
         # ================================================================
 
@@ -1875,11 +1877,17 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
             adout = deepcopy(ad)
 
-            # Check we are loading the correct file
-            np.testing.assert_allclose(data_dict['data'], ad[0].data)
+            # Check we are loading the correct file.
+            # Compare at float32: the .npy snapshots were recorded from
+            # float32 data; the pipeline now keeps float64 until this point.
+            np.testing.assert_allclose(
+                data_dict['data'].astype(np.float32),
+                ad[0].data.astype(np.float32),
+            )
 
-            # Replace with legacy results
-            adout[0].data = data_dict['result']
+            # Replace with legacy results.  Legacy backgroundfit.py reads
+            # stacked flats as float32 (line 237), so the result is float32.
+            adout[0].data = data_dict['result'].astype(np.float32)
             if snapshot:
                 adout[0].STRAYLIGHT_DIFFERENCE = adout[0].data - ad[0].data
                 adout[0].data = ad[0].data

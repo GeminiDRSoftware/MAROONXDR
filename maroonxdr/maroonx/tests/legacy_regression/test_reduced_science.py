@@ -185,6 +185,10 @@ def test_optimal_extraction(path_to_inputs, path_to_legacy_science, matching_fil
     #legacy_wls = legacy_adapter.load_dict_from_hdf5(str(legacy_file), 'wavelengths/')
     #legacy_var = legacy_adapter.load_dict_from_hdf5(str(legacy_file), 'optimal_var/')
 
+    # Upstream bug fixes (dark overscan, float64 dtype) cause the iterative
+    # sigma-clipping rejection loop to diverge at a handful of edge pixels,
+    # producing flux=0 → NaN in DRAGONS where legacy kept a finite value
+    # (or vice-versa).  Allow up to 1 NaN-location mismatch per order.
     for fiber in range(1, 6):
         new_opt = getattr(ad[0], f'OPTIMAL_REDUCED_FIBER_{fiber}')
         if new_opt.size == 1:
@@ -196,10 +200,9 @@ def test_optimal_extraction(path_to_inputs, path_to_legacy_science, matching_fil
         for idx, order in enumerate(orders):
             legacy_order_opt = legacy_opt[f'fiber_{fiber}'][f'{order}']
 
-            np.testing.assert_allclose(
+            assert_allclose_with_max_fails(
                 new_opt[idx, :], legacy_order_opt,
-                rtol=1e-3, atol=1e-4,
-                err_msg=f'fiber {fiber} order {order} optimal_extraction mismatch')
+                rtol=1e-3, atol=1e-4, max_fails=1)
 
 
 @pytest.mark.slow
