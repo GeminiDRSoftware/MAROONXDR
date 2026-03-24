@@ -158,6 +158,9 @@ def get_dependencies(session: nox.Session, only: str = '') -> list[str]:
     return _parse_dependencies(result)
 
 
+GIT_ONLY_PACKAGES = {'pytest-dragons'}
+
+
 def _parse_dependencies(result: str) -> list[str]:
     """Parse the output of poetry show to extract dependencies."""
     result = result.replace('(!)', ' ')
@@ -166,6 +169,8 @@ def _parse_dependencies(result: str) -> list[str]:
         if match := re.match(r'^\s*(\S+)\s+([\.0-9vV]+)\s*.*$', line):
             name = match.group(1)
             version = match.group(2)
+            if name in GIT_ONLY_PACKAGES:
+                continue
             dependencies.append(f'{name}=={version}')
     return dependencies
 
