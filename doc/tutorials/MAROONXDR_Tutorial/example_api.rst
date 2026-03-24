@@ -51,7 +51,8 @@ As the reduction proceeds, the following subdirectories will be created::
     ├── *.fits                    # Raw science and calibration files
     ├── calibrations/
     │   ├── processed_dark/       # Processed dark frames
-    │   └── processed_flat/       # Processed flat fields
+    │   ├── processed_flat/       # Processed flat fields
+    │   └── processed_wavecal/    # Processed wavecal frames
     └── test_reduction.log        # Reduction log file
 
 Dataset
@@ -81,8 +82,6 @@ Step-by-Step Reduction Process
 
 Step 0: Environment Setup
 --------------------------
-
-.. note:: This step will change once caldb is fully implemented.
 
 First we import the required libraries and configure the logging file at debug level.
 
@@ -267,43 +266,79 @@ Step 5: Synthetic Dark Creation
 
 **Purpose**: Generate custom dark frames matched to science exposure parameters.
 
-For science exposures, this step:
+This step uses the dark coefficients to interpolate darks for the exact
+exposure time of each science frame.
 
-* Selects raw science exposures for each arm
-* Uses dark coefficients to create synthetic darks
-* Matches dark correction to exact science exposure conditions
+.. code-block:: python
+    :linenos:
+    :lineno-start: 50
 
-This approach provides better dark correction than using only discrete master darks.
+    for arm in arm_tags:
 
-**Recipe**: ``makeSyntheticDark``
+        selected_sci = dataselect.select_data(get_files(), tags=['RAW', 'SCI', arm])
+
+        myreduce = Reduce()
+        myreduce.files.extend(selected_sci)
+        myreduce.drpkg = 'maroonxdr'
+        myreduce.recipename = 'makeSyntheticDark'
+        myreduce.runr()
 
 Step 6: Wavelength Calibration
 ------------------------------
 
-**Purpose**: Establish wavelength solutions using ThAr calibration lamps.
+**Purpose**: Establish wavelength solutions using Etalon calibration frames.
 
-This step processes wavelength calibration frames:
+The etalon provides a refined wavelength and drift solution anchored to an
+initial static ThAr solution.
 
-* Selects raw ThAr exposures (``WAVECAL``) for each arm
-* Identifies spectral lines and fits wavelength solutions
-* Creates calibration files for science spectrum wavelength assignment
+.. code-block:: python
+    :linenos:
+    :lineno-start: 61
 
-**Recipe**: ``makeDynamicWavecal``
+    for arm in arm_tags:
 
-.. note:: MAROON-X uses thorium-argon (ThAr) hollow cathode lamps for wavelength 
-   calibration, providing dense line coverage across the spectral range.
+        selected_wavecal = dataselect.select_data(get_files(), tags=['RAW', 'WAVECAL', arm])
+
+        myreduce = Reduce()
+        myreduce.files.extend(selected_wavecal)
+        myreduce.drpkg = 'maroonxdr'
+        myreduce.runr()
 
 Step 7: Science Data Reduction
 ------------------------------
 
 **Purpose**: Final processing of science spectra using all calibrations.
 
-This step applies all calibrations to science data:
+This step applies dark, flat, and wavelength calibrations to produce
+extracted, wavelength-corrected 1D spectra.
 
-* Selects raw science exposures for each arm
-* Applies dark correction, flat fielding, and wavelength calibration
-* Produces calibrated, wavelength-corrected science spectra
-* Example shown processes 300s exposures only
+.. code-block:: python
+    :linenos:
+    :lineno-start: 71
 
-**Recipe**: Automatic recipe selection based on science tags
+    for arm in arm_tags:
+
+        selected_sci = dataselect.select_data(get_files(), tags=['RAW', 'SCI', arm])
+
+        myreduce = Reduce()
+        myreduce.files.extend(selected_sci)
+        myreduce.drpkg = 'maroonxdr'
+        myreduce.runr()
+
+Step 8: Export Reduced Science Bundles
+--------------------------------------
+
+**Purpose**: Export both reduced arms into a single FITS bundle.
+
+.. code-block:: python
+    :linenos:
+    :lineno-start: 81
+
+    reduced_sci = dataselect.select_data(get_files(), tags=['PROCESSED', 'SCI'])
+
+    myreduce = Reduce()
+    myreduce.files.extend(reduced_sci)
+    myreduce.drpkg = 'maroonxdr'
+    myreduce.recipename = 'exportReducedBundle'
+    myreduce.runr()
 

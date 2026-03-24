@@ -449,7 +449,7 @@ def download_mx_file(dragons_test_root):
     If a file returns HTTP 403 (Access Forbidden), the test will be skipped.
     """
 
-    def _download(filename, sub_path='science_dir'):
+    def _download(filename, sub_path='raw_files'):
         try:
             return download_from_archive(
                 filename, sub_path=sub_path, env_var='DRAGONS_TEST'
