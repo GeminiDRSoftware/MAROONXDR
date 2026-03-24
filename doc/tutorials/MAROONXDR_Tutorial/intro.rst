@@ -74,13 +74,15 @@ You should see an output similar to:
 
     Sessions defined in MAROONXDR/noxfile.py:
 
-    - devenv -> Create a development environment.
-    - devconda -> Create a conda development environment.
-    - unit_tests -> Run unit tests.
-    - regression_tests -> Run regression tests.
-    - complete_tests -> Run complete workflow tests.
-    - docs -> Build documentation using Sphinx.
-    - docstyle -> Check docstring style using pydocstyle.
+    - devenv                 -> Create a development environment.
+    - devconda               -> Create a conda development environment.
+    - create_inputs          -> Create test input files.
+    - complete_tests         -> Run complete workflow tests.
+    - unit_tests             -> Run unit tests.
+    - legacy_regression_tests -> Run legacy regression tests.
+    - regression_tests       -> Run regression tests.
+    - docs                   -> Build documentation using Sphinx.
+    - docstyle               -> Check docstring style using pydocstyle.
 
 The ``devenv`` session is what we'll use to create the development environment.
 
@@ -99,36 +101,29 @@ Run the ``devenv`` nox session to automatically set up the complete development 
     1. Creates a Python 3.12 virtual environment at ``venv/``
     2. Clones the DRAGONS framework into ``DRAGONS/`` directory (if not already present)
     3. Installs DRAGONS in development mode
-    4. Installs GeminiCalMgr and GeminiObsDB from GitHub
+    4. Installs FitsStorage and pytest_dragons from GitHub
     5. Installs all Python dependencies from ``pyproject.toml``
     6. Installs ``maroonxdr`` and ``maroonx_instruments`` in editable mode
+    7. Sets ``DRAGONS_TEST`` environment variable in the activate script
 
 Once the setup completes, activate the virtual environment:
 
 .. code-block:: bash
 
-    # Activate the virtual environment
     source venv/bin/activate
-
-    # Or use the env name
-    source venv/bin/activate mx_dev
 
 Your shell prompt should now show ``(mx_dev)`` indicating the environment is active.
 
-.. note:: The ``devenv`` session automatically sets the ``MAROONX_DRAGONS_TEST`` environment variable to the project root. If you need to run regression tests against legacy pipeline data, please set ``MAROONX_LEGACY_TEST`` to point to your legacy data directory:
+.. note:: The ``devenv`` session automatically writes ``DRAGONS_TEST`` into the
+   activate script, pointing to a ``mx_test/`` directory next to the repository.
+   If you need to run legacy regression tests, set ``MAROONX_LEGACY_TEST``
+   manually:
 
     .. code-block:: bash
 
-        export MAROONX_LEGACY_TEST=/path/to/legacy/maroonx/dataX
+        export MAROONX_LEGACY_TEST=/path/to/legacy/data
 
-    ``dataX/`` should be the data directory that conatins the raw and reduced data:
-
-    .. code-block:: bash
-
-        data10/
-        ├── logs
-        ├── MaroonX_spectra
-        └── MaroonX_spectra_reduced
+    See :ref:`tests` for the expected directory structure under each variable.
 
 
 Step 5: Verify Installation
@@ -166,9 +161,8 @@ After running ``nox -s devenv``, your directory structure will look like this:
     ├── maroonx_instruments/          # MAROON-X instrument definitions
     │   └── maroonx/                  # AstroData class, tags, descriptors
     ├── venv/                         # Virtual environment (created by nox)
-    ├── science_dir/                  # Test data directory (if present)
     ├── doc/                          # Documentation
-    ├── noxfile.py                    # Nox configuration (this guide)
+    ├── noxfile.py                    # Nox configuration
     ├── pyproject.toml                # Package metadata and dependencies
     └── README.md                     # Repository README
 

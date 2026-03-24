@@ -5,6 +5,8 @@ Default is "reduce".
 """
 
 recipe_tags = {'MAROONX', 'SCI'}
+blocked_tags = {'BUNDLE'}
+
 
 def reduceQA(p):
     """
@@ -42,7 +44,7 @@ def reduceQA(p):
     """
     p.prepare()
     p.addDQ()  # just placeholder until MX is in caldb
-    
+
     p.overscanCorrect()
     p.correctImageOrientation()
 
@@ -60,4 +62,3 @@ def reduceQA(p):
 
 
 _default = reduceQA
-

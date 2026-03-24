@@ -1,20 +1,19 @@
-"""
-Script used to test the creation of darks for MAROON-X data.
+"""Test the creation of master darks for MAROON-X data.
+
+Reads debundled files from $DRAGONS_TEST/preprocessed_files/ (produced by
+complete/bundle.py) and writes master darks back to the same directory.
 
 It does not rely on pytest, and does not produce a success or fail output like pytest
 does. Instead, if the reduce runs successfully, this will produce a calibrated dark
 file. End users should use this test to test their installation. Only if there is an
 error in this test (or other "complete" tests) should they use the echelle and image
 unit tests to test their installation.
-
-To run this test, simply run the command "python dark_test.py" in the terminal, after
-ensuring the correct path to science_dir in Path().  This test expects you to have a
-science_dir in the root directory of the installation (you have to make this directory)
-and to have got the test fits files from Kathleen.
 """
 
 import itertools as it
 import os
+import shutil
+import sys
 from pathlib import Path
 
 from gempy.adlibrary import dataselect
@@ -24,75 +23,130 @@ from recipe_system.reduction.coreReduce import Reduce
 import maroonx_instruments  # noqa - import is necessary for astrodata
 from maroonxdr.maroonx.tests.test_utils import change_cwd_context
 
-# Get all files in the science_dir.
-test_path = Path(os.environ.get("MAROONX_DRAGONS_TEST"))
-science_dir = test_path / 'science_dir'
 
+def _get_dragons_test():
+    p = os.environ.get('DRAGONS_TEST')
+    if p is None:
+        raise RuntimeError('DRAGONS_TEST environment variable not set')
+    return Path(p)
+    
 
-@change_cwd_context(science_dir)
 def complete_masterdark_reduction():
     """Test reduction of dark frames across all arms and exposure times."""
+    dragons_test = _get_dragons_test()
+    preprocessed_dir = dragons_test / 'preprocessed_files'
 
-    # Configure test logging
-    logutils.config(file_name="test_dark.log", stomp=False)
-    log = logutils.get_logger("test_dark.log")
-    log.setLevel("DEBUG")
+    # Read debundled files from preprocessed_files/
+    all_files = sorted(str(p) for p in preprocessed_dir.glob('*.fits'))
 
-    # Get all files
-    all_files = list(Path().glob('*.fits'))
-    all_files = [str(p) for p in all_files]
-    all_files.sort()
+    with change_cwd_context(preprocessed_dir):
+        logutils.config(file_name='test_dark.log', stomp=False)
+        log = logutils.get_logger('test_dark.log')
+        log.setLevel('DEBUG')
 
-    arms = ['BLUE', 'RED']
-    exptimes = ["60s", "120s", "300s", "600s", "900s", "1200s", "1800s"]
+        arms = ['BLUE', 'RED']
+        exptimes = ['60s', '120s', '300s', '600s', '900s', '1200s', '1800s']
 
-    for exptime, arm in it.product(exptimes, arms):
+        for exptime, arm in it.product(exptimes, arms):
+            only_darks = dataselect.select_data(
+                all_files, tags=['RAW', 'DARK', arm, exptime]
+            )
 
-        only_darks = dataselect.select_data(
-            all_files, tags=['RAW', 'DARK', arm, exptime])
-
-        # Run reduce on all selected files
-        myreduce = Reduce()
-        myreduce.files.extend(only_darks)
-        myreduce.drpkg = 'maroonxdr'
-        # coment out this line for default reduction
-        #myreduce.recipename = 'testRegressionDark'
-        myreduce.runr()
+            myreduce = Reduce()
+            myreduce.files.extend(only_darks)
+            myreduce.drpkg = 'maroonxdr'
+            myreduce.runr()
 
 
-@change_cwd_context(science_dir)
 def complete_dark_coeff_reduction():
     """Test creation of dark scaling coefficients from processed darks."""
+    dragons_test = _get_dragons_test()
+    preprocessed_dir = dragons_test / 'preprocessed_files'
 
-    # Configure test logging
-    logutils.config(file_name="test_dark.log", stomp=False)
-    log = logutils.get_logger("test_dark.log")
-    log.setLevel("DEBUG")
+    # Re-scan to pick up newly produced master darks
+    all_files = sorted(str(p) for p in preprocessed_dir.glob('*.fits'))
 
-    # Get all files
-    masterdark_path = Path() / 'calibrations' / 'processed_dark'
-    all_files = list(Path(masterdark_path).glob('*.fits'))
-    all_files = [str(p) for p in all_files]
-    all_files.sort()
+    with change_cwd_context(preprocessed_dir):
+        logutils.config(file_name='test_dark.log', stomp=False)
+        log = logutils.get_logger('test_dark.log')
+        log.setLevel('DEBUG')
 
-    arms = ['BLUE', 'RED']
+        for arm in ['BLUE', 'RED']:
+            only_darks = dataselect.select_data(
+                all_files,
+                tags=['PROCESSED', 'DARK', arm],
+                xtags=['DARK_COEFF', 'DARK_SYNTH'],
+            )
 
-    for arm in arms:
+            myreduce = Reduce()
+            myreduce.files.extend(only_darks)
+            myreduce.drpkg = 'maroonxdr'
+            myreduce.recipename = 'makeDarkCoefficients'
+            myreduce.runr()
 
-        only_darks = dataselect.select_data(all_files, 
-            tags=['PROCESSED', 'DARK', arm], xtags=['DARK_COEFF', 'DARK_SYNTH'])
 
-        # Run reduce on all selected files
-        myreduce = Reduce()
-        myreduce.files.extend(only_darks)
-        myreduce.drpkg = 'maroonxdr'
-        # coment out this line for default reduction
-        myreduce.recipename = 'makeDarkCoefficients'
-        myreduce.runr()
+def populate_inputs(legacy_patch=False):
+    """Copy dark outputs from preprocessed_files/ to test inputs/ directories."""
+    dragons_test = _get_dragons_test()
+    src = dragons_test / 'preprocessed_files'
+    
+    dark_src = src / 'calibrations' / 'processed_dark'
+    dark_coeff_src = src / 'calibrations' / 'processed_dark_coeff'
+    
+    base = dragons_test / 'maroonxdr' / 'maroonx'
+
+    # Populate inputs as needed
+    # ...
+
+    # Populate legacy_regression/test_masterdark
+    if not legacy_patch:
+        # silently skip if legacy test data is not available
+        return
+
+    # legacy_regression/test_masterdark: needs master darks
+    # (synth darks are copied by science.py, which creates them)
+    _copy_files(
+        dark_src,
+        base / 'legacy_regression' / 'test_masterdark' / 'inputs',
+        [
+            '20241115T190028Z_DDDDE_r_0120_dark.fits',
+            '20241115T191909Z_DDDDE_b_0060_dark.fits',
+            '20241115T210524Z_DDDDE_b_0900_dark.fits',
+            '20241115T210524Z_DDDDE_r_0900_dark.fits',
+            '20241116T001751Z_DDDDE_b_1800_dark.fits',
+        ],
+    )
+
+    # legacy_regression/test_masterdark: needs master dark coeffs
+    _copy_files(
+        dark_coeff_src,
+        base / 'legacy_regression' / 'test_masterdark' / 'inputs',
+        [
+            '20241115T190028Z_DDDDE_b_0120_darkCoefficients.fits',
+            '20241115T190028Z_DDDDE_r_0120_darkCoefficients.fits',
+        ],
+    )
+
+
+def _copy_files(src_dir, dst_dir, filenames):
+    """Copy specific files from src_dir to dst_dir, creating dst_dir if needed."""
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    for f in filenames:
+        src_file = src_dir / f
+        if src_file.exists():
+            shutil.copy2(src_file, dst_dir / f)
+            print(f'  Copied {f} -> {dst_dir}')
+        else:
+            print(f'  WARNING: {src_file} not found, skipping')
 
 
 if __name__ == '__main__':
 
+    legacy_patch = '--legacy-patch' in sys.argv[1:]
+
     complete_masterdark_reduction()
 
     complete_dark_coeff_reduction()
+
+    if '--populate-inputs' in sys.argv[1:]:
+        populate_inputs(legacy_patch=legacy_patch)

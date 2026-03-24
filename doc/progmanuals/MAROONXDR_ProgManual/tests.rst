@@ -4,12 +4,92 @@
 Tests
 *****
 
+Environment Setup
+=================
 
-Set the required environment variable::
+Two environment variables control where test data is found:
 
-    export MAROONX_DRAGONS_TEST="/path/to/test/data"
+``DRAGONS_TEST``
+    Root directory for DRAGONS test data (inputs, references,
+    preprocessed calibrations). Required for all unit tests::
 
-In this path will be created a ``science_dir/`` directory and automatically download test files from the Gemini Archive on first run if they are not already present.
+        export DRAGONS_TEST="/path/to/test/data"
+
+``MAROONX_LEGACY_TEST``
+    Root directory containing legacy pipeline reduced data. Required only
+    for legacy regression tests::
+
+        export MAROONX_LEGACY_TEST="/path/to/legacy/data"
+
+    The legacy regression tests expect the following structure::
+
+        $MAROONX_LEGACY_TEST/
+        └── MaroonX_spectra_reduced/
+            ├── Maroonx_masterframes/
+            │   └── 202411xx/
+            │       ├── darks/               # legacy master darks
+            │       └── flats/               # legacy master flats
+            └── 20241124/                    # legacy reduced spectra & wavecals
+
+
+.. note:: The ``devenv`` nox session writes ``DRAGONS_TEST`` into the
+   virtualenv activate script automatically. ``MAROONX_LEGACY_TEST`` must
+   be set manually if you intend to run legacy regression tests.
+
+Test Data Structure
+-------------------
+
+Test data follows the DRAGONS convention. Each test module stores its inputs
+under a path derived from the package and test name::
+
+    $DRAGONS_TEST/
+    ├── maroonxdr/maroonx/
+    │   ├── bundle/
+    │   │   ├── test_bundle/inputs/            # raw bundle FITS
+    │   │   └── test_bundle_export/inputs/
+    │   ├── image/
+    │   │   ├── test_file_sorting/inputs/      # debundled FITS
+    │   │   ├── test_image_orientation_corrector/inputs/
+    │   │   ├── test_ND_filter_check/inputs/
+    │   │   ├── test_var/inputs/
+    │   │   ├── test_stray_light_removal/inputs/
+    │   │   └── test_stripe_finding/inputs/
+    │   └── echelle_extraction/
+    │       ├── test_extraction/inputs/
+    │       ├── test_measure_blaze/inputs/
+    │       ├── test_stripe_retrieval/inputs/
+    │       └── test_wavecal/inputs/
+    ├── maroonx_instruments/maroonx/
+    │   ├── test_maroonx/inputs/
+    │   └── test_calibration/inputs/
+    ├── preprocessed_files/                    # preprocessed calibrations
+    │   └── calibrations/
+    │       ├── processed_dark/
+    │       ├── processed_dark_coeff/
+    │       └── processed_flat/
+    └── raw_files/                             # raw file download cache
+
+The ``raw_files/`` subdirectory is used as a download cache by the
+DRAGONS ``download_from_archive`` helper. The ``inputs/`` directories contain the
+actual files each test expects, created by ``create_inputs`` (see below).
+
+The ``preprocessed_files/`` tree holds heavier calibration products (master
+darks, flats, dark coefficients) needed by the ``slow`` /
+``preprocessed_data`` tests. These are **not** created by the
+``create_inputs`` nox session and must be produced separately (e.g. by
+running the ``complete_tests`` session or a manual reduction).
+
+Populating Test Data
+--------------------
+
+Before running unit tests for the first time, populate the inputs with the
+``create_inputs`` nox session::
+
+    nox -s create_inputs
+
+This calls each test module's ``create_inputs()`` function, which downloads
+raw files from the Gemini Archive and preprocesses them (e.g. splitting
+bundles) into the ``inputs/`` directories listed above.
 
 
 Running the Tests
@@ -18,14 +98,13 @@ Running the Tests
 Basic Commands
 --------------
 
-Run all tests::
+Run all unit tests::
 
-    pytest maroonxdr/maroonx/tests/
+    pytest maroonxdr/maroonx/tests/ maroonx_instruments/maroonx/tests/
 
-Run specific test category::
+Run a specific test category::
 
     pytest maroonxdr/maroonx/tests/image/
-    pytest maroonxdr/maroonx/tests/regression/
     pytest maroonxdr/maroonx/tests/echelle_extraction/
     pytest maroonxdr/maroonx/tests/bundle/
 
@@ -33,42 +112,46 @@ Run a single test file::
 
     pytest maroonxdr/maroonx/tests/image/test_stray_light_removal.py
 
-Verbose output for debugging::
-
-    pytest -v -s maroonxdr/maroonx/tests/
 
 Test Markers
 ------------
 
-The test suite defines three custom markers that are auto-applied based on test location:
+Five custom markers are registered in ``conftest.py``. Three are
+auto-applied based on test location; two are applied manually per test:
 
-- ``maroonx``: Applied to all tests in ``maroonx/tests/``
-- ``regression``: Applied to all tests in ``regression/`` subdirectories
-- ``slow``: Must be manually applied to slow-running tests
+.. list-table::
+   :header-rows: 1
+   :widths: 25 15 60
+
+   * - Marker
+     - Applied
+     - Description
+   * - ``maroonx``
+     - auto
+     - All tests under ``maroonx/tests/``.
+   * - ``regression``
+     - auto
+     - Tests under any ``regression/`` subdirectory.
+   * - ``legacy_regression``
+     - auto
+     - Tests under ``legacy_regression/``.
+   * - ``slow``
+     - manual
+     - Long-running tests (e.g. full extractions).
+   * - ``preprocessed_data``
+     - manual
+     - Tests that require preprocessed calibrations in ``inputs/``.
 
 Filter tests using markers::
 
-    # Skip slow tests
-    pytest -m "not slow" maroonxdr/maroonx/tests/
+    # Skip slow tests and those needing preprocessed data
+    pytest -m "not slow and not preprocessed_data" maroonxdr/maroonx/tests/
 
-    # Skip regression tests
-    pytest -m "not regression" maroonxdr/maroonx/tests/
-
-    # Run only regression tests
-    pytest -m regression maroonxdr/maroonx/tests/
+    # Run only legacy regression tests
+    pytest -m legacy_regression maroonxdr/maroonx/tests/
 
     # Combine markers
     pytest -m "maroonx and not slow" maroonxdr/maroonx/tests/
-
-Command-Line Flags
-------------------
-
-``--preprocess-bundles``
-    Runs bundle preprocessing before tests. This splits bundle files containing both
-    arms into separate BLUE and RED FITS files. Required for tests that depend on
-    split bundle data::
-
-        pytest --preprocess-bundles maroonxdr/maroonx/tests/
 
 
 Available Tests
@@ -105,34 +188,38 @@ The test suite is organized into four main categories, each containing multiple 
    maroonxdr.maroonx.tests.echelle_extraction.test_stripe_retrieval
    maroonxdr.maroonx.tests.echelle_extraction.test_wavecal
 
-**Regression Tests**
+**Legacy Regression Tests**
 
 .. autosummary::
    :nosignatures:
 
-   maroonxdr.maroonx.tests.regression.test_masterdark
-   maroonxdr.maroonx.tests.regression.test_masterflat
-   maroonxdr.maroonx.tests.regression.test_extractions
-   maroonxdr.maroonx.tests.regression.test_fitting
-   maroonxdr.maroonx.tests.regression.test_reduced_science
+   maroonxdr.maroonx.tests.legacy_regression.test_masterdark
+   maroonxdr.maroonx.tests.legacy_regression.test_masterflat
+   maroonxdr.maroonx.tests.legacy_regression.test_extractions
+   maroonxdr.maroonx.tests.legacy_regression.test_fitting
+   maroonxdr.maroonx.tests.legacy_regression.test_reduced_science
+   maroonxdr.maroonx.tests.legacy_regression.test_reduced_wavecal
 
 GitHub Actions Integration
 ==========================
 
-The test suite runs automatically on GitHub Actions for every push and pull request.
+The test suite runs automatically on GitHub Actions for every push and pull
+request to ``main``, ``release/*``, and ``develop``.
 
 **Workflow file:** ``.github/workflows/testing.yml``
 
-**Running tests:**
+The CI pipeline has two main steps:
 
-Tests are executed via nox, skipping slow tests and preprocessing bundles::
+1. **Populate test data** — downloads raw files and creates test inputs::
 
-    nox -s unit_tests-3.12 -- -m "not slow" --preprocess-bundles
+       nox -s create_inputs
 
-This runs:
-  - The ``unit_tests`` nox session
-  - Only non-slow tests (``-m "not slow"``)
-  - Automatically download the test manifest and splits the bundles (``--preprocess-bundles``)
+2. **Run unit tests** — skipping slow and preprocessed-data tests::
+
+       nox -s unit_tests -- -m "not slow and not preprocessed_data"
+
+Test data is cached between runs (``~/mx_test``) so that archive downloads
+are only performed once.
 
 
 Missing or Desirable Tests

@@ -16,15 +16,23 @@ from maroonxdr.maroonx.maroonx_fit import maroonx_fit, set_logger
 from maroonxdr.maroonx.maroonx_utils import load_recordings
 from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
 
+from . import legacy_adapter
+
+# Calibration file mapping by arm (same pattern as test_extractions)
+_CALIB_FILES = {
+    'RED': {
+        'flat': 'processed_flat/20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits',
+        'dark': 'processed_dark/20241124T041907Z_SOOOE_r_0300_synth_dark.fits',
+    },
+    'BLUE': {
+        'flat': 'processed_flat/20241114T190714Z_DDDDF_b_0007_DFFFF_flat.fits',
+        'dark': 'processed_dark/20241124T041907Z_SOOOE_b_0300_synth_dark.fits',
+    },
+}
+
 # =========================================================
 # FILES TO COMPARE
 # =========================================================
-
-# OLD_BASE_PATH = Path("/home/martin/Projects/MaroonX/legacy/maroonx_base/data2/")
-# OLD_FILES_PATH = OLD_BASE_PATH / Path("MaroonX_spectra_reduced/20241124")
-# OLD_FLAT_FILES_PATH = OLD_BASE_PATH / Path("MaroonX_spectra_reduced/Maroonx_masterframes/202411xx/flats")
-
-# SCIENCE_DIR = Path('/home/martin/Projects/MaroonX/MAROONXDR/science_dir')
 
 
 # Set logger
@@ -35,11 +43,12 @@ log.setLevel("DEBUG")
 # =========================================================
 # TESTS
 # =========================================================
-USE_CACHE = False
+USE_CACHE = True
 
 ETALONS = [
-    '20241124T030040Z_DEEEE_r_0004',
     # '20241124T030227Z_DEEEE_r_0004',
+    '20241124T030227Z_DEEEE_b_0030',
+    # '20241124T030040Z_DEEEE_r_0004',
     # '20241124T030436Z_DLLLL_r_0004',
     # '20241124T030623Z_DLLLL_r_0004',
     # '20241124T162149Z_DEEEE_r_0004',
@@ -47,7 +56,6 @@ ETALONS = [
     # '20241124T162540Z_DLLLL_r_0004',
     # '20241124T162727Z_DLLLL_r_0004',
     # '20241124T030040Z_DEEEE_b_0030',
-    # '20241124T030227Z_DEEEE_b_0030',
     # '20241124T030436Z_DLLLL_b_0005',
     # '20241124T030623Z_DLLLL_b_0005',
     # '20241124T032549Z_DLLLE_b_0030',
@@ -63,19 +71,27 @@ ETALONS = [
 ]
 
 
-def test_load_recordings(legacy_reduced_path, legacy_flats_path):
+@pytest.mark.preprocessed_data
+@pytest.mark.parametrize("arm", ["BLUE"])
+@pytest.mark.parametrize("etalon_filename", ETALONS)
+def test_load_recordings(arm, path_to_legacy_wavecal, path_to_legacy_flats, preprocessed_files_path, etalon_filename):
 
-    old_file = legacy_reduced_path / "20241124T162336Z_DEEEE_b_0030.hdf"
-    old_flat_file = legacy_flats_path / "20241114T19_masterflat_backgroundsubtracted_FFFFF_b_0007.hdf"
+    old_file = path_to_legacy_wavecal / (etalon_filename + ".hdf")
+    old_flat_file = path_to_legacy_flats / "20241114T19_masterflat_backgroundsubtracted_FFFFF_b_0007.hdf"
+
+    # Explicit calibration paths (no caldb configured for legacy regression tests)
+    calib_root = preprocessed_files_path / 'calibrations'
+    flat_path = str(calib_root / _CALIB_FILES[arm]['flat'])
+    dark_path = str(calib_root / _CALIB_FILES[arm]['dark'])
 
     # read files and instantiate the primitive class
     # this should pick a single file
-    raw_files = sorted([str(f) for f in Path().glob('20241124T162336Z_DEEEE_*.fits')])
-    selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'WAVECAL', 'BLUE'])
+    raw_file = preprocessed_files_path / (etalon_filename + ".fits")
+    # raw_files = sorted([str(f) for f in preprocessed_files_path.glob('20241124T162336Z_DEEEE_*.fits')])
+    # selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'WAVECAL', 'BLUE'])
 
     # Primitives
-    adinput = [astrodata.open(f) for f in selected_spect]
-    #ad_flats = _get_calibration_flat(adinput)
+    adinput = [astrodata.open(raw_file)]
 
     p = MaroonXSpectrum(adinput)
     p.prepare()
@@ -85,7 +101,7 @@ def test_load_recordings(legacy_reduced_path, legacy_flats_path):
     p.correctImageOrientation()
     p.addVAR(read_noise=True, poisson_noise=True)
 
-    p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
+    p.extractStripes(flat=flat_path, dark=dark_path)
     adout = p.boxExtraction() # extracts spectra from stripes
     ad = adout[0]
 
@@ -95,7 +111,9 @@ def test_load_recordings(legacy_reduced_path, legacy_flats_path):
     use_sigma_lr = False
 
     new_generator = load_recordings(ad, guess_file, fibers, orders)
-    old_generator = load_recordings_legacy(str(old_file), str(old_flat_file), guess_file, fibers, orders, use_sigma_lr)
+    old_generator = legacy_adapter.load_recordings_legacy(
+        str(old_file), str(old_flat_file), guess_file, fibers, orders, use_sigma_lr
+        )
 
     new_dict = dict()
     for fiber, order, data, guess in new_generator:
@@ -147,13 +165,14 @@ def test_iterative_fit_legacy():
         )
 
 
-def test_iterative_fit_ETALON(legacy_reduced_path):
+@pytest.mark.parametrize("etalon_filename", ETALONS)
+def test_iterative_fit_ETALON(path_to_legacy_wavecal, etalon_filename):
     # Load old peak data. columns are lowercase
-    old_file = legacy_reduced_path / "20241124T162336Z_DEEEE_b_0030.hdf"
+    old_file = path_to_legacy_wavecal / (etalon_filename + ".hdf")
     old_peak_data = pd.read_hdf(old_file, '/etalon_peak_parameters/peaks')
     old_mask = (old_peak_data["fiber"]==2) & (old_peak_data["order"]==111)
 
-    old_file_inputs = legacy_reduced_path / "20241124T162336Z_DEEEE_b_0030_2_111_iterative_fit.npy"
+    old_file_inputs = path_to_legacy_wavecal / (etalon_filename + "_2_111_iterative_fit.npy")
     old_input = np.load(old_file_inputs, allow_pickle=True).item()
 
     set_logger(log)
@@ -190,13 +209,13 @@ def test_iterative_fit_ETALON(legacy_reduced_path):
 
 
 
-def test_iterative_fit_LFC(legacy_reduced_path):
+def test_iterative_fit_LFC(path_to_legacy_wavecal):
     # Load old peak data. columns are lowercase
-    old_file = legacy_reduced_path / "20241124T030436Z_DLLLL_b_0005.hdf"
+    old_file = path_to_legacy_wavecal / "20241124T030436Z_DLLLL_b_0005.hdf"
     old_peak_data = pd.read_hdf(old_file, '/etalon_peak_parameters/peaks')
     old_mask = (old_peak_data["fiber"]==2) & (old_peak_data["order"]==111)
 
-    old_file_inputs = legacy_reduced_path / "20241124T030436Z_DLLLL_b_0005_2_111_iterative_fit.npy"
+    old_file_inputs = path_to_legacy_wavecal / "20241124T030436Z_DLLLL_b_0005_2_111_iterative_fit.npy"
     old_input = np.load(old_file_inputs, allow_pickle=True).item()
 
     set_logger(log)
@@ -234,10 +253,11 @@ def test_iterative_fit_LFC(legacy_reduced_path):
 
 
 @pytest.mark.slow()
+@pytest.mark.preprocessed_data
 @pytest.mark.parametrize("etalon_filename", ETALONS)
-def test_getPeaksAndPolynomials(legacy_reduced_path, etalon_filename):
+def test_getPeaksAndPolynomials(path_to_legacy_wavecal, preprocessed_files_path, etalon_filename):
 
-    old_file = legacy_reduced_path / (etalon_filename + ".hdf")
+    old_file = path_to_legacy_wavecal / (etalon_filename + ".hdf")
 
     # Load old peak data. columns are lowercase
     old_peak_data = pd.read_hdf(old_file, '/etalon_peak_parameters/peaks')
@@ -245,10 +265,16 @@ def test_getPeaksAndPolynomials(legacy_reduced_path, etalon_filename):
 
     if USE_CACHE:
         # Use previously saved data on science_dir
-        adout = [astrodata.open(etalon_filename + "_wavecal.fits")]
+        adout = [astrodata.open(str(preprocessed_files_path / (etalon_filename + "_wavecal.fits")))]
     else:
+        # Determine arm from filename (_b_ = BLUE, _r_ = RED)
+        arm = 'BLUE' if '_b_' in etalon_filename else 'RED'
+        calib_root = preprocessed_files_path / 'calibrations'
+        flat_path = str(calib_root / _CALIB_FILES[arm]['flat'])
+        dark_path = str(calib_root / _CALIB_FILES[arm]['dark'])
+
         # Primitives
-        adinput = [astrodata.open(etalon_filename + ".fits")]
+        adinput = [astrodata.open(str(preprocessed_files_path / (etalon_filename + ".fits")))]
 
         p = MaroonXSpectrum(adinput)
         p.prepare()
@@ -258,7 +284,7 @@ def test_getPeaksAndPolynomials(legacy_reduced_path, etalon_filename):
         p.correctImageOrientation()
         p.addVAR(read_noise=True, poisson_noise=True)
 
-        p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
+        p.extractStripes(flat=flat_path, dark=dark_path)
         p.boxExtraction() # extracts spectra from stripes
 
         adout = p.getPeaksAndPolynomials(fibers=(2, 3, 4, 5))
@@ -286,10 +312,11 @@ def test_getPeaksAndPolynomials(legacy_reduced_path, etalon_filename):
             raise err
 
 @pytest.mark.slow()
+@pytest.mark.preprocessed_data
 @pytest.mark.parametrize("etalon_filename", ETALONS)
-def test_fitAndApplyEtalonWls(legacy_reduced_path, etalon_filename):
+def test_fitAndApplyEtalonWls(path_to_legacy_wavecal, preprocessed_files_path, etalon_filename):
 
-    old_file = legacy_reduced_path / (etalon_filename + ".hdf")
+    old_file = path_to_legacy_wavecal / (etalon_filename + ".hdf")
 
     # Load old peak data. columns are lowercase
     old_peak_data = pd.read_hdf(old_file, '/peak_data').reset_index()
@@ -297,10 +324,16 @@ def test_fitAndApplyEtalonWls(legacy_reduced_path, etalon_filename):
 
     if USE_CACHE:
         # Use previously saved data on science_dir
-        adout = [astrodata.open(etalon_filename + "_wavecal.fits")]
+        adout = [astrodata.open(str(preprocessed_files_path / (etalon_filename + "_wavecal.fits")))]
     else:
+        # Determine arm from filename (_b_ = BLUE, _r_ = RED)
+        arm = 'BLUE' if '_b_' in etalon_filename else 'RED'
+        calib_root = preprocessed_files_path / 'calibrations'
+        flat_path = str(calib_root / _CALIB_FILES[arm]['flat'])
+        dark_path = str(calib_root / _CALIB_FILES[arm]['dark'])
+
         # Primitives
-        adinput = [astrodata.open(etalon_filename + ".fits")]
+        adinput = [astrodata.open(str(preprocessed_files_path / (etalon_filename + ".fits")))]
 
         p = MaroonXSpectrum(adinput)
         p.prepare()
@@ -310,7 +343,7 @@ def test_fitAndApplyEtalonWls(legacy_reduced_path, etalon_filename):
         p.correctImageOrientation()
         p.addVAR(read_noise=True, poisson_noise=True)
 
-        p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
+        p.extractStripes(flat=flat_path, dark=dark_path)
         p.boxExtraction() # extracts spectra from stripes
 
         p.getPeaksAndPolynomials(fibers=(2, 3, 4, 5), multithreading=True)
@@ -330,21 +363,28 @@ def test_fitAndApplyEtalonWls(legacy_reduced_path, etalon_filename):
     assert new_peak_data["FIBER"].value_counts().equals(old_peak_data["fiber"].value_counts())
 
 @pytest.mark.slow()
+@pytest.mark.preprocessed_data
 @pytest.mark.parametrize("etalon_filename", ETALONS)
-def test_dynamicWavelengthSolution(legacy_reduced_path, etalon_filename):
+def test_dynamicWavelengthSolution(path_to_legacy_wavecal, preprocessed_files_path, etalon_filename):
 
-    old_file = legacy_reduced_path / (etalon_filename + ".hdf")
+    old_file = path_to_legacy_wavecal / (etalon_filename + ".hdf")
 
     # Load old peak data. columns are lowercase
-    legacy_wls = load_dict_from_hdf5(str(old_file), 'wavelengths_dynamic/')
+    legacy_wls = legacy_adapter.load_dict_from_hdf5(str(old_file), 'wavelengths_dynamic/')
 
 
     if USE_CACHE:
         # Use previously saved data on science_dir
-        adout = [astrodata.open(etalon_filename + "_wavecal.fits")]
+        adout = [astrodata.open(str(preprocessed_files_path / (etalon_filename + "_wavecal.fits")))]
     else:
+        # Determine arm from filename (_b_ = BLUE, _r_ = RED)
+        arm = 'BLUE' if '_b_' in etalon_filename else 'RED'
+        calib_root = preprocessed_files_path / 'calibrations'
+        flat_path = str(calib_root / _CALIB_FILES[arm]['flat'])
+        dark_path = str(calib_root / _CALIB_FILES[arm]['dark'])
+
         # Primitives
-        adinput = [astrodata.open(etalon_filename + ".fits")]
+        adinput = [astrodata.open(str(preprocessed_files_path / (etalon_filename + ".fits")))]
 
         p = MaroonXSpectrum(adinput)
         p.prepare()
@@ -354,7 +394,7 @@ def test_dynamicWavelengthSolution(legacy_reduced_path, etalon_filename):
         p.correctImageOrientation()
         p.addVAR(read_noise=True, poisson_noise=True)
 
-        p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
+        p.extractStripes(flat=flat_path, dark=dark_path)
         p.boxExtraction() # extracts spectra from stripes
 
         p.getPeaksAndPolynomials(fibers=(2, 3, 4, 5))
@@ -384,17 +424,18 @@ def test_dynamicWavelengthSolution(legacy_reduced_path, etalon_filename):
     assert fail_counter == 0
 
 @pytest.mark.slow()
+@pytest.mark.preprocessed_data
 @pytest.mark.parametrize("etalon_filename", ETALONS)
-def test_fiber_drifts_ETALON(legacy_reduced_path, etalon_filename):
+def test_fiber_drifts_ETALON(path_to_legacy_wavecal, preprocessed_files_path, etalon_filename):
 
-    old_file = legacy_reduced_path / (etalon_filename + ".hdf")
+    old_file = path_to_legacy_wavecal / (etalon_filename + ".hdf")
 
     # Load old drift values
     hdr_keys = [
         'Drift_Fiber1', 'Drift_Fiber2',
         'Drift_Fiber3', 'Drift_Fiber4', 'Instrument_Drift',
     ]
-    old_header_drifts = read_header_entries(str(old_file), hdr_keys)
+    old_header_drifts = legacy_adapter.read_header_entries(str(old_file), hdr_keys)
 
     legacy_drifts = {}
     for fiber, raw_entry in enumerate(old_header_drifts, start=1):
@@ -404,10 +445,16 @@ def test_fiber_drifts_ETALON(legacy_reduced_path, etalon_filename):
 
     if USE_CACHE:
         # Use previously saved data on science_dir
-        adout = [astrodata.open(etalon_filename + "_wavecal.fits")]
+        adout = [astrodata.open(str(preprocessed_files_path / (etalon_filename + "_wavecal.fits")))]
     else:
+        # Determine arm from filename (_b_ = BLUE, _r_ = RED)
+        arm = 'BLUE' if '_b_' in etalon_filename else 'RED'
+        calib_root = preprocessed_files_path / 'calibrations'
+        flat_path = str(calib_root / _CALIB_FILES[arm]['flat'])
+        dark_path = str(calib_root / _CALIB_FILES[arm]['dark'])
+
         # Primitives
-        adinput = [astrodata.open(etalon_filename + ".fits")]
+        adinput = [astrodata.open(str(preprocessed_files_path / (etalon_filename + ".fits")))]
 
         p = MaroonXSpectrum(adinput)
         p.prepare()
@@ -417,7 +464,7 @@ def test_fiber_drifts_ETALON(legacy_reduced_path, etalon_filename):
         p.correctImageOrientation()
         p.addVAR(read_noise=True, poisson_noise=True)
 
-        p.extractStripes()  # gets relevant flat and dark to cut out frame's spectra
+        p.extractStripes(flat=flat_path, dark=dark_path)
         p.boxExtraction() # extracts spectra from stripes
 
         p.getPeaksAndPolynomials(fibers=(2, 3, 4, 5))
@@ -446,96 +493,5 @@ def test_fiber_drifts_ETALON(legacy_reduced_path, etalon_filename):
         # drifts are float values in m/s, test they are within precission m/s
         assert abs(legacy_drift - drift) < precission, f"Fiber {fiber} drift mismatch: {legacy_drift:.2f} vs {drift:.2f} [m/s]"
 
-# =====================================================
-# HDF5 helper functions
-# =====================================================
 
 
-def load_recordings_legacy(f_data, f_flat, f_guess, fibers, orders, use_sigma_lr):
-    """Iterate over the recordings of the spectra and applies the flat data
-    Originally, if a guess file was specified, paramters from the guess file would be loaded
-    and passed on, but this usage mode was never fully implemented in the etalon_fit.iterative_fit() function
-    Instead passing on the data from the guess file
-
-    :param f_data: HDF5 file with the spectrum data
-    :param f_flat: HDF5 file with the flat data
-    :param f_guess: HDF5 file to use for guessing parameters, may be None
-    :param fibers: If set only the given fibers are loaded
-    :param orders: If set only the given orders are loaded
-    :param use_sigma_lr: Use different polynomials for sigma on left and right
-                         flak. Only required when loading guesses
-    :returns: iterator of (fiber, order, data)
-    :rtype: iterator
-    """
-    PATH_SPECTRA = '/box_extraction'
-    NODE_PARAMETERS = 'etalon_peak_parameters'
-    NODE_PEAKS = 'peaks'
-    NODE_POLYNOMIALS = 'polynomials'
-
-    open_h5 = tables.open_file
-    #guesses = load_fit_parameters(f_guess, use_sigma_lr) if f_guess else {}
-    # with open_h5(f_data, 'r') as h5f, open_h5(f_flat, 'r') as h5flat:
-    if f_guess is not None:
-        #with open_h5(f_data, 'r') as h5f, open_h5(f_flat, 'r') as h5flat:
-        with open_h5(f_data, 'r') as h5f, open_h5(f_flat, 'r') as h5flat, open_h5(f_guess, 'r') as h5guess:
-            for node in h5f.walk_nodes(PATH_SPECTRA, 'Array'):
-                fiber = int(node._v_parent._v_name.split('_')[-1])
-                order = int(node._v_name)
-
-                if fibers and fiber not in fibers:
-                    continue
-                if orders and order not in orders:
-                    continue
-
-                flat = h5flat.get_node(node._v_pathname)
-                data = np.array(node) / np.array(flat)
-                #guess = guesses.get((fiber, order), None)
-                guess = h5guess.get_node(node._v_pathname)
-                guess_data = np.array(guess) / np.array(flat)
-                guess_data = guess_data /np.nanmedian(guess_data[500:3500]) * np.nanmedian(data[500:3500])
-                yield fiber, order, data, guess_data
-    else:
-        with open_h5(f_data, 'r') as h5f, open_h5(f_flat, 'r') as h5flat:
-            for node in h5f.walk_nodes(PATH_SPECTRA, 'Array'):
-                fiber = int(node._v_parent._v_name.split('_')[-1])
-                order = int(node._v_name)
-
-                if fibers and fiber not in fibers:
-                    continue
-                if orders and order not in orders:
-                    continue
-
-                flat = h5flat.get_node(node._v_pathname)
-                data = np.array(node) / np.array(flat)
-
-                yield fiber, order, data, None
-                #yield fiber, order, np.array(node) , np.array(flat), None
-
-def load_mat(name, filepath):
-    with h5py.File(filepath, mode="r") as h5f:
-        return h5f[name][()]
-
-def load_dict_from_hdf5(filename, path):
-    if not path.endswith("/"):
-        path += "/"
-    if isinstance(filename, str):
-        with h5py.File(filename, 'r', libver='latest') as h5file:
-            return recursively_load_dict_contents_from_group(h5file, path)
-    else:
-        return recursively_load_dict_contents_from_group(filename, path)
-
-def recursively_load_dict_contents_from_group(h5file, path):
-    ans = {}
-    for key, item in h5file[path].items():
-        if isinstance(item, h5py._hl.dataset.Dataset):
-            ans[key] = item[()]
-        elif isinstance(item, h5py._hl.group.Group):
-            ans[key] = recursively_load_dict_contents_from_group(h5file, path + key + '/')
-    return ans
-
-def read_header_entries(filename, hdr_keys):
-    values = []
-    with h5py.File(filename, 'r', libver='latest') as h5f:
-        for key in hdr_keys:
-            values.append(h5f['header'].attrs.get(key))
-    return values

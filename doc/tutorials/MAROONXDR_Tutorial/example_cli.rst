@@ -463,7 +463,6 @@ Reduce Command Options
         -r exportReducedBundle \
         -p bundleArmStreams:suffix=_exported @sci_arms.lis
 
-exportReducedBundle
 
 **Logging control:**
 

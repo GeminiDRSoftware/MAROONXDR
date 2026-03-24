@@ -19,12 +19,19 @@ nox.options.error_on_external_run = True
 
 # Dragons installation resources
 DRAGONS_URL = R'https://github.com/GeminiDRSoftware/DRAGONS'
-CALMGR_URL = R'https://github.com/GeminiDRSoftware/GeminiCalMgr.git@release/1.1.x' # deprecated
-OBSDB_URL = R'https://github.com/GeminiDRSoftware/GeminiObsDB.git@release/1.0.x'  # deprecated
+PYTEST_DRAGONS_URL = (
+    R'git+https://github.com/GeminiDRSoftware/pytest_dragons.git@v1.0.0'
+)
+CALMGR_URL = (
+    R'https://github.com/GeminiDRSoftware/GeminiCalMgr.git@release/1.1.x'  # deprecated
+)
+OBSDB_URL = (
+    R'https://github.com/GeminiDRSoftware/GeminiObsDB.git@release/1.0.x'  # deprecated
+)
 
 # Meeting with Paul H. indicated that fits_storage is needed
-FITSS_URL = R'https://github.com/GeminiDRSoftware/FitsStorage' 
-
+# DRAGONS master (commit 22f4d9ff9) requires FitsStorage >= 3.4.0b1
+FITSS_URL = R'https://github.com/GeminiDRSoftware/FitsStorage.git@v3.4.0b1'
 
 
 DRAGONS_BRANCH = 'master'
@@ -34,7 +41,7 @@ PATH = Path(__file__).parent.resolve()
 
 # Define the following paths to be set as environment variables
 NEW_ENV_VARIABLES = {
-    "MAROONX_DRAGONS_TEST": Path(PATH),
+    'DRAGONS_TEST': Path(PATH).parent / 'mx_test',
 }
 
 
@@ -112,17 +119,14 @@ def install_dragons(session: nox.Session, python: Path | None = None):
             '-m',
             'pip',
             'install',
-            f'git+{CALMGR_URL}',
-            f'git+{OBSDB_URL}',
+            f'git+{FITSS_URL}',
             external=True,
         )
 
         return
 
     session.install('-e', str(dragons_path))
-    session.install(f'git+{CALMGR_URL}', f'git+{OBSDB_URL}')
-    # TODO: fix fits_storage installation
-    # session.install(f'git+{FITSS_URL}')
+    session.install(f'git+{FITSS_URL}')
 
 
 def get_dependencies(session: nox.Session, only: str = '') -> list[str]:
@@ -154,6 +158,9 @@ def get_dependencies(session: nox.Session, only: str = '') -> list[str]:
     return _parse_dependencies(result)
 
 
+GIT_ONLY_PACKAGES = {'pytest-dragons'}
+
+
 def _parse_dependencies(result: str) -> list[str]:
     """Parse the output of poetry show to extract dependencies."""
     result = result.replace('(!)', ' ')
@@ -162,6 +169,8 @@ def _parse_dependencies(result: str) -> list[str]:
         if match := re.match(r'^\s*(\S+)\s+([\.0-9vV]+)\s*.*$', line):
             name = match.group(1)
             version = match.group(2)
+            if name in GIT_ONLY_PACKAGES:
+                continue
             dependencies.append(f'{name}=={version}')
     return dependencies
 
@@ -211,6 +220,16 @@ def devenv(session: nox.Session):
         external=True,
     )
 
+    # Install pytest_dragons
+    session.run(
+        str(venv_python),
+        '-m',
+        'pip',
+        'install',
+        PYTEST_DRAGONS_URL,
+        external=True,
+    )
+
     # Install maroonxdr and maroonx_instruments
     session.run(
         str(venv_python),
@@ -254,9 +273,12 @@ def devconda(session: nox.Session):
         '--force',
         '-n',
         env_name,
-        '-c', 'http://astroconda.gemini.edu/public',
-        '-c', 'conda-forge',
-        '-c', 'defaults',
+        '-c',
+        'http://astroconda.gemini.edu/public',
+        '-c',
+        'conda-forge',
+        '-c',
+        'defaults',
         'python=3.12',
         external=True,
     )
@@ -416,6 +438,81 @@ def initialize_commit_hooks(session: nox.Session):
     )
 
 
+@nox.session(python='3.12')
+def create_inputs(session: nox.Session):
+    """Download and create input files for unit tests.
+    Run this session to populate the input files before runing unit_tests.
+    """
+    session.install('poetry', 'poetry-plugin-export')
+
+    # Set environment variables that tests might need
+    for var_name, var_value in NEW_ENV_VARIABLES.items():
+        session.env[var_name] = str(var_value)
+
+    # Install DRAGONS first
+    install_dragons(session)
+
+    # Install dependencies
+    dependencies = get_dependencies(session, only='main,test')
+    session.install(*dependencies)
+
+    # Install pytest_dragons
+    session.install(f'{PYTEST_DRAGONS_URL}')
+
+    # Install maroonxdr and maroonx_instruments in editable mode
+    session.install('-e', '.')
+
+    # Test modules that define create_inputs()
+    create_inputs_scripts = [
+        'maroonxdr/maroonx/tests/bundle/test_bundle.py',
+        'maroonxdr/maroonx/tests/bundle/test_bundle_export.py',
+        'maroonxdr/maroonx/tests/image/test_file_sorting.py',
+        'maroonxdr/maroonx/tests/image/test_image_orientation_corrector.py',
+        'maroonxdr/maroonx/tests/image/test_ND_filter_check.py',
+        'maroonxdr/maroonx/tests/image/test_var.py',
+        'maroonx_instruments/maroonx/tests/test_maroonx.py',
+        'maroonx_instruments/maroonx/tests/test_calibration.py',
+    ]
+
+    for script in create_inputs_scripts:
+        session.run('python', script, '--create-inputs')
+
+
+@nox.session(python='3.12')
+def complete_tests(session: nox.Session):
+    """Run complete end-to-end reduction tests."""
+    session.install('poetry', 'poetry-plugin-export')
+
+    # Set environment variables that tests might need
+    for var_name, var_value in NEW_ENV_VARIABLES.items():
+        session.env[var_name] = str(var_value)
+
+    # Install DRAGONS first
+    install_dragons(session)
+
+    # Install dependencies
+    dependencies = get_dependencies(session, only='main,test')
+    session.install(*dependencies)
+
+    # Install maroonxdr and maroonx_instruments in editable mode
+    session.install('-e', '.')
+
+    # Install pytest_dragons
+    session.install(f'{PYTEST_DRAGONS_URL}')
+
+    # Run the tests with corrected paths
+    completion_tests = [
+        'maroonxdr/maroonx/tests/complete/bundle.py',
+        'maroonxdr/maroonx/tests/complete/dark.py',
+        'maroonxdr/maroonx/tests/complete/flat.py',
+        'maroonxdr/maroonx/tests/complete/wavecal.py',
+        'maroonxdr/maroonx/tests/complete/science.py',
+    ]
+
+    # Run each script using the session's Python
+    for test_script in completion_tests:
+        session.run('python', test_script, '--populate-inputs', *session.posargs)
+
 
 @nox.session(python='3.12')
 def unit_tests(session: nox.Session):
@@ -433,6 +530,9 @@ def unit_tests(session: nox.Session):
     dependencies = get_dependencies(session, only='main,test')
     session.install(*dependencies)
 
+    # Install pytest_dragons
+    session.install(f'{PYTEST_DRAGONS_URL}')
+
     # Install maroonxdr and maroonx_instruments in editable mode
     session.install('-e', '.')
 
@@ -440,7 +540,8 @@ def unit_tests(session: nox.Session):
     test_args = [
         'pytest',
         'maroonxdr/maroonx/tests/',
-        '--ignore=maroonxdr/maroonx/tests/regression',
+        'maroonx_instruments/maroonx/tests/',
+        '--ignore=maroonxdr/maroonx/tests/legacy_regression',
         '-v',
         '-rs',
         '--tb=short',
@@ -451,9 +552,10 @@ def unit_tests(session: nox.Session):
     test_args.extend(session.posargs)
     session.run(*test_args)
 
+
 @nox.session(python='3.12')
-def regression_tests(session: nox.Session):
-    """Run unit tests."""
+def legacy_regression_tests(session: nox.Session):
+    """Run legacy pipeline regression tests."""
     session.install('poetry', 'poetry-plugin-export')
 
     # Set environment variables that tests might need
@@ -467,13 +569,16 @@ def regression_tests(session: nox.Session):
     dependencies = get_dependencies(session, only='main,test')
     session.install(*dependencies)
 
+    # Install pytest_dragons
+    session.install(f'{PYTEST_DRAGONS_URL}')
+
     # Install maroonxdr and maroonx_instruments in editable mode
     session.install('-e', '.')
 
     # Run the tests with corrected paths
     test_args = [
         'pytest',
-        'maroonxdr/maroonx/tests/regression',
+        'maroonxdr/maroonx/tests/legacy_regression',
         '-v',
         '--tb=no',
         '--rootdir=.',
@@ -483,9 +588,10 @@ def regression_tests(session: nox.Session):
     test_args.extend(session.posargs)
     session.run(*test_args)
 
+
 @nox.session(python='3.12')
-def complete_tests(session: nox.Session):
-    """Run unit tests."""
+def regression_tests(session: nox.Session):
+    """Run DRAGONS-style regression tests with inputs/refs comparison."""
     session.install('poetry', 'poetry-plugin-export')
 
     # Set environment variables that tests might need
@@ -499,30 +605,34 @@ def complete_tests(session: nox.Session):
     dependencies = get_dependencies(session, only='main,test')
     session.install(*dependencies)
 
+    # Install pytest_dragons
+    session.install(f'{PYTEST_DRAGONS_URL}')
+
     # Install maroonxdr and maroonx_instruments in editable mode
     session.install('-e', '.')
 
     # Run the tests with corrected paths
-    completion_tests = [
-        'maroonxdr/maroonx/tests/complete/bundle_test.py',
-        'maroonxdr/maroonx/tests/complete/dark_test.py',
-        'maroonxdr/maroonx/tests/complete/flat_test.py',
-        'maroonxdr/maroonx/tests/complete/reduced_1D_test.py',
-        'maroonxdr/maroonx/tests/complete/science_test.py',
+    test_args = [
+        'pytest',
+        'maroonxdr/maroonx/tests/regression',
+        '-v',
+        '--tb=short',
+        '--rootdir=.',
     ]
 
-    # Run each script using the session's Python
-    for test_script in completion_tests:
-        session.run('python', test_script)
+    # Add any additional arguments passed via command line
+    test_args.extend(session.posargs)
+    session.run(*test_args)
 
-@nox.session(python='3.10')
+
+@nox.session(python='3.12')
 def integration_tests(session: nox.Session):
     """Run integration tests."""
     message = f'{session.name} not configured.'
     raise NotImplementedError(message)
 
 
-@nox.session(python='3.10')
+@nox.session(python='3.12')
 def coverage(session: nox.Session):
     """Run tests with coverage reporting."""
     session.install('poetry', 'poetry-plugin-export')
@@ -537,11 +647,15 @@ def coverage(session: nox.Session):
     # Install maroonxdr and maroonx_instruments
     session.install('-e', '.')
 
+    # Install pytest_dragons
+    session.install(f'{PYTEST_DRAGONS_URL}')
+
     session.run('coverage', 'erase')
     session.run(
         'pytest',
         '-q',
-        'maroonxdr/maroonx/tests/image/test_split_bundle.py',
+        'maroonxdr/maroonx/tests/',
+        '--ignore=maroonxdr/maroonx/tests/legacy_regression',
         '--cov=maroonxdr/maroonx/',
         '--cov-append',
     )
@@ -580,36 +694,32 @@ def docs(session: nox.Session):
     tutorial_build = tutorial_source / 'build' / 'html'
 
     # Build user manual
-    session.log("Building user manual...")
+    session.log('Building user manual...')
     session.run(
-        'sphinx-build',
-        '-M', 'html',
-        str(user_source),
-        str(user_source / 'build')
+        'sphinx-build', '-M', 'html', str(user_source), str(user_source / 'build')
     )
 
     # Build programmer manual
-    session.log("Building programmer manual...")
+    session.log('Building programmer manual...')
     session.run(
-        'sphinx-build',
-        '-M', 'html',
-        str(prog_source),
-        str(prog_source / 'build')
+        'sphinx-build', '-M', 'html', str(prog_source), str(prog_source / 'build')
     )
 
     # Build tutorial
-    session.log("Building tutorial...")
+    session.log('Building tutorial...')
     session.run(
         'sphinx-build',
-        '-M', 'html',
+        '-M',
+        'html',
         str(tutorial_source),
-        str(tutorial_source / 'build')
+        str(tutorial_source / 'build'),
     )
 
-    session.log("Documentation built successfully!")
-    session.log(f"User manual: {user_build}/index.html")
-    session.log(f"Programmer manual: {prog_build}/index.html")
-    session.log(f"Tutorial: {tutorial_build}/index.html")
+    session.log('Documentation built successfully!')
+    session.log(f'User manual: {user_build}/index.html')
+    session.log(f'Programmer manual: {prog_build}/index.html')
+    session.log(f'Tutorial: {tutorial_build}/index.html')
+
 
 @nox.session(venv_backend='virtualenv')
 def docstyle(session: nox.Session):
@@ -619,5 +729,5 @@ def docstyle(session: nox.Session):
         'pydocstyle',
         'maroonxdr/',
         '--convention=numpy',
-        '--add-ignore=D100,D104'  # Ignore missing docstrings in modules and __init__.py
+        '--add-ignore=D100,D104',  # Ignore missing docstrings in modules and __init__.py
     )

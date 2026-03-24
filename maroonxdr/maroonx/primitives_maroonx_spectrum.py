@@ -959,13 +959,22 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         ref_fiber = params.get("ref_fiber", 5)
         symmetric_linefits = params.get("symmetric_linefits", False)
         n_knots = params.get("n_knots", 30)
-        etalons = params.get("etalon_file")
+        wavecal = params.get("wavecal")
         report = params.get("report")
 
-        if etalons is None:
-            etalons = _get_calibration_wavecal(adinputs)
+        # Resolve wavecal: use parameter or fall back to caldb
+        if wavecal is None:
+            wavecal_list = self.caldb.get_processed_wavecal(adinputs)
+        else:
+            wavecal_list = (wavecal, None)
 
-        for science_ad, etalon_ad in zip(*gt.make_lists(adinputs, etalons)):
+        for science_ad, etalon_ad, _ in zip(
+            *gt.make_lists(adinputs, *wavecal_list, force_ad=(1,))
+        ):
+            if etalon_ad is None:
+                raise RuntimeError(
+                    f"No processed wavecal listed for {science_ad.filename}"
+                )
             log.fullinfo(f"Processing: {science_ad.filename} , {etalon_ad.filename}")
             log.fullinfo(f"Etalon reference fiber: {ref_fiber}")
 

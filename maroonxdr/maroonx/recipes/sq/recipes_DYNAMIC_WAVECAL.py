@@ -5,6 +5,8 @@ Default is "makeDynamicWavecal".
 """
 
 recipe_tags = {'MAROONX', 'WAVECAL'}
+blocked_tags = {'BUNDLE'}
+
 
 def makeDynamicWavecal(p):
     """
@@ -56,8 +58,8 @@ def makeDynamicWavecal(p):
     p.staticWavelengthSolution()
     p.fitAndApplyEtalonWls()
 
-    #p.writeOutputs(suffix='_wavecal')  # save reduced 1D spectra
+    # p.writeOutputs(suffix='_wavecal')  # save reduced 1D spectra
     p.storeProcessedWavecal(suffix='_wavecal')  # save reduced 1D spectra
 
-_default = makeDynamicWavecal
 
+_default = makeDynamicWavecal

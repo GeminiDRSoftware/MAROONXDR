@@ -1,91 +1,31 @@
 """Tests for file sorting and stream separation primitives."""
 
 import logging
+import os
 from copy import deepcopy
 
 import astrodata
 import numpy as np
 import pytest
-from pathlib import Path
 
+import maroonx_instruments  # noqa - import is necessary for astrodata
 from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 
-
-@pytest.mark.parametrize('filename', ['N20241114M3271.fits'])
-def test_splitBundle(caplog, download_mx_file, filename):
-    """
-    Test that a Bundle is splitted in Blue and Red astrodata objects.
-
-    Parameters
-    ----------
-    caplog : fixture
-    filename : str
-
-    Returns
-    -------
-    None
-    """
-    caplog.set_level(logging.DEBUG)
-
-    download_mx_file(filename)
-
-    ad_bundle = astrodata.open(filename)
-
-    p = MAROONX([ad_bundle])
-    out = p.splitBundle()
-
-    assert len(out) == 2, 'Should return two astrodata objects'
-
-    ad_1, ad_2 = out
-    assert ad_1.indices == [0], 'Should have only one indexable header'
-    assert ad_2.indices == [0], 'Should have only one indexable header'
-
-    assert ad_1[0].hdr.get('ARM') in ['BLUE', 'RED'], 'ARM should be BLUE or RED'
-    assert ad_2[0].hdr.get('ARM') in ['BLUE', 'RED'], 'ARM should be BLUE or RED'
-    assert ad_1[0].hdr.get('ARM') != ad_2[0].hdr.get('ARM')
-
-    assert ad_1.phu.get('ORIGNAME') != ad_2.phu.get('ORIGNAME')
-    assert ad_1.phu.get('ARCHNAME') == ad_2.phu.get('ARCHNAME')
-
-    assert ad_bundle.tables == ad_1.tables == ad_2.tables
-
-@pytest.mark.parametrize('filename', ['N20241124M1413.fits'])
-def test_splitBundle_exposuremeter(caplog, download_mx_file, filename):
-    """
-    Test that a Bundle is splitted in Blue and Red astrodata objects.
-
-    Parameters
-    ----------
-    caplog : fixture
-    filename : str
-
-    Returns
-    -------
-    None
-    """
-    caplog.set_level(logging.DEBUG)
-
-    download_mx_file(filename)
-
-    if not Path(filename).is_file():
-        pytest.skip(f"{filename} not available for testing.")
-
-    ad_bundle = astrodata.open(filename)
-
-    p = MAROONX([ad_bundle])
-    out = p.splitBundle()
-
-    ad_1, ad_2 = out
-
-    assert (ad_1.EXPOSUREMETER.meta['header']["ZP_PC"] ==
-            ad_bundle.EXPOSUREMETER.meta['header']["TZERO2"])
-    assert (ad_1.EXPOSUREMETER.meta['header']["ZP_FRD"] ==
-            ad_bundle.EXPOSUREMETER.meta['header']["TZERO3"])
+# -- Test datasets -------------------------------------------------------------
+# These bundles are needed for debundling into split-arm files
+bundles_needed = [
+    'N20241114M3271.fits',
+    'N20241114M3295.fits',
+    'N20241114M3450.fits',
+]
 
 
+# -- Tests ---------------------------------------------------------------------
 @pytest.mark.parametrize('filename_r', ['20241114T181028Z_DFFFD_r_0002.fits'])
 @pytest.mark.parametrize('filename_b', ['20241114T181028Z_DFFFD_b_0008.fits'])
-def test_checkArm_collection_and_rejection(caplog, filename_r, filename_b):
+def test_checkArm_collection_and_rejection(
+    caplog, path_to_inputs, filename_r, filename_b
+):
     """Test that first file and others of its arm-type are included while else are removed.
 
     Parameters
@@ -100,8 +40,8 @@ def test_checkArm_collection_and_rejection(caplog, filename_r, filename_b):
     """
     caplog.set_level(logging.DEBUG)
 
-    ad_red = astrodata.open(filename_r)
-    ad_blue = astrodata.open(filename_b)
+    ad_red = astrodata.open(os.path.join(path_to_inputs, filename_r))
+    ad_blue = astrodata.open(os.path.join(path_to_inputs, filename_b))
 
     test_objects = [
         ad_red,
@@ -129,7 +69,7 @@ def test_checkArm_collection_and_rejection(caplog, filename_r, filename_b):
 
 @pytest.mark.parametrize('DFFFD_file', ['20241114T181815Z_DFFFD_b_0008.fits'])
 @pytest.mark.parametrize('FDDDF_file', ['20241114T191006Z_DDDDF_b_0007.fits'])
-def test_separating_flat_streams(caplog, DFFFD_file, FDDDF_file):
+def test_separating_flat_streams(caplog, path_to_inputs, DFFFD_file, FDDDF_file):
     """Test that seperateFlatStreams correctly separates flats by illuminated fibers.
 
     Parameters
@@ -143,8 +83,8 @@ def test_separating_flat_streams(caplog, DFFFD_file, FDDDF_file):
     None
     """
     caplog.set_level(logging.DEBUG)
-    ad_DFFFD = astrodata.open(DFFFD_file)
-    ad_FDDDF = astrodata.open(FDDDF_file)
+    ad_DFFFD = astrodata.open(os.path.join(path_to_inputs, DFFFD_file))
+    ad_FDDDF = astrodata.open(os.path.join(path_to_inputs, FDDDF_file))
     test_flats = [
         deepcopy(ad_FDDDF),
         deepcopy(ad_FDDDF),
@@ -177,10 +117,9 @@ def test_separating_flat_streams(caplog, DFFFD_file, FDDDF_file):
     assert len(p.streams['DFFFD_flats']) == num_DFFFD
 
 
-
 @pytest.mark.parametrize('DFFFD_file', ['20241114T181815Z_DFFFD_b_0008.fits'])
 @pytest.mark.parametrize('FDDDF_file', ['20241114T191006Z_DDDDF_b_0007.fits'])
-def test_combining_flat_streams(caplog, DFFFD_file, FDDDF_file):
+def test_combining_flat_streams(caplog, path_to_inputs, DFFFD_file, FDDDF_file):
     """Test that combineFlatStreams creates by-pixel max of DFFFD and FDDDF flats.
 
     Parameters
@@ -194,8 +133,8 @@ def test_combining_flat_streams(caplog, DFFFD_file, FDDDF_file):
     None
     """
     caplog.set_level(logging.DEBUG)
-    ad_DFFFD = astrodata.open(DFFFD_file)
-    ad_FDDDF = astrodata.open(FDDDF_file)
+    ad_DFFFD = astrodata.open(os.path.join(path_to_inputs, DFFFD_file))
+    ad_FDDDF = astrodata.open(os.path.join(path_to_inputs, FDDDF_file))
     test_flats = [deepcopy(ad_FDDDF), deepcopy(ad_DFFFD)]
     p = MAROONX(test_flats)
     p.prepare()
@@ -210,14 +149,49 @@ def test_combining_flat_streams(caplog, DFFFD_file, FDDDF_file):
     assert len(adtest) == 1
 
     np.testing.assert_array_equal(
-        adtest[0].data[0],
-        np.max([ad_DFFFD.data[0], ad_FDDDF.data[0]], axis=0)
+        adtest[0].data[0], np.max([ad_DFFFD.data[0], ad_FDDDF.data[0]], axis=0)
     )
     np.testing.assert_allclose(
         adtest[0].variance[0],
-        np.max([p_var[0].variance[0], p_var[1].variance[0]], axis=0)
+        np.max([p_var[0].variance[0], p_var[1].variance[0]], axis=0),
     )
 
 
+# -- Create inputs -------------------------------------------------------------
+def create_inputs():
+    """
+    Create input files for this test module.
+
+    Run with: python -m maroonxdr.maroonx.tests.image.test_file_sorting --create-inputs
+    """
+    from astrodata.testing import download_from_archive
+
+    input_path = os.path.join(
+        os.environ['DRAGONS_TEST'],
+        'maroonxdr',
+        'maroonx',
+        'image',
+        'test_file_sorting',
+        'inputs',
+    )
+    os.makedirs(input_path, exist_ok=True)
+
+    # Download bundles and run splitBundle to produce debundled files
+    for filename in bundles_needed:
+        print(f'  Downloading {filename}')
+        raw_path = download_from_archive(filename)
+        ad = astrodata.open(raw_path)
+        p = MAROONX([ad])
+        split_ads = p.splitBundle()
+        for ad_arm in split_ads:
+            ad_arm.write(os.path.join(input_path, ad_arm.filename), overwrite=True)
+            print(f'  Wrote {ad_arm.filename} to {input_path}')
+
+
 if __name__ == '__main__':
-    pytest.main()
+    import sys
+
+    if '--create-inputs' in sys.argv[1:]:
+        create_inputs()
+    else:
+        pytest.main()

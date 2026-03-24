@@ -33,6 +33,7 @@ barycorrpy = "^0.4.4"
 [tool.poetry.group.test.dependencies]
 pytest = "^7.3"
 pytest-cov = "^4.1"
+pytest-dragons = {git = "https://github.com/GeminiDRSoftware/pytest_dragons.git", tag = "v1.0.0"}
 coverage = "^7.4.4"
 tables = "^3.10.2"
 h5py = "^3.13.0"

@@ -57,11 +57,14 @@ jobs:
           with:
             python-version: ${{ matrix.python-version }}
 
-        - name: Setup MAROONX_DRAGONS_TEST environment variable
-          run: echo "MAROONX_DRAGONS_TEST=$HOME/mx_test" >> $GITHUB_ENV
+        - name: Setup DRAGONS_TEST environment variable
+          run: echo "DRAGONS_TEST=$HOME/mx_test" >> $GITHUB_ENV
 
         - name: Install nox
           run: python -m pip install --upgrade pip nox
 
+        - name: Create test inputs
+          run: nox -s create_inputs-${{ matrix.python-version }}
+
         - name: Run unit tests
-          run: nox -s ${{ matrix.test-session }}-${{ matrix.python-version }} -- -m "not slow" --preprocess-bundles
+          run: nox -s ${{ matrix.test-session }}-${{ matrix.python-version }} -- -m "not slow and not preprocessed_data"
