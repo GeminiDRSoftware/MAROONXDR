@@ -421,8 +421,18 @@ def find_peaks(data, order=2, savgol_window_length=3, savgol_polyorder=1):
         maxima = np.append(maxima,((minima[idx]+minima[idx+1])/2).astype('int'))
     maxima.sort()
 
+    # -------------------------------------------------
     # Check if there are minima and maxima at the same pixel and remove them
-    minima = np.setdiff1d(minima, maxima)
+    # minima = np.setdiff1d(minima, maxima)
+    # maxima = np.setdiff1d(maxima, minima) # martin
+
+    # Legacy: element-wise comparison (numpy.where(maxima == minima)) removes
+    # maxima that coincide with minima at the same index position.
+    if len(maxima) == len(minima):
+        wrong_maxima = np.where(maxima == minima)
+        if wrong_maxima[0].size > 0:
+            maxima = np.delete(maxima, wrong_maxima)
+    # -------------------------------------------------
 
     len_minima = len(minima)
     len_maxima = len(maxima)

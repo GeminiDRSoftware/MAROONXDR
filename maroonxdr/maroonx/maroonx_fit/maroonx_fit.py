@@ -209,7 +209,12 @@ def calculate_residuals(observed, predicted, clip_range=None, clip_sigma=3, bad_
     if clip_range is not None:
         clip_min, clip_max = clip_range
         residuals = np.clip(residuals, clip_min, clip_max)    
-    residuals[np.where(residuals >  clip_sigma * np.nanstd(residuals))] = np.nan
+    
+    mask = np.where(residuals >  clip_sigma * np.nanstd(residuals))
+    residuals[mask] = np.nan
+    if mask[0].size > 0:
+        log.fullinfo(f"Calculated residuals masked {mask[0].size} outliers "
+        f"with sigma clipping at {clip_sigma} sigma")
 
     if bad_flag:
         #observed[bad] = np.nan
