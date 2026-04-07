@@ -162,7 +162,6 @@ def test_exportBundle(legacy_reduced_path, preprocessed_files_path):
 # =========================================================
 
 
-@pytest.mark.slow
 @pytest.mark.preprocessed_data
 @pytest.mark.parametrize(
     'matching_filenames',
@@ -189,23 +188,31 @@ def test_optimal_extraction(path_to_inputs, path_to_legacy_science, matching_fil
     # sigma-clipping rejection loop to diverge at a handful of edge pixels,
     # producing flux=0 → NaN in DRAGONS where legacy kept a finite value
     # (or vice-versa).  Allow up to 1 NaN-location mismatch per order.
+
+    fail_counter = 0
     for fiber in range(1, 6):
         new_opt = getattr(ad[0], f'OPTIMAL_REDUCED_FIBER_{fiber}')
         if new_opt.size == 1:
             continue
 
         new_wls = getattr(ad[0], f'WLS_SIMULTANEOUS_FIBER_{fiber}')
-        orders = ad[0].REDUCED_ORDERS_FIBER_3.astype(int)
+        orders = getattr(ad[0], f'REDUCED_ORDERS_FIBER_{fiber}').astype(int)
 
         for idx, order in enumerate(orders):
             legacy_order_opt = legacy_opt[f'fiber_{fiber}'][f'{order}']
 
-            assert_allclose_with_max_fails(
-                new_opt[idx, :], legacy_order_opt,
-                rtol=1e-3, atol=1e-4, max_fails=1)
+            try:
+                assert_allclose_with_max_fails(
+                    new_opt[idx, :], legacy_order_opt,
+                    rtol=0, atol=1e-8, max_fails=0)
+                log.fullinfo(f'fiber/order : {fiber}/{order} [OK]')
+            except (AssertionError, pytest.xfail.Exception):
+                fail_counter += 1
+                log.fullinfo(f'fiber/order : {fiber}/{order} [FAIL]')
+
+    assert fail_counter == 0, f"{fail_counter} failing f/o combinations"
 
 
-@pytest.mark.slow
 @pytest.mark.preprocessed_data
 @pytest.mark.parametrize(
     'matching_filenames',
@@ -226,23 +233,29 @@ def test_optimal_var(path_to_inputs, path_to_legacy_science, matching_filenames)
 
     legacy_var = legacy_adapter.load_dict_from_hdf5(str(legacy_file), 'optimal_var/')
 
+    fail_counter = 0
     for fiber in range(1, 6):
         new_var = getattr(ad[0], f'OPTIMAL_REDUCED_VAR_{fiber}')
         if new_var.size == 1:
             continue
 
-        orders = ad[0].REDUCED_ORDERS_FIBER_3.astype(int)
+        orders = getattr(ad[0], f'REDUCED_ORDERS_FIBER_{fiber}').astype(int)
 
         for idx, order in enumerate(orders):
             legacy_order_var = legacy_var[f'fiber_{fiber}'][f'{order}']
 
-            np.testing.assert_allclose(
-                new_var[idx, :], legacy_order_var,
-                rtol=1e-3, atol=1e-4,
-                err_msg=f'fiber {fiber} order {order} optimal_var mismatch')
+            try:
+                assert_allclose_with_max_fails(
+                    new_var[idx, :], legacy_order_var,
+                    rtol=0, atol=1e-8, max_fails=0)
+                log.fullinfo(f'fiber/order : {fiber}/{order} [OK]')
+            except (AssertionError, pytest.xfail.Exception):
+                fail_counter += 1
+                log.fullinfo(f'fiber/order : {fiber}/{order} [FAIL]')
+
+    assert fail_counter == 0, f"{fail_counter} failing f/o combinations"
 
 
-@pytest.mark.slow
 @pytest.mark.preprocessed_data
 @pytest.mark.parametrize(
     'matching_filenames',
@@ -252,7 +265,7 @@ def test_optimal_var(path_to_inputs, path_to_legacy_science, matching_filenames)
         ('20241124T041907Z_SOOOE_r_0300_reduced.fits', '20241124T041907Z_SOOOE_r_0300.hdf'),
     ],
 )
-def test_wavelengths(path_to_inputs, path_to_legacy_science, matching_filenames):
+def test_simultaneous_wavelengths(path_to_inputs, path_to_legacy_science, matching_filenames):
 
     file_name, legacy_file_name = matching_filenames
 
@@ -263,17 +276,24 @@ def test_wavelengths(path_to_inputs, path_to_legacy_science, matching_filenames)
 
     legacy_wls = legacy_adapter.load_dict_from_hdf5(str(legacy_file), 'wavelengths/')
 
+    fail_counter = 0
     for fiber in range(1, 6):
         new_wls = getattr(ad[0], f'WLS_SIMULTANEOUS_FIBER_{fiber}')
         if new_wls.size == 1:
             continue
 
-        orders = ad[0].REDUCED_ORDERS_FIBER_3.astype(int)
+        orders = getattr(ad[0], f'REDUCED_ORDERS_FIBER_{fiber}').astype(int)
 
         for idx, order in enumerate(orders):
             legacy_order_wls = legacy_wls[f'fiber_{fiber}'][f'{order}']
 
-            np.testing.assert_allclose(
-                new_wls[idx, :], legacy_order_wls,
-                rtol=1e-3, atol=1e-4,
-                err_msg=f'fiber {fiber} order {order} wavelength mismatch')
+            try:
+                assert_allclose_with_max_fails(
+                    new_wls[idx, :], legacy_order_wls,
+                    rtol=0, atol=1e-8, max_fails=0)
+                log.fullinfo(f'fiber/order : {fiber}/{order} [OK]')
+            except (AssertionError, pytest.xfail.Exception):
+                fail_counter += 1
+                log.fullinfo(f'fiber/order : {fiber}/{order} [FAIL]')
+
+    assert fail_counter == 0, f"{fail_counter} failing f/o combinations"

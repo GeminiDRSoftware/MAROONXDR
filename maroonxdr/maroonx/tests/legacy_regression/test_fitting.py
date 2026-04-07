@@ -43,7 +43,7 @@ log.setLevel("DEBUG")
 # =========================================================
 # TESTS
 # =========================================================
-USE_CACHE = True
+USE_CACHE = False
 
 ETALONS = [
     # '20241124T030227Z_DEEEE_r_0004',
@@ -271,7 +271,7 @@ def test_getPeaksAndPolynomials(path_to_legacy_wavecal, preprocessed_files_path,
         arm = 'BLUE' if '_b_' in etalon_filename else 'RED'
         calib_root = preprocessed_files_path / 'calibrations'
         flat_path = str(calib_root / _CALIB_FILES[arm]['flat'])
-        dark_path = str(calib_root / _CALIB_FILES[arm]['dark'])
+        dark_path = None # etalon is not dark corrected
 
         # Primitives
         adinput = [astrodata.open(str(preprocessed_files_path / (etalon_filename + ".fits")))]
@@ -283,8 +283,10 @@ def test_getPeaksAndPolynomials(path_to_legacy_wavecal, preprocessed_files_path,
         p.overscanCorrect()
         p.correctImageOrientation()
         p.addVAR(read_noise=True, poisson_noise=True)
-
-        p.extractStripes(flat=flat_path, dark=dark_path)
+        
+        p.extractStripes(flat=flat_path, dark_subtraction_skip_fibers=[1, 2, 3, 4, 5])
+        #p.extractStripes(flat=flat_path, dark=dark_path)
+        
         p.boxExtraction() # extracts spectra from stripes
 
         adout = p.getPeaksAndPolynomials(fibers=(2, 3, 4, 5))
@@ -302,14 +304,29 @@ def test_getPeaksAndPolynomials(path_to_legacy_wavecal, preprocessed_files_path,
     # Test the the column FIBER has the same value counts
     assert new_peak_data["FIBER"].value_counts().equals(old_peak_data["fiber"].value_counts())
 
-    cols = ['amplitude', 'center', 'fiber', # 'lq_cost', # 'lq_status',
-        'offset', 'order', 'sigma1', 'sigma2', 'width']
-    for c in cols:
+    col_tolerances = {
+        'amplitude':  {'atol': 1e-3, 'rtol': 0},
+        'center':     {'atol': 1e-3, 'rtol': 0},
+        'fiber':      {'atol': 0,    'rtol': 0},
+        'order':      {'atol': 0,    'rtol': 0},
+        'offset':     {'atol': 1e-3, 'rtol': 0},
+        'sigma1':     {'atol': 1e-3, 'rtol': 0},
+        'sigma2':     {'atol': 1e-3, 'rtol': 0},
+        'width':      {'atol': 1e-3, 'rtol': 0},
+    }
+
+    for col, tol in col_tolerances.items():
         try:
-            np.testing.assert_allclose(new_peak_data[c.upper()].values, old_peak_data[c.lower()].values, atol=1e-1)
+            np.testing.assert_allclose(
+                new_peak_data[col.upper()].values,
+                old_peak_data[col.lower()].values,
+                **tol,
+                err_msg=f"Column '{col}' mismatch",
+            )
         except AssertionError as err:
-            print(f"Column {c} mismatch: {err}")
+            print(f"Column {col} mismatch: {err}")
             raise err
+
 
 @pytest.mark.slow()
 @pytest.mark.preprocessed_data
@@ -343,10 +360,12 @@ def test_fitAndApplyEtalonWls(path_to_legacy_wavecal, preprocessed_files_path, e
         p.correctImageOrientation()
         p.addVAR(read_noise=True, poisson_noise=True)
 
-        p.extractStripes(flat=flat_path, dark=dark_path)
+        p.extractStripes(flat=flat_path, dark_subtraction_skip_fibers=[1, 2, 3, 4, 5])
+        #p.extractStripes(flat=flat_path, dark=dark_path)
+
         p.boxExtraction() # extracts spectra from stripes
 
-        p.getPeaksAndPolynomials(fibers=(2, 3, 4, 5), multithreading=True)
+        p.getPeaksAndPolynomials(fibers=(2, 3, 4, 5))
         p.staticWavelengthSolution()
         adout = p.fitAndApplyEtalonWls()
 
@@ -361,6 +380,37 @@ def test_fitAndApplyEtalonWls(path_to_legacy_wavecal, preprocessed_files_path, e
 
     # Test the the column FIBER has the same value counts
     assert new_peak_data["FIBER"].value_counts().equals(old_peak_data["fiber"].value_counts())
+
+    col_tolerances = {
+        # Peak fit parameters (from getPeaksAndPolynomials)
+        'amplitude':         {'atol': 1e-2, 'rtol': 0},
+        'center':            {'atol': 1e-2, 'rtol': 0},
+        'fiber':             {'atol': 0,    'rtol': 0},
+        'order':             {'atol': 0,    'rtol': 0},
+        'offset':            {'atol': 1e-2, 'rtol': 0},
+        'sigma1':            {'atol': 1e-2, 'rtol': 0},
+        'sigma2':            {'atol': 1e-2, 'rtol': 0},
+        'width':             {'atol': 1e-2, 'rtol': 0},
+        # Wavelength derived columns (from fitAndApplyEtalonWls)
+        'wavelength_by_thar': {'atol': 1e-4, 'rtol': 0},
+        'm':                  {'atol': 0,   'rtol': 0},
+        'm_fraction':         {'atol': 1e-3, 'rtol': 0},
+        'dispersion_mps':     {'atol': 1e-2, 'rtol': 0},
+    }
+    shared_cols = new_cols & old_cols
+    
+    for col, tol in col_tolerances.items():
+        try:
+            np.testing.assert_allclose(
+                new_peak_data[col.upper()].values,
+                old_peak_data[col.lower()].values,
+                **tol,
+                err_msg=f"Column '{col}' mismatch",
+            )
+        except AssertionError as err:
+            print(f"Column {col} mismatch: {err}")
+            raise err
+
 
 @pytest.mark.slow()
 @pytest.mark.preprocessed_data
@@ -381,7 +431,7 @@ def test_dynamicWavelengthSolution(path_to_legacy_wavecal, preprocessed_files_pa
         arm = 'BLUE' if '_b_' in etalon_filename else 'RED'
         calib_root = preprocessed_files_path / 'calibrations'
         flat_path = str(calib_root / _CALIB_FILES[arm]['flat'])
-        dark_path = str(calib_root / _CALIB_FILES[arm]['dark'])
+        dark_path = None # etalon is not dark corrected            
 
         # Primitives
         adinput = [astrodata.open(str(preprocessed_files_path / (etalon_filename + ".fits")))]
@@ -394,7 +444,9 @@ def test_dynamicWavelengthSolution(path_to_legacy_wavecal, preprocessed_files_pa
         p.correctImageOrientation()
         p.addVAR(read_noise=True, poisson_noise=True)
 
-        p.extractStripes(flat=flat_path, dark=dark_path)
+        p.extractStripes(flat=flat_path, dark_subtraction_skip_fibers=[1, 2, 3, 4, 5])
+        #p.extractStripes(flat=flat_path, dark=dark_path)
+
         p.boxExtraction() # extracts spectra from stripes
 
         p.getPeaksAndPolynomials(fibers=(2, 3, 4, 5))
@@ -416,7 +468,7 @@ def test_dynamicWavelengthSolution(path_to_legacy_wavecal, preprocessed_files_pa
             new_order_wls = new_wls[idx, :]
 
             try:
-                np.testing.assert_allclose(legacy_order_wls, new_order_wls, rtol=1e-4)
+                np.testing.assert_allclose(legacy_order_wls, new_order_wls, rtol=1e-8)
                 print(f'fiber/order : {fiber}/{order} [OK]')
             except AssertionError:
                 fail_counter += 1
@@ -451,7 +503,7 @@ def test_fiber_drifts_ETALON(path_to_legacy_wavecal, preprocessed_files_path, et
         arm = 'BLUE' if '_b_' in etalon_filename else 'RED'
         calib_root = preprocessed_files_path / 'calibrations'
         flat_path = str(calib_root / _CALIB_FILES[arm]['flat'])
-        dark_path = str(calib_root / _CALIB_FILES[arm]['dark'])
+        dark_path = None # etalon is not dark corrected
 
         # Primitives
         adinput = [astrodata.open(str(preprocessed_files_path / (etalon_filename + ".fits")))]
@@ -464,7 +516,9 @@ def test_fiber_drifts_ETALON(path_to_legacy_wavecal, preprocessed_files_path, et
         p.correctImageOrientation()
         p.addVAR(read_noise=True, poisson_noise=True)
 
-        p.extractStripes(flat=flat_path, dark=dark_path)
+        p.extractStripes(flat=flat_path, dark_subtraction_skip_fibers=[1, 2, 3, 4, 5])
+        #p.extractStripes(flat=flat_path, dark=dark_path)
+
         p.boxExtraction() # extracts spectra from stripes
 
         p.getPeaksAndPolynomials(fibers=(2, 3, 4, 5))

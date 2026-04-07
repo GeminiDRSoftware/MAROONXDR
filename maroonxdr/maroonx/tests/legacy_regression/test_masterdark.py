@@ -17,7 +17,6 @@ log = logutils.get_logger("test_masterdarks.log")
 log.setLevel("DEBUG")
 
 
-@pytest.mark.slow
 @pytest.mark.preprocessed_data
 @pytest.mark.parametrize(
     'matching_filenames',
@@ -46,13 +45,10 @@ def test_masterdark(path_to_inputs, path_to_legacy_darks, matching_filenames):
         assert old_data.shape == new_data.shape, f"Shape mismatch: {old_data.shape} != {new_data.shape}"
 
         # Compare the data
-        np.testing.assert_allclose(old_data, new_data, rtol=0, atol=1e-4,
+        np.testing.assert_allclose(old_data, new_data, rtol=0, atol=1e-15,
             err_msg='Data mismatch')
 
 
-
-
-@pytest.mark.slow()
 @pytest.mark.preprocessed_data
 @pytest.mark.parametrize(
     'matching_filenames',
@@ -77,13 +73,11 @@ def test_dark_coeff(path_to_inputs, path_to_legacy_darks, matching_filenames):
     legacy_z1 = legacy_coeffs['z1']
 
     # Compare the data
-    np.testing.assert_allclose(z0, legacy_z0, rtol=0, atol=2e-4, err_msg='Data mismatch')
-    np.testing.assert_allclose(z1, legacy_z1, rtol=0, atol=2e-4, err_msg='Data mismatch')
+    np.testing.assert_allclose(z0, legacy_z0, rtol=1e-5, atol=1e-15, err_msg='Data mismatch')
+    np.testing.assert_allclose(z1, legacy_z1, rtol=1e-5, atol=1e-15, err_msg='Data mismatch')
     np.testing.assert_allclose(logexptime['logexptime'].value, legacy_coeffs['logexptime'])
 
 
-
-@pytest.mark.slow()
 @pytest.mark.preprocessed_data
 @pytest.mark.parametrize(
     'matching_filenames',
@@ -108,4 +102,5 @@ def test_synthetic_masterdark(path_to_inputs, path_to_legacy_darks, matching_fil
         synthetic_dark = ad_coeff[0].data
 
         # check that the synthetic dark frame is within tolerance of the legacy dark frame
-        np.testing.assert_allclose(synthetic_dark, legacy_dark, rtol=0, atol=1e-4)
+        np.testing.assert_allclose(synthetic_dark, legacy_dark, rtol=1e-5, atol=1e-15,
+            err_msg='Data mismatch')

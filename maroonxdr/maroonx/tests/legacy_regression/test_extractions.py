@@ -35,7 +35,7 @@ log.setLevel("DEBUG")
 # =========================================================
 # TESTS
 # =========================================================
-USE_CACHE = False
+USE_CACHE = True
 
 SCIENCE_FILES = [
     '20241124T041907Z_SOOOE_b_0300',
@@ -82,7 +82,7 @@ def test_extractStripes_fromEtalon(arm, path_to_legacy_reduced, preprocessed_fil
             new_stripe = new_stripes[f][o].toarray()
 
             try:
-                assert_allclose_with_max_fails(legacy_stripe, new_stripe, rtol=0, atol=1e-8, max_fails=2)
+                assert_allclose_with_max_fails(legacy_stripe, new_stripe, rtol=0, atol=1e-8, max_fails=0)
                 log.fullinfo(f'fiber/order : {f}/{o} [OK]')
             except (AssertionError, pytest.xfail.Exception):
                 # if xfails was raised, we still want to count it as a fail
@@ -136,7 +136,7 @@ def test_extractStripes_fromFlat(arm, path_to_legacy_flats, preprocessed_files_p
             new_flat_stripe = new_flat_stripes[f][o].toarray()
 
             try:
-                assert_allclose_with_max_fails(legacy_flat_stripe, new_flat_stripe, rtol=1e-3, atol=1e-8, max_fails=2)
+                assert_allclose_with_max_fails(legacy_flat_stripe, new_flat_stripe, rtol=0, atol=1e-8, max_fails=0)
                 log.fullinfo(f'fiber/order : {f}/{o} [OK]')
             except (AssertionError, pytest.xfail.Exception):
                 # if xfails was raised, we still want to count it as a fail
@@ -231,7 +231,7 @@ def test_extractStripes_fromScience(arm, path_to_legacy_reduced, path_to_legacy_
             new_stripe = new_stripes[f][o].toarray()
 
             try:
-                assert_allclose_with_max_fails(legacy_stripe, new_stripe, rtol=0, atol=1e-3, max_fails=2)
+                assert_allclose_with_max_fails(legacy_stripe, new_stripe, rtol=0, atol=1e-8, max_fails=0)
                 log.fullinfo(f'fiber/order : {f}/{o} [OK]')
             except (AssertionError, pytest.xfail.Exception):
                 # if xfails was raised, we still want to count it as a fail
@@ -295,7 +295,7 @@ def test_boxExtraction(arm, path_to_legacy_reduced, preprocessed_files_path):
 
             try:
                 #np.testing.assert_allclose(legacy_order, new_order, rtol=0, atol=1e-8)
-                assert_allclose_with_max_fails(legacy_order, new_order, rtol=0, atol=1e-8, max_fails=2)
+                assert_allclose_with_max_fails(legacy_order, new_order, rtol=0, atol=1e-15, max_fails=0)
                 log.fullinfo(f'fiber/order : {fiber}/{order} [OK]')
             except (AssertionError, pytest.xfail.Exception):
                 # if xfails was raised, we still want to count it as a fail
@@ -364,7 +364,7 @@ def test_optimalExtraction(arm, path_to_legacy_reduced, preprocessed_files_path,
             new_order = new_opt[idx, :]
             #np.testing.assert_allclose(legacy_order, new_order, rtol=1e-4)
             try:
-                assert_allclose_with_max_fails(legacy_order, new_order, rtol=0, atol=1e-4, max_fails=2)
+                assert_allclose_with_max_fails(legacy_order, new_order, rtol=0, atol=1e-15, max_fails=0)
                 log.fullinfo(f'fiber/order [opt]: {fiber}/{order} [OK]')
             except (AssertionError, pytest.xfail.Exception):
                 # if xfails was raised, we still want to count it as a fail
@@ -374,7 +374,7 @@ def test_optimalExtraction(arm, path_to_legacy_reduced, preprocessed_files_path,
             legacy_order = legacy_box[f"fiber_{fiber}"][f"{order}"]
             new_order = new_box[idx, :]
             try:
-                assert_allclose_with_max_fails(legacy_order, new_order, rtol=0, atol=1e-4, max_fails=2)
+                assert_allclose_with_max_fails(legacy_order, new_order, rtol=0, atol=1e-15, max_fails=0)
                 log.fullinfo(f'fiber/order [box]: {fiber}/{order} [OK]')
             except (AssertionError, pytest.xfail.Exception):
                 # if xfails was raised, we still want to count it as a fail
@@ -435,7 +435,7 @@ def test_staticWavelengthSolution(arm, path_to_legacy_reduced, preprocessed_file
             new_order_wls = new_wls[idx, :]
 
             try:
-                assert_allclose_with_max_fails(legacy_order_wls, new_order_wls, rtol=0, atol=1e-8, max_fails=2)
+                assert_allclose_with_max_fails(legacy_order_wls, new_order_wls, rtol=0, atol=1e-15, max_fails=0)
                 log.fullinfo(f'fiber/order : {fiber}/{order} [OK]')
             except (AssertionError, pytest.xfail.Exception):
                 # if xfails was raised, we still want to count it as a fail
@@ -507,17 +507,15 @@ def test_optimal_extraction_single_stripe(path_to_legacy_bkg, preprocessed_files
         new_stand_spec, new_input['stand_spec'], rtol=0, atol=1e-8
     )
 
-
     # Assert old and new inputs are close to each other
-    np.testing.assert_allclose(old_input['stripe'].todense(), new_input['stripe'].todense(), rtol=0, atol=1e-5)
-    np.testing.assert_allclose(old_input['flat_stripes'].todense(), new_input['flat_stripes'].todense(), rtol=0, atol=1e-5)
-    np.testing.assert_allclose(old_input['back_var'], new_input['back_var'], rtol=0, atol=1e-5)
-
+    np.testing.assert_allclose(old_input['stripe'].todense(), new_input['stripe'].todense(), rtol=0, atol=1e-15)
+    np.testing.assert_allclose(old_input['flat_stripes'].todense(), new_input['flat_stripes'].todense(), rtol=0, atol=1e-15)
+    np.testing.assert_allclose(old_input['back_var'], new_input['back_var'], rtol=0, atol=1e-15)
 
     # # Assert old and new results are close to each other
-    # np.testing.assert_allclose(old_flux, new_flux, rtol=0, atol=1e-4)
-    # np.testing.assert_allclose(old_var, new_var, rtol=0, atol=1e-4)
-    # np.testing.assert_allclose(old_stand_spec, new_stand_spec, rtol=0, atol=1e-4)
+    np.testing.assert_allclose(old_flux, new_flux, rtol=0, atol=1e-15)
+    np.testing.assert_allclose(old_var, new_var, rtol=0, atol=1e-15)
+    np.testing.assert_allclose(old_stand_spec, new_stand_spec, rtol=0, atol=1e-15)
 
 
 @pytest.mark.slow()
@@ -588,7 +586,7 @@ def test_combineFibers(arm, path_to_legacy_reduced, preprocessed_files_path, sci
             new_order = new[key][idx, :]
 
             try:
-                assert_allclose_with_max_fails(legacy_order, new_order, rtol=1e-2, atol=1e-8, max_fails=2)
+                assert_allclose_with_max_fails(legacy_order, new_order, rtol=1e-2, atol=1e-8, max_fails=0)
                 #np.testing.assert_allclose(legacy_order, new_order, rtol=1e-2, atol=1e-8)
                 log.fullinfo(f'key/order : {key:7s}/{order} [OK]')
             except (AssertionError, pytest.xfail.Exception):
