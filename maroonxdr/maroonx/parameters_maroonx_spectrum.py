@@ -57,7 +57,7 @@ class getPeaksAndPolynomialsConfig(config.Config):
     )
     # plot_path = config.Field("Path to save plots", str, None)
     multithreading = config.Field('Use multithreading', bool, False)
-    iterations = config.Field('Number of iterations', int, 10)
+    iterations = config.Field('Number of iterations', int, 6)
 
 
 class fitAndApplyEtalonWlsConfig(config.Config):

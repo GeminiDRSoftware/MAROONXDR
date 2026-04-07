@@ -1520,11 +1520,12 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             for order_idx, order in enumerate(orders):
                 kappa_sigma = orig_kappa_sigma
 
-                intensity1 = fiber_data[2][order_idx]
-                intensity2 = fiber_data[3][order_idx]
+                intensity1 = fiber_data[2][order_idx].copy()
+                intensity2 = fiber_data[3][order_idx].copy()
+                intensity3 = fiber_data[4][order_idx].copy()
+                
                 scale1 = np.nansum(intensity1 / np.nansum(intensity2))
                 intensity1 = intensity1 / scale1
-                intensity3 = fiber_data[4][order_idx]
                 scale3 = np.nansum(intensity3 / np.nansum(intensity2))
                 intensity3 = intensity3 / scale3
 

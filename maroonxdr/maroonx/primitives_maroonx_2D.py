@@ -1885,9 +1885,18 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
                 ad[0].data.astype(np.float32),
             )
 
+            # -------------------------------------------------------------------
             # Replace with legacy results.  Legacy backgroundfit.py reads
             # stacked flats as float32 (line 237), so the result is float32.
-            adout[0].data = data_dict['result'].astype(np.float32)
+            # adout[0].data = data_dict['result'].astype(np.float32)
+            
+            # Flat frames go through a FITS roundtrip in legacy (BITPIX=-32), truncating to float32.
+            # Science frames do not — legacy keeps float64 all the way to extraction.
+            if 'FLAT' in ad.tags:
+                adout[0].data = data_dict['result'].astype(np.float32)
+            else:
+                adout[0].data = data_dict['result']
+            # -------------------------------------------------------------------
             if snapshot:
                 adout[0].STRAYLIGHT_DIFFERENCE = adout[0].data - ad[0].data
                 adout[0].data = ad[0].data
