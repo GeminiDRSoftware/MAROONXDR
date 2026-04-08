@@ -360,6 +360,7 @@ def iterative_fit(
         parameter_list.append(np.copy(fit_object.param_obj.parameters))
 
         resf = fit_object.fit_polynomials()
+        params_after_poly = np.copy(fit_object.param_obj.parameters)
         shw = fit_object.eval_polynomials()[2, :]
         amplitudes_sorted = np.sort(fit_object.eval_polynomials_at_centers()[1,:])
 
@@ -373,7 +374,7 @@ def iterative_fit(
         fit_results = fit_object.fit_peak_centers(iteration=i, fiber=fiber)
 
         log.debug(f"Fitted centers ({i}. iteration) on {fiber} in: {time.time() - t_i:.2f} s")
-        
+
         spectrum_values = fit_object.spectrum_val()
 
         residuals, resis_norm = calculate_residuals(
@@ -390,9 +391,12 @@ def iterative_fit(
                 # if we see an improvement, keep the new parameters and increment the iterator
                 i = i + 1
                 parameter_list.append(np.copy(fit_object.param_obj.parameters))
-            # else:
-            #     # If we see no improvement, revert to old parameters
-            #     fit_object.param_obj.update_parameters(parameter_list[-1])
+            else:
+                # No improvement: revert to the post-polynomial-fit state (before the
+                # last fit_peak_centers), matching legacy etalon_fit.py where p[-1] is
+                # appended after fit_polynomials but before fit_peak_centers on the
+                # converging iteration.
+                fit_object.param_obj.update_parameters(parameters=params_after_poly)
             break
         else:
             parameter_list.append(np.copy(fit_object.param_obj.parameters))

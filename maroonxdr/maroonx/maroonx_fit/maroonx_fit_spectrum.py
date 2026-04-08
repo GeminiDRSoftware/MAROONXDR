@@ -430,7 +430,7 @@ def find_peaks(data, order=2, savgol_window_length=3, savgol_polyorder=1):
     # maxima that coincide with minima at the same index position.
     if len(maxima) == len(minima):
         wrong_maxima = np.where(maxima == minima)
-        if wrong_maxima[0].size > 0:
+        if np.any(wrong_maxima[0] > 0):
             maxima = np.delete(maxima, wrong_maxima)
     # -------------------------------------------------
 
