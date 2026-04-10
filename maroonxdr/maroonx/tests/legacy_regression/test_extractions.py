@@ -563,7 +563,7 @@ def test_combineFibers(arm, path_to_legacy_reduced, preprocessed_files_path, sci
                          dark_subtraction_skip_fibers=[5], straylight_removal_fibers=[5],
                          legacy=True)
         p.optimalExtraction(dark=dark_path)
-        p.getPeaksAndPolynomials(fibers=(5,) , multithreading=True)
+        p.getPeaksAndPolynomials(fibers=(5,))
         p.staticWavelengthSolution()
         p.applyWavelengthSolution(wavecal=wavecal_path, fibers=(2,3,4), ref_fiber=5)
 

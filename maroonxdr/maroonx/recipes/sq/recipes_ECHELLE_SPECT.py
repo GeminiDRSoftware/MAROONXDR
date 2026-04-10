@@ -45,7 +45,7 @@ def reduce(p):
     p.addVAR(read_noise=True, poisson_noise=True)
     p.extractStripes(dark_subtraction_skip_fibers=[5], straylight_removal_fibers=[5])
     p.optimalExtraction()
-    p.getPeaksAndPolynomials(fibers=(5,), multithreading=True)
+    p.getPeaksAndPolynomials(fibers=(5,))
     p.staticWavelengthSolution()
     p.applyWavelengthSolution(fibers=(2, 3, 4), ref_fiber=5)
     p.combineFibers()

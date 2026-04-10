@@ -197,13 +197,20 @@ class EtalonSpectrum(EchelleSpectrum):
             except KeyError:
                 self.log.warning("No data for order {}".format(order))
 
-    def guess_peak_numbers(self, debug=0, plot_title = ""):
+    def guess_peak_numbers(self, debug=0, plot_title="", drop_outliers=True):
         """
         Guess peak numbers based on the wavelength and etalon model.
 
         Args:
             debug (int): Debug level.
             plot_title (str): Title for the plot.
+            drop_outliers (bool): If True (default), remove outlier peaks from
+                peak_data.  Pass False when peak centers have been drift-corrected
+                so that the MultiIndex still holds pre-correction center values:
+                in that case the drop key (column CENTER) differs from the index
+                label (original CENTER) and the drop would silently remove the
+                wrong row.  Legacy pandas 1.0.1 raised KeyError in this situation
+                but gets silently skipped via ``except: pass``, keeping all peaks.
 
         Returns:
             peak_numbers (1D array): Peak numbers.
@@ -235,12 +242,11 @@ class EtalonSpectrum(EchelleSpectrum):
                 else:
                     log.warning(f'{np.count_nonzero(bad)} bad lines removed in order {order}')
 
-                dropindex = self.peak_data.loc[order].iloc[np.where(bad)].index
-                log.warning(f"Dropping {list(dropindex)} indices in order {order}")
-                for idx in dropindex:
-                    # Commented this out to reproduce legacy issue
-                    self.peak_data.drop(index=(order, idx), inplace=True)
-                    # log.warning(f"Could not drop peak data for {idx} in order {order}.")
+                if drop_outliers:
+                    dropindex = self.peak_data.loc[order].iloc[np.where(bad)].index
+                    log.warning(f"Dropping {list(dropindex)} indices in order {order}")
+                    for idx in dropindex:
+                        self.peak_data.drop(index=(order, idx), inplace=True)
 
         # correct jumps between orders
         for order in (self.orders[1:])[::-1]:

@@ -1121,7 +1121,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             fig=None
             for fiber in fibers:
                 etalon.spectra[fiber].apply_wavelength_vector()
-                etalon_peak_data = etalon.spectra[fiber].guess_peak_numbers(debug=0)
+                etalon_peak_data = etalon.spectra[fiber].guess_peak_numbers(debug=0, drop_outliers=False)
                 if report:
                     residuals = _fc2min(
                         parameters, 
