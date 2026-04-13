@@ -36,7 +36,7 @@ class MXSpectrum:
     '''
     This class is used to read in a MaroonX spectrum and apply the wavelength solution.
     '''
-    def __init__(self, adinput, pm=None, etalon_peaks_symmetric=False):
+    def __init__(self, adinput, pm=None, etalon_peaks_symmetric=False, wave_ext='WLS_STATIC'):
         """
         Initializes the MXSpectrum object.
 
@@ -93,7 +93,7 @@ class MXSpectrum:
             box_var = getattr(adinput[0], f'BOX_REDUCED_VAR_{fiber_number}', None)
             opt_data = getattr(adinput[0], f'OPTIMAL_REDUCED_FIBER_{fiber_number}', None)
             opt_var = getattr(adinput[0], f'OPTIMAL_REDUCED_VAR_{fiber_number}', None)
-            wls_static_data = getattr(adinput[0], f'WLS_STATIC_FIBER_{fiber_number}', None)
+            wls_data = getattr(adinput[0], f'{wave_ext}_FIBER_{fiber_number}', None)
 
             if reduced_orders.size == 1:
                 logger.warning(f"Missing data for fiber {fiber_number}. Skipping.")
@@ -114,7 +114,7 @@ class MXSpectrum:
                 opt_data=opt_data,
                 opt_err=opt_var,
                 orders=reduced_orders,
-                wavelength_data=wls_static_data,
+                wavelength_data=wls_data,
                 fiber=fiber_number,
                 pm=pm,
             )

@@ -986,7 +986,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
             # Load the science and etalon spectrum
             science = MXSpectrum(science_ad, etalon_peaks_symmetric=symmetric_linefits)
-            etalon = MXSpectrum(etalon_ad, etalon_peaks_symmetric=symmetric_linefits)
+            etalon = MXSpectrum(etalon_ad, etalon_peaks_symmetric=symmetric_linefits, wave_ext='WLS_DYNAMIC')
 
             # Load reference wavelength solution from the config
             refwavelength_file = maroonx_utils.get_refwavelength_filename(science_ad)
@@ -1086,18 +1086,14 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
                 # Apply offsets (smoothed with spline) to etalon frame
                 # for science fibers (spline is evaluated at peak indices, not pixel positions)
-                for fiber in fibers:                   
-                    # pk = etalon.spectra[fiber].peak_data
-                    # idx = pk.index.get_level_values('ORDER') == o
-                    # peak_nums = pk.loc[idx].index.get_level_values('CENTER')
-                    # pk.loc[idx, 'CENTER'] -= spl(peak_nums)
-                    center_values = etalon.spectra[fiber].peak_data.loc[o, 'CENTER'].values
-                    center_spl = spl(center_values)
+                for fiber in fibers:
+                    center_series = etalon.spectra[fiber].peak_data.loc[o, 'CENTER']
+                    center_spl = spl(center_series.index)  # evaluate at pixel positions (index), not raw array
 
-                    log.stdinfo("BEFORE shift fiber %s order %s: %s", fiber, o, center_values[:5])
-                    log.stdinfo("APPLYING shift fiber %s order %s: %s", fiber, o, center_spl[:5])
-                    etalon.spectra[fiber].peak_data.loc[o, 'CENTER'] = center_values - center_spl
-                    log.stdinfo("AFTER shift fiber %s order %s: %s", fiber, o, etalon.spectra[fiber].peak_data.loc[o, 'CENTER'].values[:5])
+                    log.debug("BEFORE shift fiber %s order %s: %s", fiber, o, center_series.values[:5])
+                    log.debug("APPLYING shift fiber %s order %s: %s", fiber, o, center_spl[:5])
+                    etalon.spectra[fiber].peak_data.loc[o, 'CENTER'] = center_series.values - center_spl
+                    log.debug("AFTER shift fiber %s order %s: %s", fiber, o, etalon.spectra[fiber].peak_data.loc[o, 'CENTER'].values[:5])
 
             # DEBUG TEST 2 output
             # 
