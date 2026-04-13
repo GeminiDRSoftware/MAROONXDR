@@ -134,36 +134,6 @@ def test_load_recordings(arm, path_to_legacy_wavecal, path_to_legacy_flats, prep
         # Test data values are equal
         np.testing.assert_allclose(old_data, new_data, rtol=0, atol=1e-5)
 
-@pytest.mark.skip(reason="This test is for debuging purposes only.")
-def test_iterative_fit_legacy():
-    # Load old peak data. columns are lowercase
-    old_file = OLD_FILES_PATH / "20241124T162336Z_DEEEE_b_0030.hdf"
-    old_peak_data = pd.read_hdf(old_file, '/etalon_peak_parameters/peaks')
-    old_mask = (old_peak_data["fiber"]==2) & (old_peak_data["order"]==111)
-
-    old_file_inputs = OLD_FILES_PATH / "20241124T162336Z_DEEEE_b_0030_2_111_iterative_fit.npy"
-    old_input = np.load(old_file_inputs, allow_pickle=True).item()
-
-    # Get the old iterative fit function
-    import sys
-
-    MOD_PATH = "/home/martin/Projects/MaroonX/legacy/maroonx_base/reduce/"
-    sys.path.append(MOD_PATH)
-    from etalon_fit import iterative_fit as legacy_iterative_fit
-
-    # Calculate expected results
-    output = legacy_iterative_fit(
-        spectrum_ = old_input['data'],
-        degree_sigma = old_input['degree_sigma'],
-        degree_width = old_input['degree_width'],
-        iterations = old_input['iterations'],
-        initial_parameters = old_input['initial_parameters'],
-        fiber = old_input['fiber'],
-        plot_path = old_input['plot_path'],
-        use_sigma_lr = old_input['use_sigma_lr'],
-        show_plots = old_input['show_plots']
-        )
-
 
 @pytest.mark.parametrize("etalon_filename", ETALONS)
 def test_iterative_fit_ETALON(path_to_legacy_wavecal, etalon_filename):
@@ -305,14 +275,14 @@ def test_getPeaksAndPolynomials(path_to_legacy_wavecal, preprocessed_files_path,
     assert new_peak_data["FIBER"].value_counts().equals(old_peak_data["fiber"].value_counts())
 
     col_tolerances = {
-        'amplitude':  {'atol': 1e-3, 'rtol': 0},
-        'center':     {'atol': 1e-3, 'rtol': 0},
+        'amplitude':  {'atol': 1e-6, 'rtol': 0},
+        'center':     {'atol': 1e-6, 'rtol': 0},
         'fiber':      {'atol': 0,    'rtol': 0},
         'order':      {'atol': 0,    'rtol': 0},
-        'offset':     {'atol': 1e-3, 'rtol': 0},
-        'sigma1':     {'atol': 1e-3, 'rtol': 0},
-        'sigma2':     {'atol': 1e-3, 'rtol': 0},
-        'width':      {'atol': 1e-3, 'rtol': 0},
+        'offset':     {'atol': 1e-6, 'rtol': 0},
+        'sigma1':     {'atol': 1e-6, 'rtol': 0},
+        'sigma2':     {'atol': 1e-6, 'rtol': 0},
+        'width':      {'atol': 1e-6, 'rtol': 0},
     }
 
     for col, tol in col_tolerances.items():
@@ -383,19 +353,19 @@ def test_fitAndApplyEtalonWls(path_to_legacy_wavecal, preprocessed_files_path, e
 
     col_tolerances = {
         # Peak fit parameters (from getPeaksAndPolynomials)
-        'amplitude':         {'atol': 1e-2, 'rtol': 0},
-        'center':            {'atol': 1e-2, 'rtol': 0},
+        'amplitude':         {'atol': 1e-6, 'rtol': 0},
+        'center':            {'atol': 1e-6, 'rtol': 0},
         'fiber':             {'atol': 0,    'rtol': 0},
         'order':             {'atol': 0,    'rtol': 0},
-        'offset':            {'atol': 1e-2, 'rtol': 0},
-        'sigma1':            {'atol': 1e-2, 'rtol': 0},
-        'sigma2':            {'atol': 1e-2, 'rtol': 0},
-        'width':             {'atol': 1e-2, 'rtol': 0},
+        'offset':            {'atol': 1e-6, 'rtol': 0},
+        'sigma1':            {'atol': 1e-6, 'rtol': 0},
+        'sigma2':            {'atol': 1e-6, 'rtol': 0},
+        'width':             {'atol': 1e-6, 'rtol': 0},
         # Wavelength derived columns (from fitAndApplyEtalonWls)
-        'wavelength_by_thar': {'atol': 1e-4, 'rtol': 0},
+        'wavelength_by_thar': {'atol': 1e-8, 'rtol': 0},
         'm':                  {'atol': 0,   'rtol': 0},
-        'm_fraction':         {'atol': 1e-3, 'rtol': 0},
-        'dispersion_mps':     {'atol': 1e-2, 'rtol': 0},
+        'm_fraction':         {'atol': 1e-6, 'rtol': 0},
+        'dispersion_mps':     {'atol': 1e-6, 'rtol': 0},
     }
     shared_cols = new_cols & old_cols
     
@@ -528,8 +498,8 @@ def test_fiber_drifts_ETALON(path_to_legacy_wavecal, preprocessed_files_path, et
     # Test fiber drifts
     drifts = adout[0].fiber_drifts()
 
-    blue_precission = 0.5  # m/s
-    red_precission = 1.3  # m/s
+    blue_precission = 0.1  # m/s
+    red_precission = 0.1  # m/s
     if 'BLUE' in adout[0].tags:
         precission = blue_precission
     elif 'RED' in adout[0].tags:
