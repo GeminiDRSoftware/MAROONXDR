@@ -665,37 +665,6 @@ class MAROONXEchelle(MAROONX, Spect):
                             )
                         )
 
-                        # ==================================================
-                        if int(f[-1]) == 2 and int(o) == 111:
-                            log.info(' SAVE: %s, order %s', f, o)
-                            arrays_to_save = {
-                                'filename': ad.filename.rstrip('.fits'),
-                                'stripe': stripe,
-                                'flat_stripes': flat_stripes[f][o],
-                                'gain': gain,
-                                'read_noise': read_noise,
-                                'back_var': back_var,
-                                'mask': np.logical_not(ad[0].mask).astype(int),
-                                's_clip': s_clip,
-                                'penalty': penalty,
-                                'flux': flux,
-                                'var': var,
-                                'stand_spec': stand_spec,
-                            }
-                            # Use Path from pathlib to extract filename
-                            base = Path().resolve()
-                            fn = ad.filename.rstrip('.fits')
-                            outfile = (
-                                f'{fn}_optimal_{int(f[-1])}_' f'{int(o)}_inputs.npy'
-                            )
-                            print(f'outfile: {outfile}')
-                            print(f'base: {base}')
-                            save_dir = base  # / 'legacy_bkg_arrays'
-                            os.makedirs(str(base), exist_ok=True)
-                            save_path = os.path.join(save_dir, outfile)
-                            np.save(save_path, arrays_to_save)
-                        # ==================================================
-
                         if f in optimal_reduced_stripes:
                             # Update the extensions we created earlier
                             optimal_reduced_stripes[f].update({o: flux})

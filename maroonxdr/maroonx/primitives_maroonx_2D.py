@@ -1474,7 +1474,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
             ad[0].REMOVED_STRIPES = np.array(unidentified_stripes)
             gt.mark_history(ad, primname=self.myself(), keyword=timestamp_key)
             ad.update_filename(suffix=params['suffix'], strip=False)
-            return adinputs
+        return adinputs
 
     def defineFlatStripes(self, adinputs=None, **params):
         """
@@ -1947,6 +1947,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
         -----
         Modifies the instance's `streams` dictionary by adding a 'DFFFD_flats' key
         containing the list of DFFFD flat field AstroData objects.
+
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
@@ -1978,6 +1979,8 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
                 mislabeled.append(ad)
                 log.warning('Not registered as Flat: %s', ad.filename)
 
+        # TODO: raise an error when the flats streams splits DDDDF and DFFFD 
+        # but one of them ends up empty.
         # Provide warnings if we do not have both types of flats
         if not flat_fdddf_list:
             log.warning('No FDDDF Flats in input list')
