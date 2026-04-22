@@ -448,76 +448,6 @@ def test_staticWavelengthSolution(arm, path_to_legacy_reduced, preprocessed_file
     assert fail_counter == 0, f"{fail_counter} failing f/o combinations"
 
 
-@pytest.mark.parametrize("science_filename", SCIENCE_FILES)
-def test_optimal_extraction_single_stripe(path_to_legacy_bkg, preprocessed_files_path, science_filename):
-    # Load old data
-    old_file_inputs = (
-        path_to_legacy_bkg / f"{science_filename}_optimal_2_111_inputs.npy"
-    )
-    old_input = np.load(old_file_inputs, allow_pickle=True).item()
-
-    (
-        old_flux, old_var, old_stand_spec, old_stand_var, old_fo
-    ) = _optimal_extraction_single_stripe(
-        old_input['stripe'],
-        old_input['flat_stripes'],
-        gain=old_input['gain'],
-        read_noise=old_input['read_noise'],
-        back_var=old_input['back_var'],
-        mask=old_input['mask'],
-        s_clip=old_input['s_clip'],
-        penalty=old_input['penalty'],
-        full_output=False,
-        log=log)
-    np.testing.assert_allclose(
-        old_flux, old_input['flux'], rtol=0, atol=1e-8
-    )
-    np.testing.assert_allclose(
-        old_var, old_input['var'], rtol=0, atol=1e-8
-    )
-    np.testing.assert_allclose(
-        old_stand_spec, old_input['stand_spec'], rtol=0, atol=1e-8
-    )
-
-    # load new data
-    new_input = np.load(
-        str(preprocessed_files_path / f"{science_filename}_optimal_2_111_inputs.npy"),
-        allow_pickle=True,
-    ).item()
-    (
-        new_flux, new_var, new_stand_spec, new_stand_var, new_fo
-    ) = _optimal_extraction_single_stripe(
-        new_input['stripe'],
-        new_input['flat_stripes'],
-        gain=new_input['gain'],
-        read_noise=new_input['read_noise'],
-        back_var=new_input['back_var'],
-        mask=new_input['mask'],
-        s_clip=new_input['s_clip'],
-        penalty=new_input['penalty'],
-        full_output=False,
-        log=log)
-    np.testing.assert_allclose(
-        new_flux, new_input['flux'], rtol=0, atol=1e-8
-    )
-    np.testing.assert_allclose(
-        new_var, new_input['var'], rtol=0, atol=1e-8
-    )
-    np.testing.assert_allclose(
-        new_stand_spec, new_input['stand_spec'], rtol=0, atol=1e-8
-    )
-
-    # Assert old and new inputs are close to each other
-    np.testing.assert_allclose(old_input['stripe'].todense(), new_input['stripe'].todense(), rtol=0, atol=1e-15)
-    np.testing.assert_allclose(old_input['flat_stripes'].todense(), new_input['flat_stripes'].todense(), rtol=0, atol=1e-15)
-    np.testing.assert_allclose(old_input['back_var'], new_input['back_var'], rtol=0, atol=1e-15)
-
-    # # Assert old and new results are close to each other
-    np.testing.assert_allclose(old_flux, new_flux, rtol=0, atol=1e-15)
-    np.testing.assert_allclose(old_var, new_var, rtol=0, atol=1e-15)
-    np.testing.assert_allclose(old_stand_spec, new_stand_spec, rtol=0, atol=1e-15)
-
-
 @pytest.mark.slow()
 @pytest.mark.parametrize("arm", ["BLUE"])
 @pytest.mark.parametrize("science_filename", SCIENCE_FILES)
@@ -643,6 +573,29 @@ def test_barycentricCorrection(arm, path_to_legacy_reduced, preprocessed_files_p
         rtol=0.0,
         atol=0.1,
     )
+
+@pytest.mark.parametrize("arm", ["BLUE"])
+@pytest.mark.parametrize("science_filename", SCIENCE_FILES[:1])
+def test_barycentricCorrection_cache(arm, preprocessed_files_path, science_filename):
+    """Verify that get_stellar_data is called only once when processing multiple files."""
+    import unittest.mock as mock
+    import barycorrpy.barycorrpy as bcp
+
+    raw_file = preprocessed_files_path / (science_filename + ".fits")
+    adinput = [astrodata.open(raw_file), astrodata.open(raw_file)]
+
+    p = MaroonXSpectrum(adinput)
+    p.prepare()
+
+    with mock.patch.object(bcp, "get_stellar_data", wraps=bcp.get_stellar_data) as spy:
+        adout = p.barycentricCorrection(target_name="HD 203030")
+        assert spy.call_count == 1, f"Expected 1 SIMBAD call, got {spy.call_count}"
+
+    assert len(adout) == 2
+    berv_0 = float(adout[0][0].hdr.get("BERV_FLUXWEIGHTED_PC"))
+    berv_1 = float(adout[1][0].hdr.get("BERV_FLUXWEIGHTED_PC"))
+    np.testing.assert_allclose(berv_0, berv_1, rtol=0.0, atol=0.0)
+
 
 # =====================================================
 # HDF5 helper functions

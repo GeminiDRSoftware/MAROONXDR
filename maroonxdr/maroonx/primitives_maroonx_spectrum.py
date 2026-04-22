@@ -1912,6 +1912,11 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         start_time = params.get("start_time")
         report = params.get("report")
 
+        # Cache stellar data per target name to avoid repeated SIMBAD TAP hits.
+        # Uses bcp.get_stellar_data by reference so it works with or without the
+        # monkey-patch applied above.
+        stellar_data_cache = {}
+
         for ad in adinputs:
             # Read target name from header
             target = ad.object()
@@ -1929,13 +1934,14 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     log.warning("Skip file %s", ad.filename)
                     continue
 
-            # Query SIMBAD for target coordinates
-            result_table = Simbad.query_object(target)
-            if result_table is None:
-                log.warning("Target %s not recognized by SIMBAD", target)
-                if use_coords:
-                    log.warning("Will use telescope pointing as coordinates.")
-                else:
+            # Fetch stellar data once per unique target name
+            if not use_coords and target not in stellar_data_cache:
+                try:
+                    star, _ = bcp.get_stellar_data(target)
+                    stellar_data_cache[target] = star
+                    log.fullinfo("Fetched stellar data for %s from SIMBAD", target)
+                except Exception as e:
+                    log.warning("Target %s not recognized by SIMBAD: %s", target, e)
                     log.warning(
                         "Skip file %s - consider using --use_coords option", ad.filename
                     )
@@ -1986,7 +1992,16 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 barycorrpy_kwargs["dec"] = dec
                 log.fullinfo(f"Using RA: {ra:.4f} deg, DEC: {dec:.4f} deg")
             else:
-                barycorrpy_kwargs["starname"] = target
+                star = stellar_data_cache[target]
+                barycorrpy_kwargs.update({
+                    "ra": star["ra"],
+                    "dec": star["dec"],
+                    "pmra": star.get("pmra"),
+                    "pmdec": star.get("pmdec"),
+                    "px": star.get("px"),
+                    "rv": star.get("rv"),
+                    "epoch": star.get("epoch", 2451545.0),
+                })
                 log.fullinfo(f"Using target name: {target}")
 
             # BVC for nominal exposure midtime
@@ -2054,61 +2069,61 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             )
 
             # Save header entries
-            ad[0].hdr.set("UTC_START", f"{utc_start.isot}", "xxxxx")
-            ad[0].hdr.set("UTC_CORRECTION", f"{time_correction.sec:.1f}", "xxxxx")
-            ad[0].hdr.set("UTC_MIDPOINT", f"{utc_mid.isot}", "xxxxx")
-            ad[0].hdr.set("UTC_FLUXWEIGHTED_PC", f"{utc_fluxmid_pc.isot}", "xxxxx")
-            ad[0].hdr.set("UTC_FLUXWEIGHTED_FRD", f"{utc_fluxmid_frd.isot}", "xxxxx")
-            ad[0].hdr.set("JD_UTC_START", f"{utc_start.jd:.7f}", "xxxxx")
-            ad[0].hdr.set("JD_UTC_MIDPOINT", f"{utc_mid.jd:.7f}", "xxxxx")
-            ad[0].hdr.set("JD_UTC_FLUXWEIGHTED_PC", f"{utc_fluxmid_pc.jd:.7f}", "xxxxx")
+            ad[0].hdr.set("UTC_START", f"{utc_start.isot}", "UTC time at start of exposure")
+            ad[0].hdr.set("UTC_CORRECTION", f"{time_correction.sec:.1f}", "UTC correction applied [s]")
+            ad[0].hdr.set("UTC_MIDPOINT", f"{utc_mid.isot}", "UTC time at nominal midpoint of exposure")
+            ad[0].hdr.set("UTC_FLUXWEIGHTED_PC", f"{utc_fluxmid_pc.isot}", "UTC flux-weighted midpoint PC")
+            ad[0].hdr.set("UTC_FLUXWEIGHTED_FRD", f"{utc_fluxmid_frd.isot}", "UTC flux-weighted midpoint FRD")
+            ad[0].hdr.set("JD_UTC_START", f"{utc_start.jd:.7f}", "JD (UTC) at start of exposure")
+            ad[0].hdr.set("JD_UTC_MIDPOINT", f"{utc_mid.jd:.7f}", "JD (UTC) at nominal midpoint of exposure")
+            ad[0].hdr.set("JD_UTC_FLUXWEIGHTED_PC", f"{utc_fluxmid_pc.jd:.7f}", "JD (UTC) flux-weighted midpoint PC")
             ad[0].hdr.set(
-                "JD_UTC_FLUXWEIGHTED_FRD", f"{utc_fluxmid_frd.jd:.7f}", "xxxxx"
+                "JD_UTC_FLUXWEIGHTED_FRD", f"{utc_fluxmid_frd.jd:.7f}", "JD (UTC) flux-weighted midpoint FRD"
             )
 
-            ad[0].hdr.set("BERV_SIMBAD_TARGET", target, "xxxxx")
-            ad[0].hdr.set("BERV_MIDPOINT", f"{result1[1]:.2f}", "xxxxx")
-            ad[0].hdr.set("BERV_FLUXWEIGHTED_PC", f"{BC_fluxmid_pc:.2f}", "xxxxx")
-            ad[0].hdr.set("BERV_FLUXWEIGHTED_FRD", f"{BC_fluxmid_frd:.2f}", "xxxxx")
+            ad[0].hdr.set("BERV_SIMBAD_TARGET", target, "Target name used for BERV lookup")
+            ad[0].hdr.set("BERV_MIDPOINT", f"{result1[1]:.2f}", "BERV at nominal midpoint [m/s]")
+            ad[0].hdr.set("BERV_FLUXWEIGHTED_PC", f"{BC_fluxmid_pc:.2f}", "BERV at flux-weighted midpoint PC [m/s]")
+            ad[0].hdr.set("BERV_FLUXWEIGHTED_FRD", f"{BC_fluxmid_frd:.2f}", "BERV at flux-weighted midpoint FRD [m/s]")
             ad[0].hdr.set(
-                "BERV_DIFFERENCE_PC", f"{(BC_fluxmid_pc - result1[1]):.2f}", "xxxxx"
+                "BERV_DIFFERENCE_PC", f"{(BC_fluxmid_pc - result1[1]):.2f}", "BERV difference flux-weighted minus midpoint PC [m/s]"
             )
             ad[0].hdr.set(
-                "BERV_DIFFERENCE_FRD", f"{(BC_fluxmid_frd - result1[1]):.2f}", "xxxxx"
-            )
-
-            ad[0].hdr.set(
-                "COUNTS_PC_MIN", f"{emeter['pc']['stats']['min']:.2f}", "xxxxx"
-            )
-            ad[0].hdr.set(
-                "COUNTS_PC_MAX", f"{emeter['pc']['stats']['max']:.2f}", "xxxxx"
-            )
-            ad[0].hdr.set(
-                "COUNTS_PC_MEDIAN", f"{emeter['pc']['stats']['median']:.2f}", "xxxxx"
-            )
-            ad[0].hdr.set(
-                "COUNTS_PC_STD", f"{emeter['pc']['stats']['std']:.2f}", "xxxxx"
-            )
-            ad[0].hdr.set(
-                "COUNTS_PC_ZP", f"{emeter['pc']['stats']['zeropoint']:.2f}", "xxxxx"
+                "BERV_DIFFERENCE_FRD", f"{(BC_fluxmid_frd - result1[1]):.2f}", "BERV difference flux-weighted minus midpoint FRD [m/s]"
             )
 
             ad[0].hdr.set(
-                "COUNTS_FRD_MIN", f"{emeter['frd']['stats']['min']:.2f}", "xxxxx"
+                "COUNTS_PC_MIN", f"{emeter['pc']['stats']['min']:.2f}", "PC exposure meter counts minimum"
             )
             ad[0].hdr.set(
-                "COUNTS_FRD_MAX", f"{emeter['frd']['stats']['max']:.2f}", "xxxxx"
+                "COUNTS_PC_MAX", f"{emeter['pc']['stats']['max']:.2f}", "PC exposure meter counts maximum"
             )
             ad[0].hdr.set(
-                "COUNTS_FRD_MEDIAN", f"{emeter['frd']['stats']['median']:.2f}", "xxxxx"
+                "COUNTS_PC_MEDIAN", f"{emeter['pc']['stats']['median']:.2f}", "PC exposure meter counts median"
             )
             ad[0].hdr.set(
-                "COUNTS_FRD_STD", f"{emeter['frd']['stats']['std']:.2f}", "xxxxx"
+                "COUNTS_PC_STD", f"{emeter['pc']['stats']['std']:.2f}", "PC exposure meter counts std dev"
             )
             ad[0].hdr.set(
-                "COUNTS_FRD_ZP", f"{emeter['frd']['stats']['zeropoint']:.2f}", "xxxxx"
+                "COUNTS_PC_ZP", f"{emeter['pc']['stats']['zeropoint']:.2f}", "PC exposure meter zero point"
             )
-            ad[0].hdr.set("SCALEFACTOR", f"{scale_factor:.1f}", "xxxxx")
+
+            ad[0].hdr.set(
+                "COUNTS_FRD_MIN", f"{emeter['frd']['stats']['min']:.2f}", "FRD exposure meter counts minimum"
+            )
+            ad[0].hdr.set(
+                "COUNTS_FRD_MAX", f"{emeter['frd']['stats']['max']:.2f}", "FRD exposure meter counts maximum"
+            )
+            ad[0].hdr.set(
+                "COUNTS_FRD_MEDIAN", f"{emeter['frd']['stats']['median']:.2f}", "FRD exposure meter counts median"
+            )
+            ad[0].hdr.set(
+                "COUNTS_FRD_STD", f"{emeter['frd']['stats']['std']:.2f}", "FRD exposure meter counts std dev"
+            )
+            ad[0].hdr.set(
+                "COUNTS_FRD_ZP", f"{emeter['frd']['stats']['zeropoint']:.2f}", "FRD exposure meter zero point"
+            )
+            ad[0].hdr.set("SCALEFACTOR", f"{scale_factor:.1f}", "Flux scale factor FRD/PC")
 
             log.fullinfo(
                 f"Barycentric velocity calculation completed for {ad.filename}"
