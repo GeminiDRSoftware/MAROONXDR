@@ -155,6 +155,7 @@ class MAROONXEchelle(MAROONX, Spect):
         adoutputs: list of AstroData objects containing synthetic dark frames
         """
         log = self.log
+        log.debug(gt.log_message('primitive', self.myself(), 'starting'))        
 
         dark_coeff = params['dark_coeff']
         individual = params['individual']
@@ -172,6 +173,8 @@ class MAROONXEchelle(MAROONX, Spect):
         for ad, dark_coeff_ad, _ in zip(
             *gt.make_lists(adinputs, *dark_coeff_list, force_ad=(1,))
         ):
+            log.stdinfo(f"{ad.filename}: creating synthetic dark")
+
             exptime = ad.exposure_time()
             nd_filter = ad.filter_orientation()['ND']
             arm_tag = 'BLUE' if 'BLUE' in ad.tags else 'RED'
@@ -190,7 +193,7 @@ class MAROONXEchelle(MAROONX, Spect):
                     # Validate inputs
                     if exptime is None and nd_filter is None:
                         msg = 'Either exptime or nd_filter must be provided'
-                        log.debug(msg)
+                        log.warning(msg)
                         raise ValueError(msg)
 
                     # Check for required extensions
@@ -198,7 +201,7 @@ class MAROONXEchelle(MAROONX, Spect):
                     for ext_name in required_extensions:
                         if not hasattr(dark_coeff_ad[0], ext_name):
                             msg = f'Required extension {ext_name} not found'
-                            log.debug(msg)
+                            log.warning(msg)
                             raise ValueError(msg)
 
                     # Extract coefficient arrays
@@ -395,6 +398,7 @@ class MAROONXEchelle(MAROONX, Spect):
         for ad, flat_ad, _, dark_ad, _ in zip(
             *gt.make_lists(adinputs, *flat_list, *dark_list, force_ad=(1, 3))
         ):
+            log.stdinfo(f"{ad.filename}: extracting stripes")
             if flat_ad is None:
                 raise RuntimeError(
                     f"No processed flat listed for {ad.filename}"
@@ -418,7 +422,7 @@ class MAROONXEchelle(MAROONX, Spect):
                     # This block is here for development purposes but
                     # should be removed as soon as the removeStrayLight primitive
                     # gets accepted.
-                    log.debug('Running the legacy patch')
+                    log.warning('Running the legacy patch')
                     ad_sl_removed = self.removeStrayLight_legacyPatch(
                         adinputs=[copy.deepcopy(ad)]
                     )[0]
@@ -608,6 +612,7 @@ class MAROONXEchelle(MAROONX, Spect):
         for ad, dark_ad, _ in zip(
             *gt.make_lists(adinputs, *dark_list, force_ad=(1,))
         ):
+            log.stdinfo(f"{ad.filename}: optimal extraction")
             # For each fiber, we need extensions for the reduced orders,
             # the optimal reduced fiber, the variance of the optimal reduced
             # fiber, the box reduced fiber, the variance of the box reduced
@@ -646,7 +651,7 @@ class MAROONXEchelle(MAROONX, Spect):
                     # optimal_extraction_fibers, we do optimal extraction
                     for o, stripe in stripes[f].items():
                         log.fullinfo(
-                            f'Optimum extraction in {f}, order {o}, '
+                            f'Optimal extraction in {f}, order {o}, '
                             f'penalty={penalty}, s_clip={s_clip}'
                         )
 
@@ -800,7 +805,7 @@ class MAROONXEchelle(MAROONX, Spect):
 
             gt.mark_history(ad, primname=self.myself(), keyword=timestamp_key)
             ad.update_filename(suffix=params['suffix'], strip=False)
-            log.fullinfo(f'frame {ad.filename} extracted')
+            log.stdinfo(f'{ad.filename}: extracted')
         return adinputs
 
     def measureBlaze(self, adinputs=None, **params):
@@ -842,6 +847,7 @@ class MAROONXEchelle(MAROONX, Spect):
             fibers = [1, 2, 3, 4, 5]
 
         for ad in adinputs:
+            log.stdinfo(f"{ad.filename}: measuring blaze function")
             for f in fibers:
                 box_flat = getattr(ad[0], f'BOX_REDUCED_FLAT_{f}', None)
                 if box_flat is None or box_flat.size == 1:
@@ -867,7 +873,6 @@ class MAROONXEchelle(MAROONX, Spect):
 
             ad.update_filename(suffix=params['suffix'], strip=False)
 
-        log.debug(gt.log_message('primitive', self.myself(), 'complete'))
         return adinputs
 
     def boxExtraction(self, adinputs, **params):
@@ -890,6 +895,7 @@ class MAROONXEchelle(MAROONX, Spect):
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
 
         for ad in adinputs:
+            log.stdinfo(f"{ad.filename}: box extraction")
             box_reduced_stripes = {}
             box_reduced_var = {}
             box_reduced_flats = {}

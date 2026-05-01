@@ -84,9 +84,15 @@ def load_recordings(ad, guess_file, fibers, orders):
                     # Get each individual 4036 pixel row
                     for fiber_row, flat_row, guess_row \
                     in zip(reduced_fiber, reduced_flat, guess_fiber):
-                        data = fiber_row / flat_row #Normalize according to flat
+                        # Normalize according to flat. avoid invalid value division warning
+                        mask = (flat_row != 0) & np.isfinite(flat_row)
+                        data = np.divide(fiber_row, flat_row,
+                            out=np.full_like(fiber_row, np.nan),
+                            where=mask)
                         # TODO: Check with Andreas if we should compute error too
-                        guess_data = guess_row / flat_row # Normalize according to flat
+                        guess_data = np.divide(guess_row, flat_row,
+                            out=np.full_like(guess_row, np.nan),
+                            where=mask)
                         guess_data = guess_data / np.nanmedian(guess_data[500:3500])*np.nanmedian(data[500:3500])
 
                         #Function operates as a generator function so we use yield
@@ -111,7 +117,11 @@ def load_recordings(ad, guess_file, fibers, orders):
             
             for order in orders:
                 i = list(reduced_orders.astype(int)).index(int(order))
-                data = reduced_fiber[i] / reduced_flat[i] # Normalize according to flat
+                # Normalize according to flat. avoid invalid value division warning
+                mask = (reduced_flat[i] != 0) & np.isfinite(reduced_flat[i])
+                data = np.divide(reduced_fiber[i], reduced_flat[i],
+                    out=np.full_like(reduced_fiber[i], np.nan),
+                    where=mask)
                 yield fiber, order, data, None
 
 def get_sid_filename(ad):

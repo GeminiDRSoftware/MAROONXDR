@@ -341,7 +341,7 @@ def iterative_fit(
 
     log.fullinfo(f"Fit residuals on {fiber} (0. iteration): {residuals:.1f} ({norm_residuals:.3f})")
     # log.fullinfo(f"Degree sigma: {degree_sigma}, degree width: {degree_width}")
-    log.debug(f"Created fit parameters for {fiber} in {time.time() - t0:.2f} s")
+    log.fullinfo(f"Created fit parameters for {fiber} in {time.time() - t0:.2f} s")
 
     if show_plots:
         fit_object.plot_fit()
@@ -364,7 +364,7 @@ def iterative_fit(
         shw = fit_object.eval_polynomials()[2, :]
         amplitudes_sorted = np.sort(fit_object.eval_polynomials_at_centers()[1,:])
 
-        log.debug(f"Fitted polynomials ({i}. iteration) on {fiber} in: {time.time() - t_i:.2f} s")
+        log.fullinfo(f"Fitted polynomials ({i}. iteration) on {fiber} in: {time.time() - t_i:.2f} s")
         log.fullinfo(f"Slit half-width on {fiber} ({i}. iteration): {shw[0]:.3f} - {shw[-1]:.3f}")
         log.fullinfo(f"Flat-relative amplitudes on {fiber} ({i}. iteration):\
                  min: {amplitudes_sorted[10]:.2f}, max: {amplitudes_sorted[-10]:.2f},\
@@ -373,7 +373,7 @@ def iterative_fit(
         t_i = time.time()
         fit_results = fit_object.fit_peak_centers(iteration=i, fiber=fiber)
 
-        log.debug(f"Fitted centers ({i}. iteration) on {fiber} in: {time.time() - t_i:.2f} s")
+        log.fullinfo(f"Fitted centers ({i}. iteration) on {fiber} in: {time.time() - t_i:.2f} s")
 
         spectrum_values = fit_object.spectrum_val()
 

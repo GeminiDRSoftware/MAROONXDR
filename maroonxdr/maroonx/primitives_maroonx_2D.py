@@ -304,6 +304,8 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
         adoutputs - set of list that passes test,  always at least first frame
         """
         log = self.log
+        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
+
         # find first object's MX-camera
         arm_set = (
             'BLUE'
@@ -323,6 +325,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
         # include other objects in list with same tag
         # Warn user and toss frame if not all frames are taken with the same arm
         for ad in adinputs:
+            log.stdinfo(f"{ad.filename}: checking arm consistency")
             if arm_set not in ad.tags:
                 log.warning(
                     'Not all frames taken with the same camera arm, '
@@ -348,6 +351,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
         adoutputs - set of list that passes test,  always at least first frame
         """
         log = self.log
+        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
 
         # find first object's MX-camera
         master_type = (
@@ -369,6 +373,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
         # Warn user and toss frame if not all frames comply
         adoutputs = []
         for ad in adinputs:
+            log.stdinfo(f"{ad.filename}: checking if master frame")
             if not required_tags.issubset(ad.tags):
                 warning_msg = f'Tossing non-master {master_type} frame: {ad.filename}.'
                 log.warning(warning_msg)
@@ -515,6 +520,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         """
         log = self.log
+        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
 
         # Get the simcal ND filter setting for the first file
         check_val = round(adinputs[0].filter_orientation()['ND'], 2)
@@ -524,6 +530,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
         # ND filter setting
         if len(adinputs) > 1:
             for ad in adinputs:
+                log.stdinfo(f"{ad.filename}: checking ND filter consistency")
                 if check_val != round(ad.filter_orientation()['ND'], 2):
                     log.warning(
                         'Not all frames have the same simcal ND filter '
@@ -558,10 +565,11 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
             suffix to be added to output files
         """
         log = self.log
-        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
+        log.debug(gt.log_message("primitive", self.myself(), "starting"))
         timestamp_key = self.timestamp_keys[self.myself()]
 
         for ad in adinputs:
+            log.stdinfo(f"{ad.filename}: subtracting overscan")
             # TODO: check if ovescan has already been subtracted
 
             # get the overscan section used for bias subtraction
@@ -572,7 +580,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
             if len(osec) != len(asec):
                 msg = 'Overscan and array sections for bias subtraction do not match.'
-                log.debug(msg)
+                log.warning(msg)
                 raise ValueError(msg)
 
             # get data as float32
@@ -1236,7 +1244,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
             before it is utilized and then removed.
         """
         log = self.log
-        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
+        log.debug(gt.log_message("primitive", self.myself(), "starting"))
         timestamp_key = self.timestamp_keys[self.myself()]
 
         deg_polynomial = params['deg_polynomial']
@@ -1245,6 +1253,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
         min_peak = params['min_peak']
 
         for ad in adinputs:
+            log.stdinfo(f"{ad.filename}: finding stripes")
             npix_y, npix_x = ad[0].data.shape
             # first smooth frame to improve algorithm stability
             filtered_ad = median_filter(ad[0].data, med_filter)
@@ -1357,17 +1366,18 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
             from the original set inherited from findStripes
         """
         log = self.log
-        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
+        log.debug(gt.log_message("primitive", self.myself(), "starting"))
         timestamp_key = self.timestamp_keys[self.myself()]
 
         positions_dir = params.get('positions_dir', None)
         selected_fibers = params.get('selected_fibers', None)
 
         for ad in adinputs:
+            log.stdinfo(f"{ad.filename}: identifying stripes")
             # first obtain reference positions (position_dir)
             if positions_dir is None:
                 positions_dir = maroonx_utils.get_sid_filename(ad)
-                log.info(positions_dir)
+                log.fullinfo(f"Using SID file: {positions_dir}")
             with fits.open(positions_dir, 'readonly') as lookup_frame:
                 positions = lookup_frame[1].data
             _, npix_x = ad.data[0].shape
@@ -1446,7 +1456,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
                         used[closest_stripe_idx] = 1
                         fiber = fibers[closest_stripe_idx]
                         order = orders[closest_stripe_idx]
-                        log.debug('fiber %s, order %s found', fiber, order)
+                        log.fullinfo('fiber %s, order %s found', fiber, order)
 
                         fiber = f'fiber_{fiber}'
                         order = f'{order}'
@@ -1518,13 +1528,14 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
             extensions and possibly STRIPES_ID and STRIPES_FIBERS extensions
         """
         log = self.log
-        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
+        log.debug(gt.log_message("primitive", self.myself(), "starting"))
         timestamp_key = self.timestamp_keys[self.myself()]
 
         slit_height = params['slit_height']
         extract = params['extract']
 
         for ad in adinputs:
+            log.stdinfo(f"{ad.filename}: defining flat stripes")
             p_id = ad[0].STRIPES_ID  # Create dictionary of stripes
             img = ad[0].data
             npix_y, npix_x = img.shape
@@ -1613,12 +1624,12 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
             Single MX astrodata object with stray light removed from SCI
         """
         log = self.log
-        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
+        log.debug(gt.log_message("primitive", self.myself(), "starting"))
         timestamp_key = self.timestamp_keys[self.myself()]
 
         if params.pop('legacy'):
             # Run the legacy patch version and exit
-            log.debug('Running Legacy Patch removeStrayLigth')
+            log.fullinfo('Running Legacy Patch removeStrayLight')
             adoutputs = self.removeStrayLight_legacyPatch(adinputs, **params)
             return adoutputs
 
@@ -1629,13 +1640,13 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         adoutputs = []
         for ad in adinputs:
+            log.stdinfo(f"{ad.filename}: removing straylight")
             adint = deepcopy(ad)
             adint2 = deepcopy(ad)
             adout = deepcopy(ad)
             stripes = ad[0].INDEX_FIBER
             orders = ad[0].INDEX_ORDER
 
-            log.fullinfo('correcting straylight ')
             # Mask all actual bad pixels from bpm
             adint[0].data[adint[0].mask != DQ.good] = np.nan
             max_val_masked = np.nanmax(adint[0].data)
@@ -1805,7 +1816,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
             Single MX astrodata object with stray light removed from SCI
         """
         log = self.log
-        log.debug(gt.log_message('primitive', 'removeStrayLight', 'starting'))
+        log.debug(gt.log_message("primitive", "removeStrayLight", "starting"))
         timestamp_key = self.timestamp_keys['removeStrayLight']
 
         snapshot = params['snapshot']
@@ -1869,6 +1880,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         adoutputs = []
         for ad in adinputs:
+            log.stdinfo(f"{ad.filename}: removing straylight (legacy patch)")
             # Remove extension from outfile
             base = Path(ad.filename).stem.removesuffix('_overscanSubtracted')
             # data_dict = np.load(file_dict[base], allow_pickle=True).item()
@@ -2026,7 +2038,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         if stream_2 not in self.streams.keys():
             # If stream_2 does not exist, return the provided input without modification
-            log.info('Stream %s does not exist so nothing to transfer', stream_2)
+            log.fullinfo('Stream %s does not exist so nothing to transfer', stream_2)
             return adinputs
 
         # We expect both streams to have a length of 1 as we have a single DFFFD flat
@@ -2085,13 +2097,14 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
             List containing a separate AstroData object for each extension in each input
         """
         log = self.log
-        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
+        log.debug(gt.log_message("primitive", self.myself(), "starting"))
 
         keep_suffix = params.get('keep_suffix', False)
 
         adoutputs = []
 
         for ad in adinputs:
+            log.stdinfo(f"{ad.filename}: splitting bundle")
             for ext in ad.indices:
                 # Create a deep copy of the original AstroData object
                 arm_ad = deepcopy(ad)
@@ -2154,7 +2167,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
         # Validate inputs
         if len(adinputs) < 5:
             msg = f'Need at least 5 dark frames for fitting, got {len(adinputs)}'
-            log.debug(msg)
+            log.error(msg)
             raise ValueError(msg)
 
         # Extract data and metadata from AstroData objects
@@ -2188,9 +2201,9 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
         ndfilter = [ndfilter[i] for i in sorted_indices]
         filenames = [filenames[i] for i in sorted_indices]
 
-        log.debug('Input files sorted by exposure time:')
+        log.fullinfo('Input files sorted by exposure time:')
         for filename, exptime in zip(filenames, exposuretimes):
-            log.debug('  %s: %ss', filename, exptime)
+            log.fullinfo('  %s: %ss', filename, exptime)
 
         # Create data cube
         log.fullinfo('Creating data cube from individual frames')

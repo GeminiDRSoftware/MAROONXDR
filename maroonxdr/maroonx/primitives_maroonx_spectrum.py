@@ -225,9 +225,10 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             fibers = [1, 2, 3, 4, 5]
 
         for ad in adinputs:
+            log.stdinfo(f"{ad.filename}: loading static wavelength solution")
             # Load static wavelength solution from the config
             statwavelength_file = maroonx_utils.get_statwavelength_filename(ad)
-            log.info("Loading static wavelength file: %s", statwavelength_file)
+            log.fullinfo("Loading static wavelength file: %s", statwavelength_file)
 
             for fiber in range(1, 6):
                 # Set up an initial value for all fibers
@@ -337,13 +338,13 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
         if len(adinputs) == 0:
             msg = "No input files"
-            log.debug(msg)
+            log.warning(msg)
             raise ValueError(msg)
         elif len(adinputs) >= 1:
             log.fullinfo(f"Extracting etalon lines from {len(adinputs)} files")
 
         for ad in adinputs:
-            log.fullinfo(f"Extracting peaks from {ad.filename}")
+            log.stdinfo(f"{ad.filename}: extracting spectra peaks")
 
             # See which fibers and orders we are extracting
             if fibers is None:
@@ -367,7 +368,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
             errors = []
             results = []
-            log.fullinfo(f"Extracting fibers {fibers} from {ad.filename}")
+            log.fullinfo(f"Extracting fibers: {fibers}")
 
             # Set logger for iterative fit
             set_logger(log)
@@ -379,7 +380,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 for fiber, order, data, guess in maroonx_utils.load_recordings(
                     ad, guess_file, fibers, orders
                 ):
-                    log.fullinfo(f"{ad.filename} - Fitting fiber {fiber} order {order}")
+                    log.fullinfo(f"Fitting fiber {fiber} order {order}")
 
                     # Remove pixels that are known to be bad
                     ############################
@@ -447,7 +448,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 for fiber, order, data, guess in maroonx_utils.load_recordings(
                     ad, guess_file, fibers, orders
                 ):
-                    log.fullinfo(f"{ad.filename} - Fitting fiber {fiber} order {order}")
+                    log.fullinfo(f"Fitting fiber {fiber} order {order}")
 
                     # Remove pixels that are known to be bad
                     ############################
@@ -502,8 +503,8 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
             # Record the time taken
             end_time = time.time()
-            log.fullinfo(
-                f"Finished extracting etalon lines in "
+            log.stdinfo(
+                f"{ad.filename}: Finished extracting etalon lines in "
                 f"{end_time - start_time:.2f} seconds"
             )
 
@@ -633,7 +634,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
             # Load the etalon spectrum
             mx_spectrum = MXSpectrum(ad, etalon_peaks_symmetric=symmetric_linefits)
-            log.fullinfo(f"Processing etalon file: {ad.filename}")
+            log.stdinfo(f"{ad.filename}: fitting etalon wavelength solution")
 
             # Determine fibers to process if not provided
             if fibers is None:
@@ -650,7 +651,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 # TODO: Ask Andreas what this is supposed to do because currently
                 # we do not know how this works in the old pipeline
                 msg = "Reference file not implemented yet"
-                log.debug(msg)
+                log.warning(msg)
                 raise NotImplementedError(msg)
 
             # Load reference wavelength solution from the config
@@ -708,7 +709,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             drifts = {}
 
             for fiber in fibers:
-                log.info("Guess Etalon peak numbers for fiber %s", fiber)
+                log.fullinfo("Guess Etalon peak numbers for fiber %s", fiber)
                 peak_data = mx_spectrum.spectra[fiber].guess_peak_numbers(debug=0)
 
                 if report:
@@ -762,7 +763,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             new_peak_data = []
 
             for fiber in fibers:
-                log.info("Spline fit for fiber %s", fiber)
+                log.fullinfo("Spline fit for fiber %s", fiber)
                 wavelengths_all = []
                 residuals_all = []
                 orders_all = []
@@ -860,7 +861,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     round(drifts[fiber], 2),
                     "Drift in m/s",
                 )
-                log.info("Drift for fiber %s: %.2f m/s", fiber, drifts[fiber])
+                log.fullinfo("Drift for fiber %s: %.2f m/s", fiber, drifts[fiber])
 
             ad.update_filename(suffix=params["suffix"], strip=True)
             if report:
@@ -975,7 +976,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 raise RuntimeError(
                     f"No processed wavecal listed for {science_ad.filename}"
                 )
-            log.fullinfo(f"Processing: {science_ad.filename} , {etalon_ad.filename}")
+            log.stdinfo(f"{science_ad.filename}: applying wavelength solution from {etalon_ad.filename}")
             log.fullinfo(f"Etalon reference fiber: {ref_fiber}")
 
             if report:
@@ -993,7 +994,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             parameters = maroonx_utils.load_params_from_fits(
                 refwavelength_file, ext_name="PARAMETERS"
             )
-            log.debug("Apply etalon parameters from file %s.", refwavelength_file)
+            log.fullinfo("Apply etalon parameters from file %s.", refwavelength_file)
             for fiber in fibers:
                 etalon.spectra[fiber].etalon_parameters = parameters
             etalon.spectra[ref_fiber].etalon_parameters = parameters
@@ -1089,11 +1090,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 for fiber in fibers:
                     center_series = etalon.spectra[fiber].peak_data.loc[o, 'CENTER']
                     center_spl = spl(center_series.index)  # evaluate at pixel positions (index), not raw array
-
-                    log.debug("BEFORE shift fiber %s order %s: %s", fiber, o, center_series.values[:5])
-                    log.debug("APPLYING shift fiber %s order %s: %s", fiber, o, center_spl[:5])
                     etalon.spectra[fiber].peak_data.loc[o, 'CENTER'] = center_series.values - center_spl
-                    log.debug("AFTER shift fiber %s order %s: %s", fiber, o, etalon.spectra[fiber].peak_data.loc[o, 'CENTER'].values[:5])
 
             # DEBUG TEST 2 output
             # 
@@ -1484,6 +1481,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             combine_fibers = [2, 3, 4]
 
         for ad in adinputs:
+            log.stdinfo(f"{ad.filename}: combining fibers")
 
             if report:
                 # Create pdf for plots
@@ -1580,7 +1578,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                         f"Interpolation of flux in science fiber 1 of order "
                         f"{order} failed"
                     )
-                    log.debug(msg)
+                    log.warning(msg)
                     intensity1_2 = intensity1
                     error1_2 = np.abs(error1) * np.nan
 
@@ -1610,16 +1608,18 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                         f"Interpolation of flux in science fiber 3 of order "
                         f"{order} failed"
                     )
-                    log.debug(msg)
+                    log.warning(msg)
                     intensity3_2 = intensity3
                     error3_2 = np.abs(error3) * np.nan
 
                 intensity1_2[mask1] = np.nan
                 intensity3_2[mask3] = np.nan
 
-                median_intensity = np.nanmedian(
-                    [intensity1_2, intensity2, intensity3_2], axis=0
-                )
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", "All-NaN slice encountered")
+                    median_intensity = np.nanmedian(
+                        [intensity1_2, intensity2, intensity3_2], axis=0
+                    )
 
                 weights1_2 = 1.0 / error1_2
                 weights2 = 1.0 / error2
@@ -1687,7 +1687,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 weights3_2[clip3] = 0
 
                 with warnings.catch_warnings():
-                    warnings.filterwarnings("ignore", r"All-NaN slice encountered")
+                    warnings.filterwarnings("ignore", "All-NaN slice encountered")
 
                     weights = np.nansum([weights1_2, weights2, weights3_2], axis=0)
                     bad = np.where(weights == 0)
@@ -1710,7 +1710,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
                 mask = np.isnan(intensity)
                 if 1000 > np.count_nonzero(mask) >= 0:
-                    log.debug(
+                    log.fullinfo(
                         "Number of NANs fixed in order %s: %s",
                         order, np.count_nonzero(mask)
                     )
@@ -1918,6 +1918,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         stellar_data_cache = {}
 
         for ad in adinputs:
+            log.stdinfo(f"{ad.filename}: computing barycentric correction")
             # Read target name from header
             target = ad.object()
             log.debug("%s, %s", target_name, target)
@@ -2153,7 +2154,6 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             ad.update_filename(suffix=params["suffix"], strip=True)
 
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
-        log.debug(gt.log_message("primitive", self.myself(), "complete"))
         return adinputs
 
     def _extract_spectra_data(self, ad, ext_index, fibers, show_wavelength):
@@ -2431,7 +2431,6 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             log.warning("User aborted spectrum viewer")
             raise
 
-        log.debug(gt.log_message("primitive", self.myself(), "complete"))
         return adinputs
 
     def separateArmStreams(self, adinputs=None, **params):
@@ -2477,13 +2476,12 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         for archname, arms in arm_dict.items():
             if not arms["BLUE"] or not arms["RED"]:
                 msg = f"No BLUE or RED tagged files found for ARCHNAME {archname}"
-                log.debug(msg)
+                log.warning(msg)
                 raise ValueError(msg)
 
             blue_list.extend(arms["BLUE"])
             red_list.extend(arms["RED"])
 
-        log.debug(gt.log_message("primitive", self.myself(), "complete"))
         self.streams["RED"] = red_list
         return blue_list
 
@@ -2566,6 +2564,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         for archname in sorted(common_archnames):
             blue_ad = blue_dict[archname]
             red_ad = red_dict[archname]
+            log.stdinfo(f"{blue_ad.filename} + {red_ad.filename} -> {archname}")
 
             # Create bundle with ARCHNAME as filename
             bundle_ad = deepcopy(blue_ad)
@@ -2586,7 +2585,6 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             bundle_ad.update_filename(suffix=params["suffix"], strip=True)
             adoutputs.append(bundle_ad)
 
-        log.debug(gt.log_message("primitive", self.myself(), "complete"))
         return adoutputs
 
     # ========================================================================
