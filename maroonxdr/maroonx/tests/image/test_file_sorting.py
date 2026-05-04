@@ -67,6 +67,22 @@ def test_checkArm_collection_and_rejection(
     assert all(test_objects[-1].filename not in ad.filename for ad in out)
 
 
+def test_checkArm(ad_min):
+    """Mismatched arm frame is dropped, same arm frames are kept."""
+
+    ad1 = ad_min
+    ad2 = deepcopy(ad1)
+    ad3 = deepcopy(ad1)
+    other_arm = 'BLUE' if 'RED' in ad1.tags else 'RED'
+    ad3[0].hdr['ARM'] = other_arm
+
+    p = MAROONX([])
+    out = p.checkArm([ad1, ad2, ad3])
+
+    assert len(out) == 2
+    assert all(ad.filename == ad1.filename for ad in out)
+
+
 @pytest.mark.parametrize('DFFFD_file', ['20241114T181815Z_DFFFD_b_0008.fits'])
 @pytest.mark.parametrize('FDDDF_file', ['20241114T191006Z_DDDDF_b_0007.fits'])
 def test_separating_flat_streams(caplog, path_to_inputs, DFFFD_file, FDDDF_file):

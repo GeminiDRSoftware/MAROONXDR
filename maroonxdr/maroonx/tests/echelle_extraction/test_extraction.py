@@ -216,5 +216,53 @@ def test_extraction_determinism_with_straylight(caplog, path_to_inputs, filename
     _compare_stripes(r1.STRIPES_MASKS, r2.STRIPES_MASKS, 'STRIPES_MASKS')
 
 
+# Faster tests
+
+def test_boxExtraction(ad_echelle):
+    """Box-extracted flux equals column sum of the stripe."""
+    signal = 100.0
+    slit_height = 10
+    expected_flux = signal * 2 * slit_height
+
+    p = MAROONXEchelle([])
+    result = p.boxExtraction([ad_echelle])[0]
+
+    for fiber in range(1, 6):
+        box = getattr(result[0], f'BOX_REDUCED_FIBER_{fiber}')
+        assert box.shape[0] > 0
+        np.testing.assert_allclose(box, expected_flux, atol=1e-4,
+                                   err_msg=f"fiber {fiber}")
+
+
+def test_optimalExtraction(ad_echelle):
+    """Optimal extraction recovers flux from uniform stripes."""
+    signal = 100.0
+    slit_height = 10
+    expected_box_flux = signal * 2 * slit_height
+
+    p = MAROONXEchelle([])
+    result = p.optimalExtraction([ad_echelle], 
+        back_var=0.0,
+        optimal_extraction_fibers=[3])[0]
+
+    # Fiber 3: optimally extracted
+    opt = getattr(result[0], 'OPTIMAL_REDUCED_FIBER_3')
+    box = getattr(result[0], 'BOX_REDUCED_FIBER_3')
+    assert opt.shape != (1, 1)
+    assert box.shape != (1, 1)
+    np.testing.assert_allclose(box, expected_box_flux, atol=1e-4,
+                               err_msg="box fiber 3")
+    np.testing.assert_allclose(opt, expected_box_flux, rtol=1e-4,
+                               err_msg="optimal fiber 3")
+
+    # Other fibers: no optimal extraction, only placeholder
+    # box is always extracted
+    for fiber in [1, 2, 4, 5]:
+        opt = getattr(result[0], f'OPTIMAL_REDUCED_FIBER_{fiber}')
+        box = getattr(result[0], f'BOX_REDUCED_FIBER_{fiber}')
+        assert opt.shape == (1, 1), f"fiber {fiber} should be placeholder"
+        assert box.shape != (1, 1), f"fiber {fiber} should have box extraction"
+
+
 if __name__ == '__main__':
     pytest.main()

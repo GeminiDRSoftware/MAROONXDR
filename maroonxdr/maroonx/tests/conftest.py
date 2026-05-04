@@ -5,7 +5,11 @@ from urllib.error import HTTPError
 
 import numpy as np
 import pytest
+from astropy.io import fits
 from astrodata.testing import download_from_archive
+
+import astrodata
+import maroonx_instruments  # noqa: F401 — registers MaroonX AstroData class
 
 # =========================================================
 # DRAGONS TEST CONFIGURATION
@@ -192,6 +196,118 @@ def path_to_legacy_bkg(legacy_test_root):
 # =========================================================
 # FIXTURES
 # =========================================================
+
+
+@pytest.fixture(params=['RED', 'BLUE'])
+def ad_min(request):
+    """Minimal MaroonX AstroData object for synthetic unit tests.
+
+    Uses 4400x4400 arrays matching the real detector size so that lookup-based
+    section descriptors (overscan, data, array) work without mocking.  Headers
+    are the minimum set needed for tag resolution and descriptor lookup (ARM,
+    INSTRUME, FIBERn, EXPTIME).
+    """
+    arm = request.param
+    phu = fits.PrimaryHDU()
+    phu.header.set('INSTRUME', 'MAROON-X')
+    phu.header.set('DATALAB', 'test')
+    phu.header.set('EXPTIME', 300.0)
+    phu.header.set('FIBER1', 'Dark')
+    phu.header.set('FIBER2', 'Dark')
+    phu.header.set('FIBER3', 'Dark')
+    phu.header.set('FIBER4', 'Dark')
+    phu.header.set('FIBER5', 'Etalon')
+
+    sci = fits.ImageHDU(data=np.ones((4400, 4400), dtype=np.float32), name='SCI')
+    sci.header.set('ARM', arm)
+    sci.header.set('EXPTIME', 300.0)
+
+    ad = astrodata.create(phu, [sci])
+    ad.filename = f'00000000T000000Z_DDDDE_{arm[0].lower()}_0300.fits'
+    return ad
+
+
+@pytest.fixture(params=['RED', 'BLUE'])
+def ad_echelle(request):
+    """MaroonX AstroData with synthetic extracted stripes for echelle tests.
+
+    Builds STRIPES, F_STRIPES, and STRIPES_MASKS dicts of sparse matrices
+    using real fiber/order positions from the SID lookup files.  Each stripe
+    is a flat horizontal band (constant polynomial) so the box-extracted
+    flux per column equals ``signal * 2 * slit_height``.
+    """
+    from pathlib import Path
+    from scipy import sparse
+    from astropy.table import Table
+
+    arm = request.param
+    slit_height = 10
+    signal = 100.0
+    flat_signal = 1000.0
+
+    # Build the base AstroData object
+    phu = fits.PrimaryHDU()
+    phu.header.set('INSTRUME', 'MAROON-X')
+    phu.header.set('DATALAB', 'test')
+    phu.header.set('EXPTIME', 300.0)
+    phu.header.set('ORIGNAME', f'00000000T000000Z_DDDDE_{arm[0].lower()}_0300.fits')
+    phu.header.set('FIBER1', 'Dark')
+    phu.header.set('FIBER2', 'Dark')
+    phu.header.set('FIBER3', 'Dark')
+    phu.header.set('FIBER4', 'Dark')
+    phu.header.set('FIBER5', 'Etalon')
+
+    data = np.full((4400, 4400), signal, dtype=np.float32)
+    sci = fits.ImageHDU(data=data, name='SCI')
+    sci.header.set('ARM', arm)
+    sci.header.set('EXPTIME', 300.0)
+
+    ad = astrodata.create(phu, [sci])
+    ad.filename = f'00000000T000000Z_DDDDE_{arm[0].lower()}_0300.fits'
+    ad[0].mask = np.zeros((4400, 4400), dtype=np.uint16)
+
+    # Load SID for this arm
+    sid_name = 'SID_r.fits' if arm == 'RED' else 'SID_b.fits'
+    sid_path = Path(__file__).parent.parent / 'lookups' / 'SID' / sid_name
+    sid = Table.read(str(sid_path), hdu='SID')
+
+    flat_data = np.full((4400, 4400), flat_signal, dtype=np.float32)
+    mask_data = np.ones((4400, 4400), dtype=int)
+
+    def _extract_stripe(img, poly, sh):
+        ny, nx = img.shape
+        xx = np.arange(nx)
+        y = np.poly1d(poly)(xx)
+        sy = np.arange(-sh, sh).repeat(nx).reshape((2 * sh, nx))
+        sx = np.tile(np.arange(nx), 2 * sh).reshape((2 * sh, nx))
+        idx = np.rint(sy + y).astype(int)
+        valid = (idx > 0) & (idx < ny)
+        return sparse.coo_matrix(
+            (img[idx[valid], sx[valid]], (idx[valid], sx[valid])),
+            shape=(ny, nx),
+        ).tocsc()
+
+    stripes = {}
+    f_stripes = {}
+    stripes_masks = {}
+
+    for fiber in sorted(set(sid['identify_fiber'])):
+        fkey = f'fiber_{fiber}'
+        stripes[fkey] = {}
+        f_stripes[fkey] = {}
+        stripes_masks[fkey] = {}
+        for row in sid[sid['identify_fiber'] == fiber]:
+            order = str(row['fiber_order'])
+            poly = np.array([float(row['fiber_position'])])
+            stripes[fkey][order] = _extract_stripe(data, poly, slit_height)
+            f_stripes[fkey][order] = _extract_stripe(flat_data, poly, slit_height)
+            stripes_masks[fkey][order] = _extract_stripe(mask_data, poly, slit_height)
+
+    ad[0].STRIPES = stripes
+    ad[0].F_STRIPES = f_stripes
+    ad[0].STRIPES_MASKS = stripes_masks
+
+    return ad
 
 
 @pytest.fixture(params=['BLUE', 'RED'], scope='function')
