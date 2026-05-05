@@ -217,7 +217,7 @@ def test_extraction_determinism_with_straylight(caplog, path_to_inputs, filename
 
 
 # Faster tests
-
+@pytest.mark.preprocessed_data
 def test_boxExtraction(ad_echelle):
     """Box-extracted flux equals column sum of the stripe."""
     signal = 100.0
@@ -234,6 +234,7 @@ def test_boxExtraction(ad_echelle):
                                    err_msg=f"fiber {fiber}")
 
 
+@pytest.mark.preprocessed_data
 def test_optimalExtraction(ad_echelle):
     """Optimal extraction recovers flux from uniform stripes."""
     signal = 100.0
