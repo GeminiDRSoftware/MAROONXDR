@@ -5,7 +5,6 @@ primitives defined in the primitive_maroonx_echelle.py file.
 from astrodata import AstroData
 
 from gempy.library import config
-from geminidr.core import parameters_ccd
 
 
 class attachSyntheticDarkConfig(config.Config):
@@ -117,9 +116,3 @@ class boxExtractionConfig(config.Config):
 #     suffix = config.Field("Filename suffix", str, "")
 #     individual = config.Field("individual or group caldb call", bool, False)
 
-class overscanCorrectConfig(parameters_ccd.overscanCorrectConfig):
-    '''
-    This parameter set controls the overscanCorrect primitive for MAROON-X.
-    '''
-    def setDefaults(self):
-        self.function = "none"

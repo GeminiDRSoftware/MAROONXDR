@@ -21,4 +21,6 @@ timestamp_keys = {
     "separateArmStreams": "ARMS_SEPARATED",
     "splitBundle": "BUNDLE_SPLIT",
     "measureBlaze": "BLAZE_MEASURED",
+    "createSyntheticDark": "SYNTHETIC_DARK_CREATED",
+    "boxExtraction": "BOX_EXTRACTED",
 }

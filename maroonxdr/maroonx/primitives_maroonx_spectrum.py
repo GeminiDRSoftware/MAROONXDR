@@ -32,7 +32,9 @@ from maroonxdr.maroonx.maroonx_plots import (
     plot_etalon_residuals,
     plot_exposuremeter,
 )
+from astrodata.provenance import add_provenance
 from recipe_system.utils.decorators import parameter_override
+from recipe_system.utils.md5 import md5sum
 from scipy.interpolate import interp1d
 from scipy.signal import medfilt
 
@@ -1387,6 +1389,8 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     f"Relative drift measured in Fiber {ref_fiber}: {rel_drift:.1f} m/s"
                 )
             log.fullinfo(f"Updated wavelength vector in {science_ad.filename}")
+            add_provenance(science_ad, etalon_ad.filename,
+                           md5sum(etalon_ad.path) or "", self.myself())
 
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
@@ -2454,6 +2458,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
+        timestamp_key = self.timestamp_keys[self.myself()]
 
         # Initialize dictionary to beindexed by ARCHNAME and arm tag
         arm_dict = {}
@@ -2483,6 +2488,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             red_list.extend(arms["RED"])
 
         self.streams["RED"] = red_list
+        gt.mark_history(blue_list + red_list, primname=self.myself(), keyword=timestamp_key)
         return blue_list
 
     def bundleArmStreams(self, adinputs=None, **params):
@@ -2517,6 +2523,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
+        timestamp_key = self.timestamp_keys[self.myself()]
 
         # Get the red arm stream that was set by separateArmStreams
         if "RED" not in self.streams:
@@ -2582,6 +2589,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             bundle_ad.append(red_ad[0])
 
             # Update name and append to output
+            gt.mark_history(bundle_ad, primname=self.myself(), keyword=timestamp_key)
             bundle_ad.update_filename(suffix=params["suffix"], strip=True)
             adoutputs.append(bundle_ad)
 

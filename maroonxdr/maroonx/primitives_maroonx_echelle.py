@@ -22,6 +22,9 @@ from recipe_system.utils.decorators import parameter_override
 from scipy import sparse
 from scipy.ndimage import median_filter
 
+from astrodata.provenance import add_provenance
+from recipe_system.utils.md5 import md5sum
+
 from . import parameters_maroonx_echelle
 from .maroonx_echellespectrum.flatspectrum import FlatSpectrum
 from .primitives_maroonx_2D import MAROONX
@@ -155,7 +158,8 @@ class MAROONXEchelle(MAROONX, Spect):
         adoutputs: list of AstroData objects containing synthetic dark frames
         """
         log = self.log
-        log.debug(gt.log_message('primitive', self.myself(), 'starting'))        
+        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
+        timestamp_key = self.timestamp_keys[self.myself()]
 
         dark_coeff = params['dark_coeff']
         individual = params['individual']
@@ -305,12 +309,13 @@ class MAROONXEchelle(MAROONX, Spect):
                 for fiber in [1, 2, 3, 4]:
                     adout.phu[f'FIBER{fiber}'] = 'Dark'
                 adout.phu['FIBER5'] = 'Etalon'
+                add_provenance(adout, dark_coeff_ad.filename,
+                               md5sum(dark_coeff_ad.path) or "", self.myself())
                 adoutputs.append(adout)
             else:
                 log.warning('No synthetic dark created for %s', ad.filename)
-                # Optionally append None or skip this frame
-                # adoutputs.append(None)
 
+        gt.mark_history(adoutputs, primname=self.myself(), keyword=timestamp_key)
         return adoutputs
 
     def extractStripes(self, adinputs=None, **params):
@@ -529,6 +534,9 @@ class MAROONXEchelle(MAROONX, Spect):
                 keyword='REDUCTION_FLAT',
                 comment=flat_ad.filename,
             )
+            add_provenance(ad, flat_ad.filename,
+                           md5sum(flat_ad.path) or "", self.myself())
+            
             if dark_ad:
                 gt.mark_history(
                     ad,
@@ -536,6 +544,9 @@ class MAROONXEchelle(MAROONX, Spect):
                     keyword='REDUCTION_DARK',
                     comment=dark_ad.filename,
                 )
+                add_provenance(ad, dark_ad.filename,
+                               md5sum(dark_ad.path) or "", self.myself())
+            
             ad.update_filename(suffix=params['suffix'], strip=False)
         gt.mark_history(adinputs, primname=self.myself(), keyword=timestamp_key)
         return adinputs
@@ -804,6 +815,9 @@ class MAROONXEchelle(MAROONX, Spect):
             del ad[0].STRIPES_MASKS
 
             gt.mark_history(ad, primname=self.myself(), keyword=timestamp_key)
+            if dark_ad:
+                add_provenance(ad, dark_ad.filename,
+                               md5sum(dark_ad.path) or "", self.myself())
             ad.update_filename(suffix=params['suffix'], strip=False)
             log.stdinfo(f'{ad.filename}: extracted')
         return adinputs
@@ -839,6 +853,7 @@ class MAROONXEchelle(MAROONX, Spect):
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
+        timestamp_key = self.timestamp_keys[self.myself()]
 
         n_knots = params['n_knots']
         fibers = params['fibers']
@@ -871,6 +886,7 @@ class MAROONXEchelle(MAROONX, Spect):
                 setattr(ad[0], f'BLAZE_FIBER_{f}', blaze_array)
                 log.fullinfo(f'{ad.filename}: stored BLAZE_FIBER_{f}')
 
+            gt.mark_history(ad, primname=self.myself(), keyword=timestamp_key)
             ad.update_filename(suffix=params['suffix'], strip=False)
 
         return adinputs
@@ -893,6 +909,7 @@ class MAROONXEchelle(MAROONX, Spect):
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
+        timestamp_key = self.timestamp_keys[self.myself()]
 
         for ad in adinputs:
             log.stdinfo(f"{ad.filename}: box extraction")
@@ -974,6 +991,7 @@ class MAROONXEchelle(MAROONX, Spect):
                 setattr(ad[0], f'BPM_FIBER_{f_num}', bpm_single_fiber)
 
             del ad[0].STRIPES, ad[0].F_STRIPES, ad[0].STRIPES_MASKS
+            gt.mark_history(ad, primname=self.myself(), keyword=timestamp_key)
             ad.update_filename(suffix=params['suffix'], strip=False)
             log.fullinfo(f'frame {ad.filename} extracted')
         return adinputs
