@@ -1,13 +1,10 @@
-"""Test the creation of master darks for MAROON-X data.
+"""Run master dark and dark-coefficient reductions on v2 (202507xx) data.
 
 Reads debundled files from $DRAGONS_TEST/preprocessed_files/ (produced by
-complete/bundle.py) and writes master darks back to the same directory.
+preprocess/bundle.py) and writes master darks back to the same directory.
 
-It does not rely on pytest, and does not produce a success or fail output like pytest
-does. Instead, if the reduce runs successfully, this will produce a calibrated dark
-file. End users should use this test to test their installation. Only if there is an
-error in this test (or other "complete" tests) should they use the echelle and image
-unit tests to test their installation.
+Usage:
+    python -m maroonxdr.maroonx.tests.preprocess.dark [--populate-inputs] [--legacy-patch]
 """
 
 import itertools as it
@@ -29,14 +26,13 @@ def _get_dragons_test():
     if p is None:
         raise RuntimeError('DRAGONS_TEST environment variable not set')
     return Path(p)
-    
+
 
 def complete_masterdark_reduction():
     """Test reduction of dark frames across all arms and exposure times."""
     dragons_test = _get_dragons_test()
     preprocessed_dir = dragons_test / 'preprocessed_files'
 
-    # Read debundled files from preprocessed_files/
     all_files = sorted(str(p) for p in preprocessed_dir.glob('*.fits'))
 
     with change_cwd_context(preprocessed_dir):
@@ -63,7 +59,6 @@ def complete_dark_coeff_reduction():
     dragons_test = _get_dragons_test()
     preprocessed_dir = dragons_test / 'preprocessed_files'
 
-    # Re-scan to pick up newly produced master darks
     all_files = sorted(str(p) for p in preprocessed_dir.glob('*.fits'))
 
     with change_cwd_context(preprocessed_dir):
@@ -89,31 +84,25 @@ def populate_inputs(legacy_patch=False):
     """Copy dark outputs from preprocessed_files/ to test inputs/ directories."""
     dragons_test = _get_dragons_test()
     src = dragons_test / 'preprocessed_files'
-    
+
     dark_src = src / 'calibrations' / 'processed_dark'
     dark_coeff_src = src / 'calibrations' / 'processed_dark_coeff'
-    
+
     base = dragons_test / 'maroonxdr' / 'maroonx'
 
-    # Populate inputs as needed
-    # ...
-
-    # Populate legacy_regression/test_masterdark
     if not legacy_patch:
-        # silently skip if legacy test data is not available
         return
 
     # legacy_regression/test_masterdark: needs master darks
-    # (synth darks are copied by science.py, which creates them)
     _copy_files(
         dark_src,
         base / 'legacy_regression' / 'test_masterdark' / 'inputs',
         [
-            '20241115T190028Z_DDDDE_r_0120_dark.fits',
-            '20241115T191909Z_DDDDE_b_0060_dark.fits',
-            '20241115T210524Z_DDDDE_b_0900_dark.fits',
-            '20241115T210524Z_DDDDE_r_0900_dark.fits',
-            '20241116T001751Z_DDDDE_b_1800_dark.fits',
+            '20250721T162823Z_DDDDE_r_0120_dark.fits',
+            '20250721T164703Z_DDDDE_b_0060_dark.fits',
+            '20250721T183319Z_DDDDE_b_0900_dark.fits',
+            '20250721T183319Z_DDDDE_r_0900_dark.fits',
+            '20250721T214546Z_DDDDE_b_1800_dark.fits',
         ],
     )
 
@@ -122,8 +111,8 @@ def populate_inputs(legacy_patch=False):
         dark_coeff_src,
         base / 'legacy_regression' / 'test_masterdark' / 'inputs',
         [
-            '20241115T190028Z_DDDDE_b_0120_darkCoefficients.fits',
-            '20241115T190028Z_DDDDE_r_0120_darkCoefficients.fits',
+            '20250721T162823Z_DDDDE_b_0120_darkCoefficients.fits',
+            '20250721T162823Z_DDDDE_r_0120_darkCoefficients.fits',
         ],
     )
 

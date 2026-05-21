@@ -13,12 +13,12 @@ from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 # -- Test datasets -------------------------------------------------------------
 # These bundles are needed for debundling into split-arm files
 bundles_needed = [
-    'N20241114M3271.fits',
+    'N20250701M6126.fits',
 ]
 
 
 # -- Tests ---------------------------------------------------------------------
-@pytest.mark.parametrize('filename', ['20241114T181028Z_DFFFD_r_0002.fits'])
+@pytest.mark.parametrize('filename', ['20250701T170101Z_DFFFD_r_0002.fits'])
 def test_nd_filter_good_series(caplog, path_to_inputs, filename):
     """Test ND filter checker outputs full set when all inputs agree with first file.
 
@@ -43,7 +43,7 @@ def test_nd_filter_good_series(caplog, path_to_inputs, filename):
     assert len(adtest) == len(test_objects)
 
 
-@pytest.mark.parametrize('filename', ['20241114T181028Z_DFFFD_r_0002.fits'])
+@pytest.mark.parametrize('filename', ['20250701T170101Z_DFFFD_r_0002.fits'])
 def test_nd_filter_subgood_series(caplog, path_to_inputs, filename):
     """Test ND filter checker outputs subset matching first file's ND filter value.
 
@@ -81,7 +81,7 @@ def test_nd_filter_subgood_series(caplog, path_to_inputs, filename):
     )
 
 
-@pytest.mark.parametrize('filename', ['20241114T181028Z_DFFFD_r_0002.fits'])
+@pytest.mark.parametrize('filename', ['20250701T170101Z_DFFFD_r_0002.fits'])
 def test_nd_filter_bad_series(caplog, path_to_inputs, filename):
     """Test ND filter checker raises OSError when only first file has unique ND setting.
 

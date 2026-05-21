@@ -14,13 +14,13 @@ from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 # -- Test datasets -------------------------------------------------------------
 # These bundles are needed for debundling into split-arm files
 bundles_needed = [
-    'N20241114M3295.fits',
-    'N20241114M3300.fits',
+    'N20250701M6126.fits',
+    'N20250701M6143.fits',
 ]
 
 
 # -- Tests ---------------------------------------------------------------------
-@pytest.mark.parametrize('filename', ['20241114T181815Z_DFFFD_r_0002.fits'])
+@pytest.mark.parametrize('filename', ['20250701T170101Z_DFFFD_r_0002.fits'])
 def test_correctImageOrientation_does_not_change_red_frames(
     caplog, path_to_inputs, filename
 ):
@@ -47,7 +47,7 @@ def test_correctImageOrientation_does_not_change_red_frames(
     assert any('set as red' in r.message for r in caplog.records)
 
 
-@pytest.mark.parametrize('filename', ['20241114T181959Z_DFFFD_b_0008.fits'])
+@pytest.mark.parametrize('filename', ['20250701T170353Z_DFFFD_b_0008.fits'])
 def test_correctImageOrientation_flips_blue_frames(caplog, path_to_inputs, filename):
     """Test that blue frames are flipped along both axes.
 

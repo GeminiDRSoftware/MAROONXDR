@@ -12,47 +12,69 @@ from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 
 from . import legacy_adapter
 
-# =========================================================
-# TESTS
-# =========================================================
+# Legacy glob() ordering extracted from masterflat FITS HISTORY headers.
+# DDDDF files first, then DFFFD — separateFlatStreams preserves within-group order.
+LEGACY_FILE_ORDER = {
+    'BLUE': [
+        '20250701T172509Z_DDDDF_b_0007.fits',
+        '20250701T172324Z_DDDDF_b_0007.fits',
+        '20250701T172140Z_DDDDF_b_0007.fits',
+        '20250701T171955Z_DDDDF_b_0007.fits',
+        '20250701T171811Z_DDDDF_b_0007.fits',
+        '20250701T171553Z_DDDDF_b_0007.fits',
+        '20250701T170537Z_DFFFD_b_0008.fits',
+        '20250701T170101Z_DFFFD_b_0008.fits',
+        '20250701T171051Z_DFFFD_b_0008.fits',
+        '20250701T170906Z_DFFFD_b_0008.fits',
+        '20250701T170353Z_DFFFD_b_0008.fits',
+        '20250701T170721Z_DFFFD_b_0008.fits',
+    ],
+    'RED': [
+        '20250701T171955Z_DDDDF_r_0002.fits',
+        '20250701T172140Z_DDDDF_r_0002.fits',
+        '20250701T171553Z_DDDDF_r_0002.fits',
+        '20250701T172324Z_DDDDF_r_0002.fits',
+        '20250701T171811Z_DDDDF_r_0002.fits',
+        '20250701T172509Z_DDDDF_r_0002.fits',
+        '20250701T170906Z_DFFFD_r_0002.fits',
+        '20250701T170721Z_DFFFD_r_0002.fits',
+        '20250701T170101Z_DFFFD_r_0002.fits',
+        '20250701T170353Z_DFFFD_r_0002.fits',
+        '20250701T171051Z_DFFFD_r_0002.fits',
+        '20250701T170537Z_DFFFD_r_0002.fits',
+    ],
+}
+
+
+def _legacy_ordered_files(preprocessed_files_path, arm):
+    """Return full paths to flat files in the legacy glob() order."""
+    return [str(preprocessed_files_path / f) for f in LEGACY_FILE_ORDER[arm]]
+
 
 @pytest.mark.preprocessed_data
 def test_stackFlats(arm, path_to_legacy_flats, preprocessed_files_path):
-    """
-    Needs legacy output of step 1, create master flats:
-    reduce/recipes/make_master_flats.py
-    """
+
     if arm == "BLUE":
-        old_DFFFD = path_to_legacy_flats / "20241114T18_masterflat_DFFFD_b_0008.fits"
-        old_DDDDF = path_to_legacy_flats / "20241114T19_masterflat_DDDDF_b_0007.fits"
+        old_DFFFD = path_to_legacy_flats / "20250701T17_masterflat_DFFFD_b_0008.fits"
+        old_DDDDF = path_to_legacy_flats / "20250701T17_masterflat_DDDDF_b_0007.fits"
     else:
-        old_DFFFD = path_to_legacy_flats / "20241114T18_masterflat_DFFFD_r_0002.fits"
-        old_DDDDF = path_to_legacy_flats / "20241114T19_masterflat_DDDDF_r_0002.fits"
+        old_DFFFD = path_to_legacy_flats / "20250701T17_masterflat_DFFFD_r_0002.fits"
+        old_DDDDF = path_to_legacy_flats / "20250701T17_masterflat_DDDDF_r_0002.fits"
 
-    # get all flat files
-    raw_files = sorted([str(f) for f in preprocessed_files_path.glob('*.fits')])
-    selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'FLAT', arm])
+    selected_spect = _legacy_ordered_files(preprocessed_files_path, arm)
 
-    # read files and instantiate the primitive class
     adinput = [astrodata.open(f) for f in selected_spect]
     p = MAROONX(adinput)
 
     p.subtractOverscan()
-    # p.trimOverscan()  # old files are not trimmed at this point
-    # p.correctImageOrientation()  # blue files are not flipped at this point
-    p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
+    p.separateFlatStreams()
 
-    # stack each stream separately
-    p.stackFlats(stream='main', scale_mode='mean_frame', suffix='_DDDDF_flat')
-    p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='_DFFFD_flat')
+    p.stackFlats(stream='main', scale_mode='first_frame', suffix='_DDDDF_flat')
+    p.stackFlats(stream='DFFFD_flats', scale_mode='first_frame', suffix='_DFFFD_flat')
 
     ad_DDDDF = p.streams['main'][0]
     ad_DFFFD = p.streams['DFFFD_flats'][0]
 
-    # Compare with old masterflats.
-    # Legacy stores stacked flats as float64 but casts to float32 downstream
-    # (backgroundfit.py line 237). Compare at float32 to match the precision
-    # that actually matters for the final product.
     with fits.open(old_DDDDF) as hdu_DDDDF, fits.open(old_DFFFD) as hdu_DFFFD:
 
         np.testing.assert_allclose(
@@ -67,38 +89,32 @@ def test_stackFlats(arm, path_to_legacy_flats, preprocessed_files_path):
 
 @pytest.mark.preprocessed_data
 def test_identifyStripes(arm, path_to_legacy_flats, preprocessed_files_path):
-    """
-    Needs legacy output of step 1, create master flats:
-    reduce/extraction.py
-    """
+
     if arm == "BLUE":
-        old_DFFFD = path_to_legacy_flats / "20241114T18_masterflat_DFFFD_b_0008.hdf"
-        old_DDDDF = path_to_legacy_flats / "20241114T19_masterflat_DDDDF_b_0007.hdf"
+        old_DFFFD = path_to_legacy_flats / "20250701T17_masterflat_DFFFD_b_0008.hdf"
+        old_DDDDF = path_to_legacy_flats / "20250701T17_masterflat_DDDDF_b_0007.hdf"
     else:
-        old_DFFFD = path_to_legacy_flats / "20241114T18_masterflat_DFFFD_r_0002.hdf"
-        old_DDDDF = path_to_legacy_flats / "20241114T19_masterflat_DDDDF_r_0002.hdf"
+        old_DFFFD = path_to_legacy_flats / "20250701T17_masterflat_DFFFD_r_0002.hdf"
+        old_DDDDF = path_to_legacy_flats / "20250701T17_masterflat_DDDDF_r_0002.hdf"
 
-    # get all flat files
-    raw_files = sorted([str(f) for f in preprocessed_files_path.glob('*.fits')])
-    selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'FLAT', arm])
+    selected_spect = _legacy_ordered_files(preprocessed_files_path, arm)
 
-    # read files and instantiate the primitive class
     adinput = [astrodata.open(f) for f in selected_spect]
     p = MAROONX(adinput)
 
     p.subtractOverscan()
-    p.trimOverscan()  # old files are not trimmed at this point
-    p.correctImageOrientation()  # blue files are not flipped at this point
-    p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
+    p.trimOverscan()
+    p.correctImageOrientation()
+    p.separateFlatStreams()
 
-    p.stackFlats(stream='main', scale_mode='mean_frame', suffix='_DDDDF_flat')
-    p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='_DFFFD_flat')
+    p.stackFlats(stream='main', scale_mode='first_frame', suffix='_DDDDF_flat')
+    p.stackFlats(stream='DFFFD_flats', scale_mode='first_frame', suffix='_DFFFD_flat')
 
-    p.findStripes()  # define stripe info to ultimately remove stray light in each stream
+    p.findStripes()
     p.findStripes(stream='DFFFD_flats')
 
-    p.identifyStripes(selected_fibers=[5]) # identify stripes based on MX architecture files
-    p.identifyStripes(stream='DFFFD_flats',selected_fibers=[2,3,4])
+    p.identifyStripes(selected_fibers=[5])
+    p.identifyStripes(stream='DFFFD_flats', selected_fibers=[2, 3, 4])
 
     p_id_DDDDF = p.streams['main'][0][0].STRIPES_ID
     p_id_DFFFD = p.streams['DFFFD_flats'][0][0].STRIPES_ID
@@ -119,22 +135,16 @@ def test_identifyStripes(arm, path_to_legacy_flats, preprocessed_files_path):
 
 @pytest.mark.preprocessed_data
 def test_identifyStripes_legacyOrder(arm, path_to_legacy_flats, preprocessed_files_path):
-    """
-    Needs legacy output of step 1, create master flats:
-    reduce/extraction.py
-    """
+
     if arm == "BLUE":
-        old_DFFFD = path_to_legacy_flats / "20241114T18_masterflat_DFFFD_b_0008.hdf"
-        old_DDDDF = path_to_legacy_flats / "20241114T19_masterflat_DDDDF_b_0007.hdf"
+        old_DFFFD = path_to_legacy_flats / "20250701T17_masterflat_DFFFD_b_0008.hdf"
+        old_DDDDF = path_to_legacy_flats / "20250701T17_masterflat_DDDDF_b_0007.hdf"
     else:
-        old_DFFFD = path_to_legacy_flats / "20241114T18_masterflat_DFFFD_r_0002.hdf"
-        old_DDDDF = path_to_legacy_flats / "20241114T19_masterflat_DDDDF_r_0002.hdf"
+        old_DFFFD = path_to_legacy_flats / "20250701T17_masterflat_DFFFD_r_0002.hdf"
+        old_DDDDF = path_to_legacy_flats / "20250701T17_masterflat_DDDDF_r_0002.hdf"
 
-    # get all flat files
-    raw_files = sorted([str(f) for f in preprocessed_files_path.glob('*.fits')])
-    selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'FLAT', arm])
+    selected_spect = _legacy_ordered_files(preprocessed_files_path, arm)
 
-    # read files and instantiate the primitive class
     adinput = [astrodata.open(f) for f in selected_spect]
     p = MAROONX(adinput)
 
@@ -146,12 +156,11 @@ def test_identifyStripes_legacyOrder(arm, path_to_legacy_flats, preprocessed_fil
 
     p.subtractOverscan()
 
-    p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
+    p.separateFlatStreams()
 
-    p.stackFlats(stream='main', scale_mode='mean_frame', suffix='_DDDDF_flat')
-    p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='_DFFFD_flat')
+    p.stackFlats(stream='main', scale_mode='first_frame', suffix='_DDDDF_flat')
+    p.stackFlats(stream='DFFFD_flats', scale_mode='first_frame', suffix='_DFFFD_flat')
 
-    # Subtract overscan is run again in backgroundfit.py on the stacked flats
     p.subtractOverscan(stream='main')
     p.subtractOverscan(stream='DFFFD_flats')
 
@@ -160,13 +169,12 @@ def test_identifyStripes_legacyOrder(arm, path_to_legacy_flats, preprocessed_fil
 
     p.correctImageOrientation(stream='main')
     p.correctImageOrientation(stream='DFFFD_flats')
-    # ================================================
 
-    p.findStripes(stream='main')  # define stripe info to ultimately remove stray light in each stream
+    p.findStripes(stream='main')
     p.findStripes(stream='DFFFD_flats')
 
-    p.identifyStripes(stream='main', selected_fibers=[5])   # '0,0,0,0,5') # identify stripes based on MX architecture files
-    p.identifyStripes(stream='DFFFD_flats', selected_fibers=[2, 3, 4]) # '0,2,3,4,0')
+    p.identifyStripes(stream='main', selected_fibers=[5])
+    p.identifyStripes(stream='DFFFD_flats', selected_fibers=[2, 3, 4])
 
     p_id_DDDDF = p.streams['main'][0][0].STRIPES_ID
     p_id_DFFFD = p.streams['DFFFD_flats'][0][0].STRIPES_ID
@@ -193,20 +201,16 @@ def test_identifyStripes_legacyOrder(arm, path_to_legacy_flats, preprocessed_fil
     strict=True,
 )
 def test_removeStraylight(arm, path_to_legacy_flats, preprocessed_files_path):
-    # This test does not subtract overscan twice as test_removeStraylight_legacyOrder does.
 
     if arm == "BLUE":
-        old_DFFFD = path_to_legacy_flats / "20241114T18_masterflat_backgroundsubtracted_DFFFD_b_0008.fits"
-        old_DDDDF = path_to_legacy_flats / "20241114T19_masterflat_backgroundsubtracted_DDDDF_b_0007.fits"
+        old_DFFFD = path_to_legacy_flats / "20250701T17_masterflat_backgroundsubtracted_DFFFD_b_0008.fits"
+        old_DDDDF = path_to_legacy_flats / "20250701T17_masterflat_backgroundsubtracted_DDDDF_b_0007.fits"
     else:
-        old_DFFFD = path_to_legacy_flats / "20241114T18_masterflat_backgroundsubtracted_DFFFD_r_0002.fits"
-        old_DDDDF = path_to_legacy_flats / "20241114T19_masterflat_backgroundsubtracted_DDDDF_r_0002.fits"
+        old_DFFFD = path_to_legacy_flats / "20250701T17_masterflat_backgroundsubtracted_DFFFD_r_0002.fits"
+        old_DDDDF = path_to_legacy_flats / "20250701T17_masterflat_backgroundsubtracted_DDDDF_r_0002.fits"
 
-    # get all flat files
-    raw_files = sorted([str(f) for f in preprocessed_files_path.glob('*.fits')])
-    selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'FLAT', arm])
+    selected_spect = _legacy_ordered_files(preprocessed_files_path, arm)
 
-    # read files and instantiate the primitive class
     adinput = [astrodata.open(f) for f in selected_spect]
     p = MAROONX(adinput)
 
@@ -216,29 +220,28 @@ def test_removeStraylight(arm, path_to_legacy_flats, preprocessed_files_path):
     p.addDQ()
     p.addVAR(read_noise=True, poisson_noise=True)
     p.subtractOverscan()
-    p.trimOverscan()  # old files are not trimmed at this point
-    p.correctImageOrientation()  # blue files are not flipped at this point
-    p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
+    p.trimOverscan()
+    p.correctImageOrientation()
+    p.separateFlatStreams()
 
-    p.stackFlats(stream='main', scale_mode='mean_frame', suffix='_flat')
-    p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='_flat')
+    p.stackFlats(stream='main', scale_mode='first_frame', suffix='_flat')
+    p.stackFlats(stream='DFFFD_flats', scale_mode='first_frame', suffix='_flat')
 
-    p.findStripes()  # define stripe info to ultimately remove stray light in each stream
+    p.findStripes()
     p.findStripes(stream='DFFFD_flats')
 
-    p.identifyStripes(selected_fibers=[5]) # identify stripes based on MX architecture files
-    p.identifyStripes(stream='DFFFD_flats',selected_fibers=[2,3,4])
+    p.identifyStripes(selected_fibers=[5])
+    p.identifyStripes(stream='DFFFD_flats', selected_fibers=[2, 3, 4])
 
-    p.defineFlatStripes()  # defines pixel inclusion for each flat region based on stripe ids
+    p.defineFlatStripes()
     p.defineFlatStripes(stream='DFFFD_flats')
 
-    p.removeStrayLight(filter_size=19, box_size=20, snapshot=False, legacy=True)  # remove straylight from frame (this is why 2 partial illumination flat sets are necessary)
+    p.removeStrayLight(filter_size=19, box_size=20, snapshot=False, legacy=True)
     p.removeStrayLight(stream='DFFFD_flats', filter_size=19, box_size=20, snapshot=False, legacy=True)
 
     ad_DDDDF = p.streams['main'][0]
     ad_DFFFD = p.streams['DFFFD_flats'][0]
 
-    # Compare with old masterflats
     with fits.open(old_DDDDF) as hdu_DDDDF, fits.open(old_DFFFD) as hdu_DFFFD:
 
         np.testing.assert_allclose(
@@ -255,17 +258,14 @@ def test_removeStraylight(arm, path_to_legacy_flats, preprocessed_files_path):
 def test_removeStraylight_legacyOrder(arm, path_to_legacy_flats, preprocessed_files_path):
 
     if arm == "BLUE":
-        old_DFFFD = path_to_legacy_flats / "20241114T18_masterflat_backgroundsubtracted_DFFFD_b_0008.fits"
-        old_DDDDF = path_to_legacy_flats / "20241114T19_masterflat_backgroundsubtracted_DDDDF_b_0007.fits"
+        old_DFFFD = path_to_legacy_flats / "20250701T17_masterflat_backgroundsubtracted_DFFFD_b_0008.fits"
+        old_DDDDF = path_to_legacy_flats / "20250701T17_masterflat_backgroundsubtracted_DDDDF_b_0007.fits"
     else:
-        old_DFFFD = path_to_legacy_flats / "20241114T18_masterflat_backgroundsubtracted_DFFFD_r_0002.fits"
-        old_DDDDF = path_to_legacy_flats / "20241114T19_masterflat_backgroundsubtracted_DDDDF_r_0002.fits"
+        old_DFFFD = path_to_legacy_flats / "20250701T17_masterflat_backgroundsubtracted_DFFFD_r_0002.fits"
+        old_DDDDF = path_to_legacy_flats / "20250701T17_masterflat_backgroundsubtracted_DDDDF_r_0002.fits"
 
-    # get all flat files
-    raw_files = sorted([str(f) for f in preprocessed_files_path.glob('*.fits')])
-    selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'FLAT', arm])
+    selected_spect = _legacy_ordered_files(preprocessed_files_path, arm)
 
-    # read files and instantiate the primitive class
     adinput = [astrodata.open(f) for f in selected_spect]
     p = MAROONX(adinput)
 
@@ -276,12 +276,11 @@ def test_removeStraylight_legacyOrder(arm, path_to_legacy_flats, preprocessed_fi
     p.addVAR(read_noise=True, poisson_noise=True)
     p.subtractOverscan()
 
-    p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
+    p.separateFlatStreams()
 
-    p.stackFlats(stream='main', scale_mode='mean_frame', suffix='_flat')
-    p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='_flat')
+    p.stackFlats(stream='main', scale_mode='first_frame', suffix='_flat')
+    p.stackFlats(stream='DFFFD_flats', scale_mode='first_frame', suffix='_flat')
 
-    # Subtract overscan is run again in backgroundfit.py on the stacked flats
     p.subtractOverscan(stream='main')
     p.subtractOverscan(stream='DFFFD_flats')
 
@@ -290,26 +289,22 @@ def test_removeStraylight_legacyOrder(arm, path_to_legacy_flats, preprocessed_fi
 
     p.correctImageOrientation(stream='main')
     p.correctImageOrientation(stream='DFFFD_flats')
-    # ================================================
 
-    p.findStripes()  # define stripe info to ultimately remove stray light in each stream
+    p.findStripes()
     p.findStripes(stream='DFFFD_flats')
 
-    p.identifyStripes(selected_fibers=[5]) # identify stripes based on MX architecture files
-    p.identifyStripes(stream='DFFFD_flats',selected_fibers=[2,3,4])
+    p.identifyStripes(selected_fibers=[5])
+    p.identifyStripes(stream='DFFFD_flats', selected_fibers=[2, 3, 4])
 
-    p.defineFlatStripes()  # defines pixel inclusion for each flat region based on stripe ids
+    p.defineFlatStripes()
     p.defineFlatStripes(stream='DFFFD_flats')
 
-    p.removeStrayLight(filter_size=19, box_size=20, snapshot=False, legacy=True)  # remove straylight from frame (this is why 2 partial illumination flat sets are necessary)
+    p.removeStrayLight(filter_size=19, box_size=20, snapshot=False, legacy=True)
     p.removeStrayLight(stream='DFFFD_flats', filter_size=19, box_size=20, snapshot=False, legacy=True)
 
     ad_DDDDF = p.streams['main'][0]
     ad_DFFFD = p.streams['DFFFD_flats'][0]
 
-    # Compare with old masterflats.
-    # Legacy backgroundfit.py processes at float32 (line 237) but saves as
-    # float64. DRAGONS legacy patch also produces float32. Compare at float32.
     with fits.open(old_DDDDF) as hdu_DDDDF, fits.open(old_DFFFD) as hdu_DFFFD:
 
         np.testing.assert_allclose(
@@ -326,15 +321,12 @@ def test_removeStraylight_legacyOrder(arm, path_to_legacy_flats, preprocessed_fi
 def test_combinedFlat(arm, path_to_legacy_flats, preprocessed_files_path):
 
     if arm == "BLUE":
-        old_DFFFF = path_to_legacy_flats / "20241114T19_masterflat_backgroundsubtracted_FFFFF_b_0007.hdf"
+        old_FFFFF = path_to_legacy_flats / "20250701T17_masterflat_backgroundsubtracted_FFFFF_b_0007.hdf"
     else:
-        old_DFFFF = path_to_legacy_flats / "20241114T19_masterflat_backgroundsubtracted_FFFFF_r_0002.hdf"
+        old_FFFFF = path_to_legacy_flats / "20250701T17_masterflat_backgroundsubtracted_FFFFF_r_0002.hdf"
 
-    # get all flat files
-    raw_files = sorted([str(f) for f in preprocessed_files_path.glob('*.fits')])
-    selected_spect = dataselect.select_data(raw_files, tags=['RAW', 'FLAT', arm])
+    selected_spect = _legacy_ordered_files(preprocessed_files_path, arm)
 
-    # read files and instantiate the primitive class
     adinput = [astrodata.open(f) for f in selected_spect]
     p = MAROONX(adinput)
 
@@ -344,12 +336,11 @@ def test_combinedFlat(arm, path_to_legacy_flats, preprocessed_files_path):
     p.addDQ()
     p.addVAR(read_noise=True, poisson_noise=True)
     p.subtractOverscan()
-    p.separateFlatStreams()  # creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
+    p.separateFlatStreams()
 
-    p.stackFlats(stream='main', scale_mode='mean_frame', suffix='_flat')
-    p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='_flat')
+    p.stackFlats(stream='main', scale_mode='first_frame', suffix='_flat')
+    p.stackFlats(stream='DFFFD_flats', scale_mode='first_frame', suffix='_flat')
 
-    # Subtract overscan is run again in backgroundfit.py on the stacked flats
     p.subtractOverscan(stream='main')
     p.subtractOverscan(stream='DFFFD_flats')
 
@@ -359,39 +350,32 @@ def test_combinedFlat(arm, path_to_legacy_flats, preprocessed_files_path):
     p.correctImageOrientation(stream='main')
     p.correctImageOrientation(stream='DFFFD_flats')
 
-    p.findStripes()  # define stripe info to ultimately remove stray light in each stream
+    p.findStripes()
     p.findStripes(stream='DFFFD_flats')
 
-    p.identifyStripes(selected_fibers=[5]) # identify stripes based on MX architecture files
-    p.identifyStripes(stream='DFFFD_flats',selected_fibers=[2,3,4])
+    p.identifyStripes(selected_fibers=[5])
+    p.identifyStripes(stream='DFFFD_flats', selected_fibers=[2, 3, 4])
 
-    p.defineFlatStripes()  # defines pixel inclusion for each flat region based on stripe ids
+    p.defineFlatStripes()
     p.defineFlatStripes(stream='DFFFD_flats')
 
-    p.removeStrayLight(filter_size=19, box_size=20, snapshot=False, legacy=True)  # remove straylight from frame (this is why 2 partial illumination flat sets are necessary)
+    p.removeStrayLight(filter_size=19, box_size=20, snapshot=False, legacy=True)
     p.removeStrayLight(stream='DFFFD_flats', filter_size=19, box_size=20, snapshot=False, legacy=True)
-    # =========================================================
 
-    p.combineFlatStreams(stream='main', stream_2='DFFFD_flats')  # combine straylight-removed images
-    p.clearStream(stream='DFFFD_flats') # remove second stream
+    p.combineFlatStreams(stream='main', stream_2='DFFFD_flats')
+    p.clearStream(stream='DFFFD_flats')
 
-    p.findStripes()  # re-run find/identify/define routine on combined frame
-    p.identifyStripes(selected_fibers=[2,3,4,5])
-    # p.defineFlatStripes(extract=True)
+    p.findStripes()
+    p.identifyStripes(selected_fibers=[2, 3, 4, 5])
 
-    p_id_DFFFF = p.streams['main'][0][0].STRIPES_ID
+    p_id_FFFFF = p.streams['main'][0][0].STRIPES_ID
 
-    old_p_id_DFFFF = legacy_adapter.load_dict_from_hdf5(str(old_DFFFF), 'extraction_parameters/')
+    old_p_id_FFFFF = legacy_adapter.load_dict_from_hdf5(str(old_FFFFF), 'extraction_parameters/')
 
-    for fiber in old_p_id_DFFFF.keys():
-        for order in old_p_id_DFFFF[fiber].keys():
-            np.testing.assert_allclose(p_id_DFFFF[fiber][order], old_p_id_DFFFF[fiber][order],
+    for fiber in old_p_id_FFFFF.keys():
+        for order in old_p_id_FFFFF[fiber].keys():
+            np.testing.assert_allclose(p_id_FFFFF[fiber][order], old_p_id_FFFFF[fiber][order],
                 rtol=1e-5, atol=1e-5)
-
-
-# =========================================================
-# NEW TESTS
-# =========================================================
 
 
 @pytest.mark.slow
@@ -400,17 +384,16 @@ def test_combinedFlat(arm, path_to_legacy_flats, preprocessed_files_path):
     'matching_filenames',
     [
         (
-            '20241114T190714Z_DDDDF_b_0007_DFFFF_flat.fits',
-            '20241114T19_masterflat_backgroundsubtracted_FFFFF_b_0007.hdf',
+            '20250701T172509Z_DDDDF_b_0007_DFFFF_flat.fits',
+            '20250701T17_masterflat_backgroundsubtracted_FFFFF_b_0007.hdf',
         ),
         (
-            '20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits',
-            '20241114T19_masterflat_backgroundsubtracted_FFFFF_r_0002.hdf',
+            '20250701T171955Z_DDDDF_r_0002_DFFFF_flat.fits',
+            '20250701T17_masterflat_backgroundsubtracted_FFFFF_r_0002.hdf',
         ),
     ],
 )
 def test_masterflat_index_maps(path_to_inputs, path_to_legacy_flats, matching_filenames):
-    """Compare INDEX_FIBER and INDEX_ORDER pixel maps against legacy stripe_indices."""
     file_name, legacy_file_name = matching_filenames
 
     ad = astrodata.open(os.path.join(path_to_inputs, file_name))
@@ -437,17 +420,16 @@ def test_masterflat_index_maps(path_to_inputs, path_to_legacy_flats, matching_fi
     'matching_filenames',
     [
         (
-            '20241114T190714Z_DDDDF_b_0007_DFFFF_flat.fits',
-            '20241114T19_masterflat_backgroundsubtracted_FFFFF_b_0007.hdf',
+            '20250701T172509Z_DDDDF_b_0007_DFFFF_flat.fits',
+            '20250701T17_masterflat_backgroundsubtracted_FFFFF_b_0007.hdf',
         ),
         (
-            '20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits',
-            '20241114T19_masterflat_backgroundsubtracted_FFFFF_r_0002.hdf',
+            '20250701T171955Z_DDDDF_r_0002_DFFFF_flat.fits',
+            '20250701T17_masterflat_backgroundsubtracted_FFFFF_r_0002.hdf',
         ),
     ],
 )
 def test_masterflat_stripes_id(path_to_inputs, path_to_legacy_flats, matching_filenames):
-    """Compare STRIPES_ID polynomial coefficients against legacy extraction_parameters."""
     file_name, legacy_file_name = matching_filenames
 
     ad = astrodata.open(os.path.join(path_to_inputs, file_name))
@@ -458,8 +440,6 @@ def test_masterflat_stripes_id(path_to_inputs, path_to_legacy_flats, matching_fi
 
     old_p_id = legacy_adapter.load_dict_from_hdf5(legacy_file, 'extraction_parameters/')
 
-    # STRIPES_ID table is a vstack of per-fiber tables.
-    # Each fiber contributes n_coeffs rows (polynomial degree + 1).
     n_fibers = len(stripes_fibers)
     n_coeffs = len(stripes_table) // n_fibers
 

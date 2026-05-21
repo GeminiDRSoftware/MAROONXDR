@@ -13,7 +13,7 @@ from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 # -- Tests ---------------------------------------------------------------------
 @pytest.mark.slow
 @pytest.mark.preprocessed_data
-@pytest.mark.parametrize('filename', ['20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits'])
+@pytest.mark.parametrize('filename', ['20250701T171955Z_DDDDF_r_0002_DFFFF_flat.fits'])
 def test_find_stripes(caplog, path_to_inputs, filename):
     """
     Test that the findStripe routine works to identify all stripes that have
@@ -49,7 +49,7 @@ def test_find_stripes(caplog, path_to_inputs, filename):
 
 @pytest.mark.slow
 @pytest.mark.preprocessed_data
-@pytest.mark.parametrize('filename', ['20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits'])
+@pytest.mark.parametrize('filename', ['20250701T171955Z_DDDDF_r_0002_DFFFF_flat.fits'])
 def test_identify_stripes(caplog, path_to_inputs, filename):
     """
     Test that the identifyStripe routine works to give order and number
@@ -99,7 +99,7 @@ def test_identify_stripes(caplog, path_to_inputs, filename):
 
 @pytest.mark.slow
 @pytest.mark.preprocessed_data
-@pytest.mark.parametrize('filename', ['20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits'])
+@pytest.mark.parametrize('filename', ['20250701T171955Z_DDDDF_r_0002_DFFFF_flat.fits'])
 def test_full_stripe_definition(caplog, path_to_inputs, filename):
     """
     Test that the same exact stripes are found in reference masterflat frame

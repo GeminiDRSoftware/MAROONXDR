@@ -1,19 +1,19 @@
-"""Test the science reduction for MAROON-X data.
+"""Run synthetic dark creation and science reduction on v2 (202507xx) data.
 
 Reads debundled files from $DRAGONS_TEST/preprocessed_files/ (produced by
-complete/bundle.py) and writes reduced science outputs back to the same directory.
+preprocess/bundle.py), creates synthetic darks, and runs the full science
+reduction.
 
-It does not rely on pytest, and does not produce a success or fail output like pytest
-does. Instead, if the reduce runs successfully, this will produce a reduced science
-file. End users should use this test to test their installation. Only if there is an
-error in this test (or other "complete" tests) should they use the echelle and image
-unit tests to test their installation.
+Make sure that you have created the darks, flats, and wavecal first
+(see dark.py, flat.py, and wavecal.py).
 
-Make sure that you have created the darks and flats first (see dark.py and flat.py).
+Usage:
+    python -m maroonxdr.maroonx.tests.preprocess.science [--populate-inputs] [--legacy-patch]
 """
 
 import os
 import shutil
+import sys
 from pathlib import Path
 
 from gempy.adlibrary import dataselect
@@ -32,11 +32,10 @@ def _get_dragons_test():
 
 
 def complete_synthetic_darks_reduction():
-    """Test reduction of synthetic darks for science frames."""
+    """Create synthetic darks for v2 science frames."""
     dragons_test = _get_dragons_test()
     preprocessed_dir = dragons_test / 'preprocessed_files'
 
-    # Read debundled files from preprocessed_files/
     all_files = sorted(str(p) for p in preprocessed_dir.glob('*.fits'))
 
     with change_cwd_context(preprocessed_dir):
@@ -45,7 +44,6 @@ def complete_synthetic_darks_reduction():
         for arm in ['BLUE', 'RED']:
             selected_sci = dataselect.select_data(all_files, tags=['RAW', 'SCI', arm])
 
-            # Run reduce on all selected files
             myreduce = Reduce()
             myreduce.files.extend(selected_sci)
             myreduce.drpkg = 'maroonxdr'
@@ -54,18 +52,14 @@ def complete_synthetic_darks_reduction():
 
 
 def complete_science_reduction(legacy_patch=False):
-    """Test reduction of science frames across both arms (300s)."""
+    """Reduce v2 science frames for both red and blue arms."""
     dragons_test = _get_dragons_test()
     preprocessed_dir = dragons_test / 'preprocessed_files'
 
-    # Read debundled files from preprocessed_files/
     all_files = sorted(str(p) for p in preprocessed_dir.glob('*.fits'))
 
     with change_cwd_context(preprocessed_dir):
-        logutils.config(file_name='test_reduction.log', mode='debug', stomp=True)
-        # logutils.config(file_name="test_science.log", stomp=True)
-        # log = logutils.get_logger("test_science.log")
-        # log.setLevel("DEBUG")
+        logutils.config(file_name='test_science.log', mode='debug', stomp=True)
 
         for arm in ['BLUE', 'RED']:
             only_science = dataselect.select_data(
@@ -75,7 +69,11 @@ def complete_science_reduction(legacy_patch=False):
             myreduce = Reduce()
             myreduce.files.extend(only_science)
             myreduce.drpkg = 'maroonxdr'
-            myreduce.uparms = {'extractStripes:legacy': legacy_patch}
+            myreduce.uparms = {
+                'extractStripes:legacy': legacy_patch,
+                'combineFibers:max_clips': 20,
+                'extractStripes:straylight_removal_fibers': [5],
+            }
             myreduce.runr()
 
 
@@ -102,44 +100,42 @@ def complete_stripe_extraction_check():
 
 
 def populate_inputs(legacy_patch=False):
-    """Copy science outputs from preprocessed_files/ to test inputs/ directories."""
+    """Copy synth dark and reduced science outputs to test inputs/ directories."""
     dragons_test = _get_dragons_test()
     src = dragons_test / 'preprocessed_files'
     base = dragons_test / 'maroonxdr' / 'maroonx'
 
-    # echelle_extraction/test_extraction
+    # echelle_extraction/test_extraction: needs reduced science (both arms)
     _copy_files(
         src,
         base / 'echelle_extraction' / 'test_extraction' / 'inputs',
         [
-            '20241124T041907Z_SOOOE_r_0300_reduced.fits',
-            '20241124T041907Z_SOOOE_b_0300_reduced.fits',
+            '20250717T144308Z_SOOOE_b_0300_reduced.fits',
+            '20250717T144308Z_SOOOE_r_0300_reduced.fits',
         ],
     )
 
-    # echelle_extraction/test_stripe_retrieval
+    # echelle_extraction/test_stripe_retrieval: needs test_stripes files
     _copy_files(
         src,
         base / 'echelle_extraction' / 'test_stripe_retrieval' / 'inputs',
         [
-            '20241124T041907Z_SOOOE_r_0300_test_stripes.fits',
-            '20241124T041907Z_SOOOE_b_0300_test_stripes.fits',
+            '20250717T144308Z_SOOOE_b_0300_test_stripes.fits',
+            '20250717T144308Z_SOOOE_r_0300_test_stripes.fits',
         ],
     )
 
-    # Populate legacy_regression/test_reduced_science
     if not legacy_patch:
-        # silently skip if legacy test data is not available
         return
 
-    # legacy_regression/test_masterdark: needs synth darks (created by this script)
+    # legacy_regression/test_masterdark: needs synth darks
     dark_src = src / 'calibrations' / 'processed_dark'
     _copy_files(
         dark_src,
         base / 'legacy_regression' / 'test_masterdark' / 'inputs',
         [
-            '20241124T041907Z_SOOOE_b_0300_synth_dark.fits',
-            '20241124T075055Z_SOOOE_r_0900_synth_dark.fits',
+            '20250717T144308Z_SOOOE_b_0300_synth_dark.fits',
+            '20250717T144308Z_SOOOE_r_0300_synth_dark.fits',
         ],
     )
 
@@ -148,8 +144,8 @@ def populate_inputs(legacy_patch=False):
         src,
         base / 'legacy_regression' / 'test_reduced_science' / 'inputs',
         [
-            '20241124T041907Z_SOOOE_b_0300_reduced.fits',
-            '20241124T041907Z_SOOOE_r_0300_reduced.fits',
+            '20250717T144308Z_SOOOE_b_0300_reduced.fits',
+            '20250717T144308Z_SOOOE_r_0300_reduced.fits',
         ],
     )
 
@@ -167,7 +163,6 @@ def _copy_files(src_dir, dst_dir, filenames):
 
 
 if __name__ == '__main__':
-    import sys
 
     legacy_patch = '--legacy-patch' in sys.argv[1:]
 

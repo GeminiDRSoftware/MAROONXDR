@@ -13,10 +13,10 @@ from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 @pytest.mark.slow
 @pytest.mark.preprocessed_data
 @pytest.mark.parametrize(
-    'DFFFD_file', ['20241114T182328Z_DFFFD_b_0008_straylight_flat.fits']
+    'DFFFD_file', ['20250701T170101Z_DFFFD_b_0008_straylight_flat.fits']
 )
 @pytest.mark.parametrize(
-    'FDDDF_file', ['20241114T190714Z_DDDDF_b_0007_straylight_flat.fits']
+    'FDDDF_file', ['20250701T171553Z_DDDDF_b_0007_straylight_flat.fits']
 )
 def test_stray_light_removal(caplog, path_to_inputs, DFFFD_file, FDDDF_file):
     """

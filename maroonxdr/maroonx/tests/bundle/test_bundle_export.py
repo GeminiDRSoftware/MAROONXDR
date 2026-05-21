@@ -12,7 +12,7 @@ import maroonx_instruments  # noqa - import is necessary for astrodata
 from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
 
 # -- Test datasets -------------------------------------------------------------
-test_datasets = ['N20241114M3271.fits']
+test_datasets = ['N20250701M6126.fits']
 
 
 # -- Tests ---------------------------------------------------------------------

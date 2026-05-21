@@ -1,4 +1,4 @@
-"""Test bundle file reduction workflow.
+"""Test bundle file reduction workflow for v2 (202507xx) data.
 
 Reads raw bundles from $DRAGONS_TEST/raw_files/ and writes debundled
 single-arm files to $DRAGONS_TEST/preprocessed_files/.
@@ -31,7 +31,7 @@ def complete_bundle_reduction():
     output_dir.mkdir(exist_ok=True)
 
     # Read bundles from raw_files/
-    all_files = sorted(str(p) for p in raw_dir.glob('*.fits'))
+    all_files = sorted(str(p) for p in raw_dir.glob('N2025*.fits'))
     only_bundles = dataselect.select_data(all_files, tags=['RAW', 'BUNDLE'])
 
     # Write debundled output to preprocessed_files/
@@ -60,10 +60,10 @@ def populate_inputs():
         src,
         base / 'image' / 'test_file_sorting' / 'inputs',
         [
-            '20241114T181028Z_DFFFD_r_0002.fits',
-            '20241114T181028Z_DFFFD_b_0008.fits',
-            '20241114T181815Z_DFFFD_b_0008.fits',
-            '20241114T191006Z_DDDDF_b_0007.fits',
+            '20250701T170101Z_DFFFD_r_0002.fits',
+            '20250701T170101Z_DFFFD_b_0008.fits',
+            '20250701T170353Z_DFFFD_b_0008.fits',
+            '20250701T171553Z_DDDDF_b_0007.fits',
         ],
     )
 
@@ -72,8 +72,8 @@ def populate_inputs():
         src,
         base / 'image' / 'test_image_orientation_corrector' / 'inputs',
         [
-            '20241114T181815Z_DFFFD_r_0002.fits',
-            '20241114T181959Z_DFFFD_b_0008.fits',
+            '20250701T170101Z_DFFFD_r_0002.fits',
+            '20250701T170353Z_DFFFD_b_0008.fits',
         ],
     )
 
@@ -82,7 +82,7 @@ def populate_inputs():
         src,
         base / 'image' / 'test_ND_filter_check' / 'inputs',
         [
-            '20241114T181028Z_DFFFD_r_0002.fits',
+            '20250701T170101Z_DFFFD_r_0002.fits',
         ],
     )
 
@@ -91,7 +91,7 @@ def populate_inputs():
         src,
         base / 'image' / 'test_var' / 'inputs',
         [
-            '20241115T194624Z_DDDDE_r_0300.fits',
+            '20250721T170049Z_DDDDE_r_0300.fits',
         ],
     )
 

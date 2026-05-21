@@ -15,8 +15,8 @@ import maroonx_instruments  # noqa - import is necessary for astrodata
 from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 
 # -- Test datasets -------------------------------------------------------------
-test_datasets = ['N20241114M3271.fits']
-exposuremeter_datasets = ['N20241124M1413.fits']
+test_datasets = ['N20250701M6126.fits']
+exposuremeter_datasets = ['N20250717M5299.fits']
 
 
 # -- Tests ---------------------------------------------------------------------

@@ -11,7 +11,7 @@ from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
 
 @pytest.mark.slow
 @pytest.mark.preprocessed_data
-@pytest.mark.parametrize('filename', ['20241124T030227Z_DEEEE_b_0030_wavecal.fits'])
+@pytest.mark.parametrize('filename', ['20250717T163124Z_DEEEE_b_0010_wavecal.fits'])
 def test_staticWavelengthSolution(caplog, path_to_inputs, filename):
     """
     This test checks that the static wavelength solution is correct.
@@ -47,7 +47,7 @@ def test_staticWavelengthSolution(caplog, path_to_inputs, filename):
 
 @pytest.mark.slow
 @pytest.mark.preprocessed_data
-@pytest.mark.parametrize('filename', ['20241124T030227Z_DEEEE_b_0030_wavecal.fits'])
+@pytest.mark.parametrize('filename', ['20250717T163124Z_DEEEE_b_0010_wavecal.fits'])
 def test_getPeaksAndPolynomials(caplog, path_to_inputs, filename):
     """
     This test checks that PEAKS and POLY tables are set.
@@ -66,7 +66,7 @@ def test_getPeaksAndPolynomials(caplog, path_to_inputs, filename):
 
 @pytest.mark.slow
 @pytest.mark.preprocessed_data
-@pytest.mark.parametrize('filename', ['20241124T030227Z_DEEEE_b_0030_wavecal.fits'])
+@pytest.mark.parametrize('filename', ['20250717T163124Z_DEEEE_b_0010_wavecal.fits'])
 def test_fitAndApplyEtalonWls(caplog, path_to_inputs, filename):
     """
     This test checks that the dynamic wavelength solution is correct.

@@ -14,15 +14,15 @@ from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 # -- Test datasets -------------------------------------------------------------
 # These bundles are needed for debundling into split-arm files
 bundles_needed = [
-    'N20241114M3271.fits',
-    'N20241114M3295.fits',
-    'N20241114M3450.fits',
+    'N20250701M6126.fits',
+    'N20250701M6143.fits',
+    'N20250701M6215.fits',
 ]
 
 
 # -- Tests ---------------------------------------------------------------------
-@pytest.mark.parametrize('filename_r', ['20241114T181028Z_DFFFD_r_0002.fits'])
-@pytest.mark.parametrize('filename_b', ['20241114T181028Z_DFFFD_b_0008.fits'])
+@pytest.mark.parametrize('filename_r', ['20250701T170101Z_DFFFD_r_0002.fits'])
+@pytest.mark.parametrize('filename_b', ['20250701T170101Z_DFFFD_b_0008.fits'])
 def test_checkArm_collection_and_rejection(
     caplog, path_to_inputs, filename_r, filename_b
 ):
@@ -83,8 +83,8 @@ def test_checkArm(ad_min):
     assert all(ad.filename == ad1.filename for ad in out)
 
 
-@pytest.mark.parametrize('DFFFD_file', ['20241114T181815Z_DFFFD_b_0008.fits'])
-@pytest.mark.parametrize('FDDDF_file', ['20241114T191006Z_DDDDF_b_0007.fits'])
+@pytest.mark.parametrize('DFFFD_file', ['20250701T170353Z_DFFFD_b_0008.fits'])
+@pytest.mark.parametrize('FDDDF_file', ['20250701T171553Z_DDDDF_b_0007.fits'])
 def test_separating_flat_streams(caplog, path_to_inputs, DFFFD_file, FDDDF_file):
     """Test that seperateFlatStreams correctly separates flats by illuminated fibers.
 
@@ -133,8 +133,8 @@ def test_separating_flat_streams(caplog, path_to_inputs, DFFFD_file, FDDDF_file)
     assert len(p.streams['DFFFD_flats']) == num_DFFFD
 
 
-@pytest.mark.parametrize('DFFFD_file', ['20241114T181815Z_DFFFD_b_0008.fits'])
-@pytest.mark.parametrize('FDDDF_file', ['20241114T191006Z_DDDDF_b_0007.fits'])
+@pytest.mark.parametrize('DFFFD_file', ['20250701T170353Z_DFFFD_b_0008.fits'])
+@pytest.mark.parametrize('FDDDF_file', ['20250701T171553Z_DDDDF_b_0007.fits'])
 def test_combining_flat_streams(caplog, path_to_inputs, DFFFD_file, FDDDF_file):
     """Test that combineFlatStreams creates by-pixel max of DFFFD and FDDDF flats.
 

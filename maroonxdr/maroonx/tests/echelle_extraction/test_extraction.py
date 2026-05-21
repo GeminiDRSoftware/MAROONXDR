@@ -12,12 +12,12 @@ from maroonxdr.maroonx.primitives_maroonx_echelle import MAROONXEchelle
 
 _CALIB_FILES = {
     'r': {
-        'flat': '20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits',
-        'dark': '20241124T041907Z_SOOOE_r_0300_synth_dark.fits',
+        'flat': '20250701T171955Z_DDDDF_r_0002_DFFFF_flat.fits',
+        'dark': '20250717T144308Z_SOOOE_r_0300_synth_dark.fits',
     },
     'b': {
-        'flat': '20241114T190714Z_DDDDF_b_0007_DFFFF_flat.fits',
-        'dark': '20241124T041907Z_SOOOE_b_0300_synth_dark.fits',
+        'flat': '20250701T172509Z_DDDDF_b_0007_DFFFF_flat.fits',
+        'dark': '20250717T144308Z_SOOOE_b_0300_synth_dark.fits',
     },
 }
 
@@ -27,8 +27,8 @@ _CALIB_FILES = {
 @pytest.mark.parametrize(
     'filename',
     [
-        '20241124T041907Z_SOOOE_r_0300_reduced.fits',
-        '20241124T041907Z_SOOOE_b_0300_reduced.fits',
+        '20250717T144308Z_SOOOE_r_0300_reduced.fits',
+        '20250717T144308Z_SOOOE_b_0300_reduced.fits',
     ],
 )
 def test_optimal_extracting_science_data(caplog, path_to_inputs, filename):
@@ -111,8 +111,8 @@ def _compare_stripes(stripes1, stripes2, label,
 @pytest.mark.parametrize(
     'filename',
     [
-        '20241124T041907Z_SOOOE_r_0300_reduced.fits',
-        '20241124T041907Z_SOOOE_b_0300_reduced.fits',
+        '20250717T144308Z_SOOOE_r_0300_reduced.fits',
+        '20250717T144308Z_SOOOE_b_0300_reduced.fits',
     ],
 )
 def test_extraction_determinism_no_straylight(caplog, path_to_inputs, filename):
@@ -163,8 +163,8 @@ def test_extraction_determinism_no_straylight(caplog, path_to_inputs, filename):
 @pytest.mark.parametrize(
     'filename',
     [
-        '20241124T041907Z_SOOOE_r_0300_reduced.fits',
-        '20241124T041907Z_SOOOE_b_0300_reduced.fits',
+        '20250717T144308Z_SOOOE_r_0300_reduced.fits',
+        '20250717T144308Z_SOOOE_b_0300_reduced.fits',
     ],
 )
 def test_extraction_determinism_with_straylight(caplog, path_to_inputs, filename):

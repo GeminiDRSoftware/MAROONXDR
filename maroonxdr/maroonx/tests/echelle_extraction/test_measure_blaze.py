@@ -17,8 +17,8 @@ _ALL_FIBERS = [1, 2, 3, 4, 5]
 @pytest.mark.parametrize(
     'filename',
     [
-        '20241114T190714Z_DDDDF_b_0007_DFFFF_flat.fits',
-        '20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits',
+        '20250701T172509Z_DDDDF_b_0007_DFFFF_flat.fits',
+        '20250701T171955Z_DDDDF_r_0002_DFFFF_flat.fits',
     ],
 )
 def test_measureBlaze_output_shape(caplog, path_to_inputs, filename):
@@ -61,8 +61,8 @@ def test_measureBlaze_output_shape(caplog, path_to_inputs, filename):
 @pytest.mark.parametrize(
     'filename',
     [
-        '20241114T190714Z_DDDDF_b_0007_DFFFF_flat.fits',
-        '20241114T190714Z_DDDDF_r_0002_DFFFF_flat.fits',
+        '20250701T172509Z_DDDDF_b_0007_DFFFF_flat.fits',
+        '20250701T171955Z_DDDDF_r_0002_DFFFF_flat.fits',
     ],
 )
 def test_measureBlaze_normalization(caplog, path_to_inputs, filename):

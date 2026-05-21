@@ -123,7 +123,7 @@ def path_to_legacy_darks(legacy_test_root):
         legacy_test_root
         / 'MaroonX_spectra_reduced'
         / 'Maroonx_masterframes'
-        / '202411xx'
+        / '202507xx'
         / 'darks'
     )
     if not path.exists():
@@ -140,7 +140,7 @@ def path_to_legacy_flats(legacy_test_root):
         legacy_test_root
         / 'MaroonX_spectra_reduced'
         / 'Maroonx_masterframes'
-        / '202411xx'
+        / '202507xx'
         / 'flats'
     )
     if not path.exists():
@@ -153,7 +153,7 @@ def path_to_legacy_wavecal(legacy_test_root):
     """
     Fixture providing path to test legacy data directory.
     """
-    path = legacy_test_root / 'MaroonX_spectra_reduced' / '20241124'
+    path = legacy_test_root / 'MaroonX_spectra_reduced' / '20250717'
     if not path.exists():
         pytest.skip(f'Legacy data directory does not exist: {path}')
     return path
@@ -164,7 +164,7 @@ def path_to_legacy_science(legacy_test_root):
     """
     Fixture providing path to test legacy data directory.
     """
-    path = legacy_test_root / 'MaroonX_spectra_reduced' / '20241124'
+    path = legacy_test_root / 'MaroonX_spectra_reduced' / '20250717'
     if not path.exists():
         pytest.skip(f'Legacy data directory does not exist: {path}')
     return path
@@ -178,7 +178,7 @@ def path_to_legacy_reduced(legacy_test_root):
     Contains both intermediate .hdf files and final .hd5 files
     produced by the legacy MaroonX pipeline.
     """
-    path = legacy_test_root / 'MaroonX_spectra_reduced' / '20241124'
+    path = legacy_test_root / 'MaroonX_spectra_reduced' / '20250717'
     if not path.exists():
         pytest.skip(f'Legacy reduced data directory does not exist: {path}')
     return path

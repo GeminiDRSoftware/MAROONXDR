@@ -1,16 +1,17 @@
-"""Test the creation of 1D reduced spectra for MAROON-X wavecal files.
+"""Run wavecal reduction on v2 (202507xx) etalon data.
 
 Reads debundled files from $DRAGONS_TEST/preprocessed_files/ (produced by
-complete/bundle.py) and writes wavecal outputs back to the same directory.
+preprocess/bundle.py) and writes wavecal outputs back to the same directory.
 
-It does not rely on pytest, and does not produce a success or fail output like pytest
-does. Instead, if the reduce runs successfully, this will produce a 1D reduced spectra
-file that can be used for dynamic wavelength calibration. End users should use this
-test to test their installation.
+Make sure that you have created the darks and flats first (see dark.py and flat.py).
+
+Usage:
+    python -m maroonxdr.maroonx.tests.preprocess.wavecal [--populate-inputs] [--legacy-patch]
 """
 
 import os
 import shutil
+import sys
 from pathlib import Path
 
 from gempy.adlibrary import dataselect
@@ -29,11 +30,10 @@ def _get_dragons_test():
 
 
 def complete_wavecal_reduction(legacy_patch=False):
-    """Test reduction of wavelength calibration frames for both red and blue arms."""
+    """Reduce v2 etalon frames for both red and blue arms."""
     dragons_test = _get_dragons_test()
     preprocessed_dir = dragons_test / 'preprocessed_files'
 
-    # Read debundled files from preprocessed_files/
     all_files = sorted(str(p) for p in preprocessed_dir.glob('*.fits'))
 
     with change_cwd_context(preprocessed_dir):
@@ -49,11 +49,12 @@ def complete_wavecal_reduction(legacy_patch=False):
             myreduce = Reduce()
             myreduce.files.extend(only_wavecal)
             myreduce.drpkg = 'maroonxdr'
+            myreduce.uparms = {'extractStripes:legacy': legacy_patch}
             myreduce.runr()
 
 
 def populate_inputs(legacy_patch=False):
-    """Copy wavecal outputs from preprocessed_files/ to test inputs/ directories."""
+    """Copy wavecal outputs to test inputs/ directories."""
     dragons_test = _get_dragons_test()
     src = dragons_test / 'preprocessed_files'
     base = dragons_test / 'maroonxdr' / 'maroonx'
@@ -63,24 +64,19 @@ def populate_inputs(legacy_patch=False):
         src,
         base / 'echelle_extraction' / 'test_wavecal' / 'inputs',
         [
-            '20241124T030227Z_DEEEE_b_0030_wavecal.fits',
+            '20250717T163124Z_DEEEE_b_0010_wavecal.fits',
         ],
     )
 
-    # Populate legacy_regression/test_reduced_wavecal
     if not legacy_patch:
-        # silently skip if legacy test data is not available
         return
 
-    # legacy_regression/test_reduced_wavecal: etalon and LFC wavecal outputs
     _copy_files(
         src,
         base / 'legacy_regression' / 'test_reduced_wavecal' / 'inputs',
         [
-            '20241124T030227Z_DEEEE_b_0030_wavecal.fits',
-            '20241124T030227Z_DEEEE_r_0004_wavecal.fits',
-            '20241124T030436Z_DLLLL_b_0005_wavecal.fits',
-            '20241124T030436Z_DLLLL_r_0004_wavecal.fits',
+            '20250717T163124Z_DEEEE_b_0010_wavecal.fits',
+            '20250717T163124Z_DEEEE_r_0004_wavecal.fits',
         ],
     )
 
@@ -98,7 +94,6 @@ def _copy_files(src_dir, dst_dir, filenames):
 
 
 if __name__ == '__main__':
-    import sys
 
     legacy_patch = '--legacy-patch' in sys.argv[1:]
     complete_wavecal_reduction(legacy_patch=legacy_patch)

@@ -14,12 +14,12 @@ from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 # -- Test datasets -------------------------------------------------------------
 # These bundles are needed for debundling into split-arm files
 bundles_needed = [
-    'N20241115M3559.fits',
+    'N20250721M6125.fits',
 ]
 
 
 # -- Tests ---------------------------------------------------------------------
-@pytest.mark.parametrize('filename', ['20241115T194624Z_DDDDE_r_0300.fits'])
+@pytest.mark.parametrize('filename', ['20250721T170049Z_DDDDE_r_0300.fits'])
 def test_var_single(caplog, path_to_inputs, filename):
     """Test addVAR primitive creates variance extension correctly.
 
