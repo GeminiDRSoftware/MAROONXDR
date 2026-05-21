@@ -182,8 +182,8 @@ def makeProcessedFlatDFFFF(p):
     # Creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
     p.separateFlatStreams()
 
-    p.stackFlats(stream='main', scale_mode='mean_frame', suffix='DDDDF')
-    p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='DFFFD')
+    p.stackFlats(stream='main', scale_mode='first_frame', suffix='DDDDF')
+    p.stackFlats(stream='DFFFD_flats', scale_mode='first_frame', suffix='DFFFD')
 
     # Subtract overscan is run again in backgroundfit.py on the stacked flats
     p.subtractOverscan(stream='main')

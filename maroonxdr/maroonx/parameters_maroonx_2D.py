@@ -206,7 +206,7 @@ class stackFlatsConfig(parameters_stack.stackFlatsConfig, stackFramesMXCalConfig
     suffix = config.Field('Filename suffix', str, '_stack')
     stream = config.Field('Stream name of flats to combine', str, 'main')
     # scale_mode can be 'first_frame' (darks) or 'mean_frame' (flats)
-    scale_mode = config.Field('Scaling method for frames', str, 'mean_frame')
+    scale_mode = config.Field('Scaling method for frames', str, 'first_frame')
 
     def setDefaults(self):
         self.reject_method = 'sigclip'

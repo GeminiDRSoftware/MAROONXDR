@@ -314,9 +314,8 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
         Notes
         -----
-        The iterative fitting algorithm may skip orders with insufficient flux
-        (median < 0.005) or fail for orders with excessive cosmic rays or
-        artifacts. Failed fits are logged as warnings.
+        The iterative fitting algorithm may fail for orders with excessive
+        cosmic rays or artifacts. Failed fits are logged as warnings.
 
         Known bad pixels are masked during fitting (e.g., pixel 1943 in order
         122, first 400 pixels in truncated red arm order 94 fiber 5).
@@ -415,12 +414,13 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                             ad.filename, fiber, order, exc
                         )
 
-                    if not (np.nanmedian(data) > 0.005):
-                        log.warning(
-                            "Skipped order %s for fiber %s for insufficient flux",
-                            order, fiber
-                        )
-                        continue
+                    # v2 legacy removed the low-flux skip; process all orders
+                    # if not (np.nanmedian(data) > 0.005):
+                    #     log.warning(
+                    #         "Skipped order %s for fiber %s for insufficient flux",
+                    #         order, fiber
+                    #     )
+                    #     continue
 
                     # Asynchronously run iterative fit using the data
                     # yielded by the generator function
@@ -468,12 +468,13 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                         )
                     ############################
 
-                    if not (np.nanmedian(data) > 0.005):
-                        log.warning(
-                            "Skipped order %s for fiber %s for insufficient flux",
-                            order, fiber
-                        )
-                        continue
+                    # v2 legacy removed the low-flux skip; process all orders
+                    # if not (np.nanmedian(data) > 0.005):
+                    #     log.warning(
+                    #         "Skipped order %s for fiber %s for insufficient flux",
+                    #         order, fiber
+                    #     )
+                    #     continue
 
                     # Run iterative fit using the data yielded by the
                     # generator function in serial

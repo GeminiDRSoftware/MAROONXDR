@@ -415,7 +415,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
             # If it is, then flip the image
             # TODO: Change this to just look at the arm tag
             if 'BLUE' in ad.tags:
-                log.fullinfo(f'{ad.filename} set as blue, orientation flipped')
+                log.stdinfo(f'{ad.filename} set as blue, orientation flipped')
                 adout[0].data = np.fliplr(np.flipud(ad[0].data))
                 try:
                     adout[0].mask = np.fliplr(np.flipud(ad[0].mask))
@@ -427,7 +427,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
             # If it is not from the blue arm, then check if it is from the
             # red arm by looking at the image orientation. Do not flip the image
             elif 'RED' in ad.tags:
-                log.fullinfo(f'{ad.filename} set as red, orientation unchanged')
+                log.stdinfo(f'{ad.filename} set as red, orientation unchanged')
 
             # In any other case, something has gone wrong- return an error
             else:
@@ -1823,43 +1823,18 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
         report = params['report']
 
         from pathlib import Path
-
-        legacy_path = Path(
-            '/home/martin/Projects/MaroonX/legacy/maroonx_base/legacy_bkg_arrays'
-        )
+        import os
+        
+        legacy_test = os.environ.get('MAROONX_LEGACY_TEST')
+        if not legacy_test:
+            raise RuntimeError(
+                'MAROONX_LEGACY_TEST environment variable is not set.'
+            )
+        legacy_path = Path(legacy_test).parent / 'legacy_bkg_arrays'
         if not legacy_path.exists():
-            raise FileNotFoundError('Legacy path not found.')
-
-        # file_dict = {
-        #     '20241114T181028Z_DFFFD_b_0008': (
-        #         legacy_path / '20241114T18_masterflat_DFFFD_b_0008.npy'
-        #     ),
-        #     '20241114T181028Z_DFFFD_r_0002': (
-        #         legacy_path / '20241114T18_masterflat_DFFFD_r_0002.npy'
-        #     ),
-        #     '20241114T190714Z_DDDDF_b_0007': (
-        #         legacy_path / '20241114T19_masterflat_DDDDF_b_0007.npy'
-        #     ),
-        #     '20241114T190714Z_DDDDF_r_0002': (
-        #         legacy_path / '20241114T19_masterflat_DDDDF_r_0002.npy'
-        #     ),
-        #     '20241124T041907Z_SOOOE_b_0300': (
-        #         legacy_path
-        #         / '20241124T041907Z_SOOOE_b_0300_backgroundfit_straylight.npy'
-        #     ),
-        #     '20241124T041907Z_SOOOE_r_0300': (
-        #         legacy_path
-        #         / '20241124T041907Z_SOOOE_r_0300_backgroundfit_straylight.npy'
-        #     ),
-        #     '20241124T062858Z_SOOOE_b_0300': (
-        #         legacy_path
-        #         / '20241124T062858Z_SOOOE_b_0300_backgroundfit_straylight.npy'
-        #     ),
-        #     '20241124T062858Z_SOOOE_r_0300': (
-        #         legacy_path
-        #         / '20241124T062858Z_SOOOE_r_0300_backgroundfit_straylight.npy'
-        #     ),
-        # }
+            raise FileNotFoundError(
+                f'Legacy bkg arrays directory not found: {legacy_path}'
+            )
 
         def _legacy_straylight_filename(base, legacy_path):
             parts = base.split('_')
