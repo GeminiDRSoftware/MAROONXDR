@@ -441,6 +441,7 @@ def initialize_commit_hooks(session: nox.Session):
 @nox.session(python='3.12')
 def create_inputs(session: nox.Session):
     """Download and create input files for unit tests.
+
     Run this session to populate the input files before runing unit_tests.
     """
     session.install('poetry', 'poetry-plugin-export')
@@ -479,8 +480,8 @@ def create_inputs(session: nox.Session):
 
 
 @nox.session(python='3.12')
-def complete_tests(session: nox.Session):
-    """Run complete end-to-end reduction tests."""
+def preprocess(session: nox.Session):
+    """Populate $DRAGONS_TEST with v2 data and run reductions for legacy_regression."""
     session.install('poetry', 'poetry-plugin-export')
 
     # Set environment variables that tests might need
@@ -500,18 +501,16 @@ def complete_tests(session: nox.Session):
     # Install pytest_dragons
     session.install(f'{PYTEST_DRAGONS_URL}')
 
-    # Run the tests with corrected paths
-    completion_tests = [
-        'maroonxdr/maroonx/tests/complete/bundle.py',
-        'maroonxdr/maroonx/tests/complete/dark.py',
-        'maroonxdr/maroonx/tests/complete/flat.py',
-        'maroonxdr/maroonx/tests/complete/wavecal.py',
-        'maroonxdr/maroonx/tests/complete/science.py',
+    preprocess_scripts = [
+        'maroonxdr/maroonx/tests/preprocess/bundle.py',
+        'maroonxdr/maroonx/tests/preprocess/dark.py',
+        'maroonxdr/maroonx/tests/preprocess/flat.py',
+        'maroonxdr/maroonx/tests/preprocess/wavecal.py',
+        'maroonxdr/maroonx/tests/preprocess/science.py',
     ]
 
-    # Run each script using the session's Python
-    for test_script in completion_tests:
-        session.run('python', test_script, '--populate-inputs', *session.posargs)
+    for script in preprocess_scripts:
+        session.run('python', script, '--populate-inputs', *session.posargs)
 
 
 @nox.session(python='3.12')
@@ -729,5 +728,6 @@ def docstyle(session: nox.Session):
         'pydocstyle',
         'maroonxdr/',
         '--convention=numpy',
-        '--add-ignore=D100,D104',  # Ignore missing docstrings in modules and __init__.py
+        # Ignore missing docstrings in modules and __init__.py
+        '--add-ignore=D100,D104',
     )
