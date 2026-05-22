@@ -186,15 +186,21 @@ def test_extractStripes_fromScience(science_filename, path_to_legacy_science, pa
 
     new_stripes = p.streams["main"][0][0].STRIPES
 
+    rtol=0
+    atol=1e-8
     fail_counter = 0
     for f in new_stripes.keys():
+        if f == 'fiber_5':
+            # Fiber 5 has the downcasting to float32.
+            rtol = 1e-5
+            atol = 1e-8
         for o in new_stripes[f].keys():
             mat = _load_sparse_mat(f'extracted_stripes/{f}/{o}', str(old_science))
             legacy_stripe = mat.toarray()
             new_stripe = new_stripes[f][o].toarray()
 
             try:
-                assert_allclose_with_max_fails(legacy_stripe, new_stripe, rtol=0, atol=1e-8, max_fails=0)
+                assert_allclose_with_max_fails(legacy_stripe, new_stripe, rtol=rtol, atol=atol, max_fails=0)
                 log.fullinfo(f'fiber/order : {f}/{o} [OK]')
             except (AssertionError, pytest.xfail.Exception):
                 fail_counter += 1

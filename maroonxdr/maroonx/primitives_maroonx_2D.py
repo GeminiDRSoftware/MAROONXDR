@@ -1883,7 +1883,9 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
             if 'FLAT' in ad.tags:
                 adout[0].data = data_dict['result'].astype(np.float32)
             else:
-                adout[0].data = data_dict['result']
+                # for science frames we used to keep float64,
+                # now float32 is enforced.
+                adout[0].data = data_dict['result'].astype(np.float32)
             # -------------------------------------------------------------------
             if snapshot:
                 adout[0].STRAYLIGHT_DIFFERENCE = adout[0].data - ad[0].data
@@ -2207,7 +2209,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
         ad_out = deepcopy(adinputs[0])
 
         # Main data array is emptied
-        ad_out[0].data = np.zeros((1, 1))
+        ad_out[0].data = np.zeros((1, 1), dtype=np.float32)
 
         # Store coefficient arrays as extensions
         ad_out[0].COEFF_Z0 = z0
