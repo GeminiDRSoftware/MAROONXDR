@@ -1028,7 +1028,8 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
             data_mean[bad_pixels] = data_min[bad_pixels]
 
         # Set the output data
-        ad_out[0].data = data_mean
+        # Dragons enforces float32.
+        ad_out[0].data = data_mean.astype(np.float32)
         # ================================================================
 
         # Add suffix to datalabel to distinguish from the reference frame
@@ -1179,8 +1180,8 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         # sigma_clipped_stats promotes float32 input to float64.
         # Legacy keeps the float64 result (BITPIX=-64) at this stage;
-        # the float32 cast happens later in backgroundfit (removeStrayLight).
-        ad_out[0].data = data_mean
+        # Dragons enforces float32.
+        ad_out[0].data = data_mean.astype(np.float32)
         # ================================================================
 
         # Add suffix to datalabel to distinguish from the reference frame

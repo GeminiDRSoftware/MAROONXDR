@@ -34,7 +34,7 @@ def test_masterdark(path_to_inputs, path_to_legacy_darks, matching_filenames):
 
         assert old_data.shape == new_data.shape, f"Shape mismatch: {old_data.shape} != {new_data.shape}"
 
-        np.testing.assert_allclose(old_data, new_data, rtol=0, atol=1e-15,
+        np.testing.assert_allclose(old_data, new_data, rtol=1e-7, atol=1e-15,
             err_msg='Data mismatch')
 
 
