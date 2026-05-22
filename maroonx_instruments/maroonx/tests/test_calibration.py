@@ -18,11 +18,11 @@ from recipe_system.config import globalConf
 # Re-use the same split files from test_maroonx inputs.
 # The create_inputs() below copies them and stamps PROCDARK / PROCFLAT
 # to make them appear as processed calibrations.
-blue_dark = '20241115T190028Z_DDDDE_b_0120.fits'
-red_dark = '20241115T190028Z_DDDDE_r_0120.fits'
-blue_flat = '20241114T181028Z_DFFFD_b_0008.fits'
-red_flat = '20241114T181028Z_DFFFD_r_0002.fits'
-blue_wavecal = '20241124T030040Z_DEEEE_b_0030.fits'
+blue_dark = '20250721T170049Z_DDDDE_b_0300.fits'
+red_dark = '20250721T170049Z_DDDDE_r_0300.fits'
+blue_flat = '20250701T170101Z_DFFFD_b_0008.fits'
+red_flat = '20250701T170101Z_DFFFD_r_0002.fits'
+blue_wavecal = '20250717T163124Z_DEEEE_b_0010.fits'
 
 # Processed-stamped copies (created by create_inputs)
 proc_blue_dark = 'proc_blue_dark.fits'

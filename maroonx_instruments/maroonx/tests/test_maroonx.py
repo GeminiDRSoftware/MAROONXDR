@@ -10,20 +10,20 @@ import maroonx_instruments  # noqa - registers AstroDataMAROONX
 from maroonx_instruments.maroonx.adclass import AstroDataMAROONX
 
 # -- Test datasets -------------------------------------------------------------
-# DARK bundle: N20241115M3421.fits
-blue_dark = '20241115T190028Z_DDDDE_b_0120.fits'
-red_dark = '20241115T190028Z_DDDDE_r_0120.fits'
+# DARK bundle: N20250721M6125.fits
+blue_dark = '20250721T170049Z_DDDDE_b_0300.fits'
+red_dark = '20250721T170049Z_DDDDE_r_0300.fits'
 
-# FLAT bundle: N20241114M3271.fits
-blue_flat = '20241114T181028Z_DFFFD_b_0008.fits'
-red_flat = '20241114T181028Z_DFFFD_r_0002.fits'
+# FLAT bundle: N20250701M6126.fits
+blue_flat = '20250701T170101Z_DFFFD_b_0008.fits'
+red_flat = '20250701T170101Z_DFFFD_r_0002.fits'
 
-# WAVECAL (Etalon) bundle: N20241124M0542.fits
-blue_wavecal = '20241124T030040Z_DEEEE_b_0030.fits'
-red_wavecal = '20241124T030040Z_DEEEE_r_0004.fits'
+# WAVECAL (Etalon) bundle: N20250717M5948.fits
+blue_wavecal = '20250717T163124Z_DEEEE_b_0010.fits'
+red_wavecal = '20250717T163124Z_DEEEE_r_0004.fits'
 
 # Unsplit bundle (copy of DARK bundle)
-bundle_file = 'N20241115M3421.fits'
+bundle_file = 'N20250721M6125.fits'
 
 # Convenience lists
 all_blue = [blue_dark, blue_flat, blue_wavecal]
@@ -192,21 +192,25 @@ def test_exposure_time(path_to_inputs, filename):
 
 # -- Create inputs -------------------------------------------------------------
 bundles_needed = [
-    'N20241115M3421.fits',   # DARK
-    'N20241114M3271.fits',   # FLAT
-    'N20241124M0542.fits',   # WAVECAL
+    'N20250721M6125.fits',   # DARK
+    'N20250701M6126.fits',   # FLAT
+    'N20250717M5948.fits',   # WAVECAL
 ]
 
 
 def create_inputs():
-    """Download bundles and split into single-arm files.
+    """Split raw bundles into single-arm files for the AstroData tests.
+
+    Reads raw bundles from $DRAGONS_TEST/raw_files/ (populated by the
+    download_raws nox session) and writes split-arm files into the
+    test_maroonx inputs directory.
 
     Run with:
         python -m maroonx_instruments.maroonx.tests.test_maroonx --create-inputs
     """
-    from astrodata.testing import download_from_archive
     from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 
+    raw_dir = os.path.join(os.environ['DRAGONS_TEST'], 'raw_files')
     input_path = os.path.join(
         os.environ['DRAGONS_TEST'],
         'maroonx_instruments', 'maroonx', 'test_maroonx', 'inputs',
@@ -214,8 +218,11 @@ def create_inputs():
     os.makedirs(input_path, exist_ok=True)
 
     for filename in bundles_needed:
-        print(f'  Downloading {filename}')
-        raw_path = download_from_archive(filename)
+        raw_path = os.path.join(raw_dir, filename)
+        if not os.path.isfile(raw_path):
+            print(f'  Skipping {filename}: not in {raw_dir}')
+            continue
+
         ad = astrodata.open(raw_path)
 
         # Keep one unsplit bundle for bundle tests
