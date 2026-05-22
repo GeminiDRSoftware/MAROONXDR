@@ -1,25 +1,27 @@
-from copy import deepcopy
-from pathlib import Path
-import sys
-import os
+"""Tests for neutral density filter checking primitives."""
+
 import logging
-import pytest
+import os
+from copy import deepcopy
+
 import astrodata
+import pytest
 
-parent_dir = Path(__file__).parents[4]
-sys.path.append(str(parent_dir))
-from MAROONXDR.maroonxdr.maroonx.primitives_maroonx.primitives_maroonx_generic import MAROONX
-import maroonx_instruments
+import maroonx_instruments  # noqa - import is necessary for astrodata
+from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 
-os.chdir(parent_dir)
+# -- Test datasets -------------------------------------------------------------
+# These bundles are needed for debundling into split-arm files
+bundles_needed = [
+    'N20250701M6126.fits',
+]
 
-@pytest.mark.parametrize("filename",["science_dir/20220725T162106Z_DFFFD_r_0001.fits"])
-def test_nd_filter_good_series(caplog, filename):
-    """
-    Test that neutral density filter checker appropriately outputs the full set
-    input files based on the ND filter on the sim cal fiber when all inputs are
-    in agreement with the value set with the first input file.
-    i.e. illumination is similar intensity as needed for good removal.
+
+# -- Tests ---------------------------------------------------------------------
+@pytest.mark.parametrize('filename', ['20250701T170101Z_DFFFD_r_0002.fits'])
+def test_nd_filter_good_series(caplog, path_to_inputs, filename):
+    """Test ND filter checker outputs full set when all inputs agree with first file.
+
     Parameters
     ----------
     caplog : fixture
@@ -30,22 +32,21 @@ def test_nd_filter_good_series(caplog, filename):
     None
     """
     caplog.set_level(logging.DEBUG)
-    ad = astrodata.open(filename)
+
+    ad = astrodata.open(os.path.join(path_to_inputs, filename))
     test_objects = [deepcopy(ad), deepcopy(ad), deepcopy(ad)]
     p = MAROONX(test_objects)
     p.prepare()
     adtest = p.checkND()
+
     assert len(caplog.records) > 0
-    assert len(adtest) == sum([test_objects[0].filter_orientation()['ND'] in
-                            ad.filter_orientation()['ND'] for ad in test_objects])
+    assert len(adtest) == len(test_objects)
 
 
-@pytest.mark.parametrize("filename",["science_dir/20220725T162106Z_DFFFD_r_0001.fits"])
-def test_nd_filter_subgood_series(caplog, filename):
-    """
-    Test that neutral density filter checker appropriately outputs the subset of
-    input files based on the ND filter value set with the first input file.
-    i.e. illumination is similar intensity as needed for good removal.
+@pytest.mark.parametrize('filename', ['20250701T170101Z_DFFFD_r_0002.fits'])
+def test_nd_filter_subgood_series(caplog, path_to_inputs, filename):
+    """Test ND filter checker outputs subset matching first file's ND filter value.
+
     Parameters
     ----------
     caplog : fixture
@@ -56,47 +57,99 @@ def test_nd_filter_subgood_series(caplog, filename):
     None
     """
     caplog.set_level(logging.DEBUG)
-    ad = astrodata.open(filename)
+
+    ad = astrodata.open(os.path.join(path_to_inputs, filename))
     ad_1 = deepcopy(ad)
-    ad_1.phu['HIERARCH MAROONX ND POSITION'] = \
-        ad_1.phu['HIERARCH MAROONX ND POSITION'] - 10.
+    ad_1[0].hdr['HIERARCH MAROONX ND POSITION'] -= 12.3
+
     test_objects = [deepcopy(ad), deepcopy(ad), deepcopy(ad_1), deepcopy(ad_1)]
     p = MAROONX(test_objects)
     p.prepare()
     adtest = p.checkND()
+
     assert len(caplog.records) > 0
-    assert any("Not all frames have " in r.message for r in caplog.records)
-    assert len(adtest) == sum([test_objects[0].filter_orientation()['ND'] in
-                            ad.filter_orientation()['ND'] for ad in test_objects])
-    assert all(test_objects[-1].filter_orientation()['ND'] not in
-               ad.filter_orientation()['ND'] for ad in adtest)
+    assert any('Not all frames have ' in r.message for r in caplog.records)
+    assert len(adtest) == sum(
+        [
+            test_objects[0].filter_orientation()['ND'] == ad.filter_orientation()['ND']
+            for ad in test_objects
+        ]
+    )
+    assert all(
+        test_objects[-1].filter_orientation()['ND'] != ad.filter_orientation()['ND']
+        for ad in adtest
+    )
 
 
-@pytest.mark.parametrize("filename",["science_dir/20220725T162106Z_DFFFD_r_0001.fits"])
-def test_nd_filter_bad_series(caplog, filename):
+@pytest.mark.parametrize('filename', ['20250701T170101Z_DFFFD_r_0002.fits'])
+def test_nd_filter_bad_series(caplog, path_to_inputs, filename):
+    """Test ND filter checker raises OSError when only first file has unique ND setting.
+
+    Parameters
+    ----------
+    caplog : fixture
+    filename : str
     """
-       Test that neutral density filter checker appropriately IOErrors if multiple
-       input files are given and the first is the only with its ND filter setting
-       (i.e. somehow files were added incorrectly mid reduction).
-       Parameters
-       ----------
-       caplog : fixture
-       filename : str
-       """
     caplog.set_level(logging.DEBUG)
-    ad = astrodata.open(filename)
+
+    ad = astrodata.open(os.path.join(path_to_inputs, filename))
     ad_1 = deepcopy(ad)
-    ad_1.phu['HIERARCH MAROONX ND POSITION'] = \
-        ad_1.phu['HIERARCH MAROONX ND POSITION'] - 10.
+    ad_1[0].hdr['HIERARCH MAROONX ND POSITION'] -= 12.3
+
     test_objects = [deepcopy(ad), deepcopy(ad_1), deepcopy(ad_1), deepcopy(ad_1)]
     p = MAROONX(test_objects)
     p.prepare()
-    try:
+
+    with pytest.raises(OSError):
         p.checkND()
-    except IOError:
-        print('here')
-        assert any("Only first frame found, of given, with its simcal ND filter " \
-               "setting" in r.message for r in caplog.records)
+
+    assert any(
+        'Only first frame found, of given, with its simcal ND filter setting'
+        in r.message
+        for r in caplog.records
+    )
+
+
+# -- Create inputs -------------------------------------------------------------
+def create_inputs():
+    """
+    Create input files for this test module.
+
+    Run with: python -m maroonxdr.maroonx.tests.image.test_ND_filter_check --create-inputs
+
+    Reads raw bundles from $DRAGONS_TEST/raw_files/ (populated by the
+    download_raws nox session) and runs splitBundle to produce debundled
+    single-arm files.
+    """
+    raw_dir = os.path.join(os.environ['DRAGONS_TEST'], 'raw_files')
+    input_path = os.path.join(
+        os.environ['DRAGONS_TEST'],
+        'maroonxdr',
+        'maroonx',
+        'image',
+        'test_ND_filter_check',
+        'inputs',
+    )
+    os.makedirs(input_path, exist_ok=True)
+
+    for filename in bundles_needed:
+        raw_path = os.path.join(raw_dir, filename)
+        if not os.path.isfile(raw_path):
+            print(f'  Skipping {filename}: not in {raw_dir}')
+            continue
+
+        ad = astrodata.open(raw_path)
+        p = MAROONX([ad])
+        split_ads = p.splitBundle()
+        for ad_arm in split_ads:
+            ad_arm.write(os.path.join(input_path, ad_arm.filename), overwrite=True)
+            print(f'  Wrote {ad_arm.filename} to {input_path}')
+
 
 if __name__ == '__main__':
-    pytest.main()
+    import sys
+
+    if '--create-inputs' in sys.argv[1:]:
+        create_inputs()
+    else:
+        pytest.main()

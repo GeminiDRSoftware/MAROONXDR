@@ -10,6 +10,10 @@ from scipy import signal
 from gempy.utils import logutils
 from scipy.special import erf
 
+from . import get_logger
+#logutils.config(file_name="maroonx_fit.log", mode="debug", stomp=False)
+
+
 PLOT_KWARGS = dict(dpi=300, bbox_inches="tight", pad_inches=0.25)
 
 def change_ext(filename, new_ext):
@@ -173,6 +177,7 @@ def spectrum_partial_jacobian(bins, fitobj = None, meta_parameters = None):
         for ii in range(meta_parameters.width, -1, -1):
             jac[idx, l:r] += c ** ii * sum_gauss
             idx += 1
+
     return jac.T
 
 def residual_polynomials(p, fit_obj):
@@ -185,16 +190,26 @@ def residual_polynomials(p, fit_obj):
     center_parameters = fit_obj.param_obj.parameters[-2 * idx:]
     assert len(center_parameters) == 2*idx, str(p) + str(meta)
     assert len(np.concatenate([p, center_parameters])) == meta.total
+
     res = spectrum_val(x = x, parameters= np.concatenate([p, center_parameters]),\
         meta_parameters = meta) - y
 
     # Limit the residuals so that outliers in the data are
     # not forcing the solution into a wrong direction
-    p = np.clip(res,np.nanmean(res)-3*np.nanstd(res),np.nanmean(res)+3*np.nanstd(res))
-    return np.nan_to_num(p)
+    res = np.clip(res,np.nanmean(res)-3*np.nanstd(res),np.nanmean(res)+3*np.nanstd(res))
+    return np.nan_to_num(res)
 
-def fit_polynomials_jac(_, fitobj):
+def fit_polynomials_jac(p, fitobj):
     "Jacobian for fit_polynomials function"
+    # Get the fixed center parameters
+    meta = fitobj.param_obj.meta_parameters
+    idx = meta.number_of_peaks
+    center_parameters = fitobj.param_obj.parameters[-2 * idx:]
+    
+    # Reconstruct new parameter vector
+    new_parameters = np.concatenate([p, center_parameters])
+    fitobj.param_obj.update_parameters(parameters=new_parameters)
+
     return spectrum_partial_jacobian(fitobj.fitrange, fitobj)
 
 def residual_centers(parameters, x, y, poly_parameters, meta):
@@ -256,7 +271,8 @@ def fit_peak_centers(fitrange, data, param_obj, parameter_bounds, iteration = No
         list of fit results
     """
 
-    log = logutils.get_logger(__name__)
+    # log = logutils.get_logger(__name__)
+    log = get_logger()
     # Extract necessary parameters
 
     parameters = param_obj.parameters
@@ -336,7 +352,8 @@ def find_peaks(data, order=2, savgol_window_length=3, savgol_polyorder=1):
         indices of local extrema: (maxima, minima)
     """
 
-    log = logutils.get_logger(__name__)
+    # log = logutils.get_logger(__name__)
+    log = get_logger()
     # get rid of noise
     # TODO: maybe improve noise rejection
 
@@ -348,7 +365,7 @@ def find_peaks(data, order=2, savgol_window_length=3, savgol_polyorder=1):
     data[np.array([e>(1.5*cleanmax) if ~np.isnan(e) else False for e in data], dtype=bool) ] = np.nan
 
     if np.count_nonzero(np.isnan(data)) - nancount > 0:
-        log.info("Removed %d positive outliers 50%% higher than %.3f",\
+        log.fullinfo("Removed %d positive outliers 50%% higher than %.3f",\
              np.count_nonzero(np.isnan(data)) - nancount, cleanmax)
 
     # Clean nan values since they get otherwise smeared out by the filter
@@ -356,7 +373,7 @@ def find_peaks(data, order=2, savgol_window_length=3, savgol_polyorder=1):
     mask = np.isnan(data)
     data_clean[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), data[~mask])
 
-    log.info(f"Found {np.count_nonzero(np.isnan(data_clean))} nan values in the data")
+    log.fullinfo(f"Found {np.count_nonzero(np.isnan(data_clean))} nan values in the data")
 
     # Apply a savgol filter to smooth the data and get rid of noise
     d = signal.savgol_filter(
@@ -366,7 +383,7 @@ def find_peaks(data, order=2, savgol_window_length=3, savgol_polyorder=1):
         mode="interp",
     )
 
-    log.info("Applied savgol filter to data")
+    log.fullinfo("Applied savgol filter to data")
 
     # use <= and >= for extrema. Sometimes necessary, if signal is 0
     # between peaks over a few pixels. In that case,
@@ -404,8 +421,18 @@ def find_peaks(data, order=2, savgol_window_length=3, savgol_polyorder=1):
         maxima = np.append(maxima,((minima[idx]+minima[idx+1])/2).astype('int'))
     maxima.sort()
 
+    # -------------------------------------------------
     # Check if there are minima and maxima at the same pixel and remove them
-    minima = np.setdiff1d(minima, maxima)
+    # minima = np.setdiff1d(minima, maxima)
+    # maxima = np.setdiff1d(maxima, minima) # martin
+
+    # Legacy: element-wise comparison (numpy.where(maxima == minima)) removes
+    # maxima that coincide with minima at the same index position.
+    if len(maxima) == len(minima):
+        wrong_maxima = np.where(maxima == minima)
+        if np.any(wrong_maxima[0] > 0):
+            maxima = np.delete(maxima, wrong_maxima)
+    # -------------------------------------------------
 
     len_minima = len(minima)
     len_maxima = len(maxima)
@@ -424,7 +451,7 @@ def find_peaks(data, order=2, savgol_window_length=3, savgol_polyorder=1):
             f"Found inconsistent number of peaks: {len(minima)} minima and {len(maxima)} maxima"
             ,(maxima, minima))
 
-    log.info(f"Found {len_minima} minima and {len_maxima} maxima")
+    log.fullinfo(f"Found {len_minima} minima and {len_maxima} maxima")
     return maxima, minima
 
 def plot_peaks(data, minima, maxima, ax=None, filename=None):

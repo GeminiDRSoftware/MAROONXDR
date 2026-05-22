@@ -1,0 +1,148 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[tool.poetry]
+name = "maroonxdr"
+version = "0.0.1"
+description = "A package in the DRAGONS ecosystem."
+authors = ["The Maroon-X Team"]
+license = "BSD3"
+readme = "README.md"
+
+# Define project packages.
+# At the moment setup.cfg duplicates this configuration.
+# We should try to remove setup.cfg at some point to have
+# all configuration in this file
+packages = [
+    { include = "maroonxdr", from = "." },
+    { include = "maroonx_instruments", from = "." }
+]
+
+
+[tool.poetry.dependencies]
+python = "^3.12"
+numpy = "^1.26"
+pandas = "^2.3"
+astropy = "^6.0"
+photutils = ">=2.0.2,<2.1.0"
+numba = "^0.61.0"
+lmfit = "^1.3.2"
+barycorrpy = "^0.4.4"
+
+[tool.poetry.group.test.dependencies]
+pytest = "^7.3"
+pytest-cov = "^4.1"
+pytest-dragons = {git = "https://github.com/GeminiDRSoftware/pytest_dragons.git", tag = "v1.0.0"}
+coverage = "^7.4.4"
+tables = "^3.10.2"
+h5py = "^3.13.0"
+
+[tool.poetry.group.dev.dependencies]
+coverage = "^7.4.4"
+pytest = "^7.3"
+pytest-cov = "^4.1"
+ruff = "^0.5.6"
+isort = "^5.13.2"
+pre-commit = "^3.6.2"
+ipython = "^8.34.0"
+ipdb = "^0.13.13"
+h5py = "^3.13.0"
+
+[tool.poetry.group.docs.dependencies]
+sphinx = "^7.2.6"
+sphinx-rtd-theme = "^2.0.0"
+myst-parser = "^2.0.0"
+
+
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+
+[tool.ruff.lint]
+# All rules definitions can be found at:
+#   https://docs.astral.sh/ruff/rules
+select = [
+  "A",    # flake8 builtins -- common builtin issues
+  "ARG",  # Unused arguments
+  "B",    # Flake8 bugbear -- common bugs
+  "BLE",  # Blind exceptions
+  "C4",   # Comprehensions
+  "C90",  # mccabe code complexity
+  "D",    # Docstring conventions
+  "DTZ",  # Datetime/timezone
+  "E",    # pycodestyle errors
+  "EM",   # Exception messages
+  "ERA",  # Commented out code
+  "F",    # pyflakes
+  "FBT",  # Boolean traps
+  "G",    # Logging format
+  "I",    # isort -- sort imports
+  "INP",  # Inplicit namespace packages (PEP 420)
+  "ISC",  # Implicit string concatenation
+  "NPY",  # Numpy usage (incl. numpy 2 deprecations)
+  "PGH",  # Blanket ignores for linting checks (e.g., bare noqa)
+  "PIE",  # Common antipatterns (flake8)
+  "PL",   # pylint rules
+  "PT",   # Pytest consistency checks
+  "PTH",  # Pathlib usage
+  "RET",  # Tidy return statements and branching
+  "RSE",  # Raising exceptions with unnecessary parentheses
+  "RUF",  # Ruff-specific rules, useful for insidious, uncommon bugs
+  "S",    # flake8 bandit -- common security issues
+  "SIM",  # Simplification rules
+  "SLF",  # Private variables
+  "SLOT", # __slots__ usage
+  "T10",  # Debug statements
+  "TRY",  # Exception handling antipatterns
+  "UP",   # Modern Python practices
+  "W",    # pycodestyle warnings
+  "YTT",  # sys misuse
+  # "N",    # PEP8 naming conventions
+]
+
+# Ruff ignored linting rules:
+# These rules are ignored for the entire project. They should be
+# used sparingly and only when the rule is not applicable to the
+# project as a whole.
+#
+# For most of these rules, they should be removed from the ignore
+# list and the code should be refactored to remove the issue(s).
+#
+# If you ignore a rule, please add a comment explaining why it is
+# ignored (and "it's annoying" is not sufficient ^_^).
+#
+# If you need to ignore a rule for a specific file/dir/file glob, see
+# the per-file-ignores section below. It already does this for some tests.
+#
+# If you need to ignore a rule for a specific line where you have an obvious
+# reason, use an inline "noqa" comment with the appropraite code. E.g.,
+#   some_code()  # noqa: S101
+# If the line is too long for that, refactor the code to make it shorter.
+ignore = [
+  "TD",      # TODO statements | Covered by .github/workflows/todo.yml
+  "ISC001",  # String concatenation | Conflicts with linter
+  "RUF012",  # Avoid mandatory type annotations
+  "PLR2004", # Magic numbers | Legacy code makes heavy use of these. Refactor over time
+
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests should not be worried about:
+"tests/*" = [
+  "ARG",     # Test fixtures often act as unused arguments
+  "D",       # Docstrings --- tests are allowed to be less documented
+  "ERA001",  # Commented out code --- fine in tests
+  "N",       # Naming convention --- tests are allowed to break these, consistently
+  "PLR2004", # Magic numbers --- tests are allowed to have them
+  "S101",    # Use of assert --- tests are allowed to use it
+  "SLF001",  # Private member accessed --- tests are allowed to do this
+  "T10",     # Debug statements --- tests are allowed to have them
+]
+
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"

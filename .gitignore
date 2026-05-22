@@ -1,3 +1,14 @@
+# Dragons and MX dev files
+DRAGONS/
+*.hdf
+*.h5
+DevDocs/
+*.pdf
+*.npy
+
+new_bkg_arrays/
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -10,6 +21,7 @@ __pycache__/
 *.fits
 
 # Distribution / packaging
+poetry.lock
 .Python
 env/
 build/
@@ -41,6 +53,7 @@ pip-delete-this-directory.txt
 # Unit test / coverage reports
 htmlcov/
 .tox/
+.nox/
 .coverage
 .coverage.*
 .cache
@@ -65,10 +78,8 @@ instance/
 .scrapy
 
 # Sphinx documentation
-#docs/_build/
-rtd/_build
-docs/progmanuals/OCAMDR_ProgManual/_build/
-docs/usermanuals/OCAMDR_UserManual/_build/
+doc/**/_build/
+doc/**/build/
 
 # PyBuilder
 target/
@@ -112,5 +123,3 @@ ENV/
 # PyCharm
 .idea
 .pycharm-bash
-
-*.hdf

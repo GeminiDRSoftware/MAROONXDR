@@ -2,23 +2,75 @@
 This parameter file contains the parameters related to the
 primitives defined in the primitive_maroonx_echelle.py file.
 '''
+from astrodata import AstroData
 
 from gempy.library import config
-from geminidr.core import parameters_ccd
+
+
+class attachSyntheticDarkConfig(config.Config):
+    '''
+    This parameter set controls the attachDark primitive for MAROON-X.
+    '''
+    suffix = config.Field("Filename suffix", str, "")
+    dark_coeff = config.ListField("Dark coefficient file", (str, AstroData), None,
+                                optional=True, single=True)
+    individual = config.Field("Unique dark for each frame", bool, False)
+
+class attachDarkSubtractionConfig(config.Config):
+    '''
+    This parameter set controls the darkSubtraction primitive for MAROON-X.
+    '''
+    suffix = config.Field("Filename suffix", str, "")
+    dark_type = config.ChoiceField("Dark to attach", str,
+                                allowed={"synthetic": "Interpolated dark",
+                                         "closest": "Closest in time"},
+                                default="synthetic")
+
+class createSyntheticDarkConfig(config.Config):
+    '''
+    This parameter set controls the createSyntheticDark primitive for MAROON-X.
+    '''
+    suffix = config.Field("Filename suffix", str, "")
+    dark_coeff = config.ListField("Dark coefficient file", (str, AstroData), None,
+                                optional=True, single=True)
+    individual = config.Field("Unique dark for each frame", bool, False)
 
 class extractStripesConfig(config.Config):
     '''
     This parameter set controls the extractStripes primitive for MAROON-X.
     '''
     suffix = config.Field("Filename suffix", str, "")
+    flat = config.ListField("Processed flat", (str, AstroData), None,
+                            optional=True, single=True)
+    dark = config.ListField("Processed dark", (str, AstroData), None,
+                            optional=True, single=True)
+    dark_subtraction_skip_fibers = config.ListField(
+        'Fiber numbers (1-5) to skip dark frame subtraction.',
+        int,
+        None,
+        optional=True,
+        single=True,
+    )
+    straylight_removal_fibers = config.ListField(
+        'Fiber numbers (1-5) for which straylight will be removed.',
+        int,
+        None,
+        optional=True,
+        single=True,
+    )
     slit_height = config.Field("Pixel illumination in cross-dispersion",int, 10)
     test_extraction = config.Field("Save in FITS-readable format for testing", bool, False)
+    legacy = config.Field('Legacy patch', bool, False)
+    report = config.Field('Generate PDF diagnostic report', bool, True)
 
 class optimalExtractionConfig(config.Config):
     '''
     This parameter set controls the optimalExtraction primitive for MAROON-X.
     '''
     suffix = config.Field("Filename suffix", str, "_reduced")
+    dark = config.ListField("Processed dark", (str, AstroData), None,
+                            optional=True, single=True)
+    optimal_extraction_fibers = config.ListField("Fiber numbers (1-5) for optimal extraction", int, None, optional=True, single=False)
     full_output = config.Field("More outputs made", bool, False)
     penalty = config.Field("scaling penalty factor", float, None)
     s_clip = config.Field("sigma-clipping factor", float, None)
@@ -26,11 +78,30 @@ class optimalExtractionConfig(config.Config):
     read_noise = config.Field("read noise", float, None)
     gain = config.Field("gain",float,None)
     def setDefaults(self):
-        self.penalty = 1.0
+        self.penalty = 2.0
         self.s_clip = 5.0
         self.back_var = 0.0
         self.read_noise = 1.14
         self.gain = 2.72
+
+class measureBlazeConfig(config.Config):
+    """
+    Parameter set controlling the measureBlaze primitive for MAROON-X.
+    """
+    suffix = config.Field("Filename suffix", str, "_blazeMeasured")
+    n_knots = config.Field("Number of spline knots for blaze fit", int, 50)
+    outlier_threshold = config.Field(
+        "Relative outlier rejection threshold (fraction of blaze fit value)",
+        float,
+        0.05,
+    )
+    fibers = config.ListField(
+        "Fiber numbers to fit blaze for. None = all fibers present in input.",
+        int,
+        None,
+        optional=True,
+        single=False,
+    )
 
 class boxExtractionConfig(config.Config):
     '''
@@ -38,16 +109,10 @@ class boxExtractionConfig(config.Config):
     '''
     suffix = config.Field("Filename suffix", str, "")
 
-class darkSubtractionConfig(config.Config):
-    '''
-    This parameter set controls the darkSubtraction primitive for MAROON-X.
-    '''
-    suffix = config.Field("Filename suffix", str, "")
-    individual = config.Field("individual or group caldb call", bool, False)
+# class darkSubtraction_oldConfig(config.Config):
+#     '''
+#     This parameter set controls the darkSubtraction primitive for MAROON-X.
+#     '''
+#     suffix = config.Field("Filename suffix", str, "")
+#     individual = config.Field("individual or group caldb call", bool, False)
 
-class overscanCorrectConfig(parameters_ccd.overscanCorrectConfig):
-    '''
-    This parameter set controls the overscanCorrect primitive for MAROON-X.
-    '''
-    def setDefaults(self):
-        self.function = "none"

@@ -1,0 +1,73 @@
+# Run tests for the project.
+#
+# Assumes the following testing sessions are defined in the project's
+# noxfile.py.
+# - unit_tests
+# - integration_tests
+# - build_tests
+#
+# This workflow by default runs the tests on macOS, Ubuntu, and Windows.
+# nox controls the python versions used for testing.
+
+name: Testing
+
+on:
+  push:
+    branches:
+      - main
+      - release/*
+      - develop
+  pull_request:
+    branches:
+      - main
+      - release/*
+      - develop
+  workflow_dispatch:
+
+jobs:
+    test:
+        name: ${{ matrix.os }} - ${{ matrix.python-version }} - ${{ matrix.test-session }}
+        runs-on: ${{ matrix.os }}
+        strategy:
+            matrix:
+                os:
+                    - ubuntu-latest
+                    # - macos-latest
+                    # - windows-latest
+                test-session:
+                    - unit_tests
+                python-version:
+                    - "3.12"
+
+        steps:
+        - name: Checkout repository
+          uses: actions/checkout@v2
+
+        - name: Cache test data files
+          uses: actions/cache@v4
+          env:
+            # Increase this value to reset cache if test data changes
+            CACHE_NUMBER: 0
+          with:
+            path: ~/mx_test
+            key: ${{ runner.os }}-mx-test-data-${{ env.CACHE_NUMBER }}
+
+        - name: Setup python
+          uses: actions/setup-python@v2
+          with:
+            python-version: ${{ matrix.python-version }}
+
+        - name: Setup DRAGONS_TEST environment variable
+          run: echo "DRAGONS_TEST=$HOME/mx_test" >> $GITHUB_ENV
+
+        - name: Install nox
+          run: python -m pip install --upgrade pip nox
+
+        - name: Download test files from GOA
+          run: nox -s download_raws-${{ matrix.python-version }}
+
+        - name: Create test inputs
+          run: nox -s create_inputs-${{ matrix.python-version }}
+
+        - name: Run unit tests
+          run: nox -s ${{ matrix.test-session }}-${{ matrix.python-version }} -- -m "not slow and not preprocessed_data"

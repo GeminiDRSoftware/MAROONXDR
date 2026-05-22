@@ -10,5 +10,17 @@ timestamp_keys = {
     "removeStrayLight": "STRAYLIGHT_REMOVED",
     "extractStripes": "SCIENCE_STRIPES_PULLED",
     "optimalExtraction": "SCIENCE_STRIPES_EXTRACTED",
-    "darkSubtraction": "SCIENCE_DARK_EXTENSION_SUBTRACTED"
+    "darkSubtraction": "SCIENCE_DARK_EXTENSION_SUBTRACTED",
+    "staticWavelengthSolution": "STATIC_WAVELENGTH_APPLIED",
+    "fitAndApplyEtalonWls": "DYNAMIC_WAVELENGTH_APPLIED",
+    "fitDarkCoefficients": "DARK_COEFFICIENTS_FITTED",
+    "applyWavelengthSolution": "SCIENCE_WAVELENGTH_APPLIED",
+    "combineFibers": "SCIENCE_FIBERS_COMBINED",
+    "barycentricCorrection": "BARYCENTRIC_CORRECTION_APPLIED",
+    "bundleArmStreams": "ARMS_BUNDLED",
+    "separateArmStreams": "ARMS_SEPARATED",
+    "splitBundle": "BUNDLE_SPLIT",
+    "measureBlaze": "BLAZE_MEASURED",
+    "createSyntheticDark": "SYNTHETIC_DARK_CREATED",
+    "boxExtraction": "BOX_EXTRACTED",
 }

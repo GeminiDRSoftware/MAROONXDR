@@ -44,6 +44,8 @@ array_section = {
     'R2': '[2009:4036,1:4080]'
 }
 
+# In DRAGONS, bias_section is used for subtracting and trimming the overscan region
+# but in the og pipeling, different sections are used for subtracting and trimming
 bias_section = {
     'Q1': '[2043:2200,1:2200]',  # overscan location on original frame
     'Q2': '[2043:2200,2201:4400]',
@@ -52,6 +54,23 @@ bias_section = {
     'R1': '[2046:2200,1:4400]',
     'R2': '[2201:2355,1:4400]'
 }
+
+# Definitions for backward compatibility ============================
+# Old section used only for bias subtraction, same for both arms
+# array_subtraction_section - mean(bias_subtraction_section)
+bias_subtraction_section = {
+    'RB1': '[2051:2200,1:2200]',
+    'RB2': '[2201:2350,1:2200]',
+    'RB3': '[2051:2200,2201:4400]',
+    'RB4': '[2201:2350,2201:4400]',
+}
+array_subtraction_section = {
+    'RB1': '[1:2200,1:2200]',
+    'RB2': '[2201:4400,1:2200]',
+    'RB3': '[1:2200,2201:4400]',
+    'RB4': '[2201:4400,2201:4400]',
+}
+# ===================================================================
 
 detector_section = { 'RB': '[1:4400, 1:4400]'}  #original full-frame, same for both red and blue arms
 

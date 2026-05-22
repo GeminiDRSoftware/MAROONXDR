@@ -11,6 +11,9 @@ from collections import namedtuple
 from gempy.utils import logutils
 import numpy as np
 
+#logutils.config(file_name="maroonx_fit.log", mode="debug", stomp=False)
+from . import get_logger
+
 MetaParameterBase = namedtuple(
         "MetaParameterBase",
         [
@@ -213,7 +216,8 @@ class Parameter(object):
             concatenated fit parameters
         """
 
-        self.log = logutils.get_logger(__name__)
+        # self.log = logutils.get_logger(__name__)
+        self.log = get_logger()
 
         if not meta_parameters.use_sigma_lr:
             assert np.all(p_sigma_left == p_sigma_right)
@@ -326,7 +330,7 @@ class Parameter(object):
             amplitudes=None,
     ):
         """
-        Returns a copy of the parameter vector with updated parameters
+        Updates in place the parameter vector with new parameters
         Parameters
         ----------
         parameters: ndarray
@@ -350,10 +354,9 @@ class Parameter(object):
         p : ndarray
             updated parameter vector
         """
-        p = self.parameters.copy()
         values = [offset, p_sigma_l, p_sigma_r, p_width, centers, amplitudes]
         for idx, v in zip(self.meta_parameters.indices, values):
             if v is not None:
-                p[idx] = v
+                self.parameters[idx] = v
         if parameters is not None:
             self.parameters = parameters.copy()

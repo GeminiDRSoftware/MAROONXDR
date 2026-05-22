@@ -1,26 +1,26 @@
-from copy import deepcopy
-from pathlib import Path
-import sys
-import os
 import logging
-import pytest
+import os
+from copy import deepcopy
+
 import astrodata
 import numpy as np
+import pytest
 
-parent_dir = Path(__file__).parents[4]
-sys.path.append(str(parent_dir))
-from MAROONXDR.maroonxdr.maroonx.primitives_maroonx.primitives_maroonx_generic import MAROONX
-import maroonx_instruments
-
+import maroonx_instruments  # noqa : import is necesary for astrodata.instrument()
+from maroonxdr.maroonx.primitives_maroonx_2D import MAROONX
 
 
-@pytest.mark.parametrize("filename",["science_dir/20220725T164012Z_FDDDF_r_0001_FFFFF_flat.fits"])
-def test_find_stripes(caplog, filename):
+# -- Tests ---------------------------------------------------------------------
+@pytest.mark.slow
+@pytest.mark.preprocessed_data
+@pytest.mark.parametrize('filename', ['20250701T171955Z_DDDDF_r_0002_DFFFF_flat.fits'])
+def test_find_stripes(caplog, path_to_inputs, filename):
     """
     Test that the findStripe routine works to identify all stripes that have
     been previously found in an extracted frame as well the possible set of
     any not identified in the final extraction as being exactly those that were
     removed by identifyStripes.
+
     Parameters
     ----------
     caplog : fixture
@@ -31,14 +31,13 @@ def test_find_stripes(caplog, filename):
     None
     """
     caplog.set_level(logging.DEBUG)
-    ad = astrodata.open(filename)
+    ad = astrodata.open(os.path.join(path_to_inputs, filename))
     p = MAROONX([deepcopy(ad)])
     p.prepare()
     adtest = p.findStripes()
     all_known_stripes = np.array([])
     for keys in ad[0].STRIPES_ID.keys():
-        all_known_stripes = np.append(all_known_stripes,
-                                      ad[0].STRIPES_ID[keys].data)
+        all_known_stripes = np.append(all_known_stripes, ad[0].STRIPES_ID[keys].data)
     missing_stripes = 0
     for found_stripe in adtest[0][0].STRIPES_LOC:
         if not _stripe_in_known(all_known_stripes, found_stripe.c):
@@ -48,8 +47,10 @@ def test_find_stripes(caplog, filename):
     assert missing_stripes == 0
 
 
-@pytest.mark.parametrize("filename",["science_dir/20220725T164012Z_FDDDF_r_0001_FFFFF_flat.fits"])
-def test_identify_stripes(caplog, filename):
+@pytest.mark.slow
+@pytest.mark.preprocessed_data
+@pytest.mark.parametrize('filename', ['20250701T171955Z_DDDDF_r_0002_DFFFF_flat.fits'])
+def test_identify_stripes(caplog, path_to_inputs, filename):
     """
     Test that the identifyStripe routine works to give order and number
     identification to stripes that have been located on MX-frames.
@@ -59,6 +60,7 @@ def test_identify_stripes(caplog, filename):
     Also check that the number of stripes removed from those inherited by
     findStripes are the same as those removed by identifyStripes
     (complementary to test in findStripes).
+
     Parameters
     ----------
     caplog : fixture
@@ -69,33 +71,40 @@ def test_identify_stripes(caplog, filename):
     None
     """
     caplog.set_level(logging.DEBUG)
-    ad = astrodata.open(filename)
+    ad = astrodata.open(os.path.join(path_to_inputs, filename))
     selected_fibers = [str(ifib) for ifib in ad[0].STRIPES_FIBERS]
     p = MAROONX([deepcopy(ad)])
     p.prepare()
     p.findStripes()
-    adtest = p.identifyStripes(selected_fibers=(',').join(selected_fibers))
-    for ifib in selected_fibers:
-        fiber = 'fiber_'+ifib
-        idx = (int(ifib)-1)*6  # in the final output full order is joined
+    adtest = p.identifyStripes(selected_fibers=[int(fib) for fib in selected_fibers])
+    for ifib, fib in enumerate(selected_fibers):
+        fiber = 'fiber_' + fib
+        idx = ifib * 6
         assert fiber in adtest[0][0].STRIPES_ID.keys()
+
         for order in ad[0].STRIPES_ID.keys():
-            if np.isnan(ad[0].STRIPES_ID[order][idx:idx+6].data).all():
+            if np.isnan(ad[0].STRIPES_ID[order][idx : idx + 6].data).all():
                 assert order not in adtest[0][0].STRIPES_ID[fiber]
             else:
-                assert (adtest[0][0].STRIPES_ID[fiber][order] ==
-                        ad[0].STRIPES_ID[order][idx:idx+6].data).all()
+                assert (
+                    adtest[0][0].STRIPES_ID[fiber][order]
+                    == ad[0].STRIPES_ID[order][idx : idx + 6].data
+                ).all()
+
     assert len(caplog.records) > 0
-    assert sum("could not be identified" in r.message for r in caplog.records) \
-           == len(ad[0].REMOVED_STRIPES)
+    assert sum('could not be identified' in r.message for r in caplog.records) == len(
+        ad[0].REMOVED_STRIPES
+    )
 
 
-
-@pytest.mark.parametrize("filename", ["science_dir/20220725T164012Z_FDDDF_r_0001_FFFFF_flat.fits"])
-def test_full_stripe_definition(caplog, filename):
+@pytest.mark.slow
+@pytest.mark.preprocessed_data
+@pytest.mark.parametrize('filename', ['20250701T171955Z_DDDDF_r_0002_DFFFF_flat.fits'])
+def test_full_stripe_definition(caplog, path_to_inputs, filename):
     """
     Test that the same exact stripes are found in reference masterflat frame
     from a previous extraction
+
     Parameters
     ----------
     caplog : fixture
@@ -106,12 +115,12 @@ def test_full_stripe_definition(caplog, filename):
     None
     """
     caplog.set_level(logging.DEBUG)
-    ad = astrodata.open(filename)
+    ad = astrodata.open(os.path.join(path_to_inputs, filename))
     selected_fibers = [str(ifib) for ifib in ad[0].STRIPES_FIBERS]
     p = MAROONX([deepcopy(ad)])
     p.prepare()
     p.findStripes()
-    p.identifyStripes(selected_fibers=(',').join(selected_fibers))
+    p.identifyStripes(selected_fibers=[int(fib) for fib in selected_fibers])
     adtest = p.defineFlatStripes(extract=True)
     assert len(caplog.records) > 0
     for keys in ad[0].STRIPES_ID.keys():
@@ -138,4 +147,4 @@ def _stripe_in_known(A, B):
 
 
 if __name__ == '__main__':
-    pytest.main()
+    pytest.main([__file__, '-v'])

@@ -10,7 +10,7 @@ class EtalonSpectrum(EchelleSpectrum):
     """
     Describes an etalon spectrum.  Inherits from EchelleSpectrum.
     """
-    def __init__(self, peak_data, poly_data,  etalon_peaks_symmetric = False, **kwargs):
+    def __init__(self, peak_data, poly_data=None,  etalon_peaks_symmetric = False, **kwargs):
         """
         Initializes the EtalonSpectrum object.
         """
@@ -85,7 +85,7 @@ class EtalonSpectrum(EchelleSpectrum):
         if 'knot_0' in parameters:
             return self.peak_to_wavelength_spline(mm)
         else:
-            return (2.0 * (parameters["l"]) * np.cos(["theta"]) * parameters["n"] / mm) * 1e6
+            return (2.0 * (parameters["l"]) * np.cos(parameters["theta"]) * parameters["n"] / mm) * 1e6
 
     def peak_to_wavelength_nodispersion(self, mm):
         '''
@@ -109,11 +109,11 @@ class EtalonSpectrum(EchelleSpectrum):
             m0 = np.array(np.rint(2.0 * parameters['l'] * np.cos(parameters['theta']) *  parameters['n'] / (wl / 1e6)), dtype=int)
             m_float  = np.array(2.0 * (parameters['l']- spl(1/m0)*parameters['l']) * \
                                 np.cos(parameters['theta']) *  parameters['n'] / (wl / 1e6))
-            m_int = np.rint(m_float).astype(np.int)
+            m_int = np.rint(m_float).astype(int)
             return m_int, m_float-m_int
         else:
             m_float = np.array(2.0 * parameters['l'] * np.cos(parameters['theta']) * parameters['n'] / (wl / 1e6))
-            m_int = np.rint(m_float).astype(np.int)
+            m_int = np.rint(m_float).astype(int)
             return m_int, m_float-m_int
 
     def get_peak_data(self, order, data="all"):
@@ -149,12 +149,14 @@ class EtalonSpectrum(EchelleSpectrum):
                     correction = wavelength_solution.order_means[order]
                 else:
                     correction = 0
-                self.peak_data.loc[order, "wavelength_by_thar"] = wavelength_solution.get_wavelength(
-                    self.peak_data.loc[order, "center"], order) * (1.0 + correction/3e8)
+                peak_centers = self.peak_data.loc[order, "CENTER"].values
+                # Get the wavelength for the peak centers
+                wls = wavelength_solution.get_wavelength(peak_centers, order)
+                self.peak_data.loc[order, "WAVELENGTH_BY_THAR"] = wls * (1.0 + correction/3e8)
             except KeyError:
                 log.warning("No data for order {}".format(order))
 
-    def apply_wavelength_vector(self, debug = 0):
+    def apply_wavelength_vector(self, debug=0):
         """
         Assign wavelengths to each Etalon peak based on a cubic spline interpolation of the wavelength vector
         in the data.
@@ -166,24 +168,49 @@ class EtalonSpectrum(EchelleSpectrum):
             None
         """
         # Calculate the wavelength for peaks:
-        for order in self.orders:
+        for i, order in enumerate(self.orders):
             try:
-                x = np.arange(len(self.data.loc[order]['wavelength']))
-                y = self.data.loc[order]['wavelength']
+                # y = self.wavelength_data[i]
+                # keeps original (potentially unsorted) order
+                y = np.asarray(self.data.loc[order, 'wavelength'])
+
+                x = np.arange(len(y))
                 if y[0] > y[-1]:
                     y = y[::-1]
+
+                # Create a cubic spline for the wavelength data
                 spl = UnivariateSpline(x, y, k=3, s=0)
-                self.peak_data.loc[order, "wavelength_by_spline"] = spl(self.peak_data.loc[order, "center"])
+                peak_centers = self.peak_data.loc[order, "CENTER"].values
+                wls_vector = spl(peak_centers)
+
+                # Calculate the dispersion in m/s
+                splder = spl.derivative()
+                dispersion = splder(peak_centers)
+                dispersion[0] = dispersion[1]
+                dispersion[-1] = dispersion[-2]
+                dispersion_mps = dispersion * 3e8 / wls_vector
+
+                # Assign wavelengths and dispersion to the peak data
+                self.peak_data.loc[order, "WAVELENGTH_BY_THAR"] = wls_vector
+                self.peak_data.loc[order, 'DISPERSION_MPS'] = dispersion_mps
+
             except KeyError:
                 self.log.warning("No data for order {}".format(order))
 
-    def guess_peak_numbers(self, debug=0, plot_title = ""):
+    def guess_peak_numbers(self, debug=0, plot_title="", drop_outliers=True):
         """
         Guess peak numbers based on the wavelength and etalon model.
 
         Args:
             debug (int): Debug level.
             plot_title (str): Title for the plot.
+            drop_outliers (bool): If True (default), remove outlier peaks from
+                peak_data.  Pass False when peak centers have been drift-corrected
+                so that the MultiIndex still holds pre-correction center values:
+                in that case the drop key (column CENTER) differs from the index
+                label (original CENTER) and the drop would silently remove the
+                wrong row.  Legacy pandas 1.0.1 raised KeyError in this situation
+                but gets silently skipped via ``except: pass``, keeping all peaks.
 
         Returns:
             peak_numbers (1D array): Peak numbers.
@@ -191,41 +218,51 @@ class EtalonSpectrum(EchelleSpectrum):
         log = self.log
         # guess peak numbers based on wavelength and etalon model:
         for order in self.orders:
-            try:
-                self.peak_data.loc[order, 'm'],self.peak_data.loc[order, 'm_fraction'] = \
-                    self.guess_m(self.peak_data.loc[order, 'wavelength_by_thar'])
 
-                # correct for inter-order jumps
-                self.peak_data.sort_values("wavelength_by_thar", inplace=True, ascending=False)
-                wl_peaks_by_thar = self.peak_data.loc[order, 'wavelength_by_thar'].values
-                wl_by_etaloneq = self.peak_to_wavelength(self.peak_data.loc[order, 'm'].values)
-                y = (wl_peaks_by_thar - wl_by_etaloneq) / wl_peaks_by_thar * c
-                m = self.peak_data.loc[order, 'm'].values
-                residuals_flattened = y - medfilt(y, 11)
-                bad = np.abs(residuals_flattened) > 5.0 * np.nanstd(residuals_flattened)
-                if np.count_nonzero(bad) > 0:
-                    if np.count_nonzero(bad) < 5:
-                        log.info(f'{np.count_nonzero(bad)} bad lines removed in order {order}')
-                    else:
-                        log.warning(f'{np.count_nonzero(bad)} bad lines removed in order {order}')
-                    dropindex = list((self.peak_data.loc[order].iloc[np.where(bad)].center.values))
-                    for do in dropindex:
-                        self.peak_data.drop(index=(order,do),inplace=True)
-            except:
-                log.warning(f"No data for order {order}")
+            # order_mask = self.peak_data["ORDER"] == order
+            # if np.count_nonzero(order_mask) == 0:
+            #     log.warning(f"No data for order {order}")
+            #     continue
+
+            self.peak_data.loc[order, 'M'],self.peak_data.loc[order, 'M_FRACTION'] = \
+                self.guess_m(self.peak_data.loc[order, 'WAVELENGTH_BY_THAR'])
+
+            # correct for inter-order jumps
+            self.peak_data.sort_values("WAVELENGTH_BY_THAR", inplace=True, ascending=False)
+            wl_peaks_by_thar = self.peak_data.loc[order, 'WAVELENGTH_BY_THAR'].values
+            wl_by_etaloneq = self.peak_to_wavelength(self.peak_data.loc[order, 'M'].values)
+            y = (wl_peaks_by_thar - wl_by_etaloneq) / wl_peaks_by_thar * c
+            # m = self.peak_data.loc[order, 'M'].values
+            residuals_flattened = y - medfilt(y, 11)
+            bad = np.abs(residuals_flattened) > 5.0 * np.nanstd(residuals_flattened)
+
+            if np.count_nonzero(bad) > 0:
+                if np.count_nonzero(bad) < 5:
+                    log.fullinfo(f'{np.count_nonzero(bad)} bad lines removed in order {order}')
+                else:
+                    log.warning(f'{np.count_nonzero(bad)} bad lines removed in order {order}')
+
+                if drop_outliers:
+                    dropindex = self.peak_data.loc[order].iloc[np.where(bad)].index
+                    log.warning(f"Dropping {list(dropindex)} indices in order {order}")
+                    for idx in dropindex:
+                        self.peak_data.drop(index=(order, idx), inplace=True)
 
         # correct jumps between orders
         for order in (self.orders[1:])[::-1]:
-            wl_peaks_by_thar = self.peak_data.loc[order-1, 'wavelength_by_thar'].values
-            wl_by_etaloneq = self.peak_to_wavelength(self.peak_data.loc[order-1, 'm'].values)
+            # order_mask = self.peak_data["ORDER"] == order
+            # order_m1_mask = self.peak_data["ORDER"] == order - 1
+
+            wl_peaks_by_thar = self.peak_data.loc[order-1, 'WAVELENGTH_BY_THAR'].values
+            wl_by_etaloneq = self.peak_to_wavelength(self.peak_data.loc[order-1, 'M'].values)
 
             y2 = np.median((wl_peaks_by_thar - wl_by_etaloneq) / wl_peaks_by_thar * c)
 
-            wl_peaks_by_thar = self.peak_data.loc[order, 'wavelength_by_thar'].values
-            wl_by_etaloneq = self.peak_to_wavelength(self.peak_data.loc[order, 'm'].values)
+            wl_peaks_by_thar = self.peak_data.loc[order, 'WAVELENGTH_BY_THAR'].values
+            wl_by_etaloneq = self.peak_to_wavelength(self.peak_data.loc[order, 'M'].values)
             y1 = np.median((wl_peaks_by_thar - wl_by_etaloneq) / wl_peaks_by_thar * c)
 
-            oldvalues = self.peak_data.loc[order-1, 'm'].values
+            oldvalues = self.peak_data.loc[order-1, 'M'].values
 
             jump = 0
 
@@ -248,10 +285,10 @@ class EtalonSpectrum(EchelleSpectrum):
 
             if jump !=0:
                 log.warning(f'Jump by {jump} IOs found and corrected between order {order-1} and order {order}')
-                self.peak_data.loc[order - 1, 'm'] = oldvalues + jump
+                self.peak_data.loc[order-1, 'M'] = oldvalues + jump
 
             for order in self.orders:
-                self.peak_data.loc[order, 'wavelength'] = self.peak_to_wavelength(self.peak_data.loc[order, 'm'].values)
+                self.peak_data.loc[order, 'WAVELENGTH'] = self.peak_to_wavelength(self.peak_data.loc[order, 'M'].values)
 
         if debug > 0:
             fig = self.plot_etalon_dispersion(plot_title)
@@ -278,28 +315,29 @@ class EtalonSpectrum(EchelleSpectrum):
         ax2.set_xlabel('Wavelength (nm)')
         ax2.set_ylabel('Residuals (m/s)')
         residuals = (self.peak_to_wavelength \
-                    (self.peak_data.loc[:, 'm'].values) - \
-                    self.peak_data.loc[:, 'wavelength_by_thar'])
-        residuals = residuals * c / self.peak_data.loc[:, 'wavelength_by_thar'] # Convert to m/s and normalize
-        ax2.scatter(self.peak_data.loc[:, 'wavelength_by_thar'], residuals,
-                    c=self.peak_data.loc[:, 'order'], cmap='nipy_spectral',
+                    (self.peak_data.loc[:, 'M'].values) - \
+                    self.peak_data.loc[:, 'WAVELENGTH_BY_THAR'])
+        residuals = residuals * c / self.peak_data.loc[:, 'WAVELENGTH_BY_THAR'] # Convert to m/s and normalize
+        ax2.scatter(self.peak_data.loc[:, 'WAVELENGTH_BY_THAR'], residuals,
+                    c=self.peak_data.loc[:, 'ORDER'], cmap='nipy_spectral',
                     rasterized=True, marker='.', s=2)
+        ax2.set_ylim(np.nanmean(residuals) - 30,np.nanmean(residuals) + 30)
         ax2.text(0.6, 0.05,
                  f'std: {np.std(residuals):.1f} m/s, mean: {np.mean(residuals):.2f} m/s',
                  transform=ax2.transAxes)
         if 'knot_0' in self.etalon_parameters:
-            dispersion = (self.peak_to_wavelength_nodispersion(self.peak_data.loc[:, 'm'].values) -
-                          self.peak_to_wavelength(self.peak_data.loc[:, 'm'].values))
-            dispersion = dispersion / self.peak_data.loc[:, 'wavelength_by_thar'] * c
+            dispersion = (self.peak_to_wavelength_nodispersion(self.peak_data.loc[:, 'M'].values) -
+                          self.peak_to_wavelength(self.peak_data.loc[:, 'M'].values))
+            dispersion = dispersion / self.peak_data.loc[:, 'WAVELENGTH_BY_THAR'] * c
             ax1.set_title('Etalon residuals ' + plot_title)
             ax1.set_xlabel('Wavelength (nm)')
             ax1.set_ylabel('Residuals (m/s)')
-            uresiduals = (self.peak_to_wavelength_nodispersion(self.peak_data.loc[:, 'm'].values) -
-                         self.peak_data.loc[:, 'wavelength_by_thar'])
-            uresiduals = uresiduals * 3e8 / self.peak_data.loc[:,'wavelength_by_thar']
-            ax1.scatter(self.peak_data.loc[:, 'wavelength_by_thar'], uresiduals,
-                        c=self.peak_data.loc[:, 'order'], cmap='nipy_spectral', rasterized=True, marker='.', s=2)
-            ax1.plot(self.peak_data.loc[:, 'wavelength_by_thar'], dispersion, 'r-', rasterized=True)
+            uresiduals = (self.peak_to_wavelength_nodispersion(self.peak_data.loc[:, 'M'].values) -
+                         self.peak_data.loc[:, 'WAVELENGTH_BY_THAR'])
+            uresiduals = uresiduals * 3e8 / self.peak_data.loc[:,'WAVELENGTH_BY_THAR']
+            ax1.scatter(self.peak_data.loc[:, 'WAVELENGTH_BY_THAR'], uresiduals,
+                        c=self.peak_data.loc[:, 'ORDER'], cmap='nipy_spectral', rasterized=True, marker='.', s=2)
+            ax1.plot(self.peak_data.loc[:, 'WAVELENGTH_BY_THAR'], dispersion, 'r-', rasterized=True)
             ax1.text(0.6, 0.05,
                      f'std: {np.std(residuals):.1f} m/s, mean: {np.mean(residuals):.2f} m/s',
                      transform=ax1.transAxes)
@@ -311,17 +349,17 @@ class EtalonSpectrum(EchelleSpectrum):
                 ax3.set_ylabel('Fractional order #')
                 ax3.set_xlim(ax2.get_xlim()[0], ax2.get_xlim()[1])
                 ax3.set_ylim(ax2.get_ylim()[0] / 8000, ax2.get_ylim()[1] / 8000)
-                ax3.scatter(self.peak_data.loc[:, 'wavelength_by_thar'], self.peak_data.loc[:, 'm_fraction'],
-                            c=self.peak_data.loc[:, 'order'], cmap='nipy_spectral', rasterized=True, marker='.', s=2)
+                ax3.scatter(self.peak_data.loc[:, 'WAVELENGTH_BY_THAR'], self.peak_data.loc[:, 'M_FRACTION'],
+                            c=self.peak_data.loc[:, 'ORDER'], cmap='nipy_spectral', rasterized=True, marker='.', s=2)
 
             else:
                 ax3.set_title('Etalon residuals after dispersion correction ' + plot_title)
-                ax3.set_xlabel('X (normalized')
+                ax3.set_xlabel('X (normalized)')
                 ax3.set_ylabel('Residuals (m/s)')
                 ax3.set_xlim(-1,1)
                 ax3.set_ylim(ax2.get_ylim()[0], ax2.get_ylim()[1])
-                x = self.normalize_x(self.peak_data.loc[:, 'center'])
+                x = self.normalize_pixel(self.peak_data.loc[:, 'CENTER'])
                 ax3.scatter(x, residuals,
-                            c=self.peak_data.loc[:, 'order'], cmap='nipy_spectral', rasterized=True, marker='.', s=2)
+                            c=self.peak_data.loc[:, 'ORDER'], cmap='nipy_spectral', rasterized=True, marker='.', s=2)
 
         return fig

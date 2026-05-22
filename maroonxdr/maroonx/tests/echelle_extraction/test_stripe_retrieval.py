@@ -1,25 +1,67 @@
 import logging
-import pytest
-import astrodata
+import os
 from copy import deepcopy
-import numpy as np
-import maroonx_instruments
-from MAROONXDR.maroonxdr.maroonx.primitives_maroonx.primitives_maroonx_echelle import MAROONXEchelle
+from pathlib import Path
 
-@pytest.mark.parametrize("filename_r", ["./maroonxdr/maroonx/tests/echelle_extraction/20220808T111549Z_SOOOE_r_0300_test_stripes.fits"])
-@pytest.mark.parametrize("filename_b", ["./maroonxdr/maroonx/tests/echelle_extraction/20220808T111549Z_SOOOE_b_0300_test_stripes.fits"])
-def test_getting_stripe_locations(caplog, filename_r, filename_b):
+import astrodata
+import numpy as np
+import pytest
+
+import maroonx_instruments  # noqa : import is necesary for astrodata.instrument()
+from maroonxdr.maroonx.primitives_maroonx_echelle import MAROONXEchelle
+
+_CALIB_FILES = {
+    'r': {
+        'flat': '20250701T171955Z_DDDDF_r_0002_DFFFF_flat.fits',
+        'dark': '20250717T144308Z_SOOOE_r_0300_synth_dark.fits',
+    },
+    'b': {
+        'flat': '20250701T172509Z_DDDDF_b_0007_DFFFF_flat.fits',
+        'dark': '20250717T144308Z_SOOOE_b_0300_synth_dark.fits',
+    },
+}
+
+
+@pytest.mark.slow
+@pytest.mark.preprocessed_data
+@pytest.mark.parametrize(
+    'filename',
+    [
+        '20250717T144308Z_SOOOE_r_0300_test_stripes.fits',
+        '20250717T144308Z_SOOOE_b_0300_test_stripes.fits',
+    ],
+)
+def test_getting_stripe_locations(caplog, path_to_inputs, filename):
     caplog.set_level(logging.DEBUG)
-    for filename in [filename_b, filename_r]:
-        ad = astrodata.open(filename)
-        p = MAROONXEchelle([deepcopy(ad)])
-        adtest = p.extractStripes()
-        assert len(caplog.records) > 0
-        assert any("found as associated flat" in r.message for r in caplog.records)
-        # assert ad.phu.comments['REDUCTION_FLAT'] in [r.message for r in caplog.records if "found as associated flat" in r.message][0]
-        # assert ad.phu.comments['REDUCTION_DARK'] in [r.message for r in caplog.records if "found as associated dark" in r.message][0]
-        assert len(adtest[0][0].STRIPES.keys()) == len(ad[0].TEST_ORDERS)
-        for idx,ifib in enumerate(sorted(adtest[0][0].STRIPES.keys(), key=lambda x: x.lower())):
-            np.testing.assert_allclose(adtest[0][0].STRIPES[ifib][str(ad[0].TEST_ORDERS[idx])].todense(), ad[0].STRIPES[idx])
-            np.testing.assert_allclose(adtest[0][0].F_STRIPES[ifib][str(ad[0].TEST_ORDERS[idx])].todense(), ad[0].F_STRIPES[idx])
-            np.testing.assert_allclose(adtest[0][0].STRIPES_MASKS[ifib][str(ad[0].TEST_ORDERS[idx])].todense(), ad[0].STRIPES_MASKS[idx])
+
+    filepath = os.path.join(path_to_inputs, filename)
+    if not os.path.isfile(filepath):
+        pytest.skip(f'{filename} not available for testing.')
+
+    arm = 'r' if '_r_' in filename else 'b'
+    calib_root = Path(os.environ['DRAGONS_TEST']) / 'preprocessed_files' / 'calibrations'
+    flat_path = str(calib_root / 'processed_flat' / _CALIB_FILES[arm]['flat'])
+    dark_path = str(calib_root / 'processed_dark' / _CALIB_FILES[arm]['dark'])
+
+    ad = astrodata.open(filepath)
+    p = MAROONXEchelle([deepcopy(ad)])
+    adtest = p.extractStripes(
+        flat=flat_path,
+        dark=dark_path,
+        dark_subtraction_skip_fibers=[5],
+        straylight_removal_fibers=[5],
+    )
+    assert len(adtest[0][0].STRIPES.keys()) == len(ad[0].TEST_ORDERS)
+    
+    result = adtest[0][0]
+    ref = ad[0]
+    fibers = sorted(result.STRIPES.keys(), key=str.lower)
+
+    for idx, fiber in enumerate(fibers):
+        order = str(ref.TEST_ORDERS[idx])
+        for attr in ('STRIPES', 'F_STRIPES', 'STRIPES_MASKS'):
+            actual = getattr(result, attr)[fiber][order].todense()
+            expected = getattr(ref, attr)[idx]
+            np.testing.assert_allclose(
+                actual, expected, err_msg=f'{attr} {fiber}/{order}',
+            )

@@ -8,11 +8,14 @@ overloaded here to use the MaroonXFit object.
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import optimize
+
 from gempy.utils import logutils
 
 from . import maroonx_fit_spectrum as spectrum
 from .maroonx_fit_parameters import Parameter, MetaParameter
 
+from . import get_logger
+# logutils.config(file_name="maroonx_fit.log", mode="debug", stomp=False)
 
 PLOT_KWARGS = dict(dpi=300, bbox_inches="tight", pad_inches=0.25)
 
@@ -97,7 +100,8 @@ class MaroonXFit(object):
         The tuple contains the initial parameters for the fit, and the boundaries
         """
 
-        self.log = logutils.get_logger(__name__)
+        # self.log = logutils.get_logger(__name__)
+        self.log = get_logger()
         log = self.log
         # Given the spectrum, find the peaks
         maxima, minima = spectrum.find_peaks(data)
@@ -117,7 +121,7 @@ class MaroonXFit(object):
                 for idx_minima in range(len(minima) - 1)
             ]
         )
-        log.info("Recalculated maxima based on minima")
+        log.fullinfo("Recalculated maxima based on minima")
 
         # Find bad amplitudes by checking where we have NaNs at the maxima
         amplitudes_guess = data[maxima]
@@ -133,7 +137,7 @@ class MaroonXFit(object):
         # The degree of the polynomial is meta_parameters.width.
 
 
-        log.info("Initial guess for polynomial fit: 1.27 + 1.7e-4*maxima")
+        log.fullinfo("Initial guess for polynomial fit: 1.27 + 1.7e-4*maxima")
 
         param_obj = Parameter(
             offset=np.nanmedian(data[minima]),
@@ -212,15 +216,20 @@ class MaroonXFit(object):
 
         idx = meta_parameters.number_of_peaks
 
+        # try:
         #Update the parameters for the fit
         result = optimize.least_squares(
-        spectrum.residual_polynomials,
-        param_obj.parameters[:-2*idx],
-        args = (self,),
-        bounds=parameter_bounds[:, :-2*idx],
-        jac= spectrum.fit_polynomials_jac,
-        x_scale='jac',
-        **kw_args)
+            spectrum.residual_polynomials,
+            parameters[:-2*idx],
+            args = (self,),
+            bounds=parameter_bounds[:, :-2*idx],
+            jac= spectrum.fit_polynomials_jac,
+            x_scale='jac',
+            **kw_args)
+        # except ValueError as e:
+        #     print(param_obj.parameters[:-2*idx])
+        #     import ipdb; ipdb.set_trace()
+
 
         if not result.success:
             raise FitError("Error fitting polynomials.", result)
@@ -230,8 +239,8 @@ class MaroonXFit(object):
             raise FitError("Error fitting polynomials: Amplitudes, sigma or width was < 0", result)
 
         parameters = np.concatenate([result.x, parameters[-2*idx:]])
-        updated_param_obj = param_obj.update_parameters(parameters=parameters)
-        self.update_maroonxfit(param_obj=updated_param_obj)
+        self.param_obj.update_parameters(parameters=parameters)
+        self.update_maroonxfit(param_obj=self.param_obj)
         return result
 
     def plot_fit(self, ax1=None, ax2=None, filename=None):
@@ -347,7 +356,7 @@ class MaroonXFit(object):
         if data is not None:
             self.data = data
         if param_obj is not None:
-            self.param_obj = param_obj.copy()
+            self.param_obj = param_obj
         if param_bounds is not None:
             self.parameters_bounds = param_bounds
 
