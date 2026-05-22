@@ -63,6 +63,9 @@ jobs:
         - name: Install nox
           run: python -m pip install --upgrade pip nox
 
+        - name: Download test files from GOA
+          run: nox -s download_raws-${{ matrix.python-version }}
+
         - name: Create test inputs
           run: nox -s create_inputs-${{ matrix.python-version }}
 

@@ -75,8 +75,11 @@ def test_dark_coeff(path_to_inputs, path_to_legacy_darks, matching_filenames):
 )
 def test_synthetic_masterdark(path_to_inputs, path_to_legacy_darks, matching_filenames):
 
-    legacy_file = path_to_legacy_darks / matching_filenames[1]
     file = os.path.join(path_to_inputs, matching_filenames[0])
+    if not os.path.isfile(file):
+        pytest.skip(f'{matching_filenames[0]} not available for testing.')
+
+    legacy_file = path_to_legacy_darks / matching_filenames[1]
 
     ad_coeff = astrodata.open(file)
 

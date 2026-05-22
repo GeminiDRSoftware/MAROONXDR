@@ -47,6 +47,10 @@ def test_optimal_extracting_science_data(caplog, path_to_inputs, filename):
     """
     caplog.set_level(logging.DEBUG)
 
+    filepath = os.path.join(path_to_inputs, filename)
+    if not os.path.isfile(filepath):
+        pytest.skip(f'{filename} not available for testing.')
+
     # Resolve calibration paths from preprocessed_files/calibrations/
     arm = 'r' if '_r_' in filename else 'b'
     calib_root = Path(os.environ['DRAGONS_TEST']) / 'preprocessed_files' / 'calibrations'
@@ -54,7 +58,7 @@ def test_optimal_extracting_science_data(caplog, path_to_inputs, filename):
     dark_path = str(calib_root / 'processed_dark' / _CALIB_FILES[arm]['dark'])
 
     # test that optimal extraction is equal to a previously reduced extraction
-    ad = astrodata.open(os.path.join(path_to_inputs, filename))
+    ad = astrodata.open(filepath)
     p = MAROONXEchelle([deepcopy(ad)])
     p.extractStripes(
         flat=flat_path,
@@ -129,11 +133,15 @@ def test_extraction_determinism_no_straylight(caplog, path_to_inputs, filename):
     """
     caplog.set_level(logging.DEBUG)
 
+    filepath = os.path.join(path_to_inputs, filename)
+    if not os.path.isfile(filepath):
+        pytest.skip(f'{filename} not available for testing.')
+
     arm = 'r' if '_r_' in filename else 'b'
     calib_root = Path(os.environ['DRAGONS_TEST']) / 'preprocessed_files' / 'calibrations'
     flat_path = str(calib_root / 'processed_flat' / _CALIB_FILES[arm]['flat'])
 
-    ad = astrodata.open(os.path.join(path_to_inputs, filename))
+    ad = astrodata.open(filepath)
 
     # First run — no dark, no straylight
     p1 = MAROONXEchelle([deepcopy(ad)])
@@ -184,12 +192,16 @@ def test_extraction_determinism_with_straylight(caplog, path_to_inputs, filename
     """
     caplog.set_level(logging.DEBUG)
 
+    filepath = os.path.join(path_to_inputs, filename)
+    if not os.path.isfile(filepath):
+        pytest.skip(f'{filename} not available for testing.')
+
     arm = 'r' if '_r_' in filename else 'b'
     calib_root = Path(os.environ['DRAGONS_TEST']) / 'preprocessed_files' / 'calibrations'
     flat_path = str(calib_root / 'processed_flat' / _CALIB_FILES[arm]['flat'])
     dark_path = str(calib_root / 'processed_dark' / _CALIB_FILES[arm]['dark'])
 
-    ad = astrodata.open(os.path.join(path_to_inputs, filename))
+    ad = astrodata.open(filepath)
 
     # First run — with dark subtraction and straylight (science recipe params)
     p1 = MAROONXEchelle([deepcopy(ad)])

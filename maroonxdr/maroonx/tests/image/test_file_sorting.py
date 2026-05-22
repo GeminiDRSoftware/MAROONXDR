@@ -179,9 +179,12 @@ def create_inputs():
     Create input files for this test module.
 
     Run with: python -m maroonxdr.maroonx.tests.image.test_file_sorting --create-inputs
-    """
-    from astrodata.testing import download_from_archive
 
+    Reads raw bundles from $DRAGONS_TEST/raw_files/ (populated by the
+    download_raws nox session) and runs splitBundle to produce debundled
+    single-arm files.
+    """
+    raw_dir = os.path.join(os.environ['DRAGONS_TEST'], 'raw_files')
     input_path = os.path.join(
         os.environ['DRAGONS_TEST'],
         'maroonxdr',
@@ -192,10 +195,12 @@ def create_inputs():
     )
     os.makedirs(input_path, exist_ok=True)
 
-    # Download bundles and run splitBundle to produce debundled files
     for filename in bundles_needed:
-        print(f'  Downloading {filename}')
-        raw_path = download_from_archive(filename)
+        raw_path = os.path.join(raw_dir, filename)
+        if not os.path.isfile(raw_path):
+            print(f'  Skipping {filename}: not in {raw_dir}')
+            continue
+
         ad = astrodata.open(raw_path)
         p = MAROONX([ad])
         split_ads = p.splitBundle()

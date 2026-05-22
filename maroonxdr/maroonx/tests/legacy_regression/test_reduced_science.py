@@ -27,8 +27,11 @@ def test_optimal_extraction(path_to_inputs, path_to_legacy_science, matching_fil
 
     file_name, legacy_file_name = matching_filenames
 
-    legacy_file = path_to_legacy_science / legacy_file_name
     file = os.path.join(path_to_inputs, file_name)
+    if not os.path.isfile(file):
+        pytest.skip(f'{file_name} not available for testing.')
+
+    legacy_file = path_to_legacy_science / legacy_file_name
 
     ad = astrodata.open(file)
 
@@ -74,8 +77,11 @@ def test_optimal_var(path_to_inputs, path_to_legacy_science, matching_filenames)
 
     file_name, legacy_file_name = matching_filenames
 
-    legacy_file = path_to_legacy_science / legacy_file_name
     file = os.path.join(path_to_inputs, file_name)
+    if not os.path.isfile(file):
+        pytest.skip(f'{file_name} not available for testing.')
+
+    legacy_file = path_to_legacy_science / legacy_file_name
 
     ad = astrodata.open(file)
 
@@ -121,8 +127,11 @@ def test_simultaneous_wavelengths(path_to_inputs, path_to_legacy_science, matchi
 
     file_name, legacy_file_name = matching_filenames
 
-    legacy_file = path_to_legacy_science / legacy_file_name
     file = os.path.join(path_to_inputs, file_name)
+    if not os.path.isfile(file):
+        pytest.skip(f'{file_name} not available for testing.')
+
+    legacy_file = path_to_legacy_science / legacy_file_name
 
     ad = astrodata.open(file)
 
@@ -168,8 +177,11 @@ def test_fiber_6(path_to_inputs, path_to_legacy_science, matching_filenames):
 
     file_name, legacy_file_name = matching_filenames
 
-    legacy_file = path_to_legacy_science / legacy_file_name
     file = os.path.join(path_to_inputs, file_name)
+    if not os.path.isfile(file):
+        pytest.skip(f'{file_name} not available for testing.')
+
+    legacy_file = path_to_legacy_science / legacy_file_name
 
     ad = astrodata.open(file)
 

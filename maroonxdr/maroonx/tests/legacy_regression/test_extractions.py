@@ -165,6 +165,8 @@ def test_extractStripes_fromScience(science_filename, path_to_legacy_science, pa
     dark_path = str(calib_root / _CALIB_FILES[arm]['dark'])
 
     raw_file = preprocessed_files_path / (science_filename + ".fits")
+    if not raw_file.is_file():
+        pytest.skip(f'{raw_file.name} not available for testing.')
 
     adinput = [astrodata.open(raw_file)]
 
@@ -474,6 +476,8 @@ def test_barycentricCorrection(science_filename, path_to_legacy_science, preproc
     old_file = path_to_legacy_science / (science_filename + ".hdf")
 
     raw_file = preprocessed_files_path / (science_filename + ".fits")
+    if not raw_file.is_file():
+        pytest.skip(f'{raw_file.name} not available for testing.')
 
     adinput = [astrodata.open(raw_file)]
 

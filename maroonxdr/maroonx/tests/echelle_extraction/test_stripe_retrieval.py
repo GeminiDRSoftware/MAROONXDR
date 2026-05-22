@@ -34,12 +34,16 @@ _CALIB_FILES = {
 def test_getting_stripe_locations(caplog, path_to_inputs, filename):
     caplog.set_level(logging.DEBUG)
 
+    filepath = os.path.join(path_to_inputs, filename)
+    if not os.path.isfile(filepath):
+        pytest.skip(f'{filename} not available for testing.')
+
     arm = 'r' if '_r_' in filename else 'b'
     calib_root = Path(os.environ['DRAGONS_TEST']) / 'preprocessed_files' / 'calibrations'
     flat_path = str(calib_root / 'processed_flat' / _CALIB_FILES[arm]['flat'])
     dark_path = str(calib_root / 'processed_dark' / _CALIB_FILES[arm]['dark'])
 
-    ad = astrodata.open(os.path.join(path_to_inputs, filename))
+    ad = astrodata.open(filepath)
     p = MAROONXEchelle([deepcopy(ad)])
     adtest = p.extractStripes(
         flat=flat_path,

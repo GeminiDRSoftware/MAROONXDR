@@ -141,11 +141,13 @@ def create_inputs():
     Create input files for this test module.
 
     Run with: python -m maroonxdr.maroonx.tests.bundle.test_bundle_export --create-inputs
+
+    Reads raw files from $DRAGONS_TEST/raw_files/ (populated by the
+    download_raws nox session).
     """
     import shutil
 
-    from astrodata.testing import download_from_archive
-
+    raw_dir = os.path.join(os.environ['DRAGONS_TEST'], 'raw_files')
     input_path = os.path.join(
         os.environ['DRAGONS_TEST'],
         'maroonxdr',
@@ -156,14 +158,14 @@ def create_inputs():
     )
     os.makedirs(input_path, exist_ok=True)
 
-    # Download raw files to default raw_files/ cache
     for filename in test_datasets:
-        print(f'  Downloading {filename}')
-        raw_path = download_from_archive(filename)
+        raw_path = os.path.join(raw_dir, filename)
+        if not os.path.isfile(raw_path):
+            print(f'  Skipping {filename}: not in {raw_dir}')
+            continue
 
-        # No preprocessing needed — raw bundles are the test inputs
         shutil.copy2(raw_path, os.path.join(input_path, filename))
-        print(f'  Copied to {input_path}')
+        print(f'  Copied {filename} -> {input_path}')
 
 
 if __name__ == '__main__':

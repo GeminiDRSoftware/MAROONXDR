@@ -472,107 +472,91 @@ def pytest_collection_modifyitems(config, items):
 # Manifest of MaroonX raw files available in the Gemini Archive
 # These files were used for MaroonX DRAGONS development and testing
 MAROONX_TEST_MANIFEST = {
-    'DARK': [
-        'N20241115M3421.fits',
-        'N20241115M3433.fits',
-        'N20241115M3444.fits',
-        'N20241115M3455.fits',
-        'N20241115M3466.fits',
-        'N20241115M3477.fits',
-        'N20241115M3486.fits',
-        'N20241115M3494.fits',
-        'N20241115M3502.fits',
-        'N20241115M3510.fits',
-        'N20241115M3519.fits',
-        'N20241115M3539.fits',
-        'N20241115M3559.fits',
-        'N20241115M3579.fits',
-        'N20241115M3600.fits',
-        'N20241115M3620.fits',
-        'N20241115M3655.fits',
-        'N20241115M3690.fits',
-        'N20241115M3726.fits',
-        'N20241115M3761.fits',
-        'N20241115M3796.fits',
-        'N20241115M3846.fits',
-        'N20241115M3897.fits',
-        'N20241115M3947.fits',
-        'N20241115M3997.fits',
-        'N20241115M4047.fits',
-        'N20241115M4112.fits',
-        'N20241115M4178.fits',
-        'N20241115M4243.fits',
-        'N20241115M4308.fits',
-        'N20241116M0054.fits',
-        'N20241116M0149.fits',
-        'N20241116M0244.fits',
-        'N20241116M0339.fits',
-        'N20241116M0434.fits',
-        'N20241124M0655.fits',
-        'N20241124M0659.fits',
-        'N20241124M0663.fits',
-        'N20241124M0668.fits',
-        'N20241124M0672.fits',
-        'N20241124M3038.fits',
-        'N20241124M3043.fits',
-        'N20241124M3047.fits',
-        'N20241124M3051.fits',
-        'N20241124M3055.fits',
-        'N20241125M0774.fits',
-    ],
     'FLAT': [
-        'N20241114M3271.fits',
-        'N20241114M3290.fits',
-        'N20241114M3295.fits',
-        'N20241114M3300.fits',
-        'N20241114M3305.fits',
-        'N20241114M3310.fits',
-        'N20241114M3442.fits',
-        'N20241114M3450.fits',
-        'N20241114M3456.fits',
-        'N20241114M3461.fits',
-        'N20241114M3466.fits',
-        'N20241114M3471.fits',
+        'N20250701M6126.fits',
+        'N20250701M6143.fits',
+        'N20250701M6154.fits',
+        'N20250701M6164.fits',
+        'N20250701M6175.fits',
+        'N20250701M6185.fits',
+        'N20250701M6215.fits',
+        'N20250701M6229.fits',
+        'N20250701M6240.fits',
+        'N20250701M6250.fits',
+        'N20250701M6260.fits',
+        'N20250701M6271.fits',
+    ],
+    'DARK': [
+        'N20250717M6066.fits',
+        'N20250717M6072.fits',
+        'N20250717M6081.fits',
+        'N20250717M6091.fits',
+        'N20250721M5904.fits',
+        'N20250721M5914.fits',
+        'N20250721M5930.fits',
+        'N20250721M5953.fits',
+        'N20250721M5975.fits',
+        'N20250721M5997.fits',
+        'N20250721M6020.fits',
+        'N20250721M6042.fits',
+        'N20250721M6059.fits',
+        'N20250721M6075.fits',
+        'N20250721M6092.fits',
+        'N20250721M6108.fits',
+        'N20250721M6125.fits',
+        'N20250721M6165.fits',
+        'N20250721M6206.fits',
+        'N20250721M6246.fits',
+        'N20250721M6287.fits',
+        'N20250721M6328.fits',
+        'N20250721M6398.fits',
+        'N20250721M6468.fits',
+        'N20250721M6539.fits',
+        'N20250721M6609.fits',
+        'N20250721M6680.fits',
+        'N20250721M6780.fits',
+        'N20250721M6881.fits',
+        'N20250721M6981.fits',
+        'N20250721M7081.fits',
+        'N20250721M7182.fits',
+        'N20250721M7312.fits',
+        'N20250721M7443.fits',
+        'N20250721M7573.fits',
+        'N20250721M7704.fits',
+        'N20250721M7835.fits',
+        'N20250721M8025.fits',
+        'N20250721M8215.fits',
+        'N20250721M8406.fits',
+        'N20250721M8596.fits',
     ],
     'WAVECAL': [
-        'N20240814M0349.fits',
-        'N20241124M0542.fits',
-        'N20241124M0547.fits',
-        'N20241124M0554.fits',
-        'N20241124M0559.fits',
-        'N20241124M0617.fits',
-        'N20241124M0622.fits',
-        'N20241124M0639.fits',
-        'N20241124M2945.fits',
-        'N20241124M2951.fits',
-        'N20241124M2957.fits',
-        'N20241124M2962.fits',
-        'N20241124M3018.fits',
-        'N20241124M3023.fits',
-        'N20241124M3032.fits',
+        'N20250717M5948.fits',
     ],
     'SCIENCE': [
-        # "N20241124M1116.fits",
+        'N20250717M5299.fits',
     ],
 }
 
 
-@pytest.fixture(scope='session')
-def download_mx_file(dragons_test_root):
+def download_mx_file(filename, sub_path='raw_files'):
+    """Download a MaroonX raw file from the Gemini Archive.
+
+    Returns the local path on success, or None if the archive responds with
+    HTTP 403 (Access Forbidden), typically for proprietary data.
     """
-    Session fixture that provides a function to download MaroonX files from the Gemini Archive.
+    try:
+        return download_from_archive(
+            filename, sub_path=sub_path, env_var='DRAGONS_TEST'
+        )
+    except HTTPError as e:
+        warnings.warn(f'{filename}: {e}')
+        return None
 
-    If a file returns HTTP 403 (Access Forbidden), the test will be skipped.
-    """
 
-    def _download(filename, sub_path='raw_files'):
-        try:
-            return download_from_archive(
-                filename, sub_path=sub_path, env_var='DRAGONS_TEST'
-            )
-        except HTTPError as e:
-            # dont fail if one file is not accessible
-            warnings.warn(f'{filename}: {e}')
-            return None
-
-    return _download
+def download_all_raw_files():
+    """Download every file in MAROONX_TEST_MANIFEST into $DRAGONS_TEST/raw_files/."""
+    results = {}
+    for kind, files in MAROONX_TEST_MANIFEST.items():
+        for filename in files:
+            results[filename] = download_mx_file(filename)
+    return results

@@ -439,6 +439,27 @@ def initialize_commit_hooks(session: nox.Session):
 
 
 @nox.session(python='3.12')
+def download_raws(session: nox.Session):
+    """Download all MaroonX raw files listed in MAROONX_TEST_MANIFEST."""
+    session.install('poetry', 'poetry-plugin-export')
+
+    for var_name, var_value in NEW_ENV_VARIABLES.items():
+        session.env[var_name] = str(var_value)
+
+    install_dragons(session)
+    dependencies = get_dependencies(session, only='main,test')
+    session.install(*dependencies)
+    session.install(f'{PYTEST_DRAGONS_URL}')
+    session.install('-e', '.')
+
+    session.run(
+        'python', '-c',
+        'from maroonxdr.maroonx.tests.conftest import download_all_raw_files; '
+        'download_all_raw_files()',
+    )
+
+
+@nox.session(python='3.12')
 def create_inputs(session: nox.Session):
     """Download and create input files for unit tests.
 
