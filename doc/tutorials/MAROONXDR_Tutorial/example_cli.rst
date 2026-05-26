@@ -76,7 +76,7 @@ managed by ``caldb``::
     │   ├── processed_dark/              # Master darks (per exptime, per arm)
     │   ├── processed_dark_coeff/        # Dark scaling coefficients (per arm)
     │   ├── processed_flat/              # Master flats (per arm)
-    │   └── processed_arc/               # Dynamic etalon wavelength solutions
+    │   └── processed_wavecal/           # Dynamic etalon wavelength solutions
     └── reduce_*.log                     # Reduction log files
 
 .. note:: Calibration files produced by ``reduce`` are written twice: once
@@ -332,15 +332,16 @@ Run once per arm:
     done
 
 Each call writes one ``*_wavecal.fits`` file into ``science_dir/`` and a
-copy under the ``processed_arc`` caltype in ``calibrations/processed_arc/``.
-The output carries the ``PROCESSED,ARC`` tag set.
+copy under the ``processed_wavecal`` caltype in
+``calibrations/processed_wavecal/``. The output carries the
+``PROCESSED,WAVECAL`` tag set.
 
 **Verify wavelength calibrations:**
 
 .. code-block:: bash
 
     # List processed wavecal files
-    dataselect --adpkg maroonx_instruments --tags PROCESSED,ARC *.fits
+    dataselect --adpkg maroonx_instruments --tags PROCESSED,WAVECAL *.fits
 
 
 Step 6: Synthetic Darks
