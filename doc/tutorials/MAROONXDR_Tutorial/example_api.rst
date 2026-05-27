@@ -85,9 +85,8 @@ subtree managed by ``caldb``::
    ``calibrations/<caltype>/`` subdirectory. The copy under
    ``calibrations/`` is what ``caldb`` indexes and serves to later steps.
 
-.. todo:: Link to the DRAGONS ``caldb`` setup page (initialising the
-   calibration database, ``~/.dragonsrc`` configuration, etc.) once that
-   section of the User Manual is written.
+.. note:: This tutorial assumes ``caldb`` is configured and initialised.
+   See :ref:`maroonx_caldb_setup` for a one-time setup walkthrough.
 
 Dataset
 -------

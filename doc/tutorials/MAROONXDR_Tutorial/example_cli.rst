@@ -84,9 +84,8 @@ managed by ``caldb``::
    subdirectory. The copy under ``calibrations/`` is what ``caldb`` indexes
    and serves to later steps.
 
-.. todo:: Link to the DRAGONS ``caldb`` setup page (initialising the
-   calibration database, ``~/.dragonsrc`` configuration, etc.) once that
-   section of the User Manual is written.
+.. note:: This tutorial assumes ``caldb`` is configured and initialised.
+   See :ref:`maroonx_caldb_setup` for a one-time setup walkthrough.
 
 Dataset
 -------
@@ -578,8 +577,8 @@ yesterday is shadowing today's" - ``caldb`` has a small set of commands:
     caldb add calibrations/processed_flat/<file>.fits
     caldb remove <file>.fits
 
-.. todo:: Link to the full ``caldb`` documentation page once that section
-   of the User Manual is written.
+For initial configuration and database initialisation, see
+:ref:`maroonx_caldb_setup`.
 
 Logging
 -------
