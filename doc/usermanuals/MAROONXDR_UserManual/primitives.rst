@@ -10,8 +10,7 @@ MAROONX Primitives and Parameters Classes
    all new or overridden primitives, and primitives for which we change
    the default parameters.
 
-See :ref:`primitives_index` for details on the primitives created or
-modified by the MAROONX primitives classes.
+This chapter documents the primitives created or overridden by MAROONX.
 
 primitives_maroonx_2D and parameters_maroonx_2D
 ================================================

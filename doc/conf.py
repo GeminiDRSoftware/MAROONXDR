@@ -194,7 +194,9 @@ autodoc_mock_imports = [
     'scipy',
     'lmfit',
     'astroquery',
-    'matplotlib'
+    'matplotlib',
+    'tables',
+    'h5py',
 ]
 
 # Autodoc options - keep it simple to avoid hanging
