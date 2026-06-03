@@ -1,4 +1,4 @@
-"""Run master dark and dark-coefficient reductions on v2 (202507xx) data.
+"""Run master dark and dark-coefficient reductions on v2 (2025070x) data.
 
 Reads debundled files from $DRAGONS_TEST/preprocessed_files/ (produced by
 preprocess/bundle.py) and writes master darks back to the same directory.
@@ -98,11 +98,20 @@ def populate_inputs(legacy_patch=False):
         dark_src,
         base / 'legacy_regression' / 'test_masterdark' / 'inputs',
         [
-            '20250721T162823Z_DDDDE_r_0120_dark.fits',
-            '20250721T164703Z_DDDDE_b_0060_dark.fits',
-            '20250721T183319Z_DDDDE_b_0900_dark.fits',
-            '20250721T183319Z_DDDDE_r_0900_dark.fits',
-            '20250721T214546Z_DDDDE_b_1800_dark.fits',
+            '20250707T170719Z_DDDDE_b_0060_dark.fits',
+            '20250707T170719Z_DDDDE_r_0060_dark.fits',
+            '20250707T164838Z_DDDDE_b_0120_dark.fits',
+            '20250707T164838Z_DDDDE_r_0120_dark.fits',
+            '20250707T172105Z_DDDDE_b_0300_dark.fits',
+            '20250707T172105Z_DDDDE_r_0300_dark.fits',
+            '20250707T175451Z_DDDDE_b_0600_dark.fits',
+            '20250707T175451Z_DDDDE_r_0600_dark.fits',
+            '20250707T185335Z_DDDDE_b_0900_dark.fits',
+            '20250707T185335Z_DDDDE_r_0900_dark.fits',
+            '20250707T201715Z_DDDDE_b_1200_dark.fits',
+            '20250707T201715Z_DDDDE_r_1200_dark.fits',
+            '20250707T220602Z_DDDDE_b_1800_dark.fits',
+            '20250707T220602Z_DDDDE_r_1800_dark.fits',
         ],
     )
 
@@ -111,8 +120,8 @@ def populate_inputs(legacy_patch=False):
         dark_coeff_src,
         base / 'legacy_regression' / 'test_masterdark' / 'inputs',
         [
-            '20250721T162823Z_DDDDE_b_0120_darkCoefficients.fits',
-            '20250721T162823Z_DDDDE_r_0120_darkCoefficients.fits',
+            '20250707T164838Z_DDDDE_b_0120_darkCoefficients.fits',
+            '20250707T164838Z_DDDDE_r_0120_darkCoefficients.fits',
         ],
     )
 

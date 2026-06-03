@@ -69,8 +69,8 @@ def test_stackFlats(arm, path_to_legacy_flats, preprocessed_files_path):
     p.subtractOverscan()
     p.separateFlatStreams()
 
-    p.stackFlats(stream='main', scale_mode='first_frame', suffix='_DDDDF_flat')
-    p.stackFlats(stream='DFFFD_flats', scale_mode='first_frame', suffix='_DFFFD_flat')
+    p.stackFlats(stream='main', scale_mode='mean_frame', suffix='_DDDDF_flat')
+    p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='_DFFFD_flat')
 
     ad_DDDDF = p.streams['main'][0]
     ad_DFFFD = p.streams['DFFFD_flats'][0]
@@ -107,8 +107,8 @@ def test_identifyStripes(arm, path_to_legacy_flats, preprocessed_files_path):
     p.correctImageOrientation()
     p.separateFlatStreams()
 
-    p.stackFlats(stream='main', scale_mode='first_frame', suffix='_DDDDF_flat')
-    p.stackFlats(stream='DFFFD_flats', scale_mode='first_frame', suffix='_DFFFD_flat')
+    p.stackFlats(stream='main', scale_mode='mean_frame', suffix='_DDDDF_flat')
+    p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='_DFFFD_flat')
 
     p.findStripes()
     p.findStripes(stream='DFFFD_flats')
@@ -158,8 +158,8 @@ def test_identifyStripes_legacyOrder(arm, path_to_legacy_flats, preprocessed_fil
 
     p.separateFlatStreams()
 
-    p.stackFlats(stream='main', scale_mode='first_frame', suffix='_DDDDF_flat')
-    p.stackFlats(stream='DFFFD_flats', scale_mode='first_frame', suffix='_DFFFD_flat')
+    p.stackFlats(stream='main', scale_mode='mean_frame', suffix='_DDDDF_flat')
+    p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='_DFFFD_flat')
 
     p.subtractOverscan(stream='main')
     p.subtractOverscan(stream='DFFFD_flats')
@@ -224,8 +224,8 @@ def test_removeStraylight(arm, path_to_legacy_flats, preprocessed_files_path):
     p.correctImageOrientation()
     p.separateFlatStreams()
 
-    p.stackFlats(stream='main', scale_mode='first_frame', suffix='_flat')
-    p.stackFlats(stream='DFFFD_flats', scale_mode='first_frame', suffix='_flat')
+    p.stackFlats(stream='main', scale_mode='mean_frame', suffix='_flat')
+    p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='_flat')
 
     p.findStripes()
     p.findStripes(stream='DFFFD_flats')
@@ -278,8 +278,8 @@ def test_removeStraylight_legacyOrder(arm, path_to_legacy_flats, preprocessed_fi
 
     p.separateFlatStreams()
 
-    p.stackFlats(stream='main', scale_mode='first_frame', suffix='_flat')
-    p.stackFlats(stream='DFFFD_flats', scale_mode='first_frame', suffix='_flat')
+    p.stackFlats(stream='main', scale_mode='mean_frame', suffix='_flat')
+    p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='_flat')
 
     p.subtractOverscan(stream='main')
     p.subtractOverscan(stream='DFFFD_flats')
@@ -338,8 +338,8 @@ def test_combinedFlat(arm, path_to_legacy_flats, preprocessed_files_path):
     p.subtractOverscan()
     p.separateFlatStreams()
 
-    p.stackFlats(stream='main', scale_mode='first_frame', suffix='_flat')
-    p.stackFlats(stream='DFFFD_flats', scale_mode='first_frame', suffix='_flat')
+    p.stackFlats(stream='main', scale_mode='mean_frame', suffix='_flat')
+    p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='_flat')
 
     p.subtractOverscan(stream='main')
     p.subtractOverscan(stream='DFFFD_flats')

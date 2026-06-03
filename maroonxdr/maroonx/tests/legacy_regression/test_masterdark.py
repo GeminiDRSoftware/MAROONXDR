@@ -12,11 +12,20 @@ import maroonx_instruments  # noqa : important to load adclass tags
 @pytest.mark.parametrize(
     'matching_filenames',
     [
-        ('20250721T162823Z_DDDDE_r_0120_dark.fits', '20250721T16_masterdark_mean_DDDDE_r_0120.fits'),
-        ('20250721T164703Z_DDDDE_b_0060_dark.fits', '20250721T16_masterdark_mean_DDDDE_b_0060.fits'),
-        ('20250721T183319Z_DDDDE_b_0900_dark.fits', '20250721T18_masterdark_mean_DDDDE_b_0900.fits'),
-        ('20250721T183319Z_DDDDE_r_0900_dark.fits', '20250721T18_masterdark_mean_DDDDE_r_0900.fits'),
-        ('20250721T214546Z_DDDDE_b_1800_dark.fits', '20250721T21_masterdark_mean_DDDDE_b_1800.fits'),
+        ('20250707T170719Z_DDDDE_b_0060_dark.fits', '20250707T17_masterdark_mean_DDDDE_b_0060.fits'),
+        ('20250707T170719Z_DDDDE_r_0060_dark.fits', '20250707T17_masterdark_mean_DDDDE_r_0060.fits'),
+        ('20250707T164838Z_DDDDE_b_0120_dark.fits', '20250707T16_masterdark_mean_DDDDE_b_0120.fits'),
+        ('20250707T164838Z_DDDDE_r_0120_dark.fits', '20250707T16_masterdark_mean_DDDDE_r_0120.fits'),
+        ('20250707T172105Z_DDDDE_b_0300_dark.fits', '20250707T17_masterdark_mean_DDDDE_b_0300.fits'),
+        ('20250707T172105Z_DDDDE_r_0300_dark.fits', '20250707T17_masterdark_mean_DDDDE_r_0300.fits'),
+        ('20250707T175451Z_DDDDE_b_0600_dark.fits', '20250707T17_masterdark_mean_DDDDE_b_0600.fits'),
+        ('20250707T175451Z_DDDDE_r_0600_dark.fits', '20250707T17_masterdark_mean_DDDDE_r_0600.fits'),
+        ('20250707T185335Z_DDDDE_b_0900_dark.fits', '20250707T18_masterdark_mean_DDDDE_b_0900.fits'),
+        ('20250707T185335Z_DDDDE_r_0900_dark.fits', '20250707T18_masterdark_mean_DDDDE_r_0900.fits'),
+        ('20250707T201715Z_DDDDE_b_1200_dark.fits', '20250707T20_masterdark_mean_DDDDE_b_1200.fits'),
+        ('20250707T201715Z_DDDDE_r_1200_dark.fits', '20250707T20_masterdark_mean_DDDDE_r_1200.fits'),
+        ('20250707T220602Z_DDDDE_b_1800_dark.fits', '20250707T22_masterdark_mean_DDDDE_b_1800.fits'),
+        ('20250707T220602Z_DDDDE_r_1800_dark.fits', '20250707T22_masterdark_mean_DDDDE_r_1800.fits'),
     ],
 )
 def test_masterdark(path_to_inputs, path_to_legacy_darks, matching_filenames):
@@ -42,8 +51,8 @@ def test_masterdark(path_to_inputs, path_to_legacy_darks, matching_filenames):
 @pytest.mark.parametrize(
     'matching_filenames',
     [
-        ('20250721T162823Z_DDDDE_b_0120_darkCoefficients.fits', 'masterdarks_coeffs_202507xx_blue.npz'),
-        ('20250721T162823Z_DDDDE_r_0120_darkCoefficients.fits', 'masterdarks_coeffs_202507xx_red.npz'),
+        ('20250707T164838Z_DDDDE_b_0120_darkCoefficients.fits', 'masterdarks_coeffs_2025070x_blue.npz'),
+        ('20250707T164838Z_DDDDE_r_0120_darkCoefficients.fits', 'masterdarks_coeffs_2025070x_red.npz'),
     ],
 )
 def test_dark_coeff(path_to_inputs, path_to_legacy_darks, matching_filenames):
@@ -69,8 +78,8 @@ def test_dark_coeff(path_to_inputs, path_to_legacy_darks, matching_filenames):
 @pytest.mark.parametrize(
     'matching_filenames',
     [
-        ('20250717T144308Z_SOOOE_b_0300_synth_dark.fits', '202507xx_masterdark_mean_DDDDE_b_0300.fits'),
-        ('20250717T144308Z_SOOOE_r_0300_synth_dark.fits', '202507xx_masterdark_mean_DDDDE_r_0300.fits'),
+        ('20250717T144308Z_SOOOE_b_0300_synth_dark.fits', '2025070x_masterdark_mean_DDDDE_b_0300.fits'),
+        ('20250717T144308Z_SOOOE_r_0300_synth_dark.fits', '2025070x_masterdark_mean_DDDDE_r_0300.fits'),
     ],
 )
 def test_synthetic_masterdark(path_to_inputs, path_to_legacy_darks, matching_filenames):
