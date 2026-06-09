@@ -178,6 +178,7 @@ class MAROONXEchelle(MAROONX, Spect):
             *gt.make_lists(adinputs, *dark_coeff_list, force_ad=(1,))
         ):
             log.stdinfo(f"{ad.filename}: creating synthetic dark")
+            log.stdinfo(f"{dark_coeff_ad.filename}: selected dark coefficients")
 
             exptime = ad.exposure_time()
             nd_filter = ad.filter_orientation()['ND']
