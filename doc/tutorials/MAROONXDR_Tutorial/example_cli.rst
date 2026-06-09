@@ -90,9 +90,9 @@ managed by ``caldb``::
 Dataset
 -------
 
-The worked example reduces a single 300 s exposure of HD 3651 in the SOOOE
+The following example reduces a single 300s science exposure of HD 3651 with SOOOE
 fiber pattern, taken on 2025-07-17, against calibrations taken on
-2025-07-01, 2025-07-17, and 2025-07-21.
+2025-07-01, 2025-07-07/08, and 2025-07-17.
 
 All files can be downloaded from the Gemini Observatory Archive (GOA). The
 table below lists the raw GOA bundle ranges; each ``N…M*.fits`` bundle
@@ -102,16 +102,16 @@ separates into individual files.
 +----------+-------------------------------+----------------------------------------------+
 | Type     | GOA bundle range              | Notes                                        |
 +==========+===============================+==============================================+
-| Darks    | ``N20250717M6066`` -          | DDDDE pattern, BLUE and RED, at exposure     |
-|          | ``N20250721M6059``            | times 60, 120, 300, 600, 900, 1200, 1800 s   |
+| Darks    | ``N20250707M6052`` -          | DDDDE pattern, at exposure                   |
+|          | ``N20250708M0078``            | times 60, 120, 300, 600, 900, 1200, 1800 s   |
 +----------+-------------------------------+----------------------------------------------+
-| Flats    | ``N20250701M6126`` -          | DFFFD and DDDDF illumination patterns,       |
-|          | ``N20250701M6271``            | BLUE and RED                                 |
+| Flats    | ``N20250701M6126`` -          | DFFFD and DDDDF illumination patterns        |
+|          | ``N20250701M6271``            |                                              |
 +----------+-------------------------------+----------------------------------------------+
-| Wavecal  | ``N20250717M5948``            | DEEEE etalon frame, BLUE and RED             |
+| Wavecal  | ``N20250717M5948``            | DEEEE etalon frame                           |
 +----------+-------------------------------+----------------------------------------------+
-| Science  | ``N20250717M5299``            | HD 3651, 300 s, SOOOE pattern,               |
-|          |                               | BLUE and RED                                 |
+| Science  | ``N20250717M5299``            | HD 3651, 300 s, SOOOE pattern                |
+|          |                               |                                              |
 +----------+-------------------------------+----------------------------------------------+
 
 The dark exposure times cover the range needed by the dark-coefficient fit
@@ -133,7 +133,7 @@ contain both arms in a single FITS. The default ``processBundle`` recipe
 picks up every ``BUNDLE``-tagged file and writes a per-arm FITS for each
 one. For example, the science bundle ``N20250717M5299.fits`` yields
 ``20250717T144308Z_SOOOE_b_0300.fits`` and
-``20250717T144308Z_SOOOE_r_0004.fits``.
+``20250717T144308Z_SOOOE_r_0300.fits``.
 
 Select every bundle in the working directory and run ``reduce``:
 
@@ -192,7 +192,7 @@ Run the full loop directly in the shell:
 
 Each output is a single master dark file named after the first raw frame
 in the stack with a ``_dark`` suffix - for example
-``20250721T170049Z_DDDDE_b_0300_dark.fits``. The 14 master darks land in
+``20250707T172105Z_DDDDE_b_0300_dark.fits``. The 14 master darks land in
 ``calibrations/processed_dark/`` (and as duplicates in ``science_dir/``).
 
 **Verify processed darks:**
