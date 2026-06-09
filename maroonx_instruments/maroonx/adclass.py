@@ -188,7 +188,7 @@ class AstroDataMAROONX(AstroDataGemini):
         """
         Define the 'processed data' tag set for MAROON-X data.
         """
-        kwords = {'PRWAVECAL'}
+        kwords = {'PRWAVECAL', 'PRDKCOEF'}
         if set(self.phu) & kwords:
             return TagSet(['PROCESSED'])
 
