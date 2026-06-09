@@ -96,7 +96,7 @@ def makeStrayLightCheck(p):
     """
     p.prepare()
     p.checkArm()
-    p.checkND()
+    # p.checkND()
     p.addDQ()
     p.subtractOverscan()
     p.trimOverscan()
@@ -141,7 +141,7 @@ def makeFlatVarCheck(p):
     """
     p.prepare()
     p.checkArm()
-    p.checkND()
+    # p.checkND()
     p.addDQ()
     p.subtractOverscan()
     p.trimOverscan()
@@ -173,7 +173,7 @@ def makeProcessedFlatDFFFF(p):
     """
     p.prepare()
     p.checkArm()
-    p.checkND()
+    # p.checkND()
     p.addDQ()
     p.subtractOverscan()
     # p.trimOverscan()  # noqa: ERA001
