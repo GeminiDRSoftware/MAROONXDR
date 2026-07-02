@@ -233,6 +233,44 @@ After running ``nox -s devenv``, your directory structure will look like this:
     ├── pyproject.toml                # Package metadata and dependencies
     └── README.md                     # Repository README
 
+To activate the working environment, run:
+
+.. code-block:: bash
+
+    source venv/bin/activate
+
+You should see ``(mx_dev)`` in your shell prompt, indicating the environment is active.
+
+.. _maroonx_local_manuals:
+
+Building the Manuals Locally
+============================
+
+Only this Tutorial is published to Read the Docs. The **User Manual** and
+**Programmer Manual** live in the repository under
+``doc/usermanuals/MAROONXDR_UserManual/`` and
+``doc/progmanuals/MAROONXDR_ProgManual/`` and are built on demand with two
+``nox`` sessions.
+
+With ``mx_dev`` activated:
+
+.. code-block:: bash
+
+    # HTML build (default)
+    nox -s usermanual
+    nox -s progmanual
+
+    # PDF build (requires latexmk and a TeX Live install)
+    nox -s usermanual -- --pdf
+    nox -s progmanual -- --pdf
+
+Each session prints a clickable ``file://`` link to the rendered output when
+it finishes. Most terminals turn it into a hyperlink you can open with 
+Ctrl+Click (Cmd+Click on macOS).
+
+The Tutorial itself can also be rebuilt locally with ``nox -s tutorial`` (or
+``nox -s tutorial -- --pdf``), useful when you're editing tutorial pages and
+want to preview them before pushing.
 
 
 Alternative: Conda Environment

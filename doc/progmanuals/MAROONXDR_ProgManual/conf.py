@@ -118,6 +118,10 @@ html_css_files = [
     'custom.css',
 ]
 
+# Sidebar banner and browser-tab favicon (shared assets under doc/_static/)
+html_logo = '../../_static/mx_banner.jpg'
+html_favicon = '../../_static/mx_logo.png'
+
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
 #

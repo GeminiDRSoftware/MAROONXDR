@@ -15,3 +15,4 @@ DRAGONS MAROONX Data Reduction Tutorial
    intro
    example_api
    example_cli
+   legacy

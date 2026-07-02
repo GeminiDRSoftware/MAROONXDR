@@ -122,10 +122,16 @@ html_theme_options = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
+# MaroonX banner and logo
+html_logo = '_static/mx_banner.jpg'
+html_favicon = '_static/mx_logo.png'
+
 # Custom CSS files
 html_css_files = [
     'custom.css',
 ]
+
+
 
 # Custom sidebar templates
 # html_sidebars = {}
