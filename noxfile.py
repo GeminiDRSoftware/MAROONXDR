@@ -502,7 +502,7 @@ def create_inputs(session: nox.Session):
 
 @nox.session(python='3.12')
 def preprocess(session: nox.Session):
-    """Populate $DRAGONS_TEST with v2 data and run reductions for legacy_regression."""
+    """Populate $DRAGONS_TEST data and run reductions for legacy_regression."""
     session.install('poetry', 'poetry-plugin-export')
 
     # Set environment variables that tests might need
@@ -751,4 +751,82 @@ def docstyle(session: nox.Session):
         '--convention=numpy',
         # Ignore missing docstrings in modules and __init__.py
         '--add-ignore=D100,D104',
+    )
+
+
+def _build_manual(session: nox.Session, source_dir: Path, name: str):
+    """Build a manual as HTML (default) or PDF.
+
+    Pass ``--pdf`` in the nox posargs to build a PDF via LaTeX instead.
+    """
+    build_pdf = '--pdf' in session.posargs
+    target = 'latexpdf' if build_pdf else 'html'
+    build_dir = source_dir / 'build'
+
+    session.log(f'Building {name} ({target})...')
+    session.run(
+        'sphinx-build', '-M', target, str(source_dir), str(build_dir),
+        external=True,
+    )
+
+    if build_pdf:
+        pdfs = sorted((build_dir / 'latex').glob('*.pdf'))
+        if pdfs:
+            uri = pdfs[0].resolve().as_uri()
+            session.log(f'{name} PDF: {uri}')
+        else:
+            session.log(
+                f'{name} PDF build finished but no .pdf found under '
+                f'{build_dir}/latex/ - check the build output above.'
+            )
+    else:
+        uri = (build_dir / 'html' / 'index.html').resolve().as_uri()
+        session.log(f'{name} HTML: {uri}')
+
+
+@nox.session(venv_backend=None, python='3.12')
+def usermanual(session: nox.Session):
+    """Build the MaroonX User Manual.
+
+    Defaults to HTML. Pass ``--pdf`` to build a PDF instead:
+        nox -s usermanual -- --pdf
+
+    Requires ``mx_dev`` activated (Sphinx + DRAGONS on PATH).
+    """
+    _build_manual(
+        session,
+        Path('doc/usermanuals/MAROONXDR_UserManual'),
+        'User Manual',
+    )
+
+
+@nox.session(venv_backend=None, python='3.12')
+def progmanual(session: nox.Session):
+    """Build the MaroonX Programmer Manual.
+
+    Defaults to HTML. Pass ``--pdf`` to build a PDF instead:
+        nox -s progmanual -- --pdf
+
+    Requires ``mx_dev`` activated (Sphinx + DRAGONS on PATH).
+    """
+    _build_manual(
+        session,
+        Path('doc/progmanuals/MAROONXDR_ProgManual'),
+        'Programmer Manual',
+    )
+
+
+@nox.session(venv_backend=None, python='3.12')
+def tutorial(session: nox.Session):
+    """Build the MaroonX Tutorial.
+
+    Defaults to HTML. Pass ``--pdf`` to build a PDF instead:
+        nox -s tutorial -- --pdf
+
+    Requires ``mx_dev`` activated (Sphinx + DRAGONS on PATH).
+    """
+    _build_manual(
+        session,
+        Path('doc/tutorials/MAROONXDR_Tutorial'),
+        'Tutorial',
     )

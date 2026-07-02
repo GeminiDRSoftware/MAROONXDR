@@ -21,10 +21,10 @@ recorded simultaneously on independent CCD detectors:
 - **Red arm**: 649-920 nm
 
 The blue detector is a 4400×4400 pixel, 16-bit array read through four
-amplifiers (quadrants Q1–Q4), with a gain of 2.72 e⁻/DN and read noise of
-1.14 (variance units). The red detector is also 4400×4400 pixels, read through
-two amplifiers (R1–R2), with a gain of 2.74 e⁻/DN and read noise of 1.63
-(variance units).
+amplifiers (quadrants Q1–Q4), with a gain of 2.72 :math:`e^-`/DN and read noise
+of 1.14 (variance units). The red detector is also 4400×4400 pixels, read
+through two amplifiers (R1–R2), with a gain of 2.74 :math:`e^-`/DN and read
+noise of 1.63 (variance units).
 
 Raw data delivered from the Gemini Observatory Archive (GOA) arrives as a
 bundle — a single Multi-Extension FITS (MEF) file containing both arms
