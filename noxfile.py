@@ -10,6 +10,7 @@ sessions, so running ``nox`` in isolation will do nothing.
 """
 
 import re
+import shutil
 from pathlib import Path
 
 import nox
@@ -763,6 +764,10 @@ def _build_manual(session: nox.Session, source_dir: Path, name: str):
     target = 'latexpdf' if build_pdf else 'html'
     build_dir = source_dir / 'build'
 
+    if build_dir.exists():
+        session.log(f'Cleaning {build_dir}')
+        shutil.rmtree(build_dir)
+
     session.log(f'Building {name} ({target})...')
     session.run(
         'sphinx-build', '-M', target, str(source_dir), str(build_dir),
@@ -784,7 +789,7 @@ def _build_manual(session: nox.Session, source_dir: Path, name: str):
         session.log(f'{name} HTML: {uri}')
 
 
-@nox.session(venv_backend=None, python='3.12')
+@nox.session(venv_backend='none')
 def usermanual(session: nox.Session):
     """Build the MaroonX User Manual.
 
@@ -800,7 +805,7 @@ def usermanual(session: nox.Session):
     )
 
 
-@nox.session(venv_backend=None, python='3.12')
+@nox.session(venv_backend='none')
 def progmanual(session: nox.Session):
     """Build the MaroonX Programmer Manual.
 
@@ -816,7 +821,7 @@ def progmanual(session: nox.Session):
     )
 
 
-@nox.session(venv_backend=None, python='3.12')
+@nox.session(venv_backend='none')
 def tutorial(session: nox.Session):
     """Build the MaroonX Tutorial.
 

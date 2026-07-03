@@ -231,4 +231,5 @@ intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),
     'numpy': ('https://numpy.org/doc/stable/', None),
     'astropy': ('https://docs.astropy.org/en/stable/', None),
+    'astrodata': ('https://astrodata.readthedocs.io/en/latest/', None),
 }

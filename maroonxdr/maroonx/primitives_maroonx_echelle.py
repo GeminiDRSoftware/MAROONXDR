@@ -147,15 +147,23 @@ class MAROONXEchelle(MAROONX, Spect):
 
         Parameters
         ----------
-        adinputs: AstroData object(s) science files to create darks for
-        dark_coeff: (optional) adinput of dark coefficients file
-        individual: (bool) if True, creates unique dark for each frame
-            (no reuse). If False, reuses darks for frames with same
-            exposure time, ND filter, and arm.
+        adinputs : list of :class:`~astrodata.AstroData`
+            Science files to create darks for.
+
+        suffix : str
+            Suffix to be added to output files.
+
+        dark_coeff : str or :class:`~astrodata.AstroData`, optional
+            Adinput of dark coefficients file.
+
+        individual : bool
+            If True, creates unique dark for each frame (no reuse). If False,
+            reuses darks for frames with same exposure time, ND filter, and arm.
 
         Returns
         -------
-        adoutputs: list of AstroData objects containing synthetic dark frames
+        list of :class:`~astrodata.AstroData`
+            Synthetic dark frames.
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
@@ -330,35 +338,50 @@ class MAROONXEchelle(MAROONX, Spect):
 
         Parameters
         ----------
-        adinputs : list of AstroData
-            Input science frames
+        adinputs : list of :class:`~astrodata.AstroData`
+            Input science frames.
+
         suffix : str
-            Suffix to be added to output files
-        flat : str or AstroData, optional
+            Suffix to be added to output files.
+
+        flat : str or :class:`~astrodata.AstroData`, optional
             Processed flat frame. If None, queries the calibration database.
-        dark : str or AstroData, optional
+
+        dark : str or :class:`~astrodata.AstroData`, optional
             Processed dark frame. If None, queries the calibration database.
+
         dark_subtraction_skip_fibers : list of int, optional
             Fiber numbers (1-5) to skip dark frame subtraction.
+
         straylight_removal_fibers : list of int, optional
             Fiber numbers (1-5) for which straylight will be removed.
+
         slit_height : int
-            Total slit height in px
+            Total slit height in px.
+
         test_extraction : bool
-            Used in unit test for this function, saves
-            science extraction, flat extraction, and the bpm-extraction in
-            FITS-readable format (STRIPES, F_STRIPES, STRIPES_MASK)
+            Used in unit test for this function, saves science extraction, flat
+            extraction, and the bpm-extraction in FITS-readable format
+            (STRIPES, F_STRIPES, STRIPES_MASKS).
+
         report : bool
             Passed along to the straylight removal primitive.
 
         Returns
         -------
-        list of AstroData
-            Adinputs with sparse matrices added holding the 2D extractions for
-            each fiber/order for the science frame, flat frame, and BPM
-            (STRIPES, F_STRIPES, STRIPES_MASK)
-            if test_extraction==True, the extractions are FITS-readable and not
-            sparse matrix format
+        list of :class:`~astrodata.AstroData`
+            Input frames with sparse matrices added holding the 2D extractions
+            for each fiber/order for the science frame, flat frame, and BPM.
+            Extensions added:
+
+            - ``STRIPES`` : science frame stripes.
+
+            - ``F_STRIPES`` : flat frame stripes.
+
+            - ``STRIPES_MASKS`` : bad pixel mask stripes.
+
+            If ``test_extraction=True``, the extensions are stored in
+            FITS-readable format instead of sparse matrix format.
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
@@ -565,32 +588,54 @@ class MAROONXEchelle(MAROONX, Spect):
 
         Parameters
         ----------
-        adinputs : list of AstroData
-            Adinputs with STRIPES, F_STRIPES, and STRIPES_MASKS 'extensions' as
-            dicts of sparse arrays
+        adinputs : list of :class:`~astrodata.AstroData`
+            Frames with STRIPES, F_STRIPES, and STRIPES_MASKS extensions as
+            dicts of sparse arrays.
+
         suffix : str
-            Suffix to be added to output files
+            Suffix to be added to output files.
+
+        dark : str or :class:`~astrodata.AstroData`, optional
+            Processed dark frame. If None, queries the calibration database.
+
         optimal_extraction_fibers : list of int, optional
-            Fiber numbers (1-5) for optimal extraction.
-            Fibers considered for optimal extraction
+            Fiber numbers (1-5) for optimal extraction. Fibers considered for
+            optimal extraction.
+
         back_var : float, optional
-            Manual background variance for frame
+            Manual background variance for frame.
+
         full_output : bool
-            If True, an additional set of intermediate
-            products will be returned / saved
+            If True, an additional set of intermediate products will be
+            returned / saved.
+
         penalty : float
-            Scaling penalty factor for mismatch correction
-            between flat field profile and science spectrum during optimal
-            extraction
+            Scaling penalty factor for mismatch correction between flat field
+            profile and science spectrum during optimal extraction.
+
         s_clip : float
-            Sigma-clipping parameter during optimal extraction
+            Sigma-clipping parameter during optimal extraction.
+
+        read_noise : float
+            Read noise (e-). MX default is 1.14.
+
+        gain : float
+            Detector gain (e-/ADU). MX default is 2.72.
 
         Returns
         -------
-        list of AstroData
-            Adinputs with optimal and box extracted orders for each fiber as
-            well as uncertainties and the bad pixel mask result from the optimal
-            extraction
+        list of :class:`~astrodata.AstroData`
+            Input frames with optimal and box extracted orders for each fiber
+            together with uncertainties and the bad pixel mask result from the
+            optimal extraction. Extensions added, one per fiber ``N`` in ``1-5``:
+
+            - ``REDUCED_ORDERS_FIBER_N``
+            - ``OPTIMAL_REDUCED_FIBER_N``
+            - ``OPTIMAL_REDUCED_VAR_N``
+            - ``BOX_REDUCED_FIBER_N``
+            - ``BOX_REDUCED_VAR_N``
+            - ``BOX_REDUCED_FLAT_N``
+            - ``BPM_FIBER_N``
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
@@ -837,20 +882,29 @@ class MAROONXEchelle(MAROONX, Spect):
 
         Parameters
         ----------
-        adinputs : list of AstroData
+        adinputs : list of :class:`~astrodata.AstroData`
             Processed flat AstroData objects that contain
             ``BOX_REDUCED_FLAT_{f}`` extensions.
+
         suffix : str
             Filename suffix appended to output files.
+
         n_knots : int
             Number of spline knots used in the blaze fit (default 50).
+
+        outlier_threshold : float
+            Relative outlier rejection threshold (fraction of blaze fit value).
+
         fibers : list of int
             Fiber numbers to process.
 
         Returns
         -------
-        list of AstroData
-            Input objects augmented with ``BLAZE_FIBER_{f}`` extensions.
+        list of :class:`~astrodata.AstroData`
+            Input frames with the following extension added, one per fiber
+            ``N`` in ``1-5``:
+
+            - ``BLAZE_FIBER_N``
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
@@ -894,19 +948,32 @@ class MAROONXEchelle(MAROONX, Spect):
 
     def boxExtraction(self, adinputs, **params):
         """
-        This primitive performs box extraction on a 2d echelle spectrum.
-        Utilized in the dynamic and static wavelength calibration recipe as it
-        is quicker than relying on optimal extraction.
+        Perform box extraction on a 2D echelle spectrum.
+
+        Utilized in the dynamic and static wavelength calibration recipes
+        as it is quicker than relying on optimal extraction.
 
         Parameters
         ----------
-        adinputs with STRIPES, F_STRIPES, and STRIPES_MASKS 'extensions' as
-            dicts of sparse arrays
+        adinputs : list of :class:`~astrodata.AstroData`
+            2D echelle frames carrying the ``STRIPES``, ``F_STRIPES``, and
+            ``STRIPES_MASKS`` attributes as dicts of sparse arrays.
+
+        suffix : str
+            Suffix to be added to output files.
 
         Returns
         -------
-        adinputs with box extracted orders for each fiber as
-        well as uncertainties calculated during the box extraction
+        list of :class:`~astrodata.AstroData`
+            The input frames with box-extracted orders for each fiber and
+            uncertainties calculated during the box extraction. Extensions
+            added, one per fiber ``N`` in ``1-5``:
+
+            - ``REDUCED_ORDERS_FIBER_N``
+            - ``BOX_REDUCED_FIBER_N``
+            - ``BOX_REDUCED_VAR_N``
+            - ``BOX_REDUCED_FLAT_N``
+            - ``BPM_FIBER_N``
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))

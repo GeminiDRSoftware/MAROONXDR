@@ -52,7 +52,8 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs : list of AstroData objects with no DQ extension
+        adinputs : list of AstroData
+            Input AstroData objects with no DQ extension.
         suffix: str
             suffix to be added to output files
         static_bpm: str
@@ -261,17 +262,19 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs : list of AstroData
-            List of unchecked AstroData objects
+        adinputs : list of :class:`~astrodata.AstroData`
+            List of unchecked AstroData objects.
+
         suffix : str
-            suffix to be added to output files
+            Suffix to be added to output files.
+
         require_wcs : bool
-            do all extensions have to have a defined WCS?
+            Do all extensions have to have a defined WCS?
 
         Returns
         -------
-        list of AstroData
-            List of checked AstroData objects
+        list of :class:`~astrodata.AstroData`
+            List of checked AstroData objects.
         """
         try:
             super().validateData(adinputs, **params)
@@ -281,9 +284,9 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
         return adinputs
 
     def standardizeWCS(self, adinputs=None, **params):
-        """MAROONXDR version of standarizeWCS to skip WCS processing."""
+        """MAROONXDR version of standardizeWCS to skip WCS processing."""
         log = self.log
-        log.stdinfo('Skipping standarizeWCS() primitive.')
+        log.stdinfo('Skipping standardizeWCS() primitive.')
         return adinputs
 
     def checkArm(self, adinputs=None, **params):
@@ -297,11 +300,16 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs - list of un-checked MX frames
+        adinputs : list of :class:`~astrodata.AstroData`
+            List of un-checked MX frames.
+
+        suffix : str
+            Suffix to be added to output files.
 
         Returns
         -------
-        adoutputs - set of list that passes test,  always at least first frame
+        list of :class:`~astrodata.AstroData`
+            Set of frames that pass the test, always at least the first frame.
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
@@ -344,11 +352,16 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs - list of un-checked MX frames
+        adinputs : list of :class:`~astrodata.AstroData`
+            List of un-checked MX frames.
+
+        suffix : str
+            Suffix to be added to output files.
 
         Returns
         -------
-        adoutputs - set of list that passes test,  always at least first frame
+        list of :class:`~astrodata.AstroData`
+            Set of frames that pass the test, always at least the first frame.
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
@@ -395,11 +408,16 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs - list of un-checked MX objects
+        adinputs : list of :class:`~astrodata.AstroData`
+            List of un-checked MX objects.
+
+        suffix : str
+            Suffix to be added to output files.
 
         Returns
         -------
-        adoutputs - same list as inputs, with correct orientation to SCI
+        list of :class:`~astrodata.AstroData`
+            Same list as inputs, with correct orientation to SCI.
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
@@ -452,19 +470,22 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs : list of AstroData
-            List of MX objects without variance extensions
+        adinputs : list of :class:`~astrodata.AstroData`
+            List of MX objects without variance extensions.
+
         suffix : str
-            Suffix to be added to output files
+            Suffix to be added to output files.
+
         read_noise : bool
-            Whether to include read noise in variance calculations
+            Whether to include read noise in variance calculations.
+
         poisson_noise : bool
-            Whether to include poisson noise in variance calculations
+            Whether to include poisson noise in variance calculations.
 
         Returns
         -------
-        list of AstroData
-            List of MX objects with variance extensions
+        list of :class:`~astrodata.AstroData`
+            List of MX objects with variance extensions.
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
@@ -512,12 +533,16 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs - list of MX-objects
+        adinputs : list of :class:`~astrodata.AstroData`
+            List of MX-objects.
+
+        suffix : str
+            Suffix to be added to output files.
 
         Returns
         -------
-        adoutputs - adinputs that pass test
-
+        list of :class:`~astrodata.AstroData`
+            Inputs that pass the test.
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
@@ -561,8 +586,16 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        suffix: str
-            suffix to be added to output files
+        adinputs : list of :class:`~astrodata.AstroData`
+            List of MX frames.
+
+        suffix : str
+            Suffix to be added to output files.
+
+        Returns
+        -------
+        list of :class:`~astrodata.AstroData`
+            Input frames with the overscan level subtracted.
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
@@ -1217,32 +1250,43 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
         stripe. To improve algorithm stability, the image is first median
         filtered and then smoothed with a gaussian. It not only eliminates
         noise, but also ensures that the cross-section profile of the flat
-        becomes peaked in the middle, which helps to identify the center of each
-        stripe. Choose gauss_filter accordingly. To avoid false positives, only
-        peaks above a certain (relative) intensity threshold are used.
+        becomes peaked in the middle, which helps to identify the center of
+        each stripe. Choose ``gauss_filter_sigma`` accordingly. To avoid
+        false positives, only peaks above a certain (relative) intensity
+        threshold are used.
 
         Parameters
         ----------
-        adinputs : list of AstroData
-            Single MX astrodata object, is either a DFFFD flat,
-            FDDDF flat, or combined FFFFF flat
+        adinputs : list of :class:`~astrodata.AstroData`
+            MX flat frames. Each frame is either a DFFFD flat, an FDDDF
+            flat, or a combined FFFFF flat.
+
         suffix : str
-            Suffix to be added to output files
+            Suffix to be added to output files.
+
         deg_polynomial : int
-            Degree of the polynomial fit
+            Degree of the polynomial fit to each stripe.
+
         med_filter : int
-            Median filter parameter
+            Median filter window size applied before peak detection.
+
         gauss_filter_sigma : float
-            Sigma of the gaussian filter used to smooth the image
+            Sigma of the gaussian filter used to smooth the image before
+            peak detection.
+
         min_peak : float
-            Minimum relative peak height
+            Minimum peak height, relative to the frame maximum, for a
+            stripe to be accepted.
 
         Returns
         -------
-        list of AstroData
-            Single MX astrodata object with STRIPES_LOC extension.
-            This extension temporarily holds the fits-unsavable fiber information
-            before it is utilized and then removed.
+        list of :class:`~astrodata.AstroData`
+            The input frame with the following extension added:
+
+            - ``STRIPES_LOC`` : per-fiber polynomial coefficients tracing
+              each stripe. This extension temporarily holds the
+              fits-unsavable fiber information before it is utilized and
+              then removed.
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
@@ -1343,28 +1387,35 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs : list of AstroData
-            Single MX astrodata object, is either a DFFFD flat,
-            FDDDF flat, or combined FFFFF flat with STRIPES_LOC extension
+        adinputs : list of :class:`~astrodata.AstroData`
+            MX flat frames with STRIPES_LOC extension. Each frame is
+            either a DFFFD flat, an FDDDF flat, or a combined FFFFF flat.
+
         suffix : str
-            Suffix to be added to output files
+            Suffix to be added to output files.
+
         positions_dir : str
-            Lookup fits location of nominal y positions and
-            fiber/order labels. Shape is Nx3, columns are
-            [fibers, orders, y_positions], nominally found in lookups/SID
+            Lookup fits location of nominal y positions and fiber/order
+            labels. Shape is Nx3, columns are [fibers, orders, y_positions],
+            nominally found in lookups/SID.
+
         selected_fibers : list of int
-            List of fiber numbers illuminated in the flat, if None assumes all
-            can work if not given on partially illuminated frame, but best
-            practice is to explicitly identify on function call
+            List of fiber numbers illuminated in the flat. If None, assumes
+            all. Can work if not given on partially illuminated frame, but
+            best practice is to explicitly identify on function call.
 
         Returns
         -------
-        list of AstroData
-            Single MX astrodata object with STRIPES_ID extension.
-            This extension temporarily holds the fits-unsavable fiber information
-            before it is utilized and then removed. A new extension REMOVED_STRIPES
-            also saves the polynomial info for every stripe that is not identified
-            from the original set inherited from findStripes
+        list of :class:`~astrodata.AstroData`
+            The input frames with the following extensions added:
+
+            - ``STRIPES_ID`` : per-fiber, per-order stripe identification.
+              This extension temporarily holds the fits-unsavable fiber
+              information before it is utilized and then removed.
+
+            - ``REMOVED_STRIPES`` : polynomial info for every stripe that
+              is not identified, from the original set inherited from
+              findStripes.
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
@@ -1510,23 +1561,37 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs : list of AstroData
-            Single MX astrodata object, is either a DFFFD, FDDDF flat,
-            or combined FFFFF flat
+        adinputs : list of :class:`~astrodata.AstroData`
+            MX flat frames. Each frame is either a DFFFD flat, an FDDDF flat,
+            or a combined FFFFF flat.
+
         suffix : str
-            Suffix to be added to output files
+            Suffix to be added to output files.
+
         slit_height : int
-            Half pixel height of box in each dimension to
-            perform box extraction with
+            Half pixel height of box in each dimension to perform box
+            extraction with.
+
         extract : bool
-            If True, will write STRIPES_ID in fits-acceptable
-            format. Utilized in combined, all fiber illuminated FFFFF_flat
+            If True, will write STRIPES_ID in fits-acceptable format. Utilized
+            in combined, all fiber illuminated FFFFF_flat.
 
         Returns
         -------
-        list of AstroData
-            Single MX astrodata object with INDEX_FIBER, INDEX_ORDER
-            extensions and possibly STRIPES_ID and STRIPES_FIBERS extensions
+        list of :class:`~astrodata.AstroData`
+            The input frames with the following extensions added:
+
+            - ``INDEX_FIBER`` : 2D pixel map of fiber assignments.
+
+            - ``INDEX_ORDER`` : 2D pixel map of echelle order assignments.
+
+            - ``STRIPES_ID`` : (if ``extract=True``) FITS-savable
+              by-spectral-order polynomial plate solution for each
+              illuminated fiber.
+
+            - ``STRIPES_FIBERS`` : (if ``extract=True``) companion to
+              ``STRIPES_ID`` used to define 2D extraction regions in
+              science extractions.
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
@@ -1602,27 +1667,36 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs : list of AstroData
-            Single MX astrodata object, is either a DFFFD or FDDDF flat
-            that has not previously had its stray light removed
+        adinputs : list of :class:`~astrodata.AstroData`
+            MX flat frames. Each frame is either a DFFFD or FDDDF flat that
+            has not previously had its stray light removed.
+
         suffix : str
-            Suffix to be added to output files
+            Suffix to be added to output files.
+
         box_size : int
-            Pixel height and width of 'mesh_element' used in
-            background identification sub-routine
+            Pixel height and width of 'mesh_element' used in background
+            identification sub-routine.
+
         filter_size : int
-            Pixel height and width of window to perform
-            background identification sub-routine
+            Pixel height and width of window to perform background
+            identification sub-routine.
+
         snapshot : bool
-            Bool to save difference frame of removed stray light as
-            extension STRAYLIGHT_DIFFERENCE
+            If True, save the difference frame of removed stray light as
+            the ``STRAYLIGHT_DIFFERENCE`` extension.
+
         report : bool
-            Generate PDF diagnostic report showing straylight removal stages
+            Generate PDF diagnostic report showing straylight removal stages.
 
         Returns
         -------
-        list of AstroData
-            Single MX astrodata object with stray light removed from SCI
+        list of :class:`~astrodata.AstroData`
+            The input frames with stray light removed from SCI, and the
+            following extension added when ``snapshot=True``:
+
+            - ``STRAYLIGHT_DIFFERENCE`` : difference frame of the removed
+              stray light.
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
@@ -1926,8 +2000,11 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs : list of MX flats
-        **params : dict of parameters
+        adinputs : list of :class:`~astrodata.AstroData`
+            MX flats.
+
+        suffix : str
+            Suffix to be added to output files.
 
         Returns
         -------
@@ -1995,19 +2072,21 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs : list of AstroData
-            Primary stream of flat objects (typically FDDDF flats)
+        adinputs : list of :class:`~astrodata.AstroData`
+            Primary stream of flat objects (typically FDDDF flats).
+
         suffix : str
-            Suffix to be added to output files
+            Suffix to be added to output files.
+
         stream_2 : str
             Name of the secondary stream to combine with the main stream
-            (typically 'DFFFD_flats')
+            (typically 'DFFFD_flats').
 
         Returns
         -------
-        list of AstroData
-            List containing a single AstroData object with the combined flat field
-            data.
+        list of :class:`~astrodata.AstroData`
+            List containing a single AstroData object with the combined flat
+            field data.
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
@@ -2063,16 +2142,20 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs : list of AstroData objects
+        adinputs : list of :class:`~astrodata.AstroData`
             List of multi-extension AstroData objects to be split.
+
+        suffix : str
+            Suffix to be added to output files.
 
         keep_suffix : bool
             If True, retains the suffix from the processed file name.
 
         Returns
         -------
-        adouputs : list of AstroData objects
-            List containing a separate AstroData object for each extension in each input
+        list of :class:`~astrodata.AstroData`
+            List containing a separate AstroData object for each extension in
+            each input.
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
@@ -2128,15 +2211,24 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs : list of AstroData
-            Input frames to be combined
+        adinputs : list of :class:`~astrodata.AstroData`
+            Input frames to be combined.
+
         suffix : str
-            Suffix to be added to output files
+            Suffix to be added to output files.
 
         Returns
         -------
-        list of AstroData
-            Combined output frame
+        list of :class:`~astrodata.AstroData`
+            Single-element list containing the combined output frame with the
+            following extensions added:
+
+            - ``COEFF_Z0`` : 2D array of the log-linear slope coefficients.
+
+            - ``COEFF_Z1`` : 2D array of the log-linear intercept coefficients.
+
+            - ``LOGEXPTIME`` : Table with columns ``logexptime``, ``exptime``,
+              ``filename``.
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))

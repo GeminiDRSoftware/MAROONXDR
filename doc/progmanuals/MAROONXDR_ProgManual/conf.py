@@ -251,3 +251,13 @@ texinfo_documents = [
 # def setup(app):
 #     app.add_stylesheet('todo-styles.css')
 #     app.add_stylesheet('rtd_theme_overrides.css')
+
+# -- Intersphinx configuration --------------------------------------------
+
+# Link to other Sphinx documentation
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3', None),
+    'numpy': ('https://numpy.org/doc/stable/', None),
+    'astropy': ('https://docs.astropy.org/en/stable/', None),
+    'astrodata': ('https://astrodata.readthedocs.io/en/latest/', None),
+}
