@@ -1,0 +1,97 @@
+// Generic MAROON-X recipe flow template.
+// Demonstrates the node and edge conventions proposed for `flows.rst`:
+//   - rounded green box  = primitive call
+//   - note-shape box     = file product (persisted to disk)
+//   - folded-corner box  = calibration DB lookup
+//   - dashed edge        = external / auxiliary input
+//   - solid edge         = AstroData stream inside the recipe
+//   - diamond            = branch on tag / parameter
+//   - subgraph cluster   = per-arm (or per-fiber) parallel processing
+
+digraph recipeName {
+    rankdir=TB;
+    fontname="Helvetica";
+    labelloc="t";
+    label=<<b>recipeName</b>>;
+
+    node [fontname="Helvetica", fontsize=10];
+    edge [fontname="Helvetica", fontsize=9];
+
+    // ---- Inputs ----------------------------------------------------------
+    input_file [
+        label="inputProduct.fits",
+        shape=note, style=filled, fillcolor="#e8f0fe"
+    ];
+    aux_input [
+        label="auxiliary input\n(config, exposuremeter, ...)",
+        shape=note, style=filled, fillcolor="#fff4e5"
+    ];
+    caldb [
+        label="getProcessedCalibration()\n(CalDB lookup)",
+        shape=folder, style=filled, fillcolor="#f3e5f5"
+    ];
+
+    // ---- Primitives ------------------------------------------------------
+    prim_a [
+        label="primitiveA()",
+        shape=box, style="rounded,filled", fillcolor="#dcedc8"
+    ];
+    branch [
+        label="tag / param?",
+        shape=diamond, style=filled, fillcolor="#fff9c4"
+    ];
+    prim_b [
+        label="primitiveB()",
+        shape=box, style="rounded,filled", fillcolor="#dcedc8"
+    ];
+    prim_c [
+        label="primitiveC()",
+        shape=box, style="rounded,filled", fillcolor="#dcedc8"
+    ];
+
+    // ---- Per-arm cluster (illustrative parallel processing) --------------
+    subgraph cluster_arms {
+        label="per-arm processing";
+        style="rounded,dashed";
+        color="#90a4ae";
+        fontsize=9;
+
+        prim_blue [
+            label="primitiveD()\n(BLUE)",
+            shape=box, style="rounded,filled", fillcolor="#dcedc8"
+        ];
+        prim_red [
+            label="primitiveD()\n(RED)",
+            shape=box, style="rounded,filled", fillcolor="#dcedc8"
+        ];
+    }
+
+    // ---- Outputs ---------------------------------------------------------
+    store [
+        label="storeProcessedProduct(suffix='_suffix')",
+        shape=box, style="rounded,filled", fillcolor="#dcedc8"
+    ];
+    output_file [
+        label="outputProduct_suffix.fits",
+        shape=note, style=filled, fillcolor="#e8f0fe"
+    ];
+
+    // ---- Edges -----------------------------------------------------------
+    input_file -> prim_a;
+    aux_input  -> prim_a [style=dashed, label="inputs"];
+    caldb      -> prim_a [style=dashed, label="calibration"];
+
+    prim_a -> branch;
+    branch -> prim_b [label="tag == X"];
+    branch -> prim_c [label="else"];
+
+    prim_b -> prim_blue;
+    prim_b -> prim_red;
+    prim_c -> prim_blue;
+    prim_c -> prim_red;
+
+    prim_blue -> store;
+    prim_red  -> store;
+
+    store -> output_file;
+}

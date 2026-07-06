@@ -36,9 +36,14 @@ Calibration Flows
 Dark Frame Processing Flow
 --------------------------
 
-.. todo::
+The ``makeProcessedDark`` recipe stacks a sequence of debundled per-arm
+raw darks into a single processed dark, which is then stored on disk and
+registered with the calibration database. The recipe runs independently
+for each arm; the diagram below shows the BLUE arm.
 
-   Document the dark frame creation and processing flow.
+.. graphviz:: flows/makeProcessedDark.dot
+   :align: center
+   :caption: ``makeProcessedDark`` recipe flow (BLUE arm shown).
 
 Flat Field Processing Flow
 --------------------------
@@ -80,3 +85,14 @@ Echelle Spectroscopy Flow
    * 1D spectrum creation
    * Barycentric velocity correction
    * Final science product generation
+
+Barycentric Correction Flow
+---------------------------
+
+The ``applyBarycentricCorrection`` recipe applies a target-specific barycentric
+velocity correction to an already-reduced MAROON-X spectrum. It is run after
+the main science reduction workflow, on the ``_reduced`` product.
+
+.. todo::
+
+   Document the barycentric correction flow.

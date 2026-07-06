@@ -1,0 +1,86 @@
+// Flow diagram for the `makeProcessedDark` recipe
+// (maroonxdr/maroonx/recipes/sq/recipes_DARK.py).
+//
+// Conventions follow flows/nodes.dot (the node catalog).
+
+digraph makeProcessedDark {
+    rankdir=TB;
+    fontname="Helvetica";
+    labelloc="t";
+    label=<<b>makeProcessedDark</b>>;
+
+    node [fontname="Helvetica", fontsize=10,
+          shape=box, style="rounded,filled",
+          penwidth=1.5, fontcolor=white];
+    edge [fontname="Helvetica", fontsize=9];
+
+    // ---- Input: raw DARK per-arm (BLUE shown; RED symmetric) -------------
+    input [label="DARK\nDDDDE",
+           shape=note, style="filled,dashed",
+           fillcolor="#B6B6B6", fontcolor=black,
+           color="#1976D2", penwidth=1.5];
+
+    // ---- Primitive chain -------------------------------------------------
+    // prepare: DRAGONS core, unchanged
+    prepare [label="prepare()",
+             fillcolor="#4A90A4", color="#4A90A4"];
+
+    // checkArm: new in MAROONX
+    checkArm [label="checkArm()",
+              fillcolor="#A1342D", color="#A1342D"];
+
+    // checkND: new in MAROONX
+    checkND [label="checkND()",
+             fillcolor="#A1342D", color="#A1342D"];
+
+    // addDQ: defined in core.primitives_standardize, overridden in MAROONX
+    addDQ [label="addDQ()",
+           fillcolor="#4A90A4", color="#A1342D"];
+
+    // BPM lookup consumed by addDQ (BLUE arm shown)
+    bpm [label="BPM_b_0000.fits",
+         shape=component, style=filled,
+         fillcolor="#e8f0fe", fontcolor=black,
+         color="#1976D2", penwidth=1.5];
+
+    // subtractOverscan: defined in core.primitives_ccd, overridden in MAROONX
+    subtractOverscan [label="subtractOverscan()",
+                      fillcolor="#607d8b", color="#A1342D"];
+
+    // addVAR: defined in core.primitives_standardize, overridden in MAROONX
+    addVAR [label="addVAR(read_noise=True,\npoisson_noise=True)",
+            fillcolor="#4A90A4", color="#A1342D"];
+
+    // stackDarks: defined in core.primitives_stack, overridden in MAROONX
+    stackDarks [label="stackDarks(scale_mode='first_frame',\nlsigma=2.0, hsigma=2.0)",
+                fillcolor="#4A90A4", color="#A1342D"];
+
+    // storeProcessedDark: DRAGONS CalibDB core, unchanged
+    storeProcessedDark [label="storeProcessedDark()",
+                        fillcolor="#6a1b9a", color="#6a1b9a"];
+
+    // ---- Outputs: per-arm processed dark + CalDB registration -----------
+    output [label="PROCESSED\nDDDDE",
+            shape=note, style=filled,
+            fillcolor="#B6B6B6", fontcolor=black,
+            color="#1976D2", penwidth=1.5];
+
+    caldb [label="CalDB storage",
+           shape=cylinder, style=filled,
+           fillcolor="#2E7D32", fontcolor=white,
+           color=black, penwidth=1];
+
+    // ---- Edges -----------------------------------------------------------
+    input              -> prepare;
+    prepare            -> checkArm;
+    checkArm           -> checkND;
+    checkND            -> addDQ;
+    { rank=same; addDQ; bpm; }
+    addDQ -> bpm [dir=back];
+    addDQ              -> subtractOverscan;
+    subtractOverscan   -> addVAR;
+    addVAR             -> stackDarks;
+    stackDarks         -> storeProcessedDark;
+    storeProcessedDark -> output;
+    storeProcessedDark -> caldb;
+}

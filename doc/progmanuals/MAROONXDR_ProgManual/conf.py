@@ -32,6 +32,7 @@ extensions = [
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
     'sphinx.ext.intersphinx',
+    'sphinx.ext.graphviz',
     'sphinx_rtd_theme',
     'sphinx_copybutton',
 ]
