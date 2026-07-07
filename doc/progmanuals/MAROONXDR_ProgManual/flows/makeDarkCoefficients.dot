@@ -1,0 +1,67 @@
+// Flow diagram for the `makeDarkCoefficients` recipe
+// (maroonxdr/maroonx/recipes/sq/recipes_DARK.py).
+//
+// Conventions follow flows/nodes.dot (the node catalog).
+
+digraph makeDarkCoefficients {
+    rankdir=TB;
+    fontname="Helvetica";
+    labelloc="t";
+    label=<<b>makeDarkCoefficients</b>>;
+
+    node [fontname="Helvetica", fontsize=10,
+          shape=box, style="rounded,filled",
+          penwidth=1.5, fontcolor=white];
+    edge [fontname="Helvetica", fontsize=9];
+
+    // ---- Input: N >= 5 processed darks per-arm (BLUE shown) --------------
+    input [label="PROCESSED\nDDDDE",
+           shape=note, style=filled,
+           fillcolor="#B6B6B6", fontcolor=black,
+           color="#1976D2", penwidth=1.5];
+
+    // ---- Primitive chain -------------------------------------------------
+    prepare [label="prepare()",
+             fillcolor="#4A90A4", color="#4A90A4"];
+
+    checkArm [label="checkArm()",
+              fillcolor="#A1342D", color="#A1342D"];
+
+    checkMaster [label="checkMaster()",
+                 fillcolor="#A1342D", color="#A1342D"];
+
+    fitDarkCoefficients [label="fitDarkCoefficients()",
+                         fillcolor="#A1342D", color="#A1342D"];
+
+    storeProcessedDarkCoeff [label="storeProcessedDarkCoeff()",
+                             fillcolor="#6a1b9a", color="#6a1b9a"];
+
+    // ---- Outputs ---------------------------------------------------------
+    output [label="DARK_COEFF",
+            shape=component, style=filled,
+            fillcolor="#B6B6B6", fontcolor=black,
+            color="#1976D2", penwidth=1.5];
+
+    log [label="reduce.log",
+         shape=note, style=filled,
+         fillcolor="#e8f0fe", fontcolor=black,
+         color=black, penwidth=1];
+
+    caldb [label="CalDB storage",
+           shape=cylinder, style=filled,
+           fillcolor="#2E7D32", fontcolor=white,
+           color=black, penwidth=1];
+
+    // ---- Edges: primitive chain -----------------------------------------
+    input               -> prepare;
+    prepare             -> checkArm;
+    checkArm            -> checkMaster;
+    checkMaster         -> fitDarkCoefficients;
+    fitDarkCoefficients -> storeProcessedDarkCoeff;
+
+    // ---- Edges: outputs --------------------------------------------------
+    storeProcessedDarkCoeff -> output;
+    storeProcessedDarkCoeff -> log;
+    { rank=same; storeProcessedDarkCoeff; caldb; }
+    storeProcessedDarkCoeff -> caldb;
+}

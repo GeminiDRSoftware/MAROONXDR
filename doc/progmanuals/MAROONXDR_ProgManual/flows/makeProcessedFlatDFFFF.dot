@@ -1,0 +1,129 @@
+// Flow diagram for the `makeProcessedFlatDFFFF` recipe
+// (maroonxdr/maroonx/recipes/sq/recipes_FLAT_SPECT.py).
+//
+// The recipe fans out into two parallel streams (`main` = DDDDF, and
+// `DFFFD_flats` = DFFFD) after `separateFlatStreams`, runs an identical
+// primitive chain on each, and merges them at `combineFlatStreams`.
+// The chain is drawn once; edges carrying the two streams in parallel
+// are rendered as double lines (`color="black:black"`).
+//
+// Conventions follow flows/nodes.dot (the node catalog).
+
+digraph makeProcessedFlatDFFFF {
+    rankdir=TB;
+    fontname="Helvetica";
+    labelloc="t";
+    label=<<b>makeProcessedFlatDFFFF</b>>;
+
+    node [fontname="Helvetica", fontsize=10];
+    edge [fontname="Helvetica", fontsize=9];
+
+    // =====================================================================
+    // Nodes
+    // =====================================================================
+
+    // ---- FITS data products (note shape, BLUE-arm border) ---------------
+    node [shape=note, style=filled, fontcolor=black,
+          color="#1976D2", penwidth=1.5];
+    input  [label="RAW\n(DFFFD + DDDDF)", fillcolor="#DB6DB2", style="filled,dashed"];
+    output [label="PROCESSED\nDFFFF",     fillcolor="#DB6DB2"];
+    log    [label="reduce.log", fillcolor="#e8f0fe", color=black, penwidth=1];
+
+    // ---- CalDB cylinder ----------------------------------------------------
+    node [shape=cylinder, fillcolor="#2E7D32", fontcolor=white,
+          color=black, penwidth=1];
+    caldb [label="CalDB storage"];
+
+    // ---- Lookup FITS (shipped with the package) -------------------------
+    node [shape=component, style=filled, fontcolor=black,
+          color="#1976D2", penwidth=1.5];
+    bpm       [label="BPM_b_0000.fits", fillcolor="#e8f0fe"];
+    sid_split [label="SID_b.fits",      fillcolor="#DB6DB2"];
+    sid_final [label="SID_b.fits",      fillcolor="#DB6DB2"];
+
+    // ---- Diagnostic report (removeStrayLight, report=True) --------------
+    node [shape=folder, fillcolor="#e8f0fe", color=black, penwidth=1];
+    straylight_pdf [label="report.pdf"];
+
+    // ---- Primitives (fill = defining class, maroon border = MX-owned) ---
+    node [shape=box, style="rounded,filled", fontcolor=white, penwidth=1.5];
+
+    // Column 1: prologue, split, and stacked-frame processing
+    prepare                 [label="prepare()",                        fillcolor="#4A90A4", color="#4A90A4"];
+    checkArm                [label="checkArm()",                       fillcolor="#A1342D", color="#A1342D"];
+    addDQ                   [label="addDQ()",                          fillcolor="#4A90A4", color="#A1342D"];
+    subtractOverscan_raw    [label="subtractOverscan()",               fillcolor="#607d8b", color="#A1342D"];
+    addVAR                  [label="addVAR()",
+                             fillcolor="#4A90A4", color="#A1342D"];
+    separateFlatStreams     [label="separateFlatStreams()",            fillcolor="#A1342D", color="#A1342D"];
+    stackFlats              [label="stackFlats()",
+                             fillcolor="#A1342D", color="#A1342D"];
+    subtractOverscan        [label="subtractOverscan()",               fillcolor="#607d8b", color="#A1342D"];
+    trimOverscan            [label="trimOverscan()",                   fillcolor="#607d8b", color="#607d8b"];
+    correctImageOrientation [label="correctImageOrientation()",        fillcolor="#A1342D", color="#A1342D"];
+
+    // Column 2: stripe identification, straylight, merge, and store
+    findStripes_split       [label="findStripes()",                    fillcolor="#A1342D", color="#A1342D"];
+    identifyStripes_split   [label="identifyStripes()",                fillcolor="#A1342D", color="#A1342D"];
+    defineFlatStripes_split [label="defineFlatStripes()",              fillcolor="#A1342D", color="#A1342D"];
+    removeStrayLight        [label="removeStrayLight()",               fillcolor="#A1342D", color="#A1342D"];
+    combineFlatStreams      [label="combineFlatStreams()",
+                             fillcolor="#A1342D", color="#A1342D"];
+    findStripes_final       [label="findStripes()",                    fillcolor="#A1342D", color="#A1342D"];
+    identifyStripes_final   [label="identifyStripes()",
+                             fillcolor="#A1342D", color="#A1342D"];
+    defineFlatStripes_final [label="defineFlatStripes()",  fillcolor="#A1342D", color="#A1342D"];
+    storeProcessedFlat      [label="storeProcessedFlat()",
+                             fillcolor="#6a1b9a", color="#6a1b9a"];
+
+    // =====================================================================
+    // Edges
+    // =====================================================================
+
+    // ---- Column 1: prologue (single line) then two-stream (double line) --
+    input -> prepare -> checkArm -> addDQ -> subtractOverscan_raw
+          -> addVAR -> separateFlatStreams;
+
+    separateFlatStreams     -> stackFlats              [color="black:transparent:black", penwidth=1.5];
+    stackFlats              -> subtractOverscan        [color="black:transparent:black", penwidth=1.5];
+    subtractOverscan        -> trimOverscan            [color="black:transparent:black", penwidth=1.5];
+    trimOverscan            -> correctImageOrientation [color="black:transparent:black", penwidth=1.5];
+
+    // ---- Column wrap: constraint=false lets column 2 restart at the top --
+    correctImageOrientation -> findStripes_split
+        [color="black:transparent:black", penwidth=1.5, constraint=false];
+
+    // ---- Column 2: two-stream chain continues (double line) -------------
+    findStripes_split       -> identifyStripes_split   [color="black:transparent:black", penwidth=1.5];
+    identifyStripes_split   -> defineFlatStripes_split [color="black:transparent:black", penwidth=1.5];
+    defineFlatStripes_split -> removeStrayLight        [color="black:transparent:black", penwidth=1.5];
+    removeStrayLight        -> combineFlatStreams      [color="black:transparent:black", penwidth=1.5];
+
+    // ---- Column 2: combined tail (single line) ---------------------------
+    combineFlatStreams -> findStripes_final -> identifyStripes_final
+                       -> defineFlatStripes_final -> storeProcessedFlat;
+
+    // ---- Lookup attachments ----------------------------------------------
+    bpm       -> addDQ;
+    identifyStripes_split -> sid_split [dir=back];
+    identifyStripes_final -> sid_final [dir=back];
+
+    // ---- Diagnostic report -------------------------------------------------
+    removeStrayLight -> straylight_pdf;
+
+    // ---- Outputs -----------------------------------------------------------
+    storeProcessedFlat -> output;
+    storeProcessedFlat -> log;
+    storeProcessedFlat -> caldb;
+
+    // =====================================================================
+    // LAYOUT ONLY — rank pinning, no semantics
+    // =====================================================================
+    { rank=same; bpm; addDQ; }
+    // Invisible pull keeps bpm on the left flank of the column-1 spine.
+    checkArm -> bpm [style=invis];
+    { rank=same; identifyStripes_split; sid_split; }
+    { rank=same; removeStrayLight; straylight_pdf; }
+    { rank=same; identifyStripes_final; sid_final; }
+    { rank=same; storeProcessedFlat; caldb; }
+}

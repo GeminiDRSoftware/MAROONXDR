@@ -185,6 +185,16 @@ digraph nodes {
                  shape=cylinder, style=filled,
                  fillcolor="#2E7D32", fontcolor=white,
                  color=black, penwidth=1];
+
+        a_log [label="reduce.log",
+               shape=note, style=filled,
+               fillcolor="#e8f0fe", fontcolor=black,
+               color=black, penwidth=1];
+
+        a_pdf [label="diagnostic.pdf",
+               shape=folder, style=filled,
+               fillcolor="#e8f0fe", fontcolor=black,
+               color=black, penwidth=1];
     }
 
     // ---- Invisible edges lock each cluster's nodes into one row ---------
@@ -193,5 +203,5 @@ digraph nodes {
     f_flat_bundle -> f_dark_bundle -> f_etalon_bundle -> f_science_bundle;
     f_flat_pb     -> f_flat_pr     -> f_science_pb    -> f_science_pr;
     l_bpm     -> l_sid    -> l_wlstat -> l_refwl;
-    a_darkcoeffs -> a_darksynth -> a_caldb;
+    a_darkcoeffs -> a_darksynth -> a_caldb -> a_log -> a_pdf;
 }

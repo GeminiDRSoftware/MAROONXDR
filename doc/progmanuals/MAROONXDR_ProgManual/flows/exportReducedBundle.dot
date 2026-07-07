@@ -1,0 +1,64 @@
+// Flow diagram for the `exportReducedBundle` recipe
+// (maroonxdr/maroonx/recipes/sq/recipes_ECHELLE_SPECT.py).
+//
+// Conventions follow flows/nodes.dot (the node catalog).
+
+digraph exportReducedBundle {
+    rankdir=TB;
+    fontname="Helvetica";
+    labelloc="t";
+    label=<<b>exportReducedBundle</b>>;
+
+    node [fontname="Helvetica", fontsize=10,
+          shape=box, style="rounded,filled",
+          penwidth=1.5, fontcolor=white];
+    edge [fontname="Helvetica", fontsize=9];
+
+    // ---- Inputs: paired per-arm reduced SCIENCE spectra -----------------
+    // Pairing is by PHU ARCHNAME (the original pre-split bundle filename).
+    input_blue [label="PROCESSED\nSOOOE-O",
+                shape=note, style=filled,
+                fillcolor="#7BA5E8", fontcolor=black,
+                color="#1976D2", penwidth=1.5];
+
+    input_red [label="PROCESSED\nSOOOE-O",
+               shape=note, style=filled,
+               fillcolor="#7BA5E8", fontcolor=black,
+               color="#C62828", penwidth=1.5];
+
+    // ---- Primitive chain -------------------------------------------------
+    separateArmStreams [label="separateArmStreams()",
+                        fillcolor="#A1342D", color="#A1342D"];
+
+    bundleArmStreams [label="bundleArmStreams()",
+                      fillcolor="#A1342D", color="#A1342D"];
+
+    storeProcessedScience [label="storeProcessedScience()",
+                           fillcolor="#6a1b9a", color="#6a1b9a"];
+
+    // ---- Outputs: recombined MEF bundle + log ---------------------------
+    // storeProcessedScience writes to CWD only, NOT to CalDB.
+    output [label="PROCESSED\nSOOOE-O",
+            shape=note, style=filled,
+            fillcolor="#7BA5E8", fontcolor=black,
+            color=black, penwidth=1];
+
+    log [label="reduce.log",
+         shape=note, style=filled,
+         fillcolor="#e8f0fe", fontcolor=black,
+         color=black, penwidth=1];
+
+    // ---- Edges: inputs converge into separateArmStreams ------------------
+    { rank=same; input_blue; input_red; }
+    input_blue -> separateArmStreams;
+    input_red  -> separateArmStreams;
+
+    // ---- Edges: split → merge (double line = two streams flow together) --
+    separateArmStreams -> bundleArmStreams
+        [color="black:transparent:black", penwidth=1.5];
+
+    // ---- Edges: merge → store → outputs ---------------------------------
+    bundleArmStreams      -> storeProcessedScience;
+    storeProcessedScience -> output;
+    storeProcessedScience -> log;
+}

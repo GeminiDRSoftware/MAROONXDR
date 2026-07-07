@@ -25,10 +25,13 @@ Each flow represents a complete processing pathway from raw data to science-read
 Bundle Processing Flow
 ======================
 
-.. todo::
+The ``processBundle`` recipe is the entry point for every MAROON-X raw
+file. It splits the two-arm GOA bundle into per-arm raw frames that the
+rest of the pipeline consumes.
 
-   Document the bundle processing flow for MAROONX data, including the splitBundle
-   primitive and subsequent processing steps.
+.. graphviz:: flows/processBundle.dot
+   :align: center
+   :caption: ``processBundle`` recipe flow (SCIENCE bundle shown; the recipe accepts any BUNDLE-tagged input).
 
 Calibration Flows
 =================
@@ -45,29 +48,54 @@ for each arm; the diagram below shows the BLUE arm.
    :align: center
    :caption: ``makeProcessedDark`` recipe flow (BLUE arm shown).
 
+Dark Coefficient Flow
+~~~~~~~~~~~~~~~~~~~~~
+
+The ``makeDarkCoefficients`` recipe fits a per-pixel log-linear model
+across a curated selection of processed darks and stores the resulting
+coefficient arrays as a calibration. The input is a **selection of
+processed darks for a single arm** spanning multiple exposure times,
+typically a set of ``[60, 120, 300, 600, 900, 1200, 1800]``.
+At least five frames are required; ``checkMaster`` rejects any input
+that is not a processed dark and ``checkArm`` rejects any frame from a
+different arm. The diagram shows the BLUE arm.
+
+.. graphviz:: flows/makeDarkCoefficients.dot
+   :align: center
+   :caption: ``makeDarkCoefficients`` recipe flow (BLUE arm shown).
+
 Flat Field Processing Flow
 --------------------------
 
-.. todo::
+The ``makeProcessedFlatDFFFF`` recipe stacks and combines a per-arm mix
+of ``DDDDF`` and ``DFFFD`` raw flats into a single processed
+``FFFFF`` flat with all five fibers illuminated. After a shared
+prologue, ``separateFlatStreams`` splits the input into two streams
+that run through an identical primitive chain in parallel; the streams
+are merged at ``combineFlatStreams`` before the final stripe
+identification and CalDB registration. The diagram shows the BLUE arm.
 
-   Document the flat field creation and processing flow.
+.. graphviz:: flows/makeProcessedFlatDFFFF.dot
+   :align: center
+   :caption: ``makeProcessedFlatDFFFF`` recipe flow (BLUE arm shown). Double-line arrows indicate primitives run on both streams in parallel.
 
-Wavelength Calibration Flow
----------------------------
 
-Static Wavelength Calibration
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Dynamic Wavelength Calibration Flow
+-----------------------------------
 
-.. todo::
+The ``makeDynamicWavecal`` recipe derives a per-arm wavelength solution
+from a simultaneous etalon calibration frame. After the standard
+prepare/DQ/overscan/VAR prologue, ``extractStripes`` pulls the matching
+processed flat and processed dark from the calibration database,
+``boxExtraction`` yields per-fiber 1D spectra, and the wavelength chain
+(``getPeaksAndPolynomials``, ``staticWavelengthSolution``,
+``fitAndApplyEtalonWls``) consumes the shipped ``WLSTAT`` and
+``REFWAVELENGTH`` lookups to compute and apply the dynamic solution.
+The diagram shows the RED arm.
 
-   Document the static wavelength calibration flow using reference solutions.
-
-Dynamic Wavelength Calibration
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. todo::
-
-   Document the dynamic wavelength calibration flow using simultaneous calibration sources.
+.. graphviz:: flows/makeDynamicWavecal.dot
+   :align: center
+   :caption: ``makeDynamicWavecal`` recipe flow (RED arm shown).
 
 Science Data Flows
 ===================
@@ -75,16 +103,24 @@ Science Data Flows
 Echelle Spectroscopy Flow
 -------------------------
 
-.. todo::
+The ``reduce`` recipe is the main science reduction. A debundled
+per-arm raw science exposure goes through the standard
+prepare/DQ/overscan/VAR prologue, then ``extractStripes`` pulls the
+matching processed flat and processed dark from the calibration
+database and ``optimalExtraction`` produces per-fiber 1D spectra
+(a second, independent dark fetch happens here). The wavelength chain
+fits the etalon peaks of the simultaneous calibration fiber, attaches
+the static solution from the ``WLSTAT`` lookup, and applies the
+drift-corrected solution using the processed wavecal and the
+``REFWAVELENGTH`` lookup. ``combineFibers`` adds the virtual sixth
+fiber from the three science fibers, and ``barycentricCorrection``
+computes the BERV values before the final ``_reduced`` product is
+written to the working directory. Five primitives emit PDF diagnostic
+reports by default. The diagram shows the BLUE arm.
 
-   Document the complete echelle spectroscopy processing flow, including:
-
-   * 2D image processing
-   * Fiber spectra extraction
-   * Wavelength calibration
-   * 1D spectrum creation
-   * Barycentric velocity correction
-   * Final science product generation
+.. graphviz:: flows/reduce.dot
+   :align: center
+   :caption: ``reduce`` recipe flow (BLUE arm shown).
 
 Barycentric Correction Flow
 ---------------------------
@@ -96,3 +132,20 @@ the main science reduction workflow, on the ``_reduced`` product.
 .. todo::
 
    Document the barycentric correction flow.
+
+Bundle Export Flow
+------------------
+
+The ``exportReducedBundle`` recipe is the converge mirror of
+``processBundle``: it takes a pair of per-arm reduced science spectra
+(one BLUE, one RED) and recombines them into a single FITS bundle
+matching the original GOA filename. You can also pass a list of multiple
+pairs; the recipe will match BLUE-RED pairs and output all the reduced bundles.
+Pairing uses the ``ARCHNAME`` header keyword, which records the original
+pre-split bundle filename.
+The bundle is written to the working directory only; it is not
+registered with the calibration database.
+
+.. graphviz:: flows/exportReducedBundle.dot
+   :align: center
+   :caption: ``exportReducedBundle`` recipe flow. The double-line arrow indicates the BLUE and RED streams flow in parallel through the split/merge pair.

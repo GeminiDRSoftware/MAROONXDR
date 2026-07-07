@@ -1,0 +1,125 @@
+// Flow diagram for the `reduce` recipe
+// (maroonxdr/maroonx/recipes/sq/recipes_ECHELLE_SPECT.py).
+//
+// Conventions follow flows/nodes.dot (the node catalog).
+
+digraph reduce {
+    rankdir=TB;
+    fontname="Helvetica";
+    labelloc="t";
+    label=<<b>reduce</b>>;
+
+    node [fontname="Helvetica", fontsize=10];
+    edge [fontname="Helvetica", fontsize=9];
+
+    // =====================================================================
+    // Nodes
+    // =====================================================================
+
+    // ---- FITS data products (note shape, arm-colored border) ------------
+    node [shape=note, style=filled, fontcolor=black,
+          color="#1976D2", penwidth=1.5];
+
+    input [label="RAW\nSOOOE", fillcolor="#7BA5E8", style="filled,dashed"];
+
+    caldb_read [label="CalDB storage",
+                shape=cylinder, fillcolor="#2E7D32",
+                fontcolor=white, color=black, penwidth=1];
+
+    node [fontcolor=black];  // restore after cylinder one-off
+    cal_flat         [label="PROCESSED\nDFFFF", fillcolor="#DB6DB2"];
+    cal_dark_extract [label="PROCESSED\nDDDDE", fillcolor="#B6B6B6"];
+    cal_dark_optimal [label="PROCESSED\nDDDDE", fillcolor="#B6B6B6"];
+    cal_wavecal      [label="PROCESSED\nDEEEE", fillcolor="#F5B26B"];
+
+    // ---- Lookup FITS (shipped with the package) -------------------------
+    node [shape=component, style=filled];
+    bpm         [label="BPM_b_0000.fits",      fillcolor="#e8f0fe"];
+    refwl_peaks [label="REFWAVELENGTH_b.fits", fillcolor="#F5B26B"];
+    wlstat      [label="WLSTAT_b.fits",        fillcolor="#F5B26B"];
+    refwl_apply [label="REFWAVELENGTH_b.fits", fillcolor="#F5B26B"];
+
+    // ---- Primitives (fill = defining class, maroon border = MX-owned) ---
+    node [shape=box, style="rounded,filled", fontcolor=white];
+    prepare                  [label="prepare()",                  fillcolor="#4A90A4", color="#4A90A4"];
+    checkArm                 [label="checkArm()",                 fillcolor="#A1342D", color="#A1342D"];
+    addDQ                    [label="addDQ()",                    fillcolor="#4A90A4", color="#A1342D"];
+    overscanCorrect          [label="overscanCorrect()",          fillcolor="#607d8b", color="#607d8b"];
+    correctImageOrientation  [label="correctImageOrientation()",  fillcolor="#A1342D", color="#A1342D"];
+    addVAR                   [label="addVAR()",                   fillcolor="#4A90A4", color="#A1342D"];
+    extractStripes           [label="extractStripes()",           fillcolor="#A1342D", color="#A1342D"];
+    optimalExtraction        [label="optimalExtraction()",        fillcolor="#A1342D", color="#A1342D"];
+    getPeaksAndPolynomials   [label="getPeaksAndPolynomials()",   fillcolor="#A1342D", color="#A1342D"];
+    staticWavelengthSolution [label="staticWavelengthSolution()", fillcolor="#A1342D", color="#A1342D"];
+    applyWavelengthSolution  [label="applyWavelengthSolution()",  fillcolor="#A1342D", color="#A1342D"];
+    combineFibers            [label="combineFibers()",            fillcolor="#A1342D", color="#A1342D"];
+    barycentricCorrection    [label="barycentricCorrection()",    fillcolor="#A1342D", color="#A1342D"];
+    storeProcessedScience    [label="storeProcessedScience()",    fillcolor="#6a1b9a", color="#6a1b9a"];
+
+    // ---- Diagnostic reports (all identical) ------------------------------
+    node [shape=folder, style=filled, label="report.pdf",
+          fillcolor="#e8f0fe", fontcolor=black, color=black, penwidth=1];
+    report_extract; report_peaks; report_apply; report_combine; report_barycor;
+
+    // ---- Outputs (storeProcessedScience writes to CWD only, NOT CalDB) --
+    node [shape=note, color="#1976D2", penwidth=1.5];
+    output [label="PROCESSED\nSOOOE-O", fillcolor="#7BA5E8"];
+    log    [label="reduce.log", fillcolor="#e8f0fe", color=black, penwidth=1];
+
+    // =====================================================================
+    // Edges
+    // =====================================================================
+
+    // ---- Main flow (spine) -----------------------------------------------
+    input -> prepare -> checkArm -> addDQ -> overscanCorrect
+          -> correctImageOrientation -> addVAR -> extractStripes
+          -> optimalExtraction -> getPeaksAndPolynomials
+          -> staticWavelengthSolution -> applyWavelengthSolution
+          -> combineFibers -> barycentricCorrection -> storeProcessedScience;
+
+    // ---- CalDB fetches (dark is re-fetched by optimalExtraction) ---------
+    caldb_read -> cal_flat;
+    caldb_read -> cal_dark_extract;
+    caldb_read -> cal_dark_optimal;
+    caldb_read -> cal_wavecal;
+
+    cal_flat         -> extractStripes;
+    cal_dark_extract -> extractStripes;
+    cal_dark_optimal -> optimalExtraction;
+    cal_wavecal      -> applyWavelengthSolution;
+
+    // ---- Lookup attachments ----------------------------------------------
+    bpm         -> addDQ;
+    refwl_peaks -> getPeaksAndPolynomials;
+    wlstat      -> staticWavelengthSolution;
+    refwl_apply -> applyWavelengthSolution;
+
+    // ---- Diagnostic reports ------------------------------------------------
+    extractStripes          -> report_extract;
+    getPeaksAndPolynomials  -> report_peaks;
+    applyWavelengthSolution -> report_apply;
+    combineFibers           -> report_combine;
+    barycentricCorrection   -> report_barycor;
+
+    // ---- Outputs -----------------------------------------------------------
+    storeProcessedScience -> output;
+    storeProcessedScience -> log;
+
+    // =====================================================================
+    // LAYOUT ONLY — rank pinning and invisible alignment, no semantics
+    // =====================================================================
+    { rank=same; bpm; addDQ; }
+    { rank=same; refwl_peaks; getPeaksAndPolynomials; }
+    { rank=same; wlstat; staticWavelengthSolution; }
+    { rank=same; refwl_apply; applyWavelengthSolution; }
+    { rank=same; extractStripes; report_extract; }
+    { rank=same; getPeaksAndPolynomials; report_peaks; }
+    { rank=same; applyWavelengthSolution; report_apply; }
+    { rank=same; combineFibers; report_combine; }
+    { rank=same; barycentricCorrection; report_barycor; }
+
+    // Invisible vertical chain aligns the three wavelength lookups into a
+    // single left-side column (refwl_peaks -> wlstat -> refwl_apply).
+    refwl_peaks -> wlstat      [style=invis];
+    wlstat      -> refwl_apply [style=invis];
+}
