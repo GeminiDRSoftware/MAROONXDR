@@ -17,8 +17,8 @@ DRAGONS MAROONX Data Reduction User Manual
    :caption: Table of Contents
 
    instrument
-   recipes
+   recipes/recipes_index
+   primitives/primitives_index
    tips
    issues
-   primitives
    

@@ -755,6 +755,57 @@ def docstyle(session: nox.Session):
     )
 
 
+# Primitives to exclude from the user-manual auto-generated reference:
+# deprecated "Old" variants and the regression-only legacy patch.
+_USERMANUAL_SKIP_PRIMITIVES = (
+    'stackDarksOld',
+    'stackFlatsOld',
+    'removeStrayLight_legacyPatch',
+)
+
+
+def _regen_usermanual_autodoc(session: nox.Session, source_dir: Path):
+    """Regenerate the user-manual primitive and recipe .rst fragments.
+
+    Runs the ``generate_primdoc.py`` and ``generate_recipedoc.py`` utility
+    scripts against the live ``maroonxdr`` code, writing fragments into the
+    ``generated_doc/`` directories that the hand-written pages ``.. include``.
+    The generators import the pipeline directly, so an ``mx_dev`` environment
+    must be active (``venv_backend='none'``).
+
+    The deprecated/legacy-patch primitive fragments listed in
+    ``_USERMANUAL_SKIP_PRIMITIVES`` are pruned after generation so they do not
+    appear in the reference.
+    """
+    scripts = Path('doc') / 'usermanuals' / 'utility_scripts'
+    prim_gen = source_dir / 'primitives' / 'generated_doc'
+    rec_gen = source_dir / 'recipes' / 'generated_doc'
+
+    prim_gen.mkdir(parents=True, exist_ok=True)
+    rec_gen.mkdir(parents=True, exist_ok=True)
+
+    session.log('Regenerating primitive fragments...')
+    session.run(
+        'python', str(scripts / 'generate_primdoc.py'),
+        'maroonx', '-d', str(prim_gen),
+        external=True,
+    )
+
+    session.log('Regenerating recipe fragments (sq, qa)...')
+    for context in ('sq', 'qa'):
+        session.run(
+            'python', str(scripts / 'generate_recipedoc.py'),
+            'maroonx', '--context', context, '-d', str(rec_gen),
+            external=True,
+        )
+
+    # Prune deprecated / legacy-patch primitive fragments.
+    for primitive in _USERMANUAL_SKIP_PRIMITIVES:
+        for fragment in prim_gen.glob(f'*.MAROONX.{primitive}_*.rst'):
+            session.log(f'Pruning {fragment.name}')
+            fragment.unlink()
+
+
 def _build_manual(session: nox.Session, source_dir: Path, name: str):
     """Build a manual as HTML (default) or PDF.
 
@@ -796,13 +847,18 @@ def usermanual(session: nox.Session):
     Defaults to HTML. Pass ``--pdf`` to build a PDF instead:
         nox -s usermanual -- --pdf
 
+    Pass ``--regen`` to regenerate the primitive and recipe reference
+    fragments from the live docstrings before building:
+        nox -s usermanual -- --regen
+
     Requires ``mx_dev`` activated (Sphinx + DRAGONS on PATH).
     """
-    _build_manual(
-        session,
-        Path('doc/usermanuals/MAROONXDR_UserManual'),
-        'User Manual',
-    )
+    source_dir = Path('doc/usermanuals/MAROONXDR_UserManual')
+
+    if '--regen' in session.posargs:
+        _regen_usermanual_autodoc(session, source_dir)
+
+    _build_manual(session, source_dir, 'User Manual')
 
 
 @nox.session(venv_backend='none')

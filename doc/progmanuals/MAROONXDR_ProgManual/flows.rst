@@ -15,12 +15,7 @@ Each flow represents a complete processing pathway from raw data to science-read
 
 .. todo::
 
-   Complete the documentation for all MAROONX data reduction flows, including:
-
-   * Calibration flows (darks, flats, wavelength calibrations)
-   * Science observation flows
-   * Quality assessment flows
-   * Flow diagrams
+   * QA flows
 
 Bundle Processing Flow
 ======================

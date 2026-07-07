@@ -264,8 +264,21 @@ With ``mx_dev`` activated:
     nox -s usermanual -- --pdf
     nox -s progmanual -- --pdf
 
+The User Manual's primitive and recipe reference pages are generated from the
+live docstrings and parameter defaults. Pass ``--regen`` to rebuild those
+fragments from the current code before building:
+
+.. code-block:: bash
+
+    # Regenerate the primitive/recipe reference, then build HTML
+    nox -s usermanual -- --regen
+
+Use it after editing a primitive or recipe docstring so the reference reflects
+your changes. Without ``--regen`` the build uses old fragments. 
+The flag can be combined with ``--pdf``.
+
 Each session prints a clickable ``file://`` link to the rendered output when
-it finishes. Most terminals turn it into a hyperlink you can open with 
+it finishes. Most terminals turn it into a hyperlink you can open with
 Ctrl+Click (Cmd+Click on macOS).
 
 The Tutorial itself can also be rebuilt locally with ``nox -s tutorial`` (or
