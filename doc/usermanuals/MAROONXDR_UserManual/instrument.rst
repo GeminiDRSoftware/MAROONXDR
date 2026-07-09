@@ -31,10 +31,11 @@ bundle — a single Multi-Extension FITS (MEF) file containing both arms
 (``NYYYYMMDDMnnnn.fits``). The first pipeline step is to split this bundle
 into separate blue and red arm files for independent processing.
 
-Description of the Modes
-=========================
 
-MAROON-X has only one observing mode. At each wavelength, five fibers are
+Fiber Configuration and Frame Classification
+--------------------------------------------
+
+MAROON-X has only one observing configuration. At each wavelength, five fibers are
 arranged along the cross-dispersion direction on the detector:
 
 - **Fiber 1**: Off-target sky background fiber
@@ -102,6 +103,14 @@ Common frame types and their fiber patterns are summarised in the table below:
    * - LFC wavecal
      - ``DLLLL``
      - Alternative wavelength calibration with Laser Frequency Comb
+
+
+Description of the Modes
+=========================
+
+.. todo::
+    Explain DRP modes 'sq', 'ql'
+
 
 Required Calibration and Associated Observations
 ================================================

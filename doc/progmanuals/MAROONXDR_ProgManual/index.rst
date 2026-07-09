@@ -4,8 +4,8 @@
    contain the root `toctree` directive.
 
 
-DRAGONS MAROONX Data Reduction Programmer Manual
-================================================
+DRAGONS MAROON-X DRP: Programmer Manual
+=======================================
 
 
 .. toctree::
@@ -19,6 +19,9 @@ DRAGONS MAROONX Data Reduction Programmer Manual
    recipes
    primitives
    parameters
+   
+   .. mxcore
+   
    tests
    legacy
    

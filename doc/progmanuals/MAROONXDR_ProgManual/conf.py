@@ -50,9 +50,9 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = 'MaroonX Programmer Manual'
+project = 'Maroon-X DRP: Programmer Manual'
 copyright = '2025, MaroonX Team'
-author = 'TBD'
+author = 'Martín Chalela García'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -153,6 +153,12 @@ latex_elements = {
 
     'babel': '\\usepackage[english]{babel}',
 
+    # Load the custom.sty package copied in via latex_additional_files
+    # below; it defines the colored envs used to style legacy-block /
+    # dragons-block topics in the PDF build so they match the CSS
+    # in the HTML build (custom.css mirrors this palette).
+    'preamble': r'\usepackage{custom}',
+
     # The paper size ('letterpaper' or 'a4paper').
     #
     # 'papersize': 'letterpaper',
@@ -161,21 +167,24 @@ latex_elements = {
     #
     # 'pointsize': '10pt',
 
-    # Additional stuff for the LaTeX preamble.
-    #
-    # 'preamble': '\usepackage{appendix} \setcounter{tocdepth}{0}',
-
     # Latex figure (float) alignment
     #
     # 'figure_align': 'htbp',
 }
 
+# Copy the .sty package into the LaTeX build dir so \usepackage{} in the
+# preamble above can find it. Kept next to custom.css so the CSS palette
+# and its LaTeX mirror live side-by-side. A .sty extension (not .tex) is
+# required so Sphinx's generated Makefile does not try to compile it as
+# a standalone document.
+latex_additional_files = ['_static/custom.sty']
+
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'MaroonXProgrammer.tex', 'MaroonX Programmer Manual',
-     u'Author', 'manual'),
+    (master_doc, 'MaroonXProgrammer.tex', project,
+     author, 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -188,7 +197,7 @@ latex_logo = 'images/GeminiLogo_new_2014.jpg'
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'maroonxprog', u'MaroonX Programmer Manual',
+    (master_doc, 'maroonxprog', project,
      [author], 1)
 ]
 
@@ -237,7 +246,7 @@ suppress_warnings = ['app.add_directive']
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'maroonxprog', 'MaroonX Programmer Manual',
+    (master_doc, 'maroonxprog', project,
      author, 'maroonxprog',
      'Programmer manual for MaroonX data reduction software',
      'Miscellaneous'),
@@ -262,3 +271,47 @@ intersphinx_mapping = {
     'astropy': ('https://docs.astropy.org/en/stable/', None),
     'astrodata': ('https://astrodata.readthedocs.io/en/latest/', None),
 }
+
+# -- LaTeX/PDF styling for legacy-block / dragons-block topics -------------
+#
+# Sphinx's LaTeX writer wraps every ``.. topic::`` in ``sphinxShadowBox``
+# and drops the ``:class:`` value, so the CSS in ``_static/custom.css``
+# has no effect on the PDF. Route topics whose class matches a known key
+# into dedicated LaTeX envs (defined in ``_latex/custom.sty``) so
+# the PDF reproduces the colored boxes from the HTML build. Un-classed
+# topics fall through to the default ``sphinxShadowBox``.
+
+_MX_TOPIC_ENV_FOR_CLASS = {
+    'legacy-block': 'mxlegacybox',
+    'dragons-block': 'mxdragonsbox',
+}
+
+
+def setup(app):
+    from sphinx.writers.latex import LaTeXTranslator
+
+    orig_visit = LaTeXTranslator.visit_topic
+    orig_depart = LaTeXTranslator.depart_topic
+
+    def visit_topic(self, node):
+        env = next(
+            (_MX_TOPIC_ENV_FOR_CLASS[c] for c in node.get('classes', [])
+             if c in _MX_TOPIC_ENV_FOR_CLASS),
+            None,
+        )
+        if env is None:
+            return orig_visit(self, node)
+        self.__dict__.setdefault('_mx_topic_env', []).append(env)
+        self.body.append(f'\n\\begin{{{env}}}\n')
+
+    def depart_topic(self, node):
+        stack = self.__dict__.get('_mx_topic_env', [])
+        if stack and any(
+            c in _MX_TOPIC_ENV_FOR_CLASS for c in node.get('classes', [])
+        ):
+            self.body.append(f'\n\\end{{{stack.pop()}}}\n')
+            return
+        return orig_depart(self, node)
+
+    LaTeXTranslator.visit_topic = visit_topic
+    LaTeXTranslator.depart_topic = depart_topic
