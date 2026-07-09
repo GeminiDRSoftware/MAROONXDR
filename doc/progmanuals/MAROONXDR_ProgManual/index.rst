@@ -21,7 +21,6 @@ DRAGONS MAROON-X DRP: Programmer Manual
    parameters
 
    tests
-   legacy
 
 .. .. todo:: re-enable mxcore once docstrings are cleaned up
 .. mxcore

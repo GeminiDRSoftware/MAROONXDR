@@ -2,7 +2,7 @@ makeDarkCoefficients
 ====================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_DARK
-| **Astrodata Tags**: {'CAL', 'MAROONX', 'DARK'}
+| **Astrodata Tags**: {'MAROONX', 'DARK', 'CAL'}
 
 Produce coefficient arrays z0 and z1 from pixel-by-pixel fit.
 

@@ -2,7 +2,7 @@ makeProcessedDark
 =================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_DARK
-| **Astrodata Tags**: {'CAL', 'MAROONX', 'DARK'}
+| **Astrodata Tags**: {'MAROONX', 'DARK', 'CAL'}
 
 Perform standardization and corrections to convert raw darks to processed.
 

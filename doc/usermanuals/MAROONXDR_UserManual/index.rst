@@ -20,6 +20,8 @@ DRAGONS MAROON-X DRP: User Manual
    instrument
    recipes/recipes_index
    primitives/primitives_index
-   tips
-   issues
+   legacy
+
+.. tips
+.. issues
    
