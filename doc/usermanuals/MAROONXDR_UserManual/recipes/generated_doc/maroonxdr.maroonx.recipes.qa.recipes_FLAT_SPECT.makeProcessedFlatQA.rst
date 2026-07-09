@@ -2,7 +2,7 @@ makeProcessedFlatQA
 ===================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.qa.recipes_FLAT_SPECT
-| **Astrodata Tags**: {'CAL', 'FLAT', 'MAROONX', 'PROCESSED'}
+| **Astrodata Tags**: {'MAROONX', 'CAL', 'PROCESSED', 'FLAT'}
 
 Process MAROON-X display flat optimal extractions.
 
@@ -25,4 +25,7 @@ Process MAROON-X display flat optimal extractions.
         p.extractStripes()
         p.optimalExtraction(optimal_extraction_fibers=[2, 3, 4, 5])
         p.displaySpectra(fibers=[2, 3, 4, 5])
+
+        # measureBlaze ?
+        # measureSNR ?
 
