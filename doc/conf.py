@@ -76,7 +76,7 @@ exclude_patterns = [
     '.DS_Store',
     # Exclude individual manual build directories
     'usermanuals/MAROONXDR_UserManual/_build',
-    'progmanuals/MAROONXDR_ProgManual/_build',
+    'progmanuals/MAROONXDR_ProgManual/**',
     'tutorials/MAROONXDR_Tutorial/_build',
 ]
 

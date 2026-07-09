@@ -2,9 +2,9 @@
 
 .. _maroonx_reduction:
 
-****************************************
-MAROON-X DRP: Using the Reduce class API
-****************************************
+**************************
+Using the Reduce class API
+**************************
 
 Complete Reduction Workflow Using the Python API
 =================================================

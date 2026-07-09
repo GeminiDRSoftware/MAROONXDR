@@ -2,9 +2,9 @@
 
 .. _maroonx_setup:
 
-************************************
-MAROON-X DRP: Setup and Installation
-************************************
+**********************
+Setup and Installation
+**********************
 
 Introduction
 ============

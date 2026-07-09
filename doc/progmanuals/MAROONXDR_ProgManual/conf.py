@@ -183,7 +183,7 @@ latex_additional_files = ['_static/custom.sty']
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'MaroonXProgrammer.tex', project,
+    (master_doc, f'MaroonXProgrammer-v{release}.tex', project,
      author, 'manual'),
 ]
 

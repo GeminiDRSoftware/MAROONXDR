@@ -2,9 +2,9 @@
 
 .. _maroonx_reduction_cli:
 
-*********************************
-MAROON-X DRP: Using the CLI tools
-*********************************
+*******************
+Using the CLI tools
+*******************
 
 Complete Reduction Workflow Using CLI
 ======================================
