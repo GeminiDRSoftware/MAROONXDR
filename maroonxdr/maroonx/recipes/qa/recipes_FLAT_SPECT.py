@@ -24,3 +24,6 @@ def makeProcessedFlatQA(p):
     p.extractStripes()
     p.optimalExtraction(optimal_extraction_fibers=[2, 3, 4, 5])
     p.displaySpectra(fibers=[2, 3, 4, 5])
+
+    # measureBlaze ?
+    # measureSNR ?

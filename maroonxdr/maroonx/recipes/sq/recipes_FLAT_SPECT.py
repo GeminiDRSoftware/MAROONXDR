@@ -229,7 +229,7 @@ def makeProcessedFlatDFFFF(p):
     p.storeProcessedFlat(suffix='_DFFFF_flat')
 
 
-def measureBlaze(p):
+def makeBlaze(p):
     """
     Measure the blaze function for each fiber of a processed masterflat.
 
@@ -244,7 +244,7 @@ def measureBlaze(p):
     """
     p.checkMaster()
     p.extractStripes()
-    p.boxExtraction()
-    # p.optimalExtraction()
+    # p.boxExtraction()
+    p.optimalExtraction()
     p.measureBlaze(n_knots=50)
     p.writeOutputs(suffix='_blaze')
