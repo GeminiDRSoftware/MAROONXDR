@@ -453,7 +453,7 @@ class MAROONXEchelle(MAROONX, Spect):
                     # gets accepted.
                     log.warning('Running the legacy patch')
                     ad_sl_removed = self.removeStrayLight_legacyPatch(
-                        adinputs=[copy.deepcopy(ad)]
+                        adinputs=[copy.deepcopy(ad)], report=report
                     )[0]
                 else:
                     ad_sl_removed = self.removeStrayLight(
