@@ -270,3 +270,10 @@ See Also
 
 * :class:`~maroonx_instruments.maroonx.AstroDataMAROONX` - tag implementation
 * `DRAGONS AstroData documentation <https://dragons.readthedocs.io/>`_ - general tag system
+
+Instrument Class Reference
+--------------------------
+
+.. autoclass:: maroonx_instruments.maroonx.AstroDataMAROONX
+   :members:
+   :no-inherited-members:

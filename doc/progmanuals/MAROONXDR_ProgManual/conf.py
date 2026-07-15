@@ -82,6 +82,11 @@ pygments_style = 'sphinx'
 todo_include_todos = True
 todo_link_only = True
 
+# Auto-number figures, tables, and code blocks so :numref: references work in
+# both HTML and PDF (e.g. Figure 3, Table 2). Also required for figures with
+# :name: options to be reachable via :numref:.
+numfig = True
+
 # -- Autosummary configuration --------------------------------------------
 
 # Don't generate separate stub pages - just create inline summaries
@@ -157,7 +162,15 @@ latex_elements = {
     # below; it defines the colored envs used to style legacy-block /
     # dragons-block topics in the PDF build so they match the CSS
     # in the HTML build (custom.css mirrors this palette).
-    'preamble': r'\usepackage{custom}',
+    #
+    # Also load `placeins` with [section] so LaTeX auto-inserts a
+    # \FloatBarrier before every \section, keeping figures under the
+    # heading that introduces them instead of floating past it.
+    'preamble': (
+        r'\usepackage{custom}'
+        '\n'
+        r'\usepackage[section]{placeins}'
+    ),
 
     # The paper size ('letterpaper' or 'a4paper').
     #

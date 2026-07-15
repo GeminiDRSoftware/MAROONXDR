@@ -20,8 +20,8 @@ Echelle Spectrum Package
 
 The ``maroonx_echellespectrum`` package defines the class hierarchy used to
 represent extracted echelle spectra and their derived products.
-``EchelleSpectrum`` is the base class; ``MaroonXSpectrum``, ``EtalonSpectrum``,
-``FlatSpectrum``, and ``ThArSpectrum`` are the concrete subclasses used
+``EchelleSpectrum`` is the base class; ``MaroonXSpectrum``, ``EtalonSpectrum`` and
+``FlatSpectrum`` are the concrete subclasses used
 throughout the reduction.
 
 EchelleSpectrum (base class)
@@ -49,13 +49,6 @@ FlatSpectrum
 ------------
 
 .. automodule:: maroonxdr.maroonx.maroonx_echellespectrum.flatspectrum
-   :members:
-   :no-inherited-members:
-
-ThArSpectrum
-------------
-
-.. automodule:: maroonxdr.maroonx.maroonx_echellespectrum.tharspectrum
    :members:
    :no-inherited-members:
 
