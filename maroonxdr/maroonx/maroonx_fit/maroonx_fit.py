@@ -153,28 +153,21 @@ def insert_polynomial_parameters(results):
         fiber_list.append(result.fiber)
         order_list.append(result.order)
 
-        # Convert the fitrange to a string to store in the fits table
         fit_obj = result.fit_obj
-        fitrange = [fit_obj.fitrange[0], fit_obj.fitrange[-1] + 1]
-        fitrange_str = ','.join([str(x) for x in fitrange])
-        fitrange_list.append(fitrange_str)
+        fitrange_list.append(
+            [int(fit_obj.fitrange[0]), int(fit_obj.fitrange[-1]) + 1]
+        )
 
         offset_list.append(offset)
         lq_cost_list.append(f.cost)
         lq_status_list.append(f.status)
         if meta_parameters.use_sigma_lr:
-            # Convert the list of coefficients to a string to store in the fits table
-            sigma_l_coefficients_str = ','.join([str(x) for x in list(p_sigma_l)])
-            sigma_r_coefficients_str = ','.join([str(x) for x in list(p_sigma_r)])
-            sigma_l_coefficients_list.append(sigma_l_coefficients_str)
-            sigma_r_coefficients_list.append(sigma_r_coefficients_str)
-
+            sigma_l_coefficients_list.append(np.asarray(p_sigma_l, dtype=float))
+            sigma_r_coefficients_list.append(np.asarray(p_sigma_r, dtype=float))
         else:
-            sigma_coefficients_str = ','.join([str(x) for x in list(p_sigma_l)])
-            sigma_coefficients_list.append(sigma_coefficients_str)
+            sigma_coefficients_list.append(np.asarray(p_sigma_l, dtype=float))
 
-        width_coefficients_str = ','.join([str(x) for x in list(p_width)])
-        width_coefficients_list.append(width_coefficients_str)
+        width_coefficients_list.append(np.asarray(p_width, dtype=float))
 
     # Insert the columns into the dataframe
     poly['recorded'] = recorded_list
