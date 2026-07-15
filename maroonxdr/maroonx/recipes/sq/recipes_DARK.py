@@ -50,7 +50,7 @@ _default = makeProcessedDark
 
 def makeDarkCoefficients(p):
     """
-    Produce coefficient arrays 'z0' and 'z1' from pixel-by-pixel fit.
+    Produce coefficient arrays z0 and z1 from pixel-by-pixel fit.
 
     The fit uses the relationship F = z1 + z0 * log10(Texp). The input is a
     list of MASTER darks created from raw dark files. The input should cover a
