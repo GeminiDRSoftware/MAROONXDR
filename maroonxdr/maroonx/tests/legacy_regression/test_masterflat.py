@@ -212,7 +212,7 @@ def test_removeStraylight(arm, path_to_legacy_flats, preprocessed_files_path):
     selected_spect = _legacy_ordered_files(preprocessed_files_path, arm)
 
     adinput = [astrodata.open(f) for f in selected_spect]
-    p = MAROONX(adinput)
+    p = MAROONX(adinput, uparms={"report": False})
 
     p.prepare()
     p.checkArm()
@@ -265,9 +265,9 @@ def test_removeStraylight_legacyOrder(arm, path_to_legacy_flats, preprocessed_fi
         old_DDDDF = path_to_legacy_flats / "20250701T17_masterflat_backgroundsubtracted_DDDDF_r_0002.fits"
 
     selected_spect = _legacy_ordered_files(preprocessed_files_path, arm)
-
+    
     adinput = [astrodata.open(f) for f in selected_spect]
-    p = MAROONX(adinput)
+    p = MAROONX(adinput, uparms={"report": False})
 
     p.prepare()
     p.checkArm()
@@ -328,7 +328,7 @@ def test_combinedFlat(arm, path_to_legacy_flats, preprocessed_files_path):
     selected_spect = _legacy_ordered_files(preprocessed_files_path, arm)
 
     adinput = [astrodata.open(f) for f in selected_spect]
-    p = MAROONX(adinput)
+    p = MAROONX(adinput, uparms={"report": False})
 
     p.prepare()
     p.checkArm()

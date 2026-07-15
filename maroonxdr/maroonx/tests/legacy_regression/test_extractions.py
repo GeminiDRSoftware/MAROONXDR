@@ -73,7 +73,7 @@ def test_extractStripes_fromEtalon(etalon_filename, path_to_legacy_wavecal, prep
 
     adinput = [astrodata.open(raw_file)]
 
-    p = MaroonXSpectrum(adinput)
+    p = MaroonXSpectrum(adinput, uparms={"report": False})
     p.prepare()
     p.checkArm()
     p.addDQ()
@@ -122,7 +122,7 @@ def test_extractStripes_fromFlat(etalon_filename, path_to_legacy_flats, preproce
 
     adinput = [astrodata.open(raw_file)]
 
-    p = MaroonXSpectrum(adinput)
+    p = MaroonXSpectrum(adinput, uparms={"report": False})
     p.prepare()
     p.checkArm()
     p.addDQ()
@@ -170,7 +170,7 @@ def test_extractStripes_fromScience(science_filename, path_to_legacy_science, pa
 
     adinput = [astrodata.open(raw_file)]
 
-    p = MaroonXSpectrum(adinput)
+    p = MaroonXSpectrum(adinput, uparms={"report": False})
     p.prepare()
     p.checkArm()
     p.addDQ()
@@ -225,7 +225,7 @@ def test_boxExtraction(etalon_filename, path_to_legacy_wavecal, preprocessed_fil
 
     adinput = [astrodata.open(raw_file)]
 
-    p = MaroonXSpectrum(adinput)
+    p = MaroonXSpectrum(adinput, uparms={"report": False})
     p.prepare()
     p.checkArm()
     p.addDQ()
@@ -282,7 +282,7 @@ def test_optimalExtraction(science_filename, path_to_legacy_science, preprocesse
 
         adinput = [astrodata.open(raw_file)]
 
-        p = MaroonXSpectrum(adinput)
+        p = MaroonXSpectrum(adinput, uparms={"report": False})
         p.prepare()
         p.checkArm()
         p.addDQ()
@@ -361,7 +361,7 @@ def test_staticWavelengthSolution(etalon_filename, path_to_legacy_wavecal, prepr
 
     adinput = [astrodata.open(raw_file)]
 
-    p = MaroonXSpectrum(adinput)
+    p = MaroonXSpectrum(adinput, uparms={"report": False})
     p.prepare()
     p.checkArm()
     p.addDQ()
@@ -419,13 +419,13 @@ def test_combineFibers(science_filename, path_to_legacy_science, preprocessed_fi
     if USE_CACHE:
         raw_file = preprocessed_files_path / (science_filename + "_reduced.fits")
         ad = astrodata.open(raw_file)
-        p = MaroonXSpectrum([ad])
+        p = MaroonXSpectrum([ad], uparms={"report": False})
     else:
         raw_file = preprocessed_files_path / (science_filename + ".fits")
 
         adinput = [astrodata.open(raw_file)]
 
-        p = MaroonXSpectrum(adinput)
+        p = MaroonXSpectrum(adinput, uparms={"report": False})
         p.prepare()
         p.checkArm()
         p.addDQ()
@@ -487,7 +487,7 @@ def test_barycentricCorrection(science_filename, path_to_legacy_science, preproc
 
     adinput = [astrodata.open(raw_file)]
 
-    p = MaroonXSpectrum(adinput)
+    p = MaroonXSpectrum(adinput, uparms={"report": False})
     p.prepare()
 
     adout = p.barycentricCorrection(target_name="HD3651")
