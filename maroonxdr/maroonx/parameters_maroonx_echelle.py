@@ -67,7 +67,7 @@ class optimalExtractionConfig(config.Config):
     '''
     This parameter set controls the optimalExtraction primitive for MAROON-X.
     '''
-    suffix = config.Field("Filename suffix", str, "_reduced")
+    suffix = config.Field("Filename suffix", str, "")
     dark = config.ListField("Processed dark", (str, AstroData), None,
                             optional=True, single=True)
     optimal_extraction_fibers = config.ListField("Fiber numbers (1-5) for optimal extraction", int, None, optional=True, single=False)
@@ -88,7 +88,7 @@ class measureBlazeConfig(config.Config):
     """
     Parameter set controlling the measureBlaze primitive for MAROON-X.
     """
-    suffix = config.Field("Filename suffix", str, "_blazeMeasured")
+    suffix = config.Field("Filename suffix", str, "")
     n_knots = config.Field("Number of spline knots for blaze fit", int, 50)
     outlier_threshold = config.Field(
         "Relative outlier rejection threshold (fraction of blaze fit value)",
