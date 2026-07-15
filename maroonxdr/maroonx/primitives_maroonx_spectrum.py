@@ -533,7 +533,20 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 log.fullinfo(f"Adding poly extension to {ad.filename}")
                 poly = maroonx_fit.insert_polynomial_parameters(results)
                 peaks_astropy = Table.from_pandas(peaks)
-                poly_astropy = Table.from_pandas(poly)
+                array_cols = [
+                    "fitrange",
+                    "sigma_l_coefficients",
+                    "sigma_r_coefficients",
+                    "sigma_coefficients",
+                    "width_coefficients",
+                ]
+                scalar_df = poly.drop(
+                    columns=[c for c in array_cols if c in poly.columns]
+                )
+                poly_astropy = Table.from_pandas(scalar_df)
+                for c in array_cols:
+                    if c in poly.columns:
+                        poly_astropy[c] = np.vstack(poly[c].values)
                 ad[0].PEAKS = peaks_astropy
                 ad[0].POLY = poly_astropy
 
