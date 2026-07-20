@@ -515,7 +515,9 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
             if poisson_noise:
                 # The variance due to poisson noise is just the number of
                 # photons for each pixel. Add to the read noise variance.
-                var += ad[0].data
+                # var += ad[0].data
+                # gain is in e-/DN
+                var += np.abs(ad[0].data) / ad.gain()[0][0]
 
             ad[0].variance = var
             ad.update_filename(suffix=params['suffix'], strip=True)
