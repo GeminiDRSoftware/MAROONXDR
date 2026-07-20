@@ -132,7 +132,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 # Tests should not be worried about:
-"tests/*" = [
+"**/tests/**" = [
   "ARG",     # Test fixtures often act as unused arguments
   "D",       # Docstrings --- tests are allowed to be less documented
   "ERA001",  # Commented out code --- fine in tests
