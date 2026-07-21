@@ -1,24 +1,32 @@
-"""Run master dark and dark-coefficient reductions on v2 (2025070x) data.
+"""Build master darks and dark coefficients.
 
-Reads debundled files from $DRAGONS_TEST/preprocessed_files/ (produced by
-preprocess/bundle.py) and writes master darks back to the same directory.
+Reads debundled dark frames from ``$DRAGONS_TEST/preprocessed_files/`` (produced
+by preprocess/bundle.py), stacks them into one master dark per (arm, exposure
+time) via the default DARK recipe, then fits the per-pixel log-linear dark
+coefficients from those master darks.
+
+Outputs are written under ``$DRAGONS_TEST/preprocessed_files/`` (and its
+``calibrations/`` store). The dark chain has no upstream calibration dependency,
+so no calibrations are injected.
 
 Usage:
-    python -m maroonxdr.maroonx.tests.preprocess.dark [--populate-inputs] [--legacy-patch]
+    python -m maroonxdr.maroonx.tests.preprocess.dark
 """
 
 import itertools as it
 import os
-import shutil
-import sys
 from pathlib import Path
 
 from gempy.adlibrary import dataselect
 from gempy.utils import logutils
 from recipe_system.reduction.coreReduce import Reduce
 
-import maroonx_instruments  # noqa - import is necessary for astrodata
+import maroonx_instruments  # noqa - import is necessary for dataselect
 from maroonxdr.maroonx.tests.test_utils import change_cwd_context
+
+# Dark exposure times present in the manifest (dataselect tags), and arms.
+EXPTIMES = ['60s', '120s', '300s', '600s', '900s', '1200s', '1800s']
+ARMS = ['BLUE', 'RED']
 
 
 def _get_dragons_test():
@@ -28,51 +36,46 @@ def _get_dragons_test():
     return Path(p)
 
 
-def complete_masterdark_reduction():
-    """Test reduction of dark frames across all arms and exposure times."""
+def make_masterdarks():
+    """Stack debundled darks into one master dark per (arm, exposure time)."""
     dragons_test = _get_dragons_test()
     preprocessed_dir = dragons_test / 'preprocessed_files'
 
     all_files = sorted(str(p) for p in preprocessed_dir.glob('*.fits'))
 
     with change_cwd_context(preprocessed_dir):
-        logutils.config(file_name='test_dark.log', stomp=False)
-        log = logutils.get_logger('test_dark.log')
+        logutils.config(file_name='dark.log', stomp=False)
+        log = logutils.get_logger('dark.log')
         log.setLevel('DEBUG')
 
-        arms = ['BLUE', 'RED']
-        exptimes = ['60s', '120s', '300s', '600s', '900s', '1200s', '1800s']
-
-        for exptime, arm in it.product(exptimes, arms):
+        for exptime, arm in it.product(EXPTIMES, ARMS):
             only_darks = dataselect.select_data(
                 all_files, tags=['RAW', 'DARK', arm, exptime]
             )
-
             myreduce = Reduce()
             myreduce.files.extend(only_darks)
             myreduce.drpkg = 'maroonxdr'
             myreduce.runr()
 
 
-def complete_dark_coeff_reduction():
-    """Test creation of dark scaling coefficients from processed darks."""
+def make_dark_coefficients():
+    """Fit per-pixel log-linear dark coefficients from the master darks."""
     dragons_test = _get_dragons_test()
     preprocessed_dir = dragons_test / 'preprocessed_files'
 
     all_files = sorted(str(p) for p in preprocessed_dir.glob('*.fits'))
 
     with change_cwd_context(preprocessed_dir):
-        logutils.config(file_name='test_dark.log', stomp=False)
-        log = logutils.get_logger('test_dark.log')
+        logutils.config(file_name='dark.log', stomp=False)
+        log = logutils.get_logger('dark.log')
         log.setLevel('DEBUG')
 
-        for arm in ['BLUE', 'RED']:
+        for arm in ARMS:
             only_darks = dataselect.select_data(
                 all_files,
                 tags=['PROCESSED', 'DARK', arm],
                 xtags=['DARK_COEFF', 'DARK_SYNTH'],
             )
-
             myreduce = Reduce()
             myreduce.files.extend(only_darks)
             myreduce.drpkg = 'maroonxdr'
@@ -80,71 +83,10 @@ def complete_dark_coeff_reduction():
             myreduce.runr()
 
 
-def populate_inputs(legacy_patch=False):
-    """Copy dark outputs from preprocessed_files/ to test inputs/ directories."""
-    dragons_test = _get_dragons_test()
-    src = dragons_test / 'preprocessed_files'
-
-    dark_src = src / 'calibrations' / 'processed_dark'
-    dark_coeff_src = src / 'calibrations' / 'processed_dark_coeff'
-
-    base = dragons_test / 'maroonxdr' / 'maroonx'
-
-    if not legacy_patch:
-        return
-
-    # legacy_regression/test_masterdark: needs master darks
-    _copy_files(
-        dark_src,
-        base / 'legacy_regression' / 'test_masterdark' / 'inputs',
-        [
-            '20250707T170719Z_DDDDE_b_0060_dark.fits',
-            '20250707T170719Z_DDDDE_r_0060_dark.fits',
-            '20250707T164838Z_DDDDE_b_0120_dark.fits',
-            '20250707T164838Z_DDDDE_r_0120_dark.fits',
-            '20250707T172105Z_DDDDE_b_0300_dark.fits',
-            '20250707T172105Z_DDDDE_r_0300_dark.fits',
-            '20250707T175451Z_DDDDE_b_0600_dark.fits',
-            '20250707T175451Z_DDDDE_r_0600_dark.fits',
-            '20250707T185335Z_DDDDE_b_0900_dark.fits',
-            '20250707T185335Z_DDDDE_r_0900_dark.fits',
-            '20250707T201715Z_DDDDE_b_1200_dark.fits',
-            '20250707T201715Z_DDDDE_r_1200_dark.fits',
-            '20250707T220602Z_DDDDE_b_1800_dark.fits',
-            '20250707T220602Z_DDDDE_r_1800_dark.fits',
-        ],
-    )
-
-    # legacy_regression/test_masterdark: needs master dark coeffs
-    _copy_files(
-        dark_coeff_src,
-        base / 'legacy_regression' / 'test_masterdark' / 'inputs',
-        [
-            '20250707T164838Z_DDDDE_b_0120_darkCoefficients.fits',
-            '20250707T164838Z_DDDDE_r_0120_darkCoefficients.fits',
-        ],
-    )
-
-
-def _copy_files(src_dir, dst_dir, filenames):
-    """Copy specific files from src_dir to dst_dir, creating dst_dir if needed."""
-    dst_dir.mkdir(parents=True, exist_ok=True)
-    for f in filenames:
-        src_file = src_dir / f
-        if src_file.exists():
-            shutil.copy2(src_file, dst_dir / f)
-            print(f'  Copied {f} -> {dst_dir}')
-        else:
-            print(f'  WARNING: {src_file} not found, skipping')
-
-
 if __name__ == '__main__':
+    
+    # create the master darks and store in caldb
+    make_masterdarks()
 
-    legacy_patch = '--legacy-patch' in sys.argv[1:]
-
-    complete_masterdark_reduction()
-
-    complete_dark_coeff_reduction()
-
-    if '--populate-inputs' in sys.argv[1:]:
-        populate_inputs(legacy_patch=legacy_patch)
+    # create the dark coefficients and store in caldb
+    make_dark_coefficients()
