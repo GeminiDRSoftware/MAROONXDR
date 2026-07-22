@@ -2789,6 +2789,8 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         times_frd = Time(result_frd.index.values, format="datetime64", scale="utc")
         readings_frd = result_frd.values.flatten() - zp_frd
         median_frd = medfilt(readings_frd, 3)
+        # NOTE: the next line is a legacy "bug" reproduced here for legacy reproducibility.
+        # (readings_frd - median_pc) should be (readings_frd - median_frd)
         outlier = np.where(np.abs(readings_frd - median_pc) / median_frd > 2)
         readings_frd[outlier] = median_frd[outlier]
         if np.sum(outlier) > 0:

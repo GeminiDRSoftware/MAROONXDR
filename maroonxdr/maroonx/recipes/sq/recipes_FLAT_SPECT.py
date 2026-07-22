@@ -81,7 +81,11 @@ def makeStrayLightCheck(p):
     """
     Check the stray light subtraction in normal flat frame processing.
 
-    Run the straylight_test_prep.py file to generate these.
+    Mirrors the makeProcessedFlatDFFFF flow up to removeStrayLight, run with
+    snapshot=True: the SCI data is left at the level just before straylight
+    removal and the removed straylight is saved as the STRAYLIGHT_DIFFERENCE
+    extension. A unit test independently performs the straylight removal and
+    compares its result against SCI + STRAYLIGHT_DIFFERENCE.
 
     Parameters
     ----------
@@ -91,35 +95,47 @@ def makeStrayLightCheck(p):
     Returns
     -------
     Creates test frames with straylight difference and flux at levels just
-    before straylight removal. Unit test will independently perform straylight
-    removal and compare results.
+    before straylight removal.
     """
     p.prepare()
     p.checkArm()
-    # p.checkND()
     p.addDQ()
     p.subtractOverscan()
-    p.trimOverscan()
-    p.correctImageOrientation()
     p.addVAR(read_noise=True, poisson_noise=True)
-    # Creates 'DFFFD_flats' stream and leaves FDDDF flats in main stream
+    # Creates 'DFFFD_flats' stream and leaves DDDDF flats in main stream
     p.separateFlatStreams()
-    p.stackFlats(suffix='FDDDF_flats')
-    p.stackFlats(stream='DFFFD_flats', suffix='DFFFD')
+
+    p.stackFlats(stream='main', scale_mode='mean_frame', suffix='DDDDF')
+    p.stackFlats(stream='DFFFD_flats', scale_mode='mean_frame', suffix='DFFFD')
+
+    # Subtract overscan is run again in backgroundfit.py on the stacked flats
+    p.subtractOverscan(stream='main')
+    p.subtractOverscan(stream='DFFFD_flats')
+
+    p.trimOverscan(stream='main')
+    p.trimOverscan(stream='DFFFD_flats')
+
+    p.correctImageOrientation(stream='main')
+    p.correctImageOrientation(stream='DFFFD_flats')
+
     # Define stripe info to ultimately remove stray light in each stream
-    p.findStripes()
+    p.findStripes(stream='main')
     p.findStripes(stream='DFFFD_flats')
+
     # Identify stripes based on MX architecture files
-    p.identifyStripes(selected_fibers=[1, 5])
+    p.identifyStripes(stream='main', selected_fibers=[5])
     p.identifyStripes(stream='DFFFD_flats', selected_fibers=[2, 3, 4])
+
     # Defines pixel inclusion for each flat region based on stripe ids
-    p.defineFlatStripes()
+    p.defineFlatStripes(stream='main')
     p.defineFlatStripes(stream='DFFFD_flats')
+
     # Remove straylight (requires 2 partial illumination flat sets)
-    p.removeStrayLight(snapshot=True, filter_size=19, box_size=20)
+    p.removeStrayLight(stream='main', snapshot=True, filter_size=19, box_size=20)
     p.removeStrayLight(stream='DFFFD_flats', snapshot=True, filter_size=19, box_size=20)
-    p.writeOutputs(stream='DFFFD_flats', suffix='_straylight_flat')
-    p.writeOutputs(suffix='_straylight_flat')
+
+    p.writeOutputs(stream='DFFFD_flats', suffix='_straylight_flat', strip=True)
+    p.writeOutputs(suffix='_straylight_flat', strip=True)
 
 
 def makeFlatVarCheck(p):
@@ -245,6 +261,6 @@ def makeBlaze(p):
     p.checkMaster()
     p.extractStripes()
     # p.boxExtraction()
-    p.optimalExtraction()
+    p.optimalExtraction(optimal_extraction_fibers=[])
     p.measureBlaze(n_knots=50)
     p.writeOutputs(suffix='_blaze')
