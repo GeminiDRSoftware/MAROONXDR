@@ -55,6 +55,13 @@ sphinx-rtd-theme = "^2.0.0"
 myst-parser = "^2.0.0"
 
 
+[tool.pytest.ini_options]
+markers = [
+    "regression: regression test against preprocessed references",
+    "slow: long-running test",
+]
+
+
 [tool.ruff.format]
 quote-style = "single"
 indent-style = "space"

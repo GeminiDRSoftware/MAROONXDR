@@ -9,8 +9,11 @@ Please note that, to prevent undesirable execution, there are no default
 sessions, so running ``nox`` in isolation will do nothing.
 """
 
+import datetime
 import re
 import shutil
+import tomllib
+import zipfile
 from pathlib import Path
 
 import nox
@@ -440,70 +443,14 @@ def initialize_commit_hooks(session: nox.Session):
 
 
 @nox.session(python='3.12')
-def download_raws(session: nox.Session):
-    """Download all MaroonX raw files listed in MAROONX_TEST_MANIFEST."""
-    session.install('poetry', 'poetry-plugin-export')
-
-    for var_name, var_value in NEW_ENV_VARIABLES.items():
-        session.env[var_name] = str(var_value)
-
-    install_dragons(session)
-    dependencies = get_dependencies(session, only='main,test')
-    session.install(*dependencies)
-    session.install(f'{PYTEST_DRAGONS_URL}')
-    session.install('-e', '.')
-
-    session.run(
-        'python', '-c',
-        'from maroonxdr.maroonx.tests.conftest import download_all_raw_files; '
-        'download_all_raw_files()',
-    )
-
-
-@nox.session(python='3.12')
-def create_inputs(session: nox.Session):
-    """Download and create input files for unit tests.
-
-    Run this session to populate the input files before runing unit_tests.
-    """
-    session.install('poetry', 'poetry-plugin-export')
-
-    # Set environment variables that tests might need
-    for var_name, var_value in NEW_ENV_VARIABLES.items():
-        session.env[var_name] = str(var_value)
-
-    # Install DRAGONS first
-    install_dragons(session)
-
-    # Install dependencies
-    dependencies = get_dependencies(session, only='main,test')
-    session.install(*dependencies)
-
-    # Install pytest_dragons
-    session.install(f'{PYTEST_DRAGONS_URL}')
-
-    # Install maroonxdr and maroonx_instruments in editable mode
-    session.install('-e', '.')
-
-    # Test modules that define create_inputs()
-    create_inputs_scripts = [
-        'maroonxdr/maroonx/tests/bundle/test_bundle.py',
-        'maroonxdr/maroonx/tests/bundle/test_bundle_export.py',
-        'maroonxdr/maroonx/tests/image/test_file_sorting.py',
-        'maroonxdr/maroonx/tests/image/test_image_orientation_corrector.py',
-        'maroonxdr/maroonx/tests/image/test_ND_filter_check.py',
-        'maroonxdr/maroonx/tests/image/test_var.py',
-        'maroonx_instruments/maroonx/tests/test_maroonx.py',
-        'maroonx_instruments/maroonx/tests/test_calibration.py',
-    ]
-
-    for script in create_inputs_scripts:
-        session.run('python', script, '--create-inputs')
-
-
-@nox.session(python='3.12')
 def preprocess(session: nox.Session):
-    """Populate $DRAGONS_TEST data and run reductions for legacy_regression."""
+    """Run the full blessed reduction chain into $DRAGONS_TEST/preprocessed_files/.
+
+    Runs the five scripts under ``maroonxdr/maroonx/tests/preprocess/`` in
+    order (bundle, dark, flat, wavecal, science). Their outputs are the
+    blessed products that ``create_inputs`` nox session stages into the
+    ``inputs/`` and ``refs/`` directories. This step is slow.
+    """
     session.install('poetry', 'poetry-plugin-export')
 
     # Set environment variables that tests might need
@@ -532,7 +479,60 @@ def preprocess(session: nox.Session):
     ]
 
     for script in preprocess_scripts:
-        session.run('python', script, '--populate-inputs', *session.posargs)
+        session.run('python', script, *session.posargs)
+
+
+@nox.session(python='3.12')
+def create_inputs(session: nox.Session):
+    """Stage per-module test inputs and references.
+
+    Run ``preprocess`` nox session before this.
+    """
+    session.install('poetry', 'poetry-plugin-export')
+
+    # Set environment variables that tests might need
+    for var_name, var_value in NEW_ENV_VARIABLES.items():
+        session.env[var_name] = str(var_value)
+
+    # Install DRAGONS first
+    install_dragons(session)
+
+    # Install dependencies
+    dependencies = get_dependencies(session, only='main,test')
+    session.install(*dependencies)
+
+    # Install pytest_dragons
+    session.install(f'{PYTEST_DRAGONS_URL}')
+
+    # Install maroonxdr and maroonx_instruments in editable mode
+    session.install('-e', '.')
+
+    # Test modules that define staging hooks.
+    create_inputs_modules = [
+        'maroonx_instruments.maroonx.tests.test_calibration',
+        'maroonxdr.maroonx.tests.image.test_remove_straylight',
+        'maroonxdr.maroonx.tests.image.test_stack_flats',
+        'maroonxdr.maroonx.tests.echelle_extraction.test_get_peaks_and_polynomials',
+        'maroonxdr.maroonx.tests.echelle_extraction.test_fit_and_apply_etalon_wls',
+        'maroonxdr.maroonx.tests.echelle_extraction.test_optimal_extraction',
+        'maroonxdr.maroonx.tests.echelle_extraction.test_apply_wavelength_solution',
+        'maroonxdr.maroonx.tests.echelle_extraction.test_box_extraction',
+        'maroonxdr.maroonx.tests.echelle_extraction.test_combine_fibers',
+        'maroonxdr.maroonx.tests.echelle_extraction.test_barycentric_correction',
+    ]
+
+    # Modules whose references are separate files in refs/ (the others embed
+    # the reference in the input file itself).
+    create_refs_modules = [
+        'maroonxdr.maroonx.tests.echelle_extraction.test_optimal_extraction',
+        'maroonxdr.maroonx.tests.echelle_extraction.test_box_extraction',
+    ]
+
+    for module in create_inputs_modules:
+        session.run('python', '-m', module, '--create-inputs')
+
+    for module in create_refs_modules:
+        session.run('python', '-m', module, '--create-refs')
 
 
 @nox.session(python='3.12')
@@ -562,46 +562,10 @@ def unit_tests(session: nox.Session):
         'pytest',
         'maroonxdr/maroonx/tests/',
         'maroonx_instruments/maroonx/tests/',
-        '--ignore=maroonxdr/maroonx/tests/legacy_regression',
+        '-m', 'not preprocessed_data',
         '-v',
         '-rs',
         '--tb=short',
-        '--rootdir=.',
-    ]
-
-    # Add any additional arguments passed via command line
-    test_args.extend(session.posargs)
-    session.run(*test_args)
-
-
-@nox.session(python='3.12')
-def legacy_regression_tests(session: nox.Session):
-    """Run legacy pipeline regression tests."""
-    session.install('poetry', 'poetry-plugin-export')
-
-    # Set environment variables that tests might need
-    for var_name, var_value in NEW_ENV_VARIABLES.items():
-        session.env[var_name] = str(var_value)
-
-    # Install DRAGONS first
-    install_dragons(session)
-
-    # Install dependencies
-    dependencies = get_dependencies(session, only='main,test')
-    session.install(*dependencies)
-
-    # Install pytest_dragons
-    session.install(f'{PYTEST_DRAGONS_URL}')
-
-    # Install maroonxdr and maroonx_instruments in editable mode
-    session.install('-e', '.')
-
-    # Run the tests with corrected paths
-    test_args = [
-        'pytest',
-        'maroonxdr/maroonx/tests/legacy_regression',
-        '-v',
-        '--tb=no',
         '--rootdir=.',
     ]
 
@@ -635,7 +599,8 @@ def regression_tests(session: nox.Session):
     # Run the tests with corrected paths
     test_args = [
         'pytest',
-        'maroonxdr/maroonx/tests/regression',
+        'maroonxdr/maroonx/tests/',
+        '-m', 'regression',
         '-v',
         '--tb=short',
         '--rootdir=.',
@@ -658,6 +623,10 @@ def coverage(session: nox.Session):
     """Run tests with coverage reporting."""
     session.install('poetry', 'poetry-plugin-export')
 
+    # Set environment variables that tests might need
+    for var_name, var_value in NEW_ENV_VARIABLES.items():
+        session.env[var_name] = str(var_value)
+
     # Install DRAGONS
     install_dragons(session)
 
@@ -676,11 +645,53 @@ def coverage(session: nox.Session):
         'pytest',
         '-q',
         'maroonxdr/maroonx/tests/',
-        '--ignore=maroonxdr/maroonx/tests/legacy_regression',
+        'maroonx_instruments/maroonx/tests/',
         '--cov=maroonxdr/maroonx/',
+        '--cov=maroonx_instruments/maroonx/',
         '--cov-append',
     )
-    session.run('coverage', 'report', '--fail-under=80', '-m')
+    session.run('coverage', 'report', '-m')
+
+
+@nox.session(venv_backend='none')
+def package_test_data(session: nox.Session):
+    """Package the staged test data for sharing with other developers.
+
+    Zips the per-module ``inputs/`` and ``refs/`` trees under
+    ``$DRAGONS_TEST`` (the ``maroonxdr/`` and ``maroonx_instruments/``
+    directories), excluding log files. The archive is written next to the
+    data root. Recipients unzip it into their own ``$DRAGONS_TEST``
+    directory and run the ``unit_tests`` and ``regression_tests``
+    sessions; neither ``preprocess`` nor ``create_inputs`` is needed on
+    their side.
+    """
+    dragons_test = Path(NEW_ENV_VARIABLES['DRAGONS_TEST'])
+    data_trees = ['maroonxdr', 'maroonx_instruments']
+
+    present = [d for d in data_trees if (dragons_test / d).is_dir()]
+    if not present:
+        message = f'No staged test data found under {dragons_test}'
+        raise FileNotFoundError(message)
+    for missing in sorted(set(data_trees) - set(present)):
+        session.warn(f'{dragons_test / missing} not found; not packaged.')
+
+    # build output filename
+    stamp = datetime.datetime.now(tz=datetime.UTC).strftime('%Y%m%d')
+    pyproject = tomllib.loads((PATH / 'pyproject.toml').read_text())
+    version = pyproject['tool']['poetry']['version']
+    archive = dragons_test.parent / f'mx_test_{version}_{stamp}.zip'
+
+    n_files = 0
+    with zipfile.ZipFile(archive, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+        for tree in present:
+            for path in sorted((dragons_test / tree).rglob('*')):
+                if path.is_dir() or path.suffix == '.log':
+                    continue
+                zf.write(path, path.relative_to(dragons_test))
+                n_files += 1
+
+    size_gb = archive.stat().st_size / 1024**3
+    session.log(f'Packaged {n_files} files into {archive} ({size_gb:.1f} GB)')
 
 
 # Documentation

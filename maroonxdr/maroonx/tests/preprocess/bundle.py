@@ -104,9 +104,19 @@ def download_raw_bundles():
         Mapping of filename to local path, or None where the archive responded
         with HTTP 403 (proprietary data).
     """
+    raw_dir = _get_dragons_test() / 'raw_files'
+
     paths = {}
     for filenames in MANIFEST.values():
         for filename in filenames:
+            # Skip the archive query for cached files: the md5 check in
+            # download_from_archive is broken for MaroonX filenames (GOA does
+            # not filter its jsonfilelist response by them) and re-downloads
+            # every file.
+            local = raw_dir / filename
+            if local.exists():
+                paths[filename] = str(local)
+                continue
             try:
                 paths[filename] = download_from_archive(
                     filename, sub_path='raw_files', env_var='DRAGONS_TEST'
