@@ -161,12 +161,7 @@ Tutorial at :ref:`maroonx_setup`; treat that as the canonical walkthrough
 rather than repeating it here. Day-to-day development happens inside the
 ``mx_dev`` virtual environment that ``devenv`` creates at ``venv/``, and
 that same environment is what the nox sessions below assume is available.
-Developers who also need to run the legacy regression tests must
-separately activate the ``mx_base`` conda environment (used to run the
-frozen legacy pipeline for one side of the comparison) and export
-``MAROONX_LEGACY_TEST`` so pytest can find the reference outputs. For how
-the test suite consumes ``DRAGONS_TEST`` and ``MAROONX_LEGACY_TEST``, see
-:ref:`tests`.
+For how the test suite consumes ``DRAGONS_TEST``, see :ref:`tests`.
 
 The developer-facing nox sessions are:
 
@@ -181,45 +176,41 @@ The developer-facing nox sessions are:
    environment. Use it only if you specifically need a conda-managed
    stack; the rest of this manual assumes ``mx_dev``.
 
-``create_inputs``
-   Populates the per-test ``inputs/`` directories under ``DRAGONS_TEST``
-   by running each test module's own ``create_inputs()`` hook. Run this
-   before the unit tests for the first time, and again after downloading
-   new raw files with ``download_raws``.
-
 ``preprocess``
-   Also populates ``DRAGONS_TEST`` inputs, but by running full reductions
-   (bundle, dark, flat, wavecal, science) rather than per-module hooks.
-   Its outputs feed tests marked with the ``preprocessed_data`` pytest
-   marker, which are skipped by ``unit_tests`` unless the marker is
-   explicitly selected. Pass ``--legacy-patch`` to apply the legacy-
-   compatibility patches (for example, ``removeStrayLight:legacy`` and
-   ``extractStripes:legacy`` uparms) that ``legacy_regression_tests``
-   expect.
+   Runs the blessed reduction chain (bundle, dark, flat, wavecal,
+   science) that produces the reference data for the regression tests.
+   Slow, and only needed by whoever regenerates the blessed data; see
+   :ref:`tests`.
+
+``create_inputs``
+   Stages the per-module ``inputs/`` and ``refs/`` directories under
+   ``DRAGONS_TEST`` from the products of ``preprocess``, by running each
+   test module's own staging hook. Also blessing-side only: developers
+   who received the packaged test data do not run it.
 
 ``unit_tests``
-   Runs the fast pytest suite over ``maroonxdr/maroonx/tests/`` and
-   ``maroonx_instruments/maroonx/tests/``, with the
-   ``legacy_regression`` directory excluded. Extra pytest arguments are
-   forwarded, so ``nox -s unit_tests -- -m "not slow"`` will narrow the
-   selection further.
+   Runs the synthetic test tier over ``maroonxdr/maroonx/tests/`` and
+   ``maroonx_instruments/maroonx/tests/``. Needs no test data. Extra
+   pytest arguments are forwarded, so ``nox -s unit_tests -- -k arm``
+   will narrow the selection further.
 
 ``regression_tests``
-   Runs the DRAGONS-style regression tests under
-   ``maroonxdr/maroonx/tests/regression`` (inputs versus refs
-   comparison). This is separate from ``legacy_regression_tests``, which
-   compares against the legacy pipeline rather than against stored
-   reference outputs.
+   Runs the regression test tier (stored-reference comparison on real
+   data, selected with the ``regression`` marker). Needs the test data
+   under ``DRAGONS_TEST``.
 
-``legacy_regression_tests``
-   Runs the tests under ``maroonxdr/maroonx/tests/legacy_regression``,
-   which compare pipeline outputs against the frozen legacy MaroonX
-   pipeline. Requires ``MAROONX_LEGACY_TEST`` to be set and the
-   ``mx_base`` conda environment to be available for the legacy side of
-   the comparison.
+``coverage``
+   Runs both test tiers with ``pytest-cov`` and prints a terminal
+   coverage report.
+
+``package_test_data``
+   Zips the staged test data into a versioned archive for sharing with
+   other developers; see :ref:`tests`.
 
 ``docs``
    Builds this Sphinx documentation using the unified ``doc/conf.py``.
+   The ``usermanual``, ``progmanual``, and ``tutorial`` sessions build
+   the individual manuals instead, with ``-- --pdf`` for a PDF build.
 
 Run ``nox -l`` from the repository root to see every available session
 together with its docstring.

@@ -73,14 +73,11 @@ developer are:
 
 .. code-block:: text
 
-    - devenv                  -> Create a development environment.
-    - devconda                -> Create a conda development environment.
-    - download_raws           -> Download MAROON-X raw files for tests.
-    - create_inputs           -> Download and create input files for unit tests.
-    - unit_tests              -> Run unit tests.
-    - regression_tests        -> Run DRAGONS-style regression tests.
-    - legacy_regression_tests -> Run legacy pipeline regression tests.
-    - docs                    -> Build documentation using Sphinx.
+    - devenv -> Create a development environment.
+    - devconda -> Create a conda development environment.
+    - unit_tests -> Run unit tests.
+    - regression_tests -> Run DRAGONS-style regression tests with inputs/refs comparison.
+    - docs -> Build documentation using Sphinx.
 
 The ``devenv`` session is what we'll use to create the development environment.
 
@@ -114,14 +111,11 @@ Your shell prompt should now show ``(mx_dev)`` indicating the environment is act
 
 .. note:: The ``devenv`` session automatically writes ``DRAGONS_TEST`` into the
    activate script, pointing to a ``mx_test/`` directory next to the repository.
-   If you need to run legacy regression tests, set ``MAROONX_LEGACY_TEST``
-   manually:
-
-    .. code-block:: bash
-
-        export MAROONX_LEGACY_TEST=/path/to/legacy/data
-
-    See :ref:`tests` for the expected directory structure under each variable.
+   The synthetic unit tests run without any data there; to also run the
+   regression tests, unpack the shared test data archive into that
+   directory. The Tests chapter of the Programmer Manual describes how to
+   obtain the archive and the expected layout (the Programmer Manual is
+   built locally, see :ref:`maroonx_local_manuals`).
 
 
 Step 5: Verify Installation
