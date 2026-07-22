@@ -685,7 +685,7 @@ def package_test_data(session: nox.Session):
     with zipfile.ZipFile(archive, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
         for tree in present:
             for path in sorted((dragons_test / tree).rglob('*')):
-                if path.is_dir() or path.suffix == '.log':
+                if path.is_dir() or path.suffix in ('.log', '.pdf'):
                     continue
                 zf.write(path, path.relative_to(dragons_test))
                 n_files += 1
