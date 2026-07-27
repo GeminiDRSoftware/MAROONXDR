@@ -5,6 +5,7 @@ DRAGONS/
 DevDocs/
 *.pdf
 *.npy
+*.zip
 
 new_bkg_arrays/
 
