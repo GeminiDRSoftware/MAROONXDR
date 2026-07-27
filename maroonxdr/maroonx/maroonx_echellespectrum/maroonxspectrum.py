@@ -1,36 +1,9 @@
 from gempy.utils import logutils
-import numpy as np
+
 from .etalonspectrum import EtalonSpectrum
 from .flatspectrum import FlatSpectrum
 from .echellespectrum import EchelleSpectrum
 
-def save_wavelength_solution(wavelength_solution, filename, ext_name = "wavelength_solution", overwrite=False):
-    """
-    Saves the wavelength solution to a fits file in a new extension.
-
-    Args:
-        wavelength_solution : Wavelength solution to save.
-        filename (str): Name of the file to save the wavelength solution to.
-        ext_name (str): Name of the extension to save the wavelength solution to.
-        overwrite (bool): Overwrite extension if it already exists.
-
-    Returns:
-        None
-    """
-    pass
-
-def load_wavelength_solution(adinput, ext_name = "wavelength_solution"):
-    """
-    Loads the wavelength solution from a fits file.
-
-    Args:
-        filename (str): Name of the file to load the wavelength solution from.
-        ext_name (str): Name of the extension to load the wavelength solution from.
-
-    Returns:
-        wavelength_solution : Wavelength solution loaded from the file.
-    """
-    pass
 
 class MXSpectrum:
     '''

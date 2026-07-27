@@ -154,19 +154,6 @@ class separateFlatStreamsConfig(config.Config):
     suffix = config.Field('Filename suffix', str, '')  # ?
 
 
-class stackFramesMXCalConfig(parameters_stack.stackFramesConfig):
-    """
-    This parameter set controls the stackFrames primitive for MAROON-X.
-    """
-
-    suffix = config.Field('Filename suffix', str, '_stack')
-
-    def setDefaults(self):
-        self.scale = True
-        self.zero = False
-        self.separate_ext = True
-
-
 class stackDarksConfig(parameters_stack.stackDarksConfig):
     """
     This parameter set controls the stackDarks primitive for MAROON-X.
@@ -182,23 +169,7 @@ class stackDarksConfig(parameters_stack.stackDarksConfig):
         self.max_iters = 5
 
 
-class stackFlatsOldConfig(parameters_stack.stackFlatsConfig, stackFramesMXCalConfig):
-    """
-    This parameter set controls the stackFlats primitive for MAROON-X.
-    """
-
-    suffix = config.Field('Filename suffix', str, '')
-
-    def setDefaults(self):
-        self.reject_method = 'sigclip'
-        self.operation = 'mean'
-        self.hsigma = 3.0
-        self.lsigma = 3.0
-        self.max_iters = 5
-        self.scale = True
-
-
-class stackFlatsConfig(parameters_stack.stackFlatsConfig, stackFramesMXCalConfig):
+class stackFlatsConfig(parameters_stack.stackFlatsConfig):
     """
     This parameter set controls the stackFlats primitive for MAROON-X.
     """

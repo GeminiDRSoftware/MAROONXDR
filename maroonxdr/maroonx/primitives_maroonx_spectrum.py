@@ -5,14 +5,12 @@ calibration solutions from reduced 1-D spectra.
 
 # ------------------------------------------------------------------------------
 import multiprocessing
-import os
+
 import time
-import traceback
+
 import warnings
 from copy import deepcopy
-from pathlib import Path
 
-import astrodata
 import numpy as np
 import pandas as pd
 import scipy
@@ -21,7 +19,7 @@ from astropy.table import Table
 from astropy.time import Time, TimeDelta
 from astroquery.simbad import Simbad
 from geminidr.core import Spect
-from gempy.adlibrary import dataselect
+
 from gempy.gemini import gemini_tools as gt
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
@@ -118,61 +116,6 @@ get_BC_vel = bcp.get_BC_vel
 exposure_meter_BC_vel = bcp.exposure_meter_BC_vel
 
 # ------------------------------------------------------------------------------
-
-
-def _get_calibration_wavecal_path():
-    """
-    Get the path for the calibration flat file.
-    Should probably be deprecated when dragons calib is implemented.
-    """
-    cwd = Path(os.getcwd())
-    return cwd / 'calibrations' / 'processed_wavecal'
-
-
-def _get_calibration_wavecal(adinputs):
-    """
-    Match and return calibration etalon file as astrodata object.
-    Should probably be deprecated when dragons calib is implemented.
-    """
-    # Get the calibration etalons
-    calib_path = _get_calibration_wavecal_path()
-
-    arm_tag = "BLUE" if "BLUE" in adinputs[0].tags else "RED"
-    etalons = dataselect.select_data(
-        list(calib_path.glob("*.fits")), tags=[arm_tag, "ETALON", "PREPARED"]
-    )
-    ad_etalons = [astrodata.open(f) for f in etalons]
-
-    adoutputs = []
-    for ad in adinputs:
-        science_time = ad.ut_datetime()
-
-        # Find the etalon with minimum time difference
-        def time_diff(etalon):
-            return abs((etalon.ut_datetime() - science_time).total_seconds())
-
-        closest_etalon = min(ad_etalons, key=time_diff)
-
-        adoutputs.append(closest_etalon)
-    return adoutputs
-
-
-class LogExceptions:
-    """
-    Wraps a function, so that a backtrace is written to logger.
-    Used to wrap iterative fit, which is called using multiprocessing.
-    """
-
-    def __init__(self, f):
-        self.f = f
-
-    def __call__(self, *args, **kwargs):
-        try:
-            return self.f(*args, **kwargs)
-        except Exception as e:
-            e.original_traceback = traceback.format_tb(e.__traceback__)
-            raise
-
 
 @parameter_override
 class MaroonXSpectrum(MAROONXEchelle, Spect):
@@ -1056,28 +999,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                 etalon.spectra[fiber].apply_wavelength_vector()
             etalon.spectra[ref_fiber].apply_wavelength_vector()
 
-            # # DEBUG TEST 1 output
-            # debug_fibers = [2, 3, 4, 5]
-            # debug_science = {}
-            # debug_etalon = {}
-            # for fiber in debug_fibers:
-            #     sci_spec = science.spectra.get(fiber)
-            #     eta_spec = etalon.spectra.get(fiber)
-            #     if fiber in science.spectra and hasattr(science.spectra[fiber], 'peak_data'):
-            #         debug_science[fiber] = {
-            #             "peak_data": sci_spec.peak_data.to_dict(),
-            #         }
-            #     if fiber in etalon.spectra and hasattr(etalon.spectra[fiber], 'peak_data'):
-            #         debug_etalon[fiber] = {
-            #             "peak_data": eta_spec.peak_data.to_dict(),
-            #         }
-            # np.save(f"debug_test1_{science_ad.filename.replace('.fits', '.npy')}", debug_science, allow_pickle=True)
-            # np.save(f"debug_test1_{etalon_ad.filename.replace('.fits', '.npy')}", debug_etalon, allow_pickle=True)
-            # log.debug("DEBUG TEST 1: Saved debug_test1_science.npy and debug_test1_etalon.npy")
-            # --------------
-
-
-            # Calculate offsets in pixel space between science and etalon
+             # Calculate offsets in pixel space between science and etalon
             # frame for reference fiber
             shifts = []
             wavelengths = []
@@ -1143,9 +1065,6 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     center_spl = spl(center_series.index)  # evaluate at pixel positions (index), not raw array
                     etalon.spectra[fiber].peak_data.loc[o, 'CENTER'] = center_series.values - center_spl
 
-            # DEBUG TEST 2 output
-            # 
-            # --------------
 
             if report:
                 fig = plot_calibfiber_offset(xs, shifts, orders, wavelengths, splfits,
@@ -1186,13 +1105,6 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                         plotnumber=fiber-2,
                         fig=fig,
                     )
-                    
-                    fig_debug = _plot_debug(fiber, etalon_peak_data, parameters, residuals)
-                    pdf_debug = PdfPages(f"debug_fiber{fiber}.pdf")
-                    pdf_debug.savefig(fig_debug)
-                    pdf_debug.close()
-                    plt.close(fig_debug)
-
             etalon.spectra[ref_fiber].apply_wavelength_vector()
 
             # Guess the order #s of the etalon peak positions in the measured
@@ -2874,10 +2786,6 @@ def _make_b_spline_from_pars(p, kind=5):
     return scipy.interpolate.BSpline(knots, disp_params, kind)
 
 
-def _peak_to_wavelength(m, pars):
-    return (2.0 * (pars["l"]) * np.cos(pars["theta"]) * pars["n"] / m) * 1e6
-
-
 def _peak_to_wavelength_spline(mm, pars):
     spl = _make_b_spline_from_pars(pars)
     return (
@@ -2892,92 +2800,3 @@ def _peak_to_wavelength_spline(mm, pars):
 def _fc2min(p, m, etalonwl):
     # residuals are in 'nm' not m/s. Good? bad? Should we normalize?
     return _peak_to_wavelength_spline(m, p) - etalonwl
-
-
-def _plot_debug(fiber, etalon_peak_data, parameters, residuals):
-    """
-    Create debug plots for wavelength solution diagnostics.
-
-    Parameters
-    ----------
-    fiber : int
-        Fiber number
-    etalon_peak_data : DataFrame
-        Peak data with columns: M, WAVELENGTH_BY_THAR, ORDER, CENTER, M_FRACTION
-    parameters : lmfit.Parameters
-        Etalon parameters used in the fit
-    residuals : array
-        Residuals in m/s
-
-    Returns
-    -------
-    fig : matplotlib.figure.Figure
-        Debug figure with 6 subplots
-    """
-    fig, axes = plt.subplots(3, 2, figsize=(14, 12))
-    fig.suptitle(f'Debug Plot - Fiber {fiber}', fontsize=14)
-
-    M = etalon_peak_data["M"].values
-    wl = etalon_peak_data["WAVELENGTH_BY_THAR"].values
-    orders = etalon_peak_data["ORDER"].values
-    center = etalon_peak_data["CENTER"].values
-
-    # Compute predicted wavelength from parameters
-    wl_predicted = _peak_to_wavelength_spline(M, parameters)
-
-    # 1. M vs index (color by order)
-    ax = axes[0, 0]
-    sc = ax.scatter(np.arange(len(M)), M, c=orders, cmap='nipy_spectral', s=2)
-    ax.set_xlabel('Index')
-    ax.set_ylabel('M (interference order)')
-    ax.set_title('M values')
-    plt.colorbar(sc, ax=ax, label='Order')
-
-    # 2. WAVELENGTH_BY_THAR vs index (color by order)
-    ax = axes[0, 1]
-    sc = ax.scatter(np.arange(len(wl)), wl, c=orders, cmap='nipy_spectral', s=2)
-    ax.set_xlabel('Index')
-    ax.set_ylabel('Wavelength [nm]')
-    ax.set_title('WAVELENGTH_BY_THAR')
-    plt.colorbar(sc, ax=ax, label='Order')
-
-    # 3. CENTER vs index (color by order)
-    ax = axes[1, 0]
-    sc = ax.scatter(np.arange(len(center)), center, c=orders, cmap='nipy_spectral', s=2)
-    ax.set_xlabel('Index')
-    ax.set_ylabel('CENTER [pixels]')
-    ax.set_title('CENTER values')
-    plt.colorbar(sc, ax=ax, label='Order')
-
-    # 4. Residuals vs wavelength (color by order)
-    ax = axes[1, 1]
-    sc = ax.scatter(wl, residuals, c=orders, cmap='nipy_spectral', s=2)
-    ax.set_xlabel('Wavelength [nm]')
-    ax.set_ylabel('Residuals [m/s]')
-    ax.set_title('Residuals vs Wavelength')
-    ax.axhline(0, color='k', linestyle='--', alpha=0.5)
-    plt.colorbar(sc, ax=ax, label='Order')
-
-    # 5. Predicted vs observed wavelength
-    ax = axes[2, 0]
-    sc = ax.scatter(wl, wl_predicted, c=orders, cmap='nipy_spectral', s=2)
-    ax.set_xlabel('WAVELENGTH_BY_THAR [nm]')
-    ax.set_ylabel('Predicted wavelength [nm]')
-    ax.set_title('Predicted vs Observed')
-    # Add 1:1 line
-    lims = [min(wl.min(), wl_predicted.min()), max(wl.max(), wl_predicted.max())]
-    ax.plot(lims, lims, 'k--', alpha=0.5)
-    plt.colorbar(sc, ax=ax, label='Order')
-
-    # 6. Histogram of residuals
-    ax = axes[2, 1]
-    valid_res = residuals[~np.isnan(residuals)]
-    ax.hist(valid_res, bins=50, edgecolor='black', alpha=0.7)
-    ax.set_xlabel('Residuals [m/s]')
-    ax.set_ylabel('Count')
-    ax.set_title(f'Residuals histogram (median={np.nanmedian(residuals):.1f}, std={np.nanstd(residuals):.1f})')
-    ax.axvline(np.nanmedian(residuals), color='r', linestyle='--', label='median')
-    ax.legend()
-
-    plt.tight_layout()
-    return fig

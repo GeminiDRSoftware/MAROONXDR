@@ -12,26 +12,9 @@ import pandas as pd
 
 from .maroon_x_fit_object import MaroonXFit, FitResult
 
-#from gempy.utils import logutils
 from . import get_logger
 
 PLOT_FORMAT = "png"
-
-# # Module-level logger variable
-# _logger = None
-
-# def set_logger(logger):
-#     """Set the logger for this module"""
-#     global _logger
-#     _logger = logger
-
-# def get_logger():
-#     """Get the configured logger"""
-#     global _logger
-#     if _logger is None:
-#         logutils.config(file_name="maroonx_fit.log", mode="debug")
-#         _logger = logutils.get_logger(__name__)
-#     return _logger
 
 
 def insert_peak_parameters(results):

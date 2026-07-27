@@ -10,6 +10,15 @@ from scipy.interpolate import LSQUnivariateSpline
 from .echellespectrum import EchelleSpectrum
 
 
+from astropy.utils.decorators import deprecated
+
+_DEPRECATION_MSG = (
+    "This method is inherited from the legacy MaroonX pipeline and "
+    "is not used by the DRAGONS reduction; it may be removed in a "
+    "future release."
+)
+
+
 class FlatSpectrum(EchelleSpectrum):
     def __init__ (self, **kwargs):
         super(FlatSpectrum, self).__init__(**kwargs)
@@ -68,6 +77,7 @@ class FlatSpectrum(EchelleSpectrum):
                 plt.show()
         return self.blaze
 
+    @deprecated(since="DRAGONS integration", message=_DEPRECATION_MSG)
     def save_blaze_function(self, filename):
         """
         Saves the blaze function to a file.

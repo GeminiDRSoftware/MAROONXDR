@@ -8,11 +8,10 @@ tuple as a member variable.
 '''
 
 from collections import namedtuple
-from gempy.utils import logutils
 import numpy as np
 
-#logutils.config(file_name="maroonx_fit.log", mode="debug", stomp=False)
 from . import get_logger
+
 
 MetaParameterBase = namedtuple(
         "MetaParameterBase",
@@ -26,6 +25,7 @@ MetaParameterBase = namedtuple(
             "use_sigma_lr",
         ],
 )
+
 
 class MetaParameter(MetaParameterBase):
     """
@@ -119,29 +119,6 @@ class MetaParameter(MetaParameterBase):
         """
         return MetaParameter(self.sigma, self.width, number_of_peaks, self.use_sigma_lr)
 
-    @property
-    def split_at(self):
-        """
-        Returns the split_at array
-        """
-        return np.cumsum(
-            [
-                0,
-                self.offset,
-                self.sigma_left + 1,
-                self.sigma_right + 1,
-                self.width + 1,
-                self.number_of_peaks,
-                self.number_of_peaks,
-            ]
-        )
-
-    def num_polynomial_parameters(self):
-        """
-        Returns the number of polynomial parameters (incl. offset)
-        """
-        return self.split_at[-1]
-
     def __getnewargs__(self):
         """
         Getter function for the argments of the new meta parameters
@@ -175,6 +152,7 @@ class MetaParameter(MetaParameterBase):
         Return the indices of the polynomials
         """
         return self.indices[self.SIGMA_LEFT: -2]
+
 
 class Parameter(object):
     '''
@@ -317,7 +295,6 @@ class Parameter(object):
         f"{centers} != {self.meta_parameters.number_of_peaks}"
         values[0] = np.ndarray.item(values[0])
         return values
-
 
     def update_parameters(
             self,

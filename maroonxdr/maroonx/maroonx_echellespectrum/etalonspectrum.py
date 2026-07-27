@@ -1,9 +1,18 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from .echellespectrum import EchelleSpectrum
+
 from lmfit import parameter
 from scipy.interpolate import UnivariateSpline, BSpline
 from scipy.signal import medfilt
+
+from .echellespectrum import EchelleSpectrum
+
+from astropy.utils.decorators import deprecated
+
+_DEPRECATION_MSG = (
+    "This method is inherited from the legacy MaroonX pipeline and "
+    "is not used by the DRAGONS reduction; it may be removed in a "
+    "future release."
+)
 
 c = 3e8
 class EtalonSpectrum(EchelleSpectrum):
@@ -116,6 +125,7 @@ class EtalonSpectrum(EchelleSpectrum):
             m_int = np.rint(m_float).astype(int)
             return m_int, m_float-m_int
 
+    @deprecated(since="DRAGONS integration", message=_DEPRECATION_MSG)
     def get_peak_data(self, order, data="all"):
         """
         Gets the peak data for the specified order.
@@ -290,9 +300,6 @@ class EtalonSpectrum(EchelleSpectrum):
             for order in self.orders:
                 self.peak_data.loc[order, 'WAVELENGTH'] = self.peak_to_wavelength(self.peak_data.loc[order, 'M'].values)
 
-        if debug > 0:
-            fig = self.plot_etalon_dispersion(plot_title)
-            plt.show() # Show the plot
         return self.peak_data
 
     def plot_etalon_dispersion(self, plot_title = "", plot_mfraction = True):
@@ -305,6 +312,8 @@ class EtalonSpectrum(EchelleSpectrum):
         Returns:
             None
         """
+        import matplotlib.pyplot as plt
+
         fig = plt.figure(figsize=(8, 8))
         fig.subplots_adjust(bottom=.07, left=0.14, right=0.96, top=0.95, hspace=0.40)
         ax1 = fig.add_subplot(311)
@@ -339,7 +348,7 @@ class EtalonSpectrum(EchelleSpectrum):
                         c=self.peak_data.loc[:, 'ORDER'], cmap='nipy_spectral', rasterized=True, marker='.', s=2)
             ax1.plot(self.peak_data.loc[:, 'WAVELENGTH_BY_THAR'], dispersion, 'r-', rasterized=True)
             ax1.text(0.6, 0.05,
-                     f'std: {np.std(residuals):.1f} m/s, mean: {np.mean(residuals):.2f} m/s',
+                     f'std: {np.std(uresiduals):.1f} m/s, mean: {np.mean(uresiduals):.2f} m/s',
                      transform=ax1.transAxes)
 
             if plot_mfraction:

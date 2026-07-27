@@ -1,14 +1,19 @@
 '''
 This class contains the echelle spectrum, from which all other spectrum types inherit.
 '''
+
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-from .spectrum_utils import Spectrum_Utils
-from scipy import interpolate
-from lmfit.models import GaussianModel, LinearModel
+
 from gempy.gemini import gemini_tools as gt
 
+from astropy.utils.decorators import deprecated
+
+_DEPRECATION_MSG = (
+    "This method is inherited from the legacy MaroonX pipeline and "
+    "is not used by the DRAGONS reduction; it may be removed in a "
+    "future release."
+)
 
 class EchelleSpectrum:
     '''
@@ -138,6 +143,7 @@ class EchelleSpectrum:
         norm_pixel = pixel / self.box_data.shape[1] * 2. - 1.
         return norm_pixel
 
+    @deprecated(since="DRAGONS integration", message=_DEPRECATION_MSG)
     def data_flattened(self, box_data=False):
         '''
         Returns the data flattened.
@@ -153,250 +159,21 @@ class EchelleSpectrum:
         data_selection = 'box_data' if box_data else 'opt_data'
         return np.hstack(self.data[data_selection].values), np.hstack(self.data['wavelength'].values)
 
+    @deprecated(since="DRAGONS integration", message=_DEPRECATION_MSG)
     def min_wavelength(self):
         """
         Returns: Minimum wavelength in nm.
         """
         return np.min(self.data['wavelength'])
 
+    @deprecated(since="DRAGONS integration", message=_DEPRECATION_MSG)
     def max_wavelength(self):
         """
         Returns: Maximum wavelength in nm.
         """
         return np.max(self.data['wavelength'])
 
-    def plot_as_2d(self, offset_orders=True, box_data=False):
-        """
-        Plots all orders in one plot,, but offset, so they do not overplot each other.
-
-        Args:
-            offset_orders (bool): If true, plots will be offset so they don't overplot
-            box_data (bool): If false, data is optimal extraction, if true, data is box extraction
-
-        Returns:
-            None
-        """
-        data_selection = 'box_data' if box_data else 'opt_data'
-        color = list(plt.cm.tab20(np.linspace(0, 1, 20)))
-        styles = ['-', '--', '-.', ':']
-        plt.figure()
-        max_int  = np.max(np.max(self.data.loc[self.orders[0]][data_selection]))
-
-        for o in self.orders:
-            if max_int < np.max(self.data.loc[o][data_selection]):
-                max_int = np.max(self.data.loc[o][data_selection])
-
-        for i, o in enumerate(self.orders):
-            offset = 0
-            if offset_orders:
-                offset = o
-            else:
-                max_int = 1
-            plt.plot(self.data.loc[o][data_selection] / max_int + offset, color=color[i % 20],
-                    linestyle=styles[i % 4], label='Order {}'.format(o))
-
-        plt.legend(bbox_to_anchor=(1.01, 0.5), loc="center left")
-
-    def plot_orders(self, orders, box_data=False):
-        """
-        Plots the specified orders in one plot.
-
-        Args:
-            orders (list): List of orders to plot.
-            box_data (bool): If false, data is optimal extraction, if true, data is box extraction
-
-        Returns:
-            None
-        """
-        data_selection = 'box_data' if box_data else 'opt_data'
-        plt.figure()
-        if isinstance(orders, int):
-            orders = [orders]
-        for o in orders:
-            plt.plot(self.data.loc[o][data_selection], label='Order {}'.format(o))
-        plt.show()
-
-    def plot_overlap(self, orders, data_selection='opt_intensity'):
-        """
-        Plots the overlap between the specified orders.
-
-        Args:
-            orders (list): List of orders to plot.
-            data_selection (str): Type of data to plot.  Can be 'opt_intensity' or 'box_intensity'.
-
-        Returns:
-            None
-        """
-        if orders is None:
-            orders = self.orders
-
-        orders = np.unique(np.array(orders))
-        orders.sort()
-        for i in range(len(orders)-1):
-            plt.figure()
-            wl1 = self.data.loc[orders[i]]['wavelength']
-            wl2 = self.data.loc[orders[i+1]]['wavelength']
-            idx1 = wl1 < np.max(wl2)
-            idx2 = wl2 > np.min(wl1)
-            data1 = self.data.loc[orders[i]][data_selection]
-            data2 = self.data.loc[orders[i+1]][data_selection]
-
-            plt.plot(wl1[idx1], data1[idx1], label=f"Order{orders[i]}")
-            plt.plot(wl2[idx2], data2[idx2], label=f"Order{orders[i+1]}")
-            plt.legend()
-        plt.show()
-
-    def plot_orders_vs_wavelength(self, orders=None, data_selection='box_intensity', plot_title=''):
-        """
-        Plots the specified orders vs wavelength.
-
-        Args:
-            orders (list): List of orders to plot.
-            data_selection (str): Type of data to plot.  Can be 'opt_intensity' or 'box_extraction'.
-
-        Returns:
-            None
-        """
-        if orders is None:
-            orders = self.orders
-        if isinstance(orders, int):
-            orders = [orders]
-
-        fig = plt.figure(figsize=(8, 8))
-        fig.subplots_adjust(bottom=.07, left=0.14, right=0.96, top=0.95, hspace=0.40)
-        ax = fig.add_subplot(311)
-        ax.set_title(f'ThAr Lines ({data_selection}) '+plot_title)
-        ax.set_ylabel('Counts (DN)')
-        ax.set_xlabel('Wavelength (nm)')
-        for o in orders:
-            plt.plot(self.data.loc[o]['wavelength'], self.data.loc[o][data_selection],rasterized=True)
-
-        return fig
-
-    def plot_xcorr_orderoverlap(self, orders=None, data_selection='box_extraction',
-                                fig=None, plot_title=''):
-        """
-        Plots the cross-correlation between the specified orders.
-
-        Args:
-            orders (list): List of orders to plot.
-            data_selection (str): Type of data to plot.  Can be 'opt_intensity' or 'box_extraction'.
-            fig (Figure): Figure to plot on.
-            plot_title (str): Title for the plot.
-
-        Returns:
-            None
-        """
-        offsets = []
-        if orders is None:
-            orders = self.orders
-
-        saturation = 250000.0
-        whs = 10
-
-        if fig is None:
-            fig = plt.figure()
-            ax0 = plt.subplot(211)
-            ax1 = plt.subplot(212)
-        else:
-            ax0 = plt.subplot(312)
-            ax1 = plt.subplot(313)
-        ax0.set_title('X-Correlation for order-overlap regions '+plot_title)
-        ax0.set_xlabel('Order x (vs order x+1)')
-        ax0.set_ylabel('FWHM (m/s)')
-        ax1.set_title('X-corr for order-overlap regions ' + plot_title)
-        ax1.set_xlabel('Order x (vs order x+1)')
-        ax1.set_ylabel('Shift (m/s)')
-
-        for o in orders[:-1]:
-            data1 = self.data.loc[o][data_selection]
-            data2 = self.data.loc[o+1][data_selection]
-            wave1 = self.data.loc[o]['wavelength']
-            wave2 = self.data.loc[o+1]['wavelength']
-            data1[data1 == 0] = np.nan
-            data1[data2 == 0] = np.nan
-
-            orderlength = len(data1)
-
-            saturated1 = np.asarray(np.where(data1 > saturation)[0])
-            saturated2 = np.asarray(np.where(data2 > saturation)[0])
-
-            if saturated1.size == 0:
-                if saturated2.size != 0:
-                    saturated1 = saturated2
-            if saturated2.size == 0:
-                if saturated1.size != 0:
-                    saturated2 = saturated1
-
-            saturated = np.unique(np.concatenate([saturated1, saturated2]))
-
-            if saturated.size > 0:
-                for x in saturated:
-                    left = x - whs if (x - whs) >= 0 else 0
-                    right = x + whs if (x + whs) <= orderlength - 1 else orderlength - 1
-                    data1[left:right] = np.nan
-                    data2[left:right] = np.nan
-
-                wave1_trimmed = wave1[:np.argmax(wave1>np.max(wave2))]
-                wave2_trimmed = wave2[np.argmax(wave2 > np.min(wave1)):]
-
-                max_overlap_length = max(len(wave1_trimmed),len(wave2_trimmed))
-
-                xlog = np.logspace(np.log10(np.max([wave1[0],wave2[0]])), np.log10(np.min([wave1[-1],wave2[-1]])), 5 * max_overlap_length)
-                mpspp = (xlog[1] - xlog[0]) / xlog[0] * 3e8
-
-                mask = np.isnan(data1)
-                f = interpolate.interp1d(wave1[~mask], data1[~mask], kind='slinear', fill_value='extrapolate')
-                intensity1_log = f(xlog)
-
-                mask = np.isnan(data2)
-                f = interpolate.interp1d(wave2[~mask], data2[~mask], kind='slinear', fill_value='extrapolate')
-                intensity2_log = f(xlog)
-
-                if o > 173 :
-                    fig = plt.figure()
-                    plt.plot(xlog, intensity1_log)
-                    plt.plot(xlog, intensity2_log)
-                    plt.title(o)
-
-                lag = 7000 // mpspp
-                xcorr = Spectrum_Utils.cross_correlation(intensity1_log, intensity2_log, lag)
-
-                corrx = np.arange(2 * lag + 1) - lag
-
-                pars = LinearModel().make_params(intercept=xcorr.min(), slope=1e5)
-                pars += GaussianModel().guess(xcorr - np.min(xcorr), x=corrx)
-                mod = LinearModel() + GaussianModel()
-                out = mod.fit(xcorr, pars, x=corrx)
-                if o > 173:
-                    fig = plt.figure()
-                    print(out.fit_report())
-                    out.plot_fit()
-                    plt.show(block=False)
-
-                # Add the dispersion in m/s/per-pixel for the log-spaced oversampled wavelength vector
-                # This will be used later to convert the lag into an RV shift in m/s
-                out.params.add('MPSPP', value=mpspp, vary=False)
-
-                offsets.append(out.params['center'] * mpspp)
-                if out.params['fwhm'].stderr is not None:
-                    ax0.errorbar(o, out.params['fwhm'].value * mpspp, yerr= out.params['fwhm'].stderr * mpspp)
-                else:
-                    ax0.errorbar(o, out.params['fwhm'].value * mpspp, yerr=0)
-
-                ax0.scatter(o, out.params['fwhm'].value * mpspp, marker='+')
-
-                if out.params['center'].stderr is not None:
-                    ax1.errorbar(o, out.params['center'].value * mpspp, yerr= out.params['center'].stderr * mpspp)
-                else:
-                    ax1.errorbar(o, out.params['center'].value * mpspp, yerr=0)
-
-                ax1.scatter(o, out.params['center'].value * mpspp, marker='+')
-
-        ax1.text(0.05,0.85,f'Median: {np.median(offsets):.1f} m/s', transform=ax1.transAxes)
-
-        return fig
-
+    @deprecated(since="DRAGONS integration", message=_DEPRECATION_MSG)
     def find_orders_containing_wavelength(self, wavelength):
         """
         Finds the orders that contain the specified wavelength.
@@ -413,6 +190,7 @@ class EchelleSpectrum:
                 found.append(i)
         return found
 
+    @deprecated(since="DRAGONS integration", message=_DEPRECATION_MSG)
     def blaze_correct(self, flat_spectrum, box_data = False):
         """
         Adds deblazed values in the Pandas dataframe for either box or optimal extraction.

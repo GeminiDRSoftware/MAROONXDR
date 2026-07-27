@@ -4,11 +4,19 @@ Class that describes a wavelength solution for a given spectrum.
 import numpy as np
 import time
 import warnings
-import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+
 from astropy.modeling import models, fitting
-from scipy.interpolate import griddata
+
 from gempy.utils import logutils
+
+
+from astropy.utils.decorators import deprecated
+
+_DEPRECATION_MSG = (
+    "This method is inherited from the legacy MaroonX pipeline and "
+    "is not used by the DRAGONS reduction; it may be removed in a "
+    "future release."
+)
 
 
 class WavelengthSolution:
@@ -159,6 +167,7 @@ class WavelengthSolution:
             order = np.repeat(order, len(x))
         return self.solution(self.normalize_x(x), self.normalize_order(order)) / order
 
+    @deprecated(since="DRAGONS integration", message=_DEPRECATION_MSG)
     def sigma_clip_and_refit(self, threshold=4.0, N=8, weighted=False):
         """
         Sigma clip and refit wavelength solution.
@@ -197,6 +206,7 @@ class WavelengthSolution:
             log.info("RMS after clipping: {:.2f} m/s over {} lines".format(residuals_std, len(values)))
             self.make_solution(weighted=weighted)
 
+    @deprecated(since="DRAGONS integration", message=_DEPRECATION_MSG)
     def calculate_order_means(self):
         '''
         Determines mean of the residuals per order in m/s.
@@ -219,76 +229,3 @@ class WavelengthSolution:
             order_means[o] = np.average(residuals, weights=weights)
         self.order_means = order_means
 
-    def plot_solution_2D(self, plot_title=""):
-        """
-        Plot wavelength solution in 2D.
-
-        Parameters
-        ----------
-        plot_title : str
-            Title for the plot.
-
-        Returns
-        -------
-        None
-        """
-        fig = plt.figure(figsize=(5, 8.5))
-        fig.subplots_adjust(bottom=.07, left=0.15, right=0.86, top=0.95, hspace=0.25)
-        ax1 = fig.add_subplot(211)
-        ax2 = fig.add_subplot(212)
-        ax1.set_title('Lines used for fitting and their residuals '+plot_title)
-        ax1.set_xlabel('Normalized Detector Position')
-        ax1.set_ylabel('Wavelength (nm)')
-        ax1.set_xlim(-1.05,1.05)
-        ax1.scatter(self.x_norm[self.index_include], self.wavelengths[self.index_include],
-                    c=self.orders_norm[self.index_include],rasterized=True)
-        ax1.scatter(self.x_norm[np.logical_not(self.index_include)],
-                    self.wavelengths[np.logical_not(self.index_include)],
-                    facecolors='none', edgecolors='r',rasterized=True)
-
-        for x, o, oo, wl in zip(self.x_norm[self.index_include], self.orders_norm[self.index_include],
-                                self.orders[self.index_include], self.wavelengths[self.index_include]):
-            ax1.arrow(x, wl, 0, (self.solution(x, o) / oo - wl) * 1000., head_width=0.00005,
-                      head_length=0.0001, width=0.00005)
-
-        xi = np.linspace(min(self.x_norm[self.index_include]), max(self.x_norm[self.index_include]), 101)
-        yi = np.linspace(min(self.orders_norm[self.index_include]), max(self.orders_norm[self.index_include]), 101)
-        zi = griddata((self.x_norm[self.index_include], self.orders_norm[self.index_include]),
-                      ((self.wavelengths[self.index_include] - self.solution(self.x_norm[self.index_include],
-                                                                             self.orders_norm[self.index_include]) /
-                        self.orders[
-                            self.index_include]) / np.mean(self.wavelengths[self.index_include])) * 3e8,
-                      (xi[None, :], yi[:, None]), method='linear')
-
-        ax2.set_xlim(-1.05, 1.05)
-        ax2.set_ylim(-1.05, 1.05)
-        ax2.set_xlabel('Detector x normalized')
-        ax2.set_ylabel('order normalized')
-        plt.title(f'Legendre Poly Degree X: {self.poly_deg_x:d}  Y: {self.poly_deg_y:d}  -  #pars: '
-                  f'{len(self.solution.parameters)} '+plot_title)
-
-        im = ax2.imshow(zi, interpolation='nearest', extent=[np.min(xi), np.max(xi), np.min(yi), np.max(yi)],
-                       origin='lower',rasterized=True)
-        ax2.scatter(self.x_norm[self.index_include], self.orders_norm[self.index_include],color='k',s=2,rasterized=True)
-        divider = make_axes_locatable(ax2)
-        cax = divider.append_axes("right", size="5%", pad=0.05)
-
-        cb = plt.colorbar(im, cax=cax)
-        cb.set_label('RV deviation [m/s]')
-
-        #plt.tight_layout()
-
-        return fig
-
-    def plot_residuals(self, plot_title='', residuals=None, wavelengths=None, orders_norm=None,
-                       x_norm=None, weights=None, zoom=False):
-        """
-        Plot residuals.
-        """
-        pass
-
-    def plot_residuals_over_x(self, plot_title=''):
-        """
-        Plot residuals over x.
-        """
-        pass

@@ -9,13 +9,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import optimize
 
-from gempy.utils import logutils
-
 from . import maroonx_fit_spectrum as spectrum
 from .maroonx_fit_parameters import Parameter, MetaParameter
 
 from . import get_logger
-# logutils.config(file_name="maroonx_fit.log", mode="debug", stomp=False)
+
 
 PLOT_KWARGS = dict(dpi=300, bbox_inches="tight", pad_inches=0.25)
 

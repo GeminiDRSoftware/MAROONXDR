@@ -3,15 +3,13 @@ This file contains functions used to describe a single spectrum or a single peak
 '''
 import os
 import numpy as np
-import matplotlib.pyplot as plt
+
 import scipy.optimize as optimize
 
 from scipy import signal
-from gempy.utils import logutils
 from scipy.special import erf
 
 from . import get_logger
-#logutils.config(file_name="maroonx_fit.log", mode="debug", stomp=False)
 
 
 PLOT_KWARGS = dict(dpi=300, bbox_inches="tight", pad_inches=0.25)
@@ -239,12 +237,14 @@ def residual_centers(parameters, x, y, poly_parameters, meta):
 
     return np.nan_to_num(res)
 
+
 class PeakError(Exception):
     """
     Exception raised when the fit fails
     """
     def __str__(self):
         return self.args[0]
+
 
 def fit_peak_centers(fitrange, data, param_obj, parameter_bounds, iteration = None, fiber = ''):
     """
@@ -438,9 +438,11 @@ def find_peaks(data, order=2, savgol_window_length=3, savgol_polyorder=1):
     len_maxima = len(maxima)
     # Check that minima and maxima occur alternated, if not, make plots to show error
     if len_minima != len_maxima + 1 or np.any((minima[:-1] > maxima) | (maxima > minima[1:])):
-        plt.figure()
         d_nonnan = d.copy()
         d_nonnan[np.isnan(d)] = 0
+
+        import matplotlib.pyplot as plt
+        plt.figure()
         plt.title(f'#Minima: {len(minima)}  #Maxima: {len(maxima)}')
         plt.plot(d)
         plt.plot(maxima, d_nonnan[maxima], 'g+')
@@ -454,42 +456,3 @@ def find_peaks(data, order=2, savgol_window_length=3, savgol_polyorder=1):
     log.fullinfo(f"Found {len_minima} minima and {len_maxima} maxima")
     return maxima, minima
 
-def plot_peaks(data, minima, maxima, ax=None, filename=None):
-    """
-    Plot the result of find_peaks
-
-    Parameters
-    ----------
-    data: np.array like
-        1d extracted etalon spectrum
-    minima: np.array like
-        indices of local minima
-    maxima: np.array like
-        indices of local maxima
-    ax: matplotlib.Axis
-        Axis to use for plotting
-    filename: str
-        file to save plot
-
-    Returns
-    -------
-    Plots added to the filename
-    """
-
-    if ax is None:
-        fig, ax = plt.subplots()
-
-    ax.plot(data, ".--", color="grey")
-    data_nonnan = data.copy()
-    data_nonnan[np.isnan(data)] = 0
-    ax.plot(minima, data_nonnan[minima], ".", color="blue", label="Minima")
-    ax.plot(maxima, data_nonnan[maxima], ".", color="red", label="Maxima")
-    ax.set_title("Found peaks")
-
-    if filename is not None:
-        plt.savefig(filename, **PLOT_KWARGS)
-        np.savez_compressed(
-            change_ext(filename, "npz"), data=data, minima=minima, maxima=maxima
-        )
-    plt.clf()
-    plt.cla()
