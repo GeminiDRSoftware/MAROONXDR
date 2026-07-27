@@ -261,6 +261,6 @@ def makeBlaze(p):
     p.checkMaster()
     p.extractStripes()
     # p.boxExtraction()
-    p.optimalExtraction(optimal_extraction_fibers=[])
+    p.optimalExtraction()
     p.measureBlaze(n_knots=50)
     p.writeOutputs(suffix='_blaze')
