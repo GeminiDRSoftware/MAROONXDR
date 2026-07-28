@@ -167,7 +167,7 @@ class WavelengthSolution:
             order = np.repeat(order, len(x))
         return self.solution(self.normalize_x(x), self.normalize_order(order)) / order
 
-    @deprecated(since="DRAGONS integration", message=_DEPRECATION_MSG)
+    @deprecated(since="DRAGONS-integration", message=_DEPRECATION_MSG)
     def sigma_clip_and_refit(self, threshold=4.0, N=8, weighted=False):
         """
         Sigma clip and refit wavelength solution.
@@ -206,7 +206,7 @@ class WavelengthSolution:
             log.info("RMS after clipping: {:.2f} m/s over {} lines".format(residuals_std, len(values)))
             self.make_solution(weighted=weighted)
 
-    @deprecated(since="DRAGONS integration", message=_DEPRECATION_MSG)
+    @deprecated(since="DRAGONS-integration", message=_DEPRECATION_MSG)
     def calculate_order_means(self):
         '''
         Determines mean of the residuals per order in m/s.

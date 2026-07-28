@@ -77,7 +77,7 @@ class FlatSpectrum(EchelleSpectrum):
                 plt.show()
         return self.blaze
 
-    @deprecated(since="DRAGONS integration", message=_DEPRECATION_MSG)
+    @deprecated(since="DRAGONS-integration", message=_DEPRECATION_MSG)
     def save_blaze_function(self, filename):
         """
         Saves the blaze function to a file.

@@ -125,7 +125,7 @@ class EtalonSpectrum(EchelleSpectrum):
             m_int = np.rint(m_float).astype(int)
             return m_int, m_float-m_int
 
-    @deprecated(since="DRAGONS integration", message=_DEPRECATION_MSG)
+    @deprecated(since="DRAGONS-integration", message=_DEPRECATION_MSG)
     def get_peak_data(self, order, data="all"):
         """
         Gets the peak data for the specified order.

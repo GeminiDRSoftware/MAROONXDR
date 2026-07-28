@@ -222,21 +222,21 @@ man_pages = [
 
 # Mock imports for DRAGONS modules that won't be installed on RTD
 autodoc_mock_imports = [
-    'astrodata',
-    'astropy',
-    'gempy',
-    'geminidr',
-    'recipe_system',
-    'photutils',
-    'bokeh',
-    'barycorrpy',
-    'numpy',
-    'numba',
-    'pandas',
-    'scipy',
-    'lmfit',
-    'astroquery',
-    'matplotlib'
+    # 'astrodata',
+    # 'astropy',
+    # 'gempy',
+    # 'geminidr',
+    # 'recipe_system',
+    # 'photutils',
+    # 'bokeh',
+    # 'barycorrpy',
+    # 'numpy',
+    # 'numba',
+    # 'pandas',
+    # 'scipy',
+    # 'lmfit',
+    # 'astroquery',
+    # 'matplotlib'
 ]
 
 # Autodoc options - include all members with or without docstrings

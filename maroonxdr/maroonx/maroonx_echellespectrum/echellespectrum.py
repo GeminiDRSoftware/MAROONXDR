@@ -143,7 +143,7 @@ class EchelleSpectrum:
         norm_pixel = pixel / self.box_data.shape[1] * 2. - 1.
         return norm_pixel
 
-    @deprecated(since="DRAGONS integration", message=_DEPRECATION_MSG)
+    @deprecated(since="DRAGONS-integration", message=_DEPRECATION_MSG)
     def data_flattened(self, box_data=False):
         '''
         Returns the data flattened.
@@ -159,21 +159,21 @@ class EchelleSpectrum:
         data_selection = 'box_data' if box_data else 'opt_data'
         return np.hstack(self.data[data_selection].values), np.hstack(self.data['wavelength'].values)
 
-    @deprecated(since="DRAGONS integration", message=_DEPRECATION_MSG)
+    @deprecated(since="DRAGONS-integration", message=_DEPRECATION_MSG)
     def min_wavelength(self):
         """
         Returns: Minimum wavelength in nm.
         """
         return np.min(self.data['wavelength'])
 
-    @deprecated(since="DRAGONS integration", message=_DEPRECATION_MSG)
+    @deprecated(since="DRAGONS-integration", message=_DEPRECATION_MSG)
     def max_wavelength(self):
         """
         Returns: Maximum wavelength in nm.
         """
         return np.max(self.data['wavelength'])
 
-    @deprecated(since="DRAGONS integration", message=_DEPRECATION_MSG)
+    @deprecated(since="DRAGONS-integration", message=_DEPRECATION_MSG)
     def find_orders_containing_wavelength(self, wavelength):
         """
         Finds the orders that contain the specified wavelength.
@@ -190,7 +190,7 @@ class EchelleSpectrum:
                 found.append(i)
         return found
 
-    @deprecated(since="DRAGONS integration", message=_DEPRECATION_MSG)
+    @deprecated(since="DRAGONS-integration", message=_DEPRECATION_MSG)
     def blaze_correct(self, flat_spectrum, box_data = False):
         """
         Adds deblazed values in the Pandas dataframe for either box or optimal extraction.

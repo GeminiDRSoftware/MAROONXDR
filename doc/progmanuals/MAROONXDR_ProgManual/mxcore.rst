@@ -59,12 +59,6 @@ Wavelength Solution
    :members:
    :no-inherited-members:
 
-Spectrum Utilities
-------------------
-
-.. automodule:: maroonxdr.maroonx.maroonx_echellespectrum.spectrum_utils
-   :members:
-   :no-inherited-members:
 
 Etalon Fit Package
 ==================
