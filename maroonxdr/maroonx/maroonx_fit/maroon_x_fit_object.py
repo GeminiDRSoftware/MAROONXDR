@@ -1,9 +1,11 @@
-'''
-This function contains the MaroonXFit class,
-which is used to describe the parameters of a fit to a MaroonX spectrum.
-It also contains other, smaller, related classes.  Functions in maroonx_fit_spectrum are
-overloaded here to use the MaroonXFit object.
-'''
+"""
+Classes describing the state and result of a MaroonX etalon spectrum fit.
+
+``MaroonXFit`` holds the fit state and delegates its methods to the
+functions in ``maroonx_fit_spectrum`` and ``maroonx_fit_parameters``.
+``FitResult`` is the container returned by ``iterative_fit``;
+``FitError`` is raised when the polynomial fit fails.
+"""
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -18,28 +20,36 @@ from . import get_logger
 PLOT_KWARGS = dict(dpi=300, bbox_inches="tight", pad_inches=0.25)
 
 class FitError(Exception):
-    '''
-    Exception raised when the fit fails
-    '''
+    """
+    Exception raised when the polynomial fit fails.
+
+    Raised by ``MaroonXFit.fit_polynomials``.
+    """
     def __str__(self):
         return self.args[0]
 
 
 class FitResult(object):
-    '''
-    This class is used to describe the result of a fit to a MaroonX spectrum.
-    Contains the following properties:
-    fit_obj: MaroonXFit object
-        MaroonXFit object that was fitted
-    fit_duration: float
-        time it took to fit the spectrum
-    iterations: int
-        number of iterations it took to fit the spectrum
-    polynomial_fit_result: np.array
-        result of the polynomial fit
-    peak_fit_results: np.array
-        result of the peak fit
-    '''
+    """
+    Result of a fit to a MaroonX etalon spectrum.
+
+    Attributes
+    ----------
+    fit_obj : MaroonXFit
+        MaroonXFit object that was fitted.
+
+    fit_duration : float
+        Time it took to fit the spectrum (seconds).
+
+    iterations : int
+        Number of iterations to fit.
+
+    polynomial_fit_result : scipy.optimize.OptimizeResult
+        Result of the polynomial fit.
+
+    peak_fit_results : list of scipy.optimize.OptimizeResult
+        Results of the individual peak fits.
+    """
     def __init__(
             self,
             fit_obj,
@@ -54,50 +64,63 @@ class FitResult(object):
         self.peak_fit_results = peak_fit_results
 
 class MaroonXFit(object):
-    '''
-    This class is used to describe the parameters of a fit to a MaroonX spectrum.
-    Contains the following properties:
-    fitrange: np.array like
-        x data (pixel) - domain of the data being fitted
-    data: np.array like
-        1d extracted etalon spectrum
-    param_obj: Parameter object
-        parameters that describe etalon spectrum
-    parameters_bounds: np.array
-        parameter bounds of the fit
+    """
+    Parameters and state of a fit to a MaroonX etalon spectrum.
+
+    The constructor guesses the initial fit parameters and their bounds
+    from the supplied spectrum.
+
+    Parameters
+    ----------
+    data : ndarray
+        Recorded 1D spectrum.
+
+    degree_sigma : int
+        Degree of the polynomial for the peak sigmas.
+
+    degree_width : int
+        Degree of the polynomial for the peak widths.
+
     fiber : str
-        fiber to process, this is only used to generate filenames for
-        debug plots and for log messages
-    plot_path: str
-        Generate debug plots and save them at the given location
-    '''
+        Fiber to process. Only used to generate filenames for debug plots
+        and for log messages. Default is an empty string.
+
+    plot_path : str
+        Location at which to generate and save debug plots. Default is an
+        empty string.
+
+    use_sigma_lr : bool
+        Use different polynomials for the sigma at the left and right
+        flanks of the peaks. Default is True.
+
+    Attributes
+    ----------
+    fitrange : ndarray
+        x data (pixel), domain of the data being fitted.
+
+    data : ndarray
+        1D extracted etalon spectrum, restricted to ``fitrange``.
+
+    param_obj : Parameter
+        Parameters that describe the etalon spectrum.
+
+    parameters_bounds : ndarray
+        Lower and upper parameter bounds of the fit.
+
+    fiber : str
+        Fiber to process, as passed to the constructor.
+
+    plot_path : str
+        Location for debug plots, as passed to the constructor.
+
+    Raises
+    ------
+    PeakError
+        When peak finding detects an inconsistent number of minima and
+        maxima in ``data``.
+    """
     def __init__(self, data, degree_sigma=None, degree_width=None,\
                   fiber="", plot_path="", use_sigma_lr=True):
-        """
-        Guess initial parameters for a etalon spectrum fit
-
-        Parameters
-        ----------
-        data: ndarray
-            recorded 1D spectrum
-        degree_sigma: tuple
-            degree of the sigma polynomial
-        degree_width: int
-            degree of the half width polynomial
-        fiber: str
-            fibre to process, this is only used to generate filenames for
-            debug plots and for log messages
-        plot_path: str
-            Generate debug plots and save them at the given location
-        use_sigma_lr: bool
-            Use different polynomial for sigma at left and
-            right flank
-        Returns
-        --------
-        tuple: (initial parameters, parameter boundaries, fit meta parameters)
-        The tuple contains the initial parameters for the fit, and the boundaries
-        """
-
         # self.log = logutils.get_logger(__name__)
         self.log = get_logger()
         log = self.log
@@ -189,19 +212,30 @@ class MaroonXFit(object):
 
 
     def fit_polynomials(self, **least_square_kw):
-        """
-        Fit the the polynomial parameters while holding the peak centers.
+        r"""
+        Fit the polynomial parameters while holding the peak centers fixed.
+
+        The fitted parameters are stored in place in ``param_obj``.
 
         Parameters
         ----------
-        Maroon_X_Fit object: Maroon_X_Fit object that is being fitted
+        \*\*least_square_kw
+            Additional keyword arguments passed to
+            ``scipy.optimize.least_squares``. Defaults ``xtol=1e-15`` and
+            ``ftol=1e-12`` are applied first and can be overridden.
 
         Returns
         -------
-        result: np.ndarray
-            fitted parameters with the peak centers fixed
-        """
+        scipy.optimize.OptimizeResult
+            Result of the least-squares fit of the polynomial parameters.
 
+        Raises
+        ------
+        FitError
+            When the least-squares fit does not succeed, or when the
+            fitted amplitudes, sigma, or width evaluate to a value below
+            zero.
+        """
         kw_args = dict(xtol=1e-15, ftol=1e-12)
         kw_args.update(least_square_kw)
 
@@ -247,7 +281,6 @@ class MaroonXFit(object):
 
         Parameters
         ----------
-        Maroon_X_Fit object: Maroon_X_Fit object that is being fitted
         ax1: matplotlib.Axis
             Axis to use for plotting peaks (optional)
         ax2: matplotlib.Axis
@@ -259,7 +292,6 @@ class MaroonXFit(object):
         -------
         Plots added to file with filename
         """
-
         data = self.data
         fitrange = self.fitrange
         # Extract necessary parameters
@@ -328,26 +360,23 @@ class MaroonXFit(object):
 
     def update_maroonxfit(self, fitrange = None, data = None, param_obj = None, param_bounds = None):
         """
-        Update the MaroonXFit object with new data and parameters
+        Update the MaroonXFit object with new data and parameters.
+
+        Attributes whose corresponding argument is None are left unchanged.
 
         Parameters
         ----------
-        Maroon_X_Fit object: Maroon_X_Fit object that is being fitted
-        fitrange: np.array like or None
-            x data (pixel) - domain of the data being fitted.  If None, the
-            fitrange of the object is not updated
-        data: np.array like or None
-            1d extracted etalon spectrum. If None, the data of the object is
-            not updated
-        param_obj: Parameter object or None
-            parameters that describe etalon spectrum. If None, the parameters
-            of the object is not updated
-        param_bounds: np.array or None
-            parameter bounds of the fit. If None, the parameter bounds of the
-            object is not updated
-        Returns
-        -------
-        None
+        fitrange : ndarray or None
+            x data (pixel), domain of the data being fitted.
+
+        data : ndarray or None
+            1D extracted etalon spectrum.
+
+        param_obj : Parameter or None
+            Parameters that describe the etalon spectrum.
+
+        param_bounds : ndarray or None
+            Parameter bounds of the fit.
         """
         if fitrange is not None:
             self.fitrange = fitrange
@@ -363,34 +392,29 @@ class MaroonXFit(object):
 
     def centers(self):
         """
-        Overloads the centers function in maroonx_fit_parameters.py.
-        Function to calculate the centers of the fitted etalon peaks
+        Return the centers of the fitted etalon peaks.
 
-        Parameters
-        ----------
-        Maroon_X_Fit object
+        Delegates to the ``Parameter.centers`` property of ``param_obj``.
 
         Returns
         -------
-        centers: ndarray
-            centers of the fitted etalon peaks
+        ndarray
+            Centers of the fitted etalon peaks (pixel).
         """
         param_obj = self.param_obj
         return param_obj.centers
 
     def spectrum_val(self):
         """
-        Overloads the spectrum_val function in maroonx_fit_spectrum.py.
-        Function to calculate the spectrum values for the given Maroon_X_Fit object
+        Evaluate the fitted spectrum model over the fit range.
 
-        Parameters
-        ----------
-        Maroon_X_Fit object
+        Delegates to ``maroonx_fit_spectrum.spectrum_val`` using the
+        object's ``fitrange`` and ``param_obj``.
 
         Returns
         -------
-        fit: ndarray
-            values of the fit for x values in fitrange
+        ndarray
+            Values of the fit for x values in ``fitrange``.
         """
         x = self.fitrange
         param_obj = self.param_obj
@@ -398,18 +422,15 @@ class MaroonXFit(object):
 
     def eval_polynomials(self):
         """
-        Overloads the eval_polynomials function in maroonx_fit_parameters.py
-        Evaluates the polynomials for the given Maroon_X_Fit object using the
-        parameters and fitrange provided in the object
+        Evaluate the fitted polynomials over the fit range.
 
-        Parameters
-        ----------
-        Maroon_X_Fit object
+        Delegates to ``Parameter.eval_polynomials`` using the object's
+        ``fitrange`` and ``param_obj``.
 
         Returns
         -------
-        values: ndarray
-            values of the polynomials for x values in fitrange
+        ndarray
+            Values of the polynomials for x values in ``fitrange``.
         """
         param_obj = self.param_obj
         fitrange = self.fitrange
@@ -417,33 +438,43 @@ class MaroonXFit(object):
 
     def eval_polynomials_at_centers(self):
         """
-        Overloads the eval_polynomials_at_centers function in maroonx_fit_parameters.py.
-        Evaluate the polynomials at the centers of the fitted etalon peaks.
-        Parameters
-        ----------
-        Maroon_X_Fit object
+        Evaluate the fitted polynomials at the fitted etalon peak centers.
+
+        Delegates to ``Parameter.eval_polynomials_at_centers`` of
+        ``param_obj``. The returned array stacks the peak centers and
+        amplitudes, followed by the sigma and width polynomials evaluated
+        at those centers.
 
         Returns
         -------
         ndarray
-            values of the polynomials at the centers of the
-            fitted etalon peaks
+            Peak centers, amplitudes, and polynomial values at the centers,
+            one row each.
         """
         param_obj = self.param_obj
         return param_obj.eval_polynomials_at_centers()
 
     def fit_peak_centers(self, iteration = None, fiber = None):
         """
-        Overloads the fit_peak_centers function in maroonx_fit_spectrum.py.
-        Function to fit the center of each peak individually
+        Fit the center of each peak individually.
+
+        Delegates to ``maroonx_fit_spectrum.fit_peak_centers`` using the
+        object's state. The fitted centers and amplitudes are stored in
+        place in ``param_obj``.
+
         Parameters
         ----------
-        Maroon_X_Fit object
+        iteration : int or None
+            Iteration number, used only in log messages. If None, the log
+            messages refer to the guess spectrum instead.
+
+        fiber : str or None
+            Fiber name, used only in log messages.
 
         Returns
         -------
-        result: np.ndarray
-            fitted parameters with the peak centers fixed
+        list of scipy.optimize.OptimizeResult
+            Per-peak least-squares fit results.
         """
         fitrange = self.fitrange
         data = self.data

@@ -1,11 +1,12 @@
-'''
-This module contains the MetaParameter and Parameter classes. The MetaParameter class
-is a namedtuple that holds the static meta parameters of the fit and information
-derived from those to  handle the parameter vector. The Parameter class is a wrapper
-around the parameter vector that allows to easily access the different parts of the
-parameter vector and to update it.  Parameter objects also contain the MetaParameter
-tuple as a member variable.
-'''
+"""
+Parameter-vector handling for the etalon spectrum fit.
+
+``MetaParameter`` is an immutable namedtuple holding the static meta
+parameters of the fit and the derived slices that select the parts of
+the flat parameter vector. ``Parameter`` wraps the parameter vector itself,
+giving named access to its parts and in-place updates, and carries the
+``MetaParameter`` tuple as a member variable.
+"""
 
 from collections import namedtuple
 import numpy as np
@@ -29,10 +30,36 @@ MetaParameterBase = namedtuple(
 
 class MetaParameter(MetaParameterBase):
     """
-    namedtuple holding the static meta parameters of the fit and information
-    derived from those to  handle the parameter vector
+    Immutable namedtuple holding the static meta parameters of the fit.
 
-    Note:  Immutable
+    Also holds the information derived from those to select the parts
+    of the flat parameter vector.
+
+    Parameters
+    ----------
+    sigma : int
+        Degree of the sigma polynomial(s).
+
+    width : int
+        Degree of the width polynomial.
+
+    number_of_peaks : int
+        Number of etalon peaks. Default is 0.
+
+    use_sigma_lr : bool
+        Use different sigmas for the left and right flanks of the peaks.
+        Default is False.
+
+    Attributes
+    ----------
+    total : int
+        Total length of the parameter vector.
+
+    indices : list of slice
+        Slices that select the parts of the parameter vector, in order:
+        offset, left sigma coefficients, right sigma coefficients, width
+        coefficients, peak centers, amplitudes. When ``use_sigma_lr`` is
+        False the right sigma slice equals the left one.
     """
 
     #Default values
@@ -44,23 +71,6 @@ class MetaParameter(MetaParameterBase):
     AMPLITUDES = 5
 
     def __new__(cls, sigma, width, number_of_peaks=0, use_sigma_lr=False):
-        """
-        Create a new MetaParameter object
-        Parameters
-        ----------
-        sigma: int
-            number of sigma coefficients
-        width: int
-            number of width coefficients
-        number_of_peaks: int
-            number of etalon peaks
-        use_sigma_lr: bool
-            use different sigmas for left and right side of the wings
-        Returns
-        -------
-        MetaParameter object
-        """
-
         offset = 1
         sigma_left = sigma
         sigma_right = sigma if use_sigma_lr else -1
@@ -92,74 +102,98 @@ class MetaParameter(MetaParameterBase):
 
     def as_array(self):
         """
-        Return as numpy array
-        Params
-        -------
-        self
+        Return the meta parameters as a numpy array.
 
         Returns
         -------
-        A numpy array made from the Meta Parameters
+        ndarray
+            Array made from the meta parameter fields.
         """
         return np.array(self)
 
     def change_peaks(self, number_of_peaks):
         """
-        Return a copy with changed number of peaks
+        Return a copy with a changed number of peaks.
 
-        Params
-        -------
-        self
-        number_of_peaks: int
-        A new number of peaks for the meta parameters
+        Parameters
+        ----------
+        number_of_peaks : int
+            New number of peaks.
 
         Returns
         -------
-        A copy of the Meta Parameters with the new number of peaks
+        MetaParameter
+            Copy of the meta parameters with the new number of peaks.
         """
         return MetaParameter(self.sigma, self.width, number_of_peaks, self.use_sigma_lr)
 
     def __getnewargs__(self):
-        """
-        Getter function for the argments of the new meta parameters
-        """
+        """Return the constructor arguments, used for pickling."""
         return self.sigma, self.width, self.number_of_peaks, self.use_sigma_lr
 
     @property
     def offset(self):
-        """
-        Return the index of the offset
-        """
+        """Return the slice that selects the offset from the parameter vector."""
         return self.indices[self.OFFSET]
 
     @property
     def centers(self):
-        """
-        Return the indices of the centers of the etalon peaks
-        """
+        """Return the slice that selects the peak centers from the parameter vector."""
         return self.indices[self.CENTERS]
 
     @property
     def amplitudes(self):
-        """
-        Return the indices of the amplitudes of the etalon peaks
-        """
+        """Return the slice that selects the peak amplitudes from the parameter vector."""
         return self.indices[self.AMPLITUDES]
 
     @property
     def polynomials(self):
-        """
-        Return the indices of the polynomials
-        """
+        """Return the slices that select the polynomial coefficients (left sigma, right sigma, width)."""
         return self.indices[self.SIGMA_LEFT: -2]
 
 
 class Parameter(object):
-    '''
-    Wrapper around the parameter vector that allows to easily access the different
-    parts of the parameter vector and to update it.  Parameter objects also contain
-    the MetaParameter tuple as a member variable.
-    '''
+    """
+    Wrapper around the flat parameter vector of the fit.
+
+    Gives named access to the different parts of the parameter vector
+    and allows updating it in place. The constructor concatenates the
+    parts into a single numpy array as expected by
+    ``scipy.optimize.least_squares``. When
+    ``meta_parameters.use_sigma_lr`` is False, ``p_sigma_left`` and
+    ``p_sigma_right`` must be equal and only one copy is stored.
+
+    Parameters
+    ----------
+    offset : float
+        Constant offset of the spectrum.
+
+    p_sigma_left : ndarray
+        Coefficients of the left sigma polynomial.
+
+    p_sigma_right : ndarray
+        Coefficients of the right sigma polynomial.
+
+    p_width : ndarray
+        Coefficients of the width polynomial.
+
+    peaks : ndarray
+        Centers of the etalon peaks.
+
+    amplitudes : ndarray
+        Amplitudes of the peaks.
+
+    meta_parameters : MetaParameter
+        Fit meta parameters.
+
+    Attributes
+    ----------
+    parameters : ndarray
+        Concatenated fit parameter vector.
+
+    meta_parameters : MetaParameter
+        Fit meta parameters.
+    """
     def __init__(self, offset = 0,
                  p_sigma_left = None,
                  p_sigma_right = None,
@@ -167,33 +201,6 @@ class Parameter(object):
                  peaks = None,
                  amplitudes = None,
                  meta_parameters = None):
-        """
-        Concatenate a parameter vector into a single numpy array to pass it to
-        scipy.least_squares
-
-        Parameters
-        ----------
-        offset: int
-            offset
-        p_sigma_left: list of ints
-            sigmas to use for the left side
-        p_sigma_right: list of ints
-            sigmas to use for the right side
-        p_width: list of ints
-            coefficients of width polynomial
-        peaks: list of ints
-            center of etalon peaks
-        amplitudes: list of ints
-            amplitudes of peaks
-        meta_parameters: MetaParameters
-            Fit meta parameters
-
-        Returns
-        -------
-        res : ndarray
-            concatenated fit parameters
-        """
-
         # self.log = logutils.get_logger(__name__)
         self.log = get_logger()
 
@@ -208,38 +215,33 @@ class Parameter(object):
 
     @property
     def offset(self):
-        """
-        Get the offset from the parameters.
-        Overloaded function that can
-        """
+        """Return the offset from the parameter vector."""
         return self.parameters[0] # offset is always the first parameter
 
     @property
     def centers(self):
-        """
-        Get the centers of the etalon peaks from the parameters
-        """
+        """Return the centers of the etalon peaks from the parameter vector."""
         return self.parameters[self.meta_parameters.centers]
 
     @property
     def amplitudes(self):
-        """
-        Get the amplitudes of the etalon peaks from the parameters
-        """
+        """Return the amplitudes of the etalon peaks from the parameter vector."""
         return self.parameters[self.meta_parameters.amplitudes]
 
     def eval_polynomials(self, x):
         """
-        Evaluate the polynomials for the given parameters
+        Evaluate the polynomials at the given x values.
+
         Parameters
         ----------
-        self : Parameter object
-        x: ndarray
-            x values to evaluate the polynomials at
+        x : ndarray
+            x values to evaluate the polynomials at.
+
         Returns
         -------
-        values: ndarray
-            values of the polynomials at the given x values
+        ndarray
+            Values of the polynomials at the given x values, one row per
+            polynomial.
         """
         polynomials = self.meta_parameters.polynomials
         values = np.zeros(shape=(len(polynomials), len(x)))
@@ -249,17 +251,13 @@ class Parameter(object):
 
     def eval_polynomials_at_centers(self):
         """
-        Evaluate the polynomials at the centers of the fitted etalon peaks
-        Parameters
-        ----------
-        parameters: ndarray
-            parameters of the polynomials
+        Evaluate the polynomials at the centers of the fitted etalon peaks.
 
         Returns
         -------
         ndarray
-            values of the polynomials at the centers of the
-            fitted etalon peaks
+            Peak centers, amplitudes, and polynomial values at the centers,
+            one row each.
         """
         values = [
             self.parameters[self.meta_parameters.centers],
@@ -271,19 +269,16 @@ class Parameter(object):
 
     def split_parameters(self):
         """
-        Split parameter array into subarrays, reverses concat_parameters
+        Split the parameter vector into its parts.
 
-        Parameters
-        ----------
-        parameters: ndarray
-            parameter vector
-        meta_parameters: MetaParameters object
-            fit meta parameters
+        Reverses the concatenation done by the constructor.
+
         Returns
-        ---------
-        values: tuple
-        (offset, sigma coefficients,
-                width coefficient, peak center locations, amplitudes)
+        -------
+        list
+            ``[offset, left sigma coefficients, right sigma coefficients,
+            width coefficients, peak centers, amplitudes]``, with the
+            offset as a scalar.
         """
 
         values = [self.parameters[idx] for idx in self.meta_parameters.indices]
@@ -307,29 +302,34 @@ class Parameter(object):
             amplitudes=None,
     ):
         """
-        Updates in place the parameter vector with new parameters
+        Update the parameter vector in place.
+
+        Parts whose corresponding argument is None are left unchanged.
+        If ``parameters`` is given, it replaces the whole vector and
+        takes precedence.
+
         Parameters
         ----------
-        parameters: ndarray
-            parameter vector
-        meta_parameters: MetaParameters object
-            fit meta parameters
-        offset: int
-            offset
-        p_sigma_l: list of ints
-            sigmas to use for the left side
-        p_sigma_r: list of ints
-            sigmas to use for the right side
-        p_width: list of ints
-            coefficients of width polynomial
-        centers: list of ints
-            center of etalon peaks
-        amplitudes: list of ints
-            amplitudes of peaks
-        Returns
-        -------
-        p : ndarray
-            updated parameter vector
+        parameters : ndarray or None
+            Complete replacement parameter vector; stored as a copy.
+
+        offset : float or None
+            Constant offset of the spectrum.
+
+        p_sigma_l : ndarray or None
+            Coefficients of the left sigma polynomial.
+
+        p_sigma_r : ndarray or None
+            Coefficients of the right sigma polynomial.
+
+        p_width : ndarray or None
+            Coefficients of the width polynomial.
+
+        centers : ndarray or None
+            Centers of the etalon peaks.
+
+        amplitudes : ndarray or None
+            Amplitudes of the peaks.
         """
         values = [offset, p_sigma_l, p_sigma_r, p_width, centers, amplitudes]
         for idx, v in zip(self.meta_parameters.indices, values):

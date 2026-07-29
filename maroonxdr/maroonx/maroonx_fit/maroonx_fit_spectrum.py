@@ -1,6 +1,10 @@
-'''
-This file contains functions used to describe a single spectrum or a single peak.
-'''
+"""
+Functions describing a single spectrum or a single peak.
+
+The peak model, spectrum evaluation, residual and Jacobian functions
+used by the least-squares fits, and the peak finder operating on the
+extracted 1D spectrum.
+"""
 import os
 import numpy as np
 
@@ -15,18 +19,22 @@ from . import get_logger
 PLOT_KWARGS = dict(dpi=300, bbox_inches="tight", pad_inches=0.25)
 
 def change_ext(filename, new_ext):
-    '''
-    Change the extension of a filename
+    """
+    Change the extension of a filename.
+
     Parameters
     ----------
-    filename: str
-        filename to change
-    new_ext: str
-        new extension
+    filename : str
+        Filename to change.
+
+    new_ext : str
+        New extension, without the leading dot.
+
     Returns
     -------
-    filename with new extension
-    '''
+    str
+        Filename with the new extension.
+    """
     return os.path.splitext(filename)[0] + "." + new_ext
 
 ### POLYMORPHIC DEFINITION FOR SPECTRUM_VALS ###
@@ -39,7 +47,7 @@ def change_ext(filename, new_ext):
 
 def peak_val(x, amplitude, center, sigma1, half_width, sigma2):
     """
-    Function that returns the values of peaks at a given range for x values.
+    Return the values of a peak at the given x values.
 
     An etalon peak is described by a rectangle step function with a certain
     amplitude, width convolved with a gaussian (with certain sigma). Because
@@ -48,22 +56,28 @@ def peak_val(x, amplitude, center, sigma1, half_width, sigma2):
 
     Parameters
     ----------
-    x: np.ndarray
-        x data (pixel)
-    amplitude: double
-        peak height
-    center: double
-        peak center position (pixel)
-    sigma1: double
-        sigma of Erf on the left side of the step function (pixel)
-    half_width: double
-        width of the step function (pixel)
-    sigma2: double
-        sigma of Erf on the right side of the step function (pixel)
+    x : ndarray
+        x data (pixel).
+
+    amplitude : float
+        Peak height.
+
+    center : float
+        Peak center position (pixel).
+
+    sigma1 : float
+        Sigma of Erf on the left side of the step function (pixel).
+
+    half_width : float
+        Half width of the step function (pixel).
+
+    sigma2 : float
+        Sigma of Erf on the right side of the step function (pixel).
 
     Returns
     -------
-    np.ndarray: peak values at x
+    ndarray
+        Peak values at x.
     """
     arg1 = (x - (center - half_width)) / sigma1
     arg2 = ((center + half_width) - x) / sigma2
@@ -72,18 +86,32 @@ def peak_val(x, amplitude, center, sigma1, half_width, sigma2):
 
 def spectrum_val(x = None, parameters = None, meta_parameters = None, param_obj = None):
     """
-    Function that gives the y values for a given spectrum.
+    Return the y values of the spectrum model at the given x values.
+
+    Either ``param_obj`` or both ``parameters`` and ``meta_parameters``
+    must be given. Each peak is evaluated only inside a window extending
+    four sigma beyond the peak edges; outside the windows the model
+    equals the offset.
 
     Parameters
     ----------
-    x: np.ndarray
-        x data (pixel)
-    param_obj: Parameters object containing the parameters and meta parameters
-    of the fit
+    x : ndarray
+        x data (pixel).
+
+    parameters : ndarray or None
+        Flat fit parameter vector; used together with ``meta_parameters``.
+
+    meta_parameters : MetaParameter or None
+        Fit meta parameters; used together with ``parameters``.
+
+    param_obj : Parameter or None
+        Parameter object containing the parameters and meta parameters
+        of the fit. Takes precedence if given.
 
     Returns
     -------
-    np.ndarray: spectrum values at x
+    ndarray
+        Spectrum values at x.
     """
     if param_obj is not None:
         offset = param_obj.offset
@@ -113,21 +141,29 @@ def spectrum_val(x = None, parameters = None, meta_parameters = None, param_obj 
 def spectrum_partial_jacobian(bins, fitobj = None, meta_parameters = None):
 
     """
-    Function that describes the jacobian of the spectrum, but ONLY for the
-    non center parameters.  Optimized version.
+    Return the Jacobian of the spectrum model for the non-center parameters.
+
+    Each peak contributes only inside a window extending six sigma beyond
+    the peak edges. The parameters and meta parameters are taken from
+    ``fitobj.param_obj``; the ``meta_parameters`` argument is ignored.
 
     Parameters
     ----------
-    bins: list of ints
-        bins
-    parameters: np.ndarray
-        function parameters
-    meta_parameters: MetaParameters object
-        meta parameters of the fit
+    bins : ndarray
+        x data (pixel) to evaluate the Jacobian at.
+
+    fitobj : MaroonXFit
+        Fit object providing the parameters and meta parameters.
+
+    meta_parameters : MetaParameter or None
+        Meta parameters. Inherited from legacy but ignored in favour of
+        ``fitobj.param_obj.meta_parameters``.
 
     Returns
-    ---------
-    ndarray: jacobian array
+    -------
+    ndarray
+        Jacobian array, one row per x value and one column per
+        non-center parameter.
     """
 
     param_obj = fitobj.param_obj
@@ -179,7 +215,30 @@ def spectrum_partial_jacobian(bins, fitobj = None, meta_parameters = None):
     return jac.T
 
 def residual_polynomials(p, fit_obj):
-    "Residual function to fit polynomials"
+    """
+    Return the residuals for the polynomial fit.
+
+    Called by ``scipy.optimize.least_squares`` inside
+    ``MaroonXFit.fit_polynomials``. The peak-center parameters are taken
+    from ``fit_obj.param_obj`` and held fixed. Residuals are clipped to
+    three standard deviations around their mean so that outliers in the
+    data do not force the solution into a wrong direction; NaNs are
+    replaced with zero.
+
+    Parameters
+    ----------
+    p : ndarray
+        Non-center fit parameters proposed by the optimizer.
+
+    fit_obj : MaroonXFit
+        Fit object providing the data, fit range, and fixed peak-center
+        parameters.
+
+    Returns
+    -------
+    ndarray
+        Clipped residuals of the model against ``fit_obj.data``.
+    """
 
     x = fit_obj.fitrange
     y = fit_obj.data
@@ -198,7 +257,27 @@ def residual_polynomials(p, fit_obj):
     return np.nan_to_num(res)
 
 def fit_polynomials_jac(p, fitobj):
-    "Jacobian for fit_polynomials function"
+    """
+    Return the Jacobian for the polynomial fit.
+
+    Called by ``scipy.optimize.least_squares`` inside
+    ``MaroonXFit.fit_polynomials``. Updates ``fitobj.param_obj`` in
+    place with the proposed parameters before delegating to
+    ``spectrum_partial_jacobian``.
+
+    Parameters
+    ----------
+    p : ndarray
+        Non-center fit parameters proposed by the optimizer.
+
+    fitobj : MaroonXFit
+        Fit object providing the fit range and parameters.
+
+    Returns
+    -------
+    ndarray
+        Jacobian array from ``spectrum_partial_jacobian``.
+    """
     # Get the fixed center parameters
     meta = fitobj.param_obj.meta_parameters
     idx = meta.number_of_peaks
@@ -212,25 +291,32 @@ def fit_polynomials_jac(p, fitobj):
 
 def residual_centers(parameters, x, y, poly_parameters, meta):
     """
-    Residual function to fit the centers.
+    Return the residuals for the peak-center fit.
+
+    Called by ``scipy.optimize.least_squares`` inside
+    ``fit_peak_centers``. NaNs are replaced with zero.
 
     Parameters
     ----------
-     p: np.ndarray
-        parameters
-    x: np.ndarray
-        x data (pixel)
-    y: np.ndarray
-        y data (counts)
-    poly_parameters: np.ndarray
-        polynomial parameters
-    meta: MetaParameters object
-        meta parameters
+    parameters : ndarray
+        Center and amplitude parameters, two per peak.
+
+    x : ndarray
+        x data (pixel).
+
+    y : ndarray
+        y data (counts).
+
+    poly_parameters : ndarray
+        Polynomial parameters, held fixed.
+
+    meta : MetaParameter
+        Fit meta parameters.
 
     Returns
     -------
-    res: np.ndarray
-        residual array
+    ndarray
+        Residuals of the model against ``y``.
     """
     assert len(parameters) == 2 * meta.number_of_peaks, str(p) + str(meta)
     res = spectrum_val(x = x, parameters=np.concatenate([poly_parameters, parameters]), meta_parameters = meta) - y
@@ -240,7 +326,9 @@ def residual_centers(parameters, x, y, poly_parameters, meta):
 
 class PeakError(Exception):
     """
-    Exception raised when the fit fails
+    Exception raised when peak finding fails.
+
+    Raised by ``find_peaks``.
     """
     def __str__(self):
         return self.args[0]
@@ -248,27 +336,40 @@ class PeakError(Exception):
 
 def fit_peak_centers(fitrange, data, param_obj, parameter_bounds, iteration = None, fiber = ''):
     """
-    Function to fit the center of each peak individually
+    Fit the center of each peak individually.
+
+    Each peak's center and amplitude are fitted with
+    ``scipy.optimize.least_squares`` inside its bounds window while the
+    polynomial parameters are held fixed. The fitted centers and
+    amplitudes are stored in place in ``param_obj``. If an individual
+    peak fit fails, an error is logged.
 
     Parameters
     ----------
-    fitrange: np.ndarray
-        domain of the data being fitted
-    data: np.ndarray
-        1D extracted etalon spectrum
-    parameters: np.ndarray
-        parameters of the fit
-    param_obj: Parameters object
-        object containing the parameters of the fit, along with the meta parameters
-    iteration: int
-        Max number of iterations
-    fiber: str
-        fibre to process, this is only used to generate filenames for plots
+    fitrange : ndarray
+        Domain of the data being fitted (pixel).
+
+    data : ndarray
+        1D extracted etalon spectrum.
+
+    param_obj : Parameter
+        Object containing the parameters of the fit, along with the meta
+        parameters.
+
+    parameter_bounds : ndarray
+        Lower and upper parameter bounds of the fit.
+
+    iteration : int or None
+        Iteration number, used only in log messages. If None, the log
+        messages refer to the guess spectrum instead.
+
+    fiber : str
+        Fiber name, used only in log messages.
 
     Returns
     -------
-    fit_results: list
-        list of fit results
+    list of scipy.optimize.OptimizeResult
+        Per-peak least-squares fit results.
     """
 
     # log = logutils.get_logger(__name__)
@@ -332,24 +433,41 @@ def fit_peak_centers(fitrange, data, param_obj, parameter_bounds, iteration = No
 
 def find_peaks(data, order=2, savgol_window_length=3, savgol_polyorder=1):
     """
-    It performs a savgol filter to smooth the data and get rid of noise.
-    The function looks for local minima and maxima. The outer most peaks are
-    not returned to avoid problems when fitting the data.
+    Find the local minima and maxima of an etalon spectrum.
+
+    Positive outliers (e.g. cosmic ray hits), values more than 50% above
+    the median of the 200 highest samples, are set to NaN in ``data`` in
+    place. A Savitzky-Golay filter smooths the data to get rid of noise
+    before the extrema search, and the extrema lists are cleaned so that
+    minima and maxima alternate. The outermost peaks are not returned to
+    avoid problems when fitting the data.
 
     Parameters
     ----------
-    savgol_polyorder: int
-        polynomial order passed to savgol_filter
-    savgol_window_length: int
-        window length passed to savgol_filter
-    data: ndarray
-        1d extracted etalon spectrum
-    order: int
-        passed to scipy.signal.argrelextrema
+    data : ndarray
+        1D extracted etalon spectrum. Modified in place: positive
+        outliers are set to NaN.
+
+    order : int
+        Passed to ``scipy.signal.argrelextrema``. Default is 2.
+
+    savgol_window_length : int
+        Window length passed to ``savgol_filter``. Default is 3.
+
+    savgol_polyorder : int
+        Polynomial order passed to ``savgol_filter``. Default is 1.
+
     Returns
-    ---------
-    maxima, minima: tuple of ndarray
-        indices of local extrema: (maxima, minima)
+    -------
+    maxima, minima : tuple of ndarray
+        Indices of the local extrema.
+
+    Raises
+    ------
+    PeakError
+        When the cleaned minima and maxima are inconsistent (counts do
+        not differ by exactly one or they do not alternate). A debug
+        plot is shown before the exception is raised.
     """
 
     # log = logutils.get_logger(__name__)
