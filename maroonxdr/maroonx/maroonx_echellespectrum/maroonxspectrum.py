@@ -1,3 +1,10 @@
+"""
+Container class for the extracted spectra of all fibers of an exposure.
+
+``MXSpectrum`` reads the per-fiber extensions of a reduced AstroData
+object and instantiates the matching spectrum class for each fiber
+(``EchelleSpectrum``, ``EtalonSpectrum``, or ``FlatSpectrum``).
+"""
 from gempy.utils import logutils
 
 from .etalonspectrum import EtalonSpectrum
@@ -6,23 +13,46 @@ from .echellespectrum import EchelleSpectrum
 
 
 class MXSpectrum:
-    '''
-    This class is used to read in a MaroonX spectrum and apply the wavelength solution.
-    '''
-    def __init__(self, adinput, pm=None, etalon_peaks_symmetric=False, wave_ext='WLS_STATIC'):
-        """
-        Initializes the MXSpectrum object.
+    """
+    Extracted spectra of all fibers of a reduced MaroonX exposure.
 
-        Parameters
-        ----------
-        adinput: AstroData object
-            the AstroData object to process
-        pm: float
-            Fit model for peaks. If given, it will be used when fitting lines. 
-            Otherwise a Gaussian model will be used.
-        etalon_peaks_symmetric: bool
-            if True, the etalon peaks are assumed to be symmetric around the central peak
-        """
+    Reads the ``PEAKS`` table and the per-fiber extensions of the input
+    AstroData object and instantiates one spectrum object per fiber:
+    ``EtalonSpectrum`` for etalon fibers, ``FlatSpectrum`` for flat
+    fibers, and ``EchelleSpectrum`` otherwise. Dark fibers and fibers
+    without extracted data are skipped.
+
+    Parameters
+    ----------
+    adinput : AstroData
+        Reduced AstroData object with per-fiber box and optimal
+        extraction, reduced orders, wavelength, and ``PEAKS``
+        extensions.
+
+    pm : PeakModeller
+        Fit model for peaks. Inherited from the legacy pipeline;
+        forwarded to the spectrum classes but currently unused.
+
+    etalon_peaks_symmetric : bool
+        If True, the etalon peaks were fit with equal left and right
+        sigmas. Currently only logged; not forwarded to the spectrum
+        classes. Default is False.
+
+    wave_ext : str
+        Name prefix of the wavelength solution extensions to load
+        (``{wave_ext}_FIBER_{n}``). Default is 'WLS_STATIC'; the
+        dynamic wavelength solution primitives pass 'WLS_DYNAMIC'.
+
+    Attributes
+    ----------
+    spectra : dict
+        Spectrum object per fiber number (1-5), or None for skipped
+        fibers.
+
+    echellogram : None
+        Placeholder, currently unused.
+    """
+    def __init__(self, adinput, pm=None, etalon_peaks_symmetric=False, wave_ext='WLS_STATIC'):
         self.logger = logutils.get_logger(__name__)
         logger = self.logger
         if etalon_peaks_symmetric:
@@ -39,13 +69,6 @@ class MXSpectrum:
 
         self.spectra = {}
         self.echellogram = None
-        '''
-        Access data from input file.
-        ROHAN:  This is where I stopped my work.
-        I actually don't know if anything below this comment is useful.
-        I think all we should need is the peaks per order
-        And then we would apply a 30 knot spline to the peaks to get the wavelength solution
-        '''
 
         # Define the spectra classes based on fiber type
         spectra_classes = {

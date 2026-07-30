@@ -1,6 +1,11 @@
-'''
-This class contains the echelle spectrum, from which all other spectrum types inherit.
-'''
+"""
+Base class for extracted 1-D echelle spectra.
+
+``EchelleSpectrum`` holds the extracted data of a single fiber, one row
+per echelle order, and applies wavelength solutions to it. All other
+spectrum types in this package inherit from it, and it is used directly
+for target fibers.
+"""
 
 import pandas as pd
 import numpy as np
@@ -16,39 +21,69 @@ _DEPRECATION_MSG = (
 )
 
 class EchelleSpectrum:
-    '''
-    The echelle spectrum class contains all information about extracted 1-D echelle spectra.
-    Each object contains several orders, and corresponding wavelength and intensity data.
-    '''
+    r"""
+    Extracted 1-D echelle spectrum of a single fiber.
+
+    Holds the box and optimal extracted intensity data, the associated
+    errors, and the wavelengths for each order. The per-order data is
+    stored in a pandas DataFrame indexed by the sorted physical orders,
+    exposed through the ``data`` property.
+
+    Parameters
+    ----------
+    orders : array-like of int
+        Physical echelle orders.
+
+    box_data : ndarray
+        Box extracted intensity data vector for each order. Shape
+        (N_orders, N_pixels), where N_pixels is the number of pixels in
+        the dispersion direction.
+
+    box_error : ndarray
+        Error vector for each order. For a CCD gain of 1, this is the
+        square root of the intensity.
+
+    opt_data : ndarray
+        Optimal extracted intensity data vector for each order. Shape
+        (N_orders, N_pixels).
+
+    opt_error : ndarray
+        Optimal extracted variance vector for each order. Shape
+        (N_orders, N_pixels).
+
+    wavelength_data : ndarray
+        Wavelength data vector for each order (nm). Shape
+        (N_orders, N_pixels).
+
+    fiber : int
+        Fiber number. Default is 1.
+
+    pm : PeakModeller
+        Fit model for peaks. Inherited from the legacy pipeline, where it
+        was used when fitting ThAr lines; stored but currently unused.
+
+    filename : str
+        Filename of the raw file. Inherited from the legacy pipeline;
+        accepted but not stored.
+
+    \*\*kwargs
+        Additional keyword arguments, silently ignored.
+
+    Attributes
+    ----------
+    norm_orders : ndarray
+        Orders normalized to the range [-1, 1].
+
+    etalon_parameters : lmfit.parameter.Parameters or None
+        Etalon parameters. None until set by ``EtalonSpectrum`` or by
+        the wavelength solution primitives.
+
+    model : None
+        Placeholder, currently unused.
+    """
     def __init__(self, orders, box_data=None, box_error=None
                  , opt_data=None, opt_error=None, wavelength_data=None, fiber=1, pm=None,
                  filename=None, **kwargs):
-        """
-        Loads an echelle spectrum.
-
-        Parameters
-        ----------
-        orders : list
-            List of orders.
-        box_data : numpy array
-            box extracted intensity data vector for each order. Shape (N_orders, N_pixels), where N_pixels is the
-            number of pixels in the dispersion direction.
-        box_error : numpy array
-            error vector for intensity order.  For a CCD gain of 1, this is the square root of the intensity.
-        opt_data : numpy array
-            optimal extracted intensity data vector for each order. Shape (N_orders, N_pixels), where N_pixels is the
-            number of pixels in the dispersion direction.
-        opt_error : numpy array
-            optimal extracted variance vector for each order. Shape (N_orders, N_pixels).
-        wavelength_data : numpy array
-            wavelength data vector for each order. Shape (N_orders, N_pixels).
-        fiber : int
-            Fiber number.
-        pm : PeakModeller
-            Fit model for peaks.  If given, will be used while fitting lines, otherwise a Gaussian Model will be used.
-        filename : str
-            Filename of raw file.  Used for book-keeping.
-        """
         # Convert orders to integers if needed
         orders = np.asarray(orders, dtype=int)
         
@@ -85,104 +120,104 @@ class EchelleSpectrum:
 
     @property
     def data(self):
-        """
-        Returns the data.
-
-        Returns:
-            data (dataframe): Data.
-        """
+        """Return the per-order data as a DataFrame indexed by physical order."""
         return self._data
 
     @property
     def orders(self):
-        """
-        Returns the orders.
-
-        Returns:
-            orders (list): Orders.
-        """
+        """Return the sorted physical echelle orders."""
         return self._orders
 
     def normalize_orders(self, order, min_order, max_order):
-        '''
-        Converts the physical order to a normalized order.
+        """
+        Convert physical orders to normalized orders in the range [-1, 1].
 
         Parameters
         ----------
-        order : int
-            Physical order.
+        order : int or ndarray
+            Physical order(s).
+
         min_order : int
-            Minimum physical order.
+            Minimum physical order. Mapped to -1.
+
         max_order : int
-            Maximum physical order.
+            Maximum physical order. Mapped to 1.
 
         Returns
         -------
-        norm_order : float
-            Normalized order.
-        '''
+        float or ndarray
+            Normalized order(s).
+        """
         norm_order = (order - min_order)/(max_order - min_order) * 2. - 1.
         return norm_order
 
     def normalize_pixel(self, pixel):
-        '''
-        Converts the physical pixel to a normalized pixel in the range [-1, 1].
-        The normalization is done based on the number of pixels in box_data.
+        """
+        Convert physical pixels to normalized pixels in the range [-1, 1].
+
+        The normalization is based on the number of pixels in the
+        dispersion direction of ``box_data``.
 
         Parameters
         ----------
-        pixel : int
-            Physical pixel.
+        pixel : int or ndarray
+            Physical pixel(s).
 
         Returns
         -------
-        norm_pixel : float
-            Normalized pixel.
-        '''
+        float or ndarray
+            Normalized pixel(s).
+        """
         # norm_pixel = (pixel - min_pixel)/(max_pixel - min_pixel) * 2. - 1.
         norm_pixel = pixel / self.box_data.shape[1] * 2. - 1.
         return norm_pixel
 
     @deprecated(since="DRAGONS-integration", message=_DEPRECATION_MSG)
     def data_flattened(self, box_data=False):
-        '''
-        Returns the data flattened.
+        """
+        Return the data flattened across orders.
 
         Parameters
         ----------
         box_data : bool
-            If False, data is optimal extraction, if True, data is box extraction.
+            If False, data is optimal extraction, if True, data is box
+            extraction.
+
         Returns
         -------
-        data : Tuple: (intensity, wavelength) as a single array
-        '''
+        tuple of ndarray
+            ``(intensity, wavelength)``, each flattened across orders.
+        """
         data_selection = 'box_data' if box_data else 'opt_data'
         return np.hstack(self.data[data_selection].values), np.hstack(self.data['wavelength'].values)
 
     @deprecated(since="DRAGONS-integration", message=_DEPRECATION_MSG)
     def min_wavelength(self):
-        """
-        Returns: Minimum wavelength in nm.
-        """
+        """Return the minimum wavelength (nm)."""
         return np.min(self.data['wavelength'])
 
     @deprecated(since="DRAGONS-integration", message=_DEPRECATION_MSG)
     def max_wavelength(self):
-        """
-        Returns: Maximum wavelength in nm.
-        """
+        """Return the maximum wavelength (nm)."""
         return np.max(self.data['wavelength'])
 
     @deprecated(since="DRAGONS-integration", message=_DEPRECATION_MSG)
     def find_orders_containing_wavelength(self, wavelength):
         """
-        Finds the orders that contain the specified wavelength.
-        TODO: Optimize this function.
-        Args:
-            wavelength (float): Wavelength to find orders for.
+        Find the orders that contain the specified wavelength.
 
-        Returns:
-            found (list): List of orders that contain the specified wavelength.
+        TODO: Optimize this function.
+
+        Parameters
+        ----------
+        wavelength : float
+            Wavelength to find orders for (nm).
+
+        Returns
+        -------
+        list of ndarray
+            Wavelength arrays of the orders that contain the specified
+            wavelength.
         """
         found = []
         for i in self.data['wavelength']:
@@ -193,13 +228,16 @@ class EchelleSpectrum:
     @deprecated(since="DRAGONS-integration", message=_DEPRECATION_MSG)
     def blaze_correct(self, flat_spectrum, box_data = False):
         """
-        Adds deblazed values in the Pandas dataframe for either box or optimal extraction.
-        Args:
-            flat_spectrum (MaroonXSpectrum object): Flat spectrum.
-            box_data (bool): If false, data is optimal extraction, if true, data is box extraction
+        Add deblazed values to the data for either box or optimal extraction.
 
-        Returns:
-            None
+        Parameters
+        ----------
+        flat_spectrum : MXSpectrum
+            Flat spectrum containing a ``FlatSpectrum`` for this fiber.
+
+        box_data : bool
+            If False, data is optimal extraction, if True, data is box
+            extraction.
         """
         log = self.log
         data_selection = 'box_data' if box_data else 'opt_data'
@@ -216,10 +254,15 @@ class EchelleSpectrum:
 
     def apply_wavelength_solution(self, wavelength_solution):
         """
-        Applies the specified wavelength solution to the spectrum.
+        Apply the specified wavelength solution to the spectrum.
 
-        Args:
-            wavelength_solution (WavelengthSolution): Wavelength solution to apply.
+        The wavelength column of the per-order data is replaced in place
+        with the solution evaluated at every pixel of each order.
+
+        Parameters
+        ----------
+        wavelength_solution : WavelengthSolution
+            Wavelength solution to apply.
         """
         log = self.log
         log.info('Applying wavelength solution')
