@@ -43,7 +43,8 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
     def addDQ(self, adinputs=None, **params):
         # just edited for bpm lookup, can be removed when MX is caldb compliant
-        """Add a DQ extension to the input AstroData objects.
+        """
+        Add a DQ extension to the input AstroData objects.
 
         The value of a pixel in the DQ extension will be the sum of the
         following: (0=good, 1=bad pixel (found in bad pixel mask), 2=pixel is

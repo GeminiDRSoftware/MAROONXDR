@@ -38,7 +38,7 @@ from scipy.signal import medfilt
 
 from . import maroonx_utils, parameters_maroonx_spectrum
 from .maroonx_echellespectrum.maroonxspectrum import MXSpectrum
-from .maroonx_echellespectrum.wavelengthsolution import WavelengthSolution
+# from .maroonx_echellespectrum.wavelengthsolution import WavelengthSolution
 from .maroonx_fit import maroonx_fit, set_logger
 from .primitives_maroonx_echelle import MAROONXEchelle
 
@@ -643,26 +643,31 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
             # If chosen, apply ThAr wls to etalon frame
             if thar == True:
-                ref_wavelength = {
-                    1: maroonx_utils.load_refwls_from_fits(
-                        refwavelength_file, ext_name="FIBER_2"
-                    ),
-                    2: maroonx_utils.load_refwls_from_fits(
-                        refwavelength_file, ext_name="FIBER_2"
-                    ),
-                    3: maroonx_utils.load_refwls_from_fits(
-                        refwavelength_file, ext_name="FIBER_3"
-                    ),
-                    4: maroonx_utils.load_refwls_from_fits(
-                        refwavelength_file, ext_name="FIBER_4"
-                    ),
-                    5: maroonx_utils.load_refwls_from_fits(
-                        refwavelength_file, ext_name="FIBER_4"
-                    ),
-                }
-                for fiber in fibers:
-                    wls_solution = WavelengthSolution(**ref_wavelength[fiber])
-                    mx_spectrum.spectra[fiber].apply_wavelength_solution(wls_solution)
+                # The ThAr path is unported legacy code;
+                # beyond dragons port requirements.
+                msg = "ThAr wavelength solution not supported"
+                log.warning(msg)
+                raise NotImplementedError(msg)
+                # ref_wavelength = {
+                #     1: maroonx_utils.load_refwls_from_fits(
+                #         refwavelength_file, ext_name="FIBER_2"
+                #     ),
+                #     2: maroonx_utils.load_refwls_from_fits(
+                #         refwavelength_file, ext_name="FIBER_2"
+                #     ),
+                #     3: maroonx_utils.load_refwls_from_fits(
+                #         refwavelength_file, ext_name="FIBER_3"
+                #     ),
+                #     4: maroonx_utils.load_refwls_from_fits(
+                #         refwavelength_file, ext_name="FIBER_4"
+                #     ),
+                #     5: maroonx_utils.load_refwls_from_fits(
+                #         refwavelength_file, ext_name="FIBER_4"
+                #     ),
+                # }
+                # for fiber in fibers:
+                #     wls_solution = WavelengthSolution(**ref_wavelength[fiber])
+                #     mx_spectrum.spectra[fiber].apply_wavelength_solution(wls_solution)
             else:
                 for fiber in fibers:
                     log.fullinfo(
