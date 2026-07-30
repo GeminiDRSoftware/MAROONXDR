@@ -2,7 +2,7 @@ processBundle
 =============
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_BUNDLE
-| **Astrodata Tags**: {'MAROONX', 'BUNDLE'}
+| **Astrodata Tags**: {'BUNDLE', 'MAROONX'}
 
 Process MAROONX observation bundles.
 

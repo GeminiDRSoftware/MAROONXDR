@@ -2,7 +2,7 @@ makeDynamicWavecal
 ==================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_DYNAMIC_WAVECAL
-| **Astrodata Tags**: {'WAVECAL', 'MAROONX'}
+| **Astrodata Tags**: {'MAROONX', 'WAVECAL'}
 
 Process MAROON-X 2D echelle spectra and create dynamic wavelength solution.
 

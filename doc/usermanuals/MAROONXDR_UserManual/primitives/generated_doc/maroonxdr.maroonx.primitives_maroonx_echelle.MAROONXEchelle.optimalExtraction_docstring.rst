@@ -2,9 +2,9 @@
 Optimal extraction of the 2d echelle spectrum.
 
 This function performs an optimal extraction of a 2d echelle spectrum.
-A given flat field spectrum is used to generate normalized 'profiles'
-that are used as weighting functions for the spectrum that is going
-to be extracted.
+The internal flat spectrum extension is used to generate normalized
+'profiles' that are used as weighting functions for the spectrum that
+is going to be extracted.
 The algorithm further checks for outliers and rejects them.
 This is to prevent contributions from cosmic hits.
 

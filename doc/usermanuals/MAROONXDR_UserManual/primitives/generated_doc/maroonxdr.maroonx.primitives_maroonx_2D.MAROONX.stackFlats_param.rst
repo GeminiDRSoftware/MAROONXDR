@@ -34,7 +34,7 @@ Parameter defaults and options
       	Valid Range = [0.01,inf)
    save_rejection_map   False                Save rejection map?
    separate_ext         True                 Handle extensions separately?
-   scale                True                 Scale images to the same intensity?
+   scale                False                Scale images to the same intensity?
    zero                 False                Apply additive offsets to images to match intensity?
    stream               'main'               Stream name of flats to combine
    scale_mode           'first_frame'        Scaling method for frames

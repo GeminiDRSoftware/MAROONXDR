@@ -57,8 +57,9 @@ One environment variable controls where the suite finds its data.
    Root of the test data tree. Required for the regression tests and for
    all data staging; the synthetic tests run without it. The ``devenv``
    nox session appends an ``export`` for this variable to
-   ``venv/bin/activate``, so activating ``mx_dev`` (see
-   :ref:`maroonx_setup`) sets it for you. To override the location, or to
+   ``venv/bin/activate``, so activating ``mx_dev`` (see the *Setup and
+   Installation* chapter of the Tutorial) sets it for you. To override
+   the location, or to
    set it outside a ``devenv``-managed shell, export it manually:
 
    .. code-block:: bash

@@ -14,13 +14,11 @@ workflow.
 
 For the user-facing instrument description (detector arms, fiber
 configurations, frame types, calibration requirements, and known
-operational issues), see :ref:`maroonxdr_user_instrument` in the User
-Manual.
+operational issues), see the *Instrument and Data* chapter of the User Manual.
 
-For installation and the reduction walkthrough, see the Tutorial:
-:ref:`maroonx_setup` for setup, then :ref:`maroonx_reduction_cli` or
-:ref:`maroonx_reduction` for the CLI and Python API versions of the same
-reduction.
+For installation and the reduction walkthrough, see the Tutorial: the
+*Setup and Installation* chapter first, then the CLI or Python API
+example chapters for the two versions of the same reduction.
 
 Purpose and Audience
 ====================
@@ -157,7 +155,8 @@ Development Environment
 
 The full environment setup (cloning the repository, running the ``devenv``
 nox session, and configuring the calibration database) is covered in the
-Tutorial at :ref:`maroonx_setup`; treat that as the canonical walkthrough
+*Setup and Installation* chapter of the Tutorial; treat that as the
+canonical walkthrough
 rather than repeating it here. Day-to-day development happens inside the
 ``mx_dev`` virtual environment that ``devenv`` creates at ``venv/``, and
 that same environment is what the nox sessions below assume is available.
@@ -168,7 +167,8 @@ The developer-facing nox sessions are:
 ``devenv``
    Creates the ``mx_dev`` virtual environment at ``venv/``, clones or
    updates DRAGONS, and installs ``maroonxdr`` and ``maroonx_instruments``
-   in editable mode. Covered in :ref:`maroonx_setup`; you should not need
+   in editable mode. Covered in the *Setup and Installation* chapter of the Tutorial; you
+   should not need
    to re-run it unless the environment is wiped or dependencies change.
 
 ``devconda``

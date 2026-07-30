@@ -2,7 +2,7 @@ testVARDark
 ===========
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_DARK
-| **Astrodata Tags**: {'MAROONX', 'DARK', 'CAL'}
+| **Astrodata Tags**: {'DARK', 'CAL', 'MAROONX'}
 
 Produce a dark frame with an additional variance plane.
 

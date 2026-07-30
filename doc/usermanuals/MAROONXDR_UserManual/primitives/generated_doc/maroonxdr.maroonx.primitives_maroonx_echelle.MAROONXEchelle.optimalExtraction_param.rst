@@ -2,7 +2,7 @@ Parameter defaults and options
 ------------------------------
 ::
 
-   suffix               '_reduced'           Filename suffix
+   suffix               ''                   Filename suffix
    dark                 None                 Processed dark
    optimal_extraction_fibers None                 Fiber numbers (1-5) for optimal extraction
    full_output          False                More outputs made

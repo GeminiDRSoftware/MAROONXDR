@@ -2,7 +2,7 @@ testRegressionDark
 ==================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_DARK
-| **Astrodata Tags**: {'MAROONX', 'DARK', 'CAL'}
+| **Astrodata Tags**: {'DARK', 'CAL', 'MAROONX'}
 
 Test that the legacy pipeline dark frame can be reproduced.
 

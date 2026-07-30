@@ -2,7 +2,7 @@ makeFlatVarCheck
 ================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_FLAT_SPECT
-| **Astrodata Tags**: {'FLAT', 'MAROONX', 'CAL'}
+| **Astrodata Tags**: {'CAL', 'FLAT', 'MAROONX'}
 
 Check if variance extensions are correctly computed on stacked flats.
 
