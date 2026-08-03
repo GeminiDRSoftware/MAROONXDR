@@ -42,6 +42,23 @@ First, clone the MAROON-X DRAGONS repository:
     git clone https://github.com/GeminiDRSoftware/MAROONXDR.git
     cd MAROONXDR
 
+The pipeline also needs a set of static instrument reference files that are
+not tracked in git: bad pixel masks (BPM), stripe ID traces (SID), and
+static wavelength solutions (WLS). They are distributed with each release
+as ``lookups_files.zip`` on the `GitHub releases page
+<https://github.com/GeminiDRSoftware/MAROONXDR/releases>`_.
+
+Download the archive and extract it into the package lookup directory:
+
+.. code-block:: bash
+
+    unzip lookups_files.zip -d maroonxdr/maroonx/lookups/
+
+This places the FITS files under ``lookups/BPM/``, ``lookups/SID/`` and
+``lookups/WLS/``, where the pipeline expects them. The packages are
+installed in editable mode later in this guide, so the extracted files are
+picked up automatically.
+
 Step 2: Install Nox
 --------------------
 
