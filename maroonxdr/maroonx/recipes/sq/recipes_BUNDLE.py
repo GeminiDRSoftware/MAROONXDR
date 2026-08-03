@@ -1,13 +1,21 @@
-"""Recipes available to data with tags ``['MAROONX', `BUNDLE`]``."""
+"""
+Recipes available to data with tags ['MAROONX', 'BUNDLE'].
+
+Default is "processBundle".
+"""
 
 recipe_tags = {'MAROONX', 'BUNDLE'}
 
 
 def processBundle(p):
     """
-    Process MAROONX observation bundles.
+    Split MAROON-X observation bundles into arm-specific files.
 
-    Red and Blue arms extensions are split before further processing.
+    The Red and Blue arm extensions of a raw bundle file are split into
+    separate AstroData objects and written to disk under their original
+    per-arm file names, with a header keyword added to reference the
+    Gemini archive bundle name. All other recipes block the BUNDLE tag,
+    so this recipe must run first on archive downloads.
 
     Parameters
     ----------

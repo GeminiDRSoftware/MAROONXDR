@@ -2,18 +2,20 @@ testRegressionDark
 ==================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_DARK
-| **Astrodata Tags**: {'DARK', 'CAL', 'MAROONX'}
+| **Astrodata Tags**: {'MAROONX', 'CAL', 'DARK'}
 
-Test that the legacy pipeline dark frame can be reproduced.
+Produce a processed dark for regression comparison against legacy.
 
-This is a simplified version of the makeProcessedDark recipe that does not
-include overscan trimming nor image orientation correction.
+Test-support recipe. Follows the same processing as makeProcessedDark,
+without overscan trimming nor image orientation correction to match the
+legacy dark production, and stores the result with a "_regressionDark"
+suffix for use in regression tests.
 
 ::
 
     Parameters
     ----------
-    p : PrimitivesCORE object
+    p : Primitives object
         A primitive set matching the recipe_tags.
 
 ::

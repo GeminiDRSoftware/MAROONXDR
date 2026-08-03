@@ -10,4 +10,4 @@ Flat Recipes
 
 .. include:: generated_doc/maroonxdr.maroonx.recipes.sq.recipes_FLAT_SPECT.makeProcessedFlatDFFFF.rst
 
-.. include:: generated_doc/maroonxdr.maroonx.recipes.sq.recipes_FLAT_SPECT.measureBlaze.rst
+.. include:: generated_doc/maroonxdr.maroonx.recipes.sq.recipes_FLAT_SPECT.makeBlaze.rst

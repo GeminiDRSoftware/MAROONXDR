@@ -2,8 +2,6 @@
 Recipes available to data with tags ['MAROONX', 'CAL', 'FLAT'].
 
 Default is "makeProcessedFlat".
-TODO: Add a step to get the 1D Spectra for the fibers to use in Wavecal and
-Science.
 """
 
 recipe_tags = {'MAROONX', 'CAL', 'FLAT'}
@@ -12,20 +10,28 @@ blocked_tags = {'BUNDLE'}
 
 def makeProcessedFlat(p):
     """
-    Perform standardization and corrections to convert raw flats to processed.
+    Convert raw MAROON-X flat frames into a single processed flat.
 
-    This recipe converts the raw input flat images into a single stacked flat
-    image. This output processed flat is stored on disk using storeProcessedFlat
-    and has a name equal to the name of the first input bias image with
-    "_FFFFF_flat.fits" appended. A processed flatfield is required to perform
-    optimal flux extraction and to determine the blaze function. Due to the
-    stability of the spectrograph, one processed flatfield is typically 'valid'
-    for at least a two-week period. Cross-comparison between different processed
-    flatfields taken months apart have not been conducted so far.
+    The input flats are separated into two streams based on their fiber
+    illumination pattern: FDDDF flats (fibers 1 and 5 illuminated) in the
+    main stream and DFFFD flats (fibers 2, 3 and 4 illuminated) in a
+    second stream. Each stream is stacked, its fiber stripes are traced
+    and identified, and its stray light is removed. The two streams are
+    then combined into a fully illuminated FFFFF flat by taking the
+    pixel-by-pixel maximum, the stripe tracing is re-run on the combined
+    frame, and 1D spectra are extracted for the illuminated fibers. The
+    result is stored on disk by storeProcessedFlat under the name of the
+    first input flat with "_FFFFF_flat.fits" appended.
+
+    A processed flatfield is required to perform optimal flux extraction
+    and to determine the blaze function. Due to the stability of the
+    spectrograph, one processed flatfield is typically valid for at least
+    a two-week period. Cross-comparisons between processed flatfields
+    taken months apart have not been conducted so far.
 
     Parameters
     ----------
-    p : PrimitivesCORE object
+    p : Primitives object
         A primitive set matching the recipe_tags.
     """
     p.prepare()
@@ -81,21 +87,17 @@ def makeStrayLightCheck(p):
     """
     Check the stray light subtraction in normal flat frame processing.
 
-    Mirrors the makeProcessedFlatDFFFF flow up to removeStrayLight, run with
-    snapshot=True: the SCI data is left at the level just before straylight
-    removal and the removed straylight is saved as the STRAYLIGHT_DIFFERENCE
-    extension. A unit test independently performs the straylight removal and
-    compares its result against SCI + STRAYLIGHT_DIFFERENCE.
+    Test-support recipe. Mirrors the makeProcessedFlatDFFFF flow up to
+    removeStrayLight, run with snapshot option enabled: the SCI data is
+    left at the level just before straylight removal and the removed
+    straylight is saved as the STRAYLIGHT_DIFFERENCE extension. A unit
+    test independently performs the straylight removal and compares its
+    result against the sum of the SCI and STRAYLIGHT_DIFFERENCE extensions.
 
     Parameters
     ----------
-    p : PrimitivesCORE object
+    p : Primitives object
         A primitive set matching the recipe_tags.
-
-    Returns
-    -------
-    Creates test frames with straylight difference and flux at levels just
-    before straylight removal.
     """
     p.prepare()
     p.checkArm()
@@ -138,22 +140,20 @@ def makeStrayLightCheck(p):
     p.writeOutputs(suffix='_straylight_flat', strip=True)
 
 
+# old recipe - set for deprecation
 def makeFlatVarCheck(p):
     """
     Check if variance extensions are correctly computed on stacked flats.
 
-    This recipe does not find, identify, or define any stripes. It also does
-    not remove stray light. Mostly used to test if variance is being computed
-    correctly for a stack of images.
+    Test-support recipe. The DFFFD flats are stacked and stored with a
+    "_varAddedStack" suffix, without any stripe definition or stray light
+    removal. Mostly used to test if variance is being computed correctly
+    for a stack of images.
 
     Parameters
     ----------
-    p : PrimitivesCORE object
+    p : Primitives object
         A primitive set matching the recipe_tags.
-
-    Returns
-    -------
-    Creates test frames with variance added.
     """
     p.prepare()
     p.checkArm()
@@ -171,20 +171,23 @@ def makeFlatVarCheck(p):
 
 def makeProcessedFlatDFFFF(p):
     """
-    Perform standardization and corrections to convert raw flats to processed.
+    Convert raw MAROON-X flat frames into a processed DFFFF flat.
 
-    This recipe converts the raw input flat images into a single stacked flat
-    image. This output processed flat is stored on disk using storeProcessedFlat
-    and has a name equal to the name of the first input bias image with
-    "_FFFFF_flat.fits" appended. A processed flatfield is required to perform
-    optimal flux extraction and to determine the blaze function. Due to the
-    stability of the spectrograph, one processed flatfield is typically 'valid'
-    for at least a two-week period. Cross-comparison between different processed
-    flatfields taken months apart have not been conducted so far.
+    Variant of makeProcessedFlat for datasets without FDDDF flats: the
+    DDDDF flats (only fiber 5 illuminated) are kept in the main stream and
+    the DFFFD flats (fibers 2, 3 and 4 illuminated) in a second stream.
+    Following the legacy processing order, each stream is stacked first;
+    the stacked frames are then overscan subtracted again, trimmed and
+    orientation corrected. The fiber stripes of each stream are traced
+    and identified, its stray light is removed, and the two streams are
+    combined into a DFFFF flat (fiber 1 dark) by taking the pixel-by-pixel
+    maximum. The stripe tracing is re-run on the combined frame and the
+    result is stored on disk by storeProcessedFlat with a "_DFFFF_flat"
+    suffix.
 
     Parameters
     ----------
-    p : PrimitivesCORE object
+    p : Primitives object
         A primitive set matching the recipe_tags.
     """
     p.prepare()
@@ -249,13 +252,14 @@ def makeBlaze(p):
     """
     Measure the blaze function for each fiber of a processed masterflat.
 
-    This primitive fits a spline to the box-extracted flat spectrum of
-    each fiber to model the blaze curve, then normalises each order so
-    the peak equals 1. The result is stored as ``BLAZE_FIBER_{f}``.
+    This recipe fits a spline to the box-extracted flat spectrum of each
+    fiber to model the blaze curve, then normalises each order so the peak
+    equals 1. The result is stored as a BLAZE_FIBER_N extension for each
+    fiber N and written to disk with a "_blaze" suffix.
 
     Parameters
     ----------
-    p : PrimitivesCORE object
+    p : Primitives object
         A primitive set matching the recipe_tags.
     """
     p.checkMaster()

@@ -2,22 +2,22 @@ makeStripeExtractionCheck
 =========================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_ECHELLE_SPECT
-| **Astrodata Tags**: {'MAROONX', 'SCI'}
+| **Astrodata Tags**: {'SCI', 'MAROONX'}
 
 Check the stripe extraction in normal processing of a science frame.
+
+Test-support recipe. Runs the extraction with the test option enabled so
+the stripe extractions, normally kept as sparse arrays, are saved in
+FITS-readable format (STRIPES, F_STRIPES and STRIPES_MASKS extensions).
+A unit test can then independently perform the stripe extraction and
+compare results. The output is written with a "_test_stripes" suffix.
 
 ::
 
     Parameters
     ----------
-    p : PrimitivesCORE object
+    p : Primitives object
         A primitive set matching the recipe_tags.
-
-    Returns
-    -------
-    Creates test frames with FITS-formatted stripe extractions meta-info
-    (normally not saved). Unit test will independently perform stripe extraction
-    and compare results.
 
 ::
 

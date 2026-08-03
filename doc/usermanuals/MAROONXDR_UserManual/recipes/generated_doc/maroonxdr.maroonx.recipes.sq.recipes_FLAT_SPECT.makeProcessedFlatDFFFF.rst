@@ -2,24 +2,27 @@ makeProcessedFlatDFFFF
 ======================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_FLAT_SPECT
-| **Astrodata Tags**: {'CAL', 'FLAT', 'MAROONX'}
+| **Astrodata Tags**: {'MAROONX', 'CAL', 'FLAT'}
 
-Perform standardization and corrections to convert raw flats to processed.
+Convert raw MAROON-X flat frames into a processed DFFFF flat.
 
-This recipe converts the raw input flat images into a single stacked flat
-image. This output processed flat is stored on disk using storeProcessedFlat
-and has a name equal to the name of the first input bias image with
-"_FFFFF_flat.fits" appended. A processed flatfield is required to perform
-optimal flux extraction and to determine the blaze function. Due to the
-stability of the spectrograph, one processed flatfield is typically 'valid'
-for at least a two-week period. Cross-comparison between different processed
-flatfields taken months apart have not been conducted so far.
+Variant of makeProcessedFlat for datasets without FDDDF flats: the
+DDDDF flats (only fiber 5 illuminated) are kept in the main stream and
+the DFFFD flats (fibers 2, 3 and 4 illuminated) in a second stream.
+Following the legacy processing order, each stream is stacked first;
+the stacked frames are then overscan subtracted again, trimmed and
+orientation corrected. The fiber stripes of each stream are traced
+and identified, its stray light is removed, and the two streams are
+combined into a DFFFF flat (fiber 1 dark) by taking the pixel-by-pixel
+maximum. The stripe tracing is re-run on the combined frame and the
+result is stored on disk by storeProcessedFlat with a "_DFFFF_flat"
+suffix.
 
 ::
 
     Parameters
     ----------
-    p : PrimitivesCORE object
+    p : Primitives object
         A primitive set matching the recipe_tags.
 
 ::

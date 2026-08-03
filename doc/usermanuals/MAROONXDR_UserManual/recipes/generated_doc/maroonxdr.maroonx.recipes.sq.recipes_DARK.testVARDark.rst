@@ -2,19 +2,20 @@ testVARDark
 ===========
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_DARK
-| **Astrodata Tags**: {'DARK', 'CAL', 'MAROONX'}
+| **Astrodata Tags**: {'MAROONX', 'CAL', 'DARK'}
 
 Produce a dark frame with an additional variance plane.
 
-Can be used to add a variance plane to a singular dark frame. The default
-recipe adds variance planes to all the dark frames while stacking, and also
-outputs a dark frame with a variance plane added to it.
+Test-support recipe. Each input dark is processed individually (overscan
+subtracted, trimmed, orientation corrected) without stacking, and stored
+with a variance plane computed from read noise and Poisson noise. Intended
+for checking the variance computation on a single dark frame.
 
 ::
 
     Parameters
     ----------
-    p : PrimitivesCORE object
+    p : Primitives object
         A primitive set matching the recipe_tags.
 
 ::

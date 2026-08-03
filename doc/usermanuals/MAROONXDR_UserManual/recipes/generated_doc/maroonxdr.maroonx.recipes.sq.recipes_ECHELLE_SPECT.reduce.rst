@@ -2,68 +2,44 @@ reduce
 ======
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_ECHELLE_SPECT
-| **Astrodata Tags**: {'MAROONX', 'SCI'}
+| **Astrodata Tags**: {'SCI', 'MAROONX'}
 
 Process MAROON-X science echelle spectrum with tracing and extraction.
 
-This recipe: (1) traces and identifies the fibers and orders in a 2D
-processed flat and (2) performs both regular (aka 'box') and optimum
-extraction to produce 1D extracted spectra for 2D input spectra.
+This recipe: (1) traces and identifies the fibers and orders using a 2D
+processed flat, (2) performs both regular (aka 'box') and optimal
+extraction to produce 1D extracted spectra, (3) computes a drift
+corrected wavelength solution for the science fibers, and (4) combines
+the science fibers and calculates the barycentric velocity correction.
+The result is stored on disk with a "_reduced" suffix.
 
 Tracing and identifying fibers and orders is done on a (preferably
-background subtracted) 2D processed flat. This step needs to be done only
-once per flat and the results can be applied to all subsequent flux
-extraction steps for other data. The routine allows to specify which fibers
-are illuminated by flat light to minimize wrong order/fiber identification.
+background subtracted) 2D processed flat retrieved from the calibration
+database. During the stripe extraction a matching processed dark is
+subtracted from the science fibers, while the sim cal fiber gets its
+straylight removed instead.
 
 Box extraction is the simple summation of all spatial pixels in a given
-fiber/order combination. Optimal extraction is per default only applied to
-fibers illuminated with flat (F) and science (O) input.
+fiber and order combination. Optimal extraction is by default only
+applied to the science fibers 2, 3 and 4.
 
-TODO: Once the Static and Dynamic wavecal recipes have been created, an
-additional set of parameters in this recipe should be added to request the
-calibration frame produced by the dynamic wavecal recipe and utilize it to
-perform a drift corrected wavelength calibration for the science frame
-fibers.
+The wavelength calibration fits the etalon lines of the sim cal fiber
+5, loads the static wavelength solution from a lookup file, and applies
+a drift corrected solution to the science fibers by comparison with a
+processed wavecal etalon frame retrieved from the calibration database.
+The barycentric velocity correction is computed from the exposure meter
+flux-weighted timestamps and stored in header keywords.
 
 ::
 
     Parameters
     ----------
-    p : PrimitivesCORE object
+    p : Primitives object
         A primitive set matching the recipe_tags.
 
 ::
 
     def reduce(p):
-        """
-        Process MAROON-X science echelle spectrum with tracing and extraction.
-
-        This recipe: (1) traces and identifies the fibers and orders in a 2D
-        processed flat and (2) performs both regular (aka 'box') and optimum
-        extraction to produce 1D extracted spectra for 2D input spectra.
-
-        Tracing and identifying fibers and orders is done on a (preferably
-        background subtracted) 2D processed flat. This step needs to be done only
-        once per flat and the results can be applied to all subsequent flux
-        extraction steps for other data. The routine allows to specify which fibers
-        are illuminated by flat light to minimize wrong order/fiber identification.
-
-        Box extraction is the simple summation of all spatial pixels in a given
-        fiber/order combination. Optimal extraction is per default only applied to
-        fibers illuminated with flat (F) and science (O) input.
-
-        TODO: Once the Static and Dynamic wavecal recipes have been created, an
-        additional set of parameters in this recipe should be added to request the
-        calibration frame produced by the dynamic wavecal recipe and utilize it to
-        perform a drift corrected wavelength calibration for the science frame
-        fibers.
-
-        Parameters
-        ----------
-        p : PrimitivesCORE object
-            A primitive set matching the recipe_tags.
-        """
         p.prepare()
         p.checkArm()
         p.addDQ()  # just placeholder until MX is in caldb

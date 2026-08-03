@@ -2,50 +2,27 @@ makeStrayLightCheck
 ===================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_FLAT_SPECT
-| **Astrodata Tags**: {'CAL', 'FLAT', 'MAROONX'}
+| **Astrodata Tags**: {'MAROONX', 'CAL', 'FLAT'}
 
 Check the stray light subtraction in normal flat frame processing.
 
-Mirrors the makeProcessedFlatDFFFF flow up to removeStrayLight, run with
-snapshot=True: the SCI data is left at the level just before straylight
-removal and the removed straylight is saved as the STRAYLIGHT_DIFFERENCE
-extension. A unit test independently performs the straylight removal and
-compares its result against SCI + STRAYLIGHT_DIFFERENCE.
+Test-support recipe. Mirrors the makeProcessedFlatDFFFF flow up to
+removeStrayLight, run with snapshot option enabled: the SCI data is
+left at the level just before straylight removal and the removed
+straylight is saved as the STRAYLIGHT_DIFFERENCE extension. A unit
+test independently performs the straylight removal and compares its
+result against the sum of the SCI and STRAYLIGHT_DIFFERENCE extensions.
 
 ::
 
     Parameters
     ----------
-    p : PrimitivesCORE object
+    p : Primitives object
         A primitive set matching the recipe_tags.
-
-    Returns
-    -------
-    Creates test frames with straylight difference and flux at levels just
-    before straylight removal.
 
 ::
 
     def makeStrayLightCheck(p):
-        """
-        Check the stray light subtraction in normal flat frame processing.
-
-        Mirrors the makeProcessedFlatDFFFF flow up to removeStrayLight, run with
-        snapshot=True: the SCI data is left at the level just before straylight
-        removal and the removed straylight is saved as the STRAYLIGHT_DIFFERENCE
-        extension. A unit test independently performs the straylight removal and
-        compares its result against SCI + STRAYLIGHT_DIFFERENCE.
-
-        Parameters
-        ----------
-        p : PrimitivesCORE object
-            A primitive set matching the recipe_tags.
-
-        Returns
-        -------
-        Creates test frames with straylight difference and flux at levels just
-        before straylight removal.
-        """
         p.prepare()
         p.checkArm()
         p.addDQ()

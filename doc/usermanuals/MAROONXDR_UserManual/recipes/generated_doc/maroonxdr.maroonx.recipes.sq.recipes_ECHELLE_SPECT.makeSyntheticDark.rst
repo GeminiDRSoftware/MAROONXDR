@@ -2,18 +2,22 @@ makeSyntheticDark
 =================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_ECHELLE_SPECT
-| **Astrodata Tags**: {'MAROONX', 'SCI'}
+| **Astrodata Tags**: {'SCI', 'MAROONX'}
 
-Construct DDDDE master darks from coefficient file for science exposures.
+Construct synthetic DDDDE darks for science exposures.
 
-Uses a linear interpolation of log(exposure time) vs. flux in empirical
-master darks to construct interpolated darks for other exposure times.
+The per-pixel log-linear fit stored in a processed dark coefficients
+calibration, retrieved from the calibration database, is evaluated at
+the exposure time and ND filter setting of each science frame. This
+interpolates the empirical master darks to exposure times that were not
+directly observed. The synthetic dark is stored with a "_synth_dark"
+suffix.
 
 ::
 
     Parameters
     ----------
-    p : PrimitivesCORE object
+    p : Primitives object
         A primitive set matching the recipe_tags.
 
 ::
@@ -22,7 +26,6 @@ master darks to construct interpolated darks for other exposure times.
         p.prepare()
         p.checkArm()
         p.addVAR(read_noise=True, poisson_noise=True)
-
         p.createSyntheticDark()
         p.storeProcessedDark(suffix='_synth_dark')
 

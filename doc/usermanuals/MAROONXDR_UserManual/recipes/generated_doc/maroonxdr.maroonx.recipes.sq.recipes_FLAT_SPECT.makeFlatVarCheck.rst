@@ -2,24 +2,21 @@ makeFlatVarCheck
 ================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_FLAT_SPECT
-| **Astrodata Tags**: {'CAL', 'FLAT', 'MAROONX'}
+| **Astrodata Tags**: {'MAROONX', 'CAL', 'FLAT'}
 
 Check if variance extensions are correctly computed on stacked flats.
 
-This recipe does not find, identify, or define any stripes. It also does
-not remove stray light. Mostly used to test if variance is being computed
-correctly for a stack of images.
+Test-support recipe. The DFFFD flats are stacked and stored with a
+"_varAddedStack" suffix, without any stripe definition or stray light
+removal. Mostly used to test if variance is being computed correctly
+for a stack of images.
 
 ::
 
     Parameters
     ----------
-    p : PrimitivesCORE object
+    p : Primitives object
         A primitive set matching the recipe_tags.
-
-    Returns
-    -------
-    Creates test frames with variance added.
 
 ::
 

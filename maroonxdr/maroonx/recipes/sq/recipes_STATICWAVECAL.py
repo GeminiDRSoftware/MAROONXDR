@@ -1,7 +1,7 @@
 """
 Recipes available to data with tags ['MAROONX', 'WAVECAL', 'ThAr'].
 
-Default is "reduce".
+Default is "makeStaticWavecal".
 """
 
 recipe_tags = {'MAROONX', 'WAVECAL', 'ThAr'}
@@ -10,16 +10,20 @@ blocked_tags = {'BUNDLE'}
 
 def makeStaticWavecal(p):
     """
-    Process Thorium Argon and etalon spectra for static wavelength solution.
+    Process Thorium Argon exposures towards a static wavelength solution.
 
-    Create a static wavelength solution reference for the science and sim cal
-    fibers on the MAROON-X instrument. The product of this recipe is the basis
-    for all wavelength calibrations on MAROON-X data (i.e. dynamical wavecals
-    and echelle_spect).
+    A static wavelength solution reference for the science and sim cal
+    fibers is the basis for all wavelength calibrations on MAROON-X data
+    (i.e. dynamical wavecals and science reductions). This recipe currently
+    performs the 2D processing and box extraction of the ThAr frames and
+    stores the result as a processed arc with a "_static_wavecal" suffix.
+    The computation of the static solution itself from the extracted lines
+    is not yet implemented; the pipeline relies on the static solution
+    distributed as a lookup file.
 
     Parameters
     ----------
-    p : PrimitivesCORE object
+    p : Primitives object
         A primitive set matching the recipe_tags.
     """
     p.prepare()
