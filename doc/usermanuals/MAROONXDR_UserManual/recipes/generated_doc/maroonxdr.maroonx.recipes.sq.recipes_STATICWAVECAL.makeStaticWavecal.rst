@@ -2,7 +2,7 @@ makeStaticWavecal
 =================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_STATICWAVECAL
-| **Astrodata Tags**: {'WAVECAL', 'MAROONX', 'ThAr'}
+| **Astrodata Tags**: {'MAROONX', 'ThAr', 'WAVECAL'}
 
 Process Thorium Argon exposures towards a static wavelength solution.
 
