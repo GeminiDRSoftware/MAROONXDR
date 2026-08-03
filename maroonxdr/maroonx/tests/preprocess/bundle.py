@@ -1,19 +1,91 @@
-"""Test bundle file reduction workflow for v2 (202507xx) data.
+"""Fetch raw MaroonX bundles from the Gemini Archive and debundle them.
 
-Reads raw bundles from $DRAGONS_TEST/raw_files/ and writes debundled
-single-arm files to $DRAGONS_TEST/preprocessed_files/.
+Downloads the raw two-arm bundle frames listed in ``MANIFEST`` from the Gemini
+Archive into ``$DRAGONS_TEST/raw_files/`` (cached; skipped if already present),
+then runs the default BUNDLE recipe (``splitBundle``) on each to produce
+single-arm debundled frames in ``$DRAGONS_TEST/preprocessed_files/``.
+
+The debundled frames are the shared inputs consumed by the dark, flat,
+wavecal, and science staging steps.
+
+Usage:
+    python -m maroonxdr.maroonx.tests.preprocess.bundle
 """
 
 import os
-import shutil
+import warnings
 from pathlib import Path
+from urllib.error import HTTPError
 
+from astrodata.testing import download_from_archive
 from gempy.adlibrary import dataselect
 from gempy.utils import logutils
 from recipe_system.reduction.coreReduce import Reduce
 
-import maroonx_instruments  # noqa - import is necessary for astrodata
+import maroonx_instruments  # noqa - import is necessary for dataselect
 from maroonxdr.maroonx.tests.test_utils import change_cwd_context
+
+# Raw two-arm bundle frames on the Gemini Archive, grouped by calibration kind.
+# Single source of truth for the raw file set.
+MANIFEST = {
+    'FLAT': [
+        'N20250701M6126.fits',
+        'N20250701M6143.fits',
+        'N20250701M6154.fits',
+        'N20250701M6164.fits',
+        'N20250701M6175.fits',
+        'N20250701M6185.fits',
+        'N20250701M6215.fits',
+        'N20250701M6229.fits',
+        'N20250701M6240.fits',
+        'N20250701M6250.fits',
+        'N20250701M6260.fits',
+        'N20250701M6271.fits',
+    ],
+    'DARK': [
+        'N20250707M6052.fits',
+        'N20250707M6074.fits',
+        'N20250707M6096.fits',
+        'N20250707M6119.fits',
+        'N20250707M6141.fits',
+        'N20250707M6164.fits',
+        'N20250707M6180.fits',
+        'N20250707M6197.fits',
+        'N20250707M6213.fits',
+        'N20250707M6230.fits',
+        'N20250707M6246.fits',
+        'N20250707M6287.fits',
+        'N20250707M6327.fits',
+        'N20250707M6368.fits',
+        'N20250707M6408.fits',
+        'N20250707M6449.fits',
+        'N20250707M6520.fits',
+        'N20250707M6590.fits',
+        'N20250707M6660.fits',
+        'N20250707M6731.fits',
+        'N20250707M6802.fits',
+        'N20250707M6902.fits',
+        'N20250707M7002.fits',
+        'N20250707M7102.fits',
+        'N20250707M7203.fits',
+        'N20250707M7304.fits',
+        'N20250707M7434.fits',
+        'N20250707M7564.fits',
+        'N20250707M7695.fits',
+        'N20250707M7826.fits',
+        'N20250707M7956.fits',
+        'N20250707M8147.fits',
+        'N20250707M8337.fits',
+        'N20250707M8527.fits',
+        'N20250708M0078.fits',
+    ],
+    'WAVECAL': [
+        'N20250717M5948.fits',
+    ],
+    'SCIENCE': [
+        'N20250717M5299.fits',
+    ],
+}
 
 
 def _get_dragons_test():
@@ -23,21 +95,51 @@ def _get_dragons_test():
     return Path(p)
 
 
-def complete_bundle_reduction():
-    """Test reduction of bundle FITS files containing both red and blue arms."""
+def download_raw_bundles():
+    """Download every MANIFEST bundle into $DRAGONS_TEST/raw_files/ (cached).
+
+    Returns
+    -------
+    dict
+        Mapping of filename to local path, or None where the archive responded
+        with HTTP 403 (proprietary data).
+    """
+    raw_dir = _get_dragons_test() / 'raw_files'
+
+    paths = {}
+    for filenames in MANIFEST.values():
+        for filename in filenames:
+            # Skip the archive query for cached files: the md5 check in
+            # download_from_archive is broken for MaroonX filenames (GOA does
+            # not filter its jsonfilelist response by them) and re-downloads
+            # every file.
+            local = raw_dir / filename
+            if local.exists():
+                paths[filename] = str(local)
+                continue
+            try:
+                paths[filename] = download_from_archive(
+                    filename, sub_path='raw_files', env_var='DRAGONS_TEST'
+                )
+            except HTTPError as e:
+                warnings.warn(f'{filename}: {e}')
+                paths[filename] = None
+    return paths
+
+
+def debundle():
+    """Split raw bundles into single-arm frames in preprocessed_files/."""
     dragons_test = _get_dragons_test()
     raw_dir = dragons_test / 'raw_files'
     output_dir = dragons_test / 'preprocessed_files'
     output_dir.mkdir(exist_ok=True)
 
-    # Read bundles from raw_files/
     all_files = sorted(str(p) for p in raw_dir.glob('N2025*.fits'))
     only_bundles = dataselect.select_data(all_files, tags=['RAW', 'BUNDLE'])
 
-    # Write debundled output to preprocessed_files/
     with change_cwd_context(output_dir):
-        logutils.config(file_name='test_bundle.log', stomp=False)
-        log = logutils.get_logger('test_bundle.log')
+        logutils.config(file_name='bundle.log', stomp=False)
+        log = logutils.get_logger('bundle.log')
         log.setLevel('DEBUG')
 
         myreduce = Reduce()
@@ -46,72 +148,10 @@ def complete_bundle_reduction():
         myreduce.runr()
 
 
-def populate_inputs():
-    """Copy debundled files from preprocessed_files/ to test inputs/ directories."""
-    dragons_test = _get_dragons_test()
-    src = dragons_test / 'preprocessed_files'
-    base = dragons_test / 'maroonxdr' / 'maroonx'
-
-    # bundle tests need raw bundles from raw_files/, not debundled — skip here
-    # (bundle test create_inputs() downloads from archive directly)
-
-    # image/test_file_sorting
-    _copy_files(
-        src,
-        base / 'image' / 'test_file_sorting' / 'inputs',
-        [
-            '20250701T170101Z_DFFFD_r_0002.fits',
-            '20250701T170101Z_DFFFD_b_0008.fits',
-            '20250701T170353Z_DFFFD_b_0008.fits',
-            '20250701T171553Z_DDDDF_b_0007.fits',
-        ],
-    )
-
-    # image/test_image_orientation_corrector
-    _copy_files(
-        src,
-        base / 'image' / 'test_image_orientation_corrector' / 'inputs',
-        [
-            '20250701T170101Z_DFFFD_r_0002.fits',
-            '20250701T170353Z_DFFFD_b_0008.fits',
-        ],
-    )
-
-    # image/test_ND_filter_check
-    _copy_files(
-        src,
-        base / 'image' / 'test_ND_filter_check' / 'inputs',
-        [
-            '20250701T170101Z_DFFFD_r_0002.fits',
-        ],
-    )
-
-    # image/test_var
-    _copy_files(
-        src,
-        base / 'image' / 'test_var' / 'inputs',
-        [
-            '20250721T170049Z_DDDDE_r_0300.fits',
-        ],
-    )
-
-
-def _copy_files(src_dir, dst_dir, filenames):
-    """Copy specific files from src_dir to dst_dir, creating dst_dir if needed."""
-    dst_dir.mkdir(parents=True, exist_ok=True)
-    for f in filenames:
-        src_file = src_dir / f
-        if src_file.exists():
-            shutil.copy2(src_file, dst_dir / f)
-            print(f'  Copied {f} -> {dst_dir}')
-        else:
-            print(f'  WARNING: {src_file} not found, skipping')
-
-
 if __name__ == '__main__':
-    import sys
 
-    complete_bundle_reduction()
-
-    if '--populate-inputs' in sys.argv[1:]:
-        populate_inputs()
+    # download manifest into $DRAGONS_TEST/raw_files/
+    download_raw_bundles()
+    
+    # debundle raw bundles into $DRAGONS_TEST/preprocessed_files/
+    debundle()

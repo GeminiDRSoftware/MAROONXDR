@@ -4,8 +4,9 @@
    contain the root `toctree` directive.
 
 
-DRAGONS MAROONX Data Reduction User Manual
-==========================================
+DRAGONS MAROON-X DRP: User Manual
+=================================
+
 
 .. admonition:: Document ID
 
@@ -17,8 +18,10 @@ DRAGONS MAROONX Data Reduction User Manual
    :caption: Table of Contents
 
    instrument
-   recipes
-   tips
-   issues
-   primitives
+   recipes/recipes_index
+   primitives/primitives_index
+   legacy
+
+.. tips
+.. issues
    

@@ -1,0 +1,41 @@
+% Custom styling for Legacy and DRAGONS topic blocks
+% matches style of custom.css
+
+% Legacy pipeline blocks - maroon background matching MaroonX logo
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{custom}[2026/07/08 MaroonX topic boxes]
+
+\RequirePackage{xcolor}
+\RequirePackage[most]{tcolorbox}
+
+\definecolor{mxLegacyBg}{HTML}{FEE8DD}
+\definecolor{mxLegacyBorder}{HTML}{A1342D}
+\definecolor{mxLegacyTitle}{HTML}{65241F}
+
+\definecolor{mxDragonsBg}{HTML}{E8F4F8}
+\definecolor{mxDragonsBorder}{HTML}{4A90A4}
+\definecolor{mxDragonsTitle}{HTML}{1E5A6E}
+
+\newenvironment{mxlegacybox}{%
+  \renewcommand{\sphinxstyletopictitle}[1]{%
+    {\color{mxLegacyTitle}\bfseries\large ##1\par\smallskip}}%
+  \begin{tcolorbox}[
+    colback=mxLegacyBg, colframe=mxLegacyBorder,
+    boxrule=0pt, leftrule=4pt, arc=2pt,
+    left=6pt, right=6pt, top=6pt, bottom=6pt,
+    breakable,
+  ]%
+}{\end{tcolorbox}}
+
+\newenvironment{mxdragonsbox}{%
+  \renewcommand{\sphinxstyletopictitle}[1]{%
+    {\color{mxDragonsTitle}\bfseries\large ##1\par\smallskip}}%
+  \begin{tcolorbox}[
+    colback=mxDragonsBg, colframe=mxDragonsBorder,
+    boxrule=0pt, leftrule=4pt, arc=2pt,
+    left=6pt, right=6pt, top=6pt, bottom=6pt,
+    breakable,
+  ]%
+}{\end{tcolorbox}}
+
+\endinput

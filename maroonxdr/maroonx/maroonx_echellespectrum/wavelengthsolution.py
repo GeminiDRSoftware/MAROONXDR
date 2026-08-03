@@ -1,38 +1,66 @@
 """
-Class that describes a wavelength solution for a given spectrum.
+Class describing a 2D polynomial wavelength solution.
+
+``WavelengthSolution`` fits a 2D Legendre polynomial to the product of
+wavelength and echelle order number of a set of calibration lines, and
+evaluates it to return the wavelength at any pixel position and order.
+It belongs to the ThAr path of ``fitAndApplyEtalonWLS``, which is
+currently not supported; the class is unused by the DRAGONS reduction.
+It may be deprecated in a future release.
 """
 import numpy as np
 import time
 import warnings
-import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+
 from astropy.modeling import models, fitting
-from scipy.interpolate import griddata
+
 from gempy.utils import logutils
 
 
-class WavelengthSolution:
-    def __init__(self, x_norm, orders, weights, wavelengths, poly_deg_x=5, poly_deg_y=5, max_x=3984):
-        '''
-        Initializes the WavelengthSolution object.
+from astropy.utils.decorators import deprecated
 
-        Parameters
-        ----------
-        x_norm : 1D array
-            Normalized x values.
-        orders : 1D array
-            Vector of physical echelle orders. Same length as x and wavelengths.
-        weights : 1D array
-            Weights for each pixel.
-        wavelengths : 1D array
-            Wavelengths of lines
-        poly_deg_x : int
-            Degree of Legendre polynomial in x.
-        poly_deg_y : int
-            Degree of Legendre polynomial in y.
-        max_x : int
-            Value used to normalize x values.
-        '''
+_DEPRECATION_MSG = (
+    "This method is inherited from the legacy MaroonX pipeline and "
+    "is not used by the DRAGONS reduction; it may be removed in a "
+    "future release."
+)
+
+
+class WavelengthSolution:
+    """
+    2D Legendre polynomial wavelength solution fit to calibration lines.
+
+    The fit is performed immediately on construction.
+
+    Parameters
+    ----------
+    x_norm : ndarray
+        Line positions, normalized to [-1, 1].
+
+    orders : ndarray
+        Vector of physical echelle orders. Same length as ``x_norm``
+        and ``wavelengths``.
+
+    weights : ndarray
+        Weights for each line. Lines with weight 0 are excluded.
+
+    wavelengths : ndarray
+        Wavelengths of the lines (nm).
+
+    poly_deg_x : int
+        Degree of the Legendre polynomial in x. Default is 5.
+
+    poly_deg_y : int
+        Degree of the Legendre polynomial in y. Default is 5.
+
+    max_x : int
+        Value used to normalize x values, in practice the length of an
+        extracted order. Default is 3984.
+    """
+    def __init__(self, x_norm, orders, weights, wavelengths, poly_deg_x=5, poly_deg_y=5, max_x=3984):
+        # Logger
+        self.log = logutils.get_logger(__name__)
+
         self.max_x = max_x
         # Normalization lambda function
         self.normalize_x = lambda x: x / max_x * 2 - 1
@@ -61,35 +89,13 @@ class WavelengthSolution:
         self.residuals = np.zeros_like(self.x_norm)
         self.make_solution()
 
-        # Logger
-        self.log = logutils.get_logger(__name__)
-
     def legendre_fit(self):
         """
-        Calculates a 2D Legendre polynomial wavelength fit to normalized x
-        and order values.
+        Calculate the 2D Legendre polynomial wavelength fit.
 
-        Parameters
-        ----------
-        x_norm : numpy array
-            Normalized x values.
-        order_norm : numpy array
-            Normalized order values.
-        weights : numpy array
-            Statistical weights for each pixel.
-        orders : numpy array
-            True order numbers
-        wavelengths : numpy array
-            Wavelength vectors.
-        poly_deg_x : int
-            Polynomial degree in x direction
-        poly_deg_y : int
-            Polynomial degree in y direction
-
-        Returns
-        -------
-        model : astropy.modeling.Model
-            2D wavelength solution polynomial
+        Fits the product of wavelength and order as a function of the
+        normalized x and order values, and stores the fitted model in
+        the ``solution`` attribute.
         """
         log = self.log
         x_norm = self.x_norm
@@ -100,7 +106,7 @@ class WavelengthSolution:
         poly_deg_x = self.poly_deg_x
         poly_deg_y = self.poly_deg_y
 
-        init_model = models.Legendre2D(degree=(poly_deg_x, poly_deg_y))
+        init_model = models.Legendre2D(poly_deg_x, poly_deg_y)
         fit_model = fitting.LinearLSQFitter()
         index_include = np.logical_and(np.array(weights, dtype=bool), np.logical_not(np.isnan(x_norm)))
 
@@ -117,16 +123,13 @@ class WavelengthSolution:
 
     def make_solution(self, weighted=False):
         """
-        Make wavelength solution.
+        Make the wavelength solution and calculate its residuals.
 
         Parameters
         ----------
         weighted : bool
-            If true, use weights in the fit.
-
-        Returns
-        -------
-        None
+            If True, use weights in the fit. Currently ignored: the fit
+            always uses the stored weights.
         """
         if not weighted:
             weights = self.weights[self.index_include] * 0 + 1
@@ -141,40 +144,40 @@ class WavelengthSolution:
 
     def get_wavelength(self, x, order):
         """
-        Get wavelength for the specified x value and order.
+        Get the wavelength for the specified x values and order.
 
         Parameters
         ----------
-        x : float
-            X value.
-        order : int
-            Order number.
+        x : ndarray
+            Pixel positions.
+
+        order : int or ndarray
+            Order number(s).
 
         Returns
         -------
-        wavelength : float
-            Wavelength for the specified x value and order.
+        ndarray
+            Wavelengths in nm.
         """
         if isinstance(order, int) or isinstance(order, np.int64):
             order = np.repeat(order, len(x))
         return self.solution(self.normalize_x(x), self.normalize_order(order)) / order
 
+    @deprecated(since="DRAGONS-integration", message=_DEPRECATION_MSG)
     def sigma_clip_and_refit(self, threshold=4.0, N=8, weighted=False):
         """
-        Sigma clip and refit wavelength solution.
+        Sigma clip the residuals and refit the wavelength solution.
 
         Parameters
         ----------
         threshold : float
             Sigma clipping threshold.
-        N : int
-            Number of iterations.
-        weighted : bool
-            If true, use weights in the fit.
 
-        Returns
-        -------
-        None
+        N : int
+            Maximum number of iterations.
+
+        weighted : bool
+            If True, use weights in the fit.
         """
         log = self.log
         residuals = self.residuals[self.index_include]
@@ -197,15 +200,13 @@ class WavelengthSolution:
             log.info("RMS after clipping: {:.2f} m/s over {} lines".format(residuals_std, len(values)))
             self.make_solution(weighted=weighted)
 
+    @deprecated(since="DRAGONS-integration", message=_DEPRECATION_MSG)
     def calculate_order_means(self):
-        '''
-        Determines mean of the residuals per order in m/s.
+        """
+        Determine the mean of the residuals per order in m/s.
 
-        Args:
-            None
-        Returns:
-            None.  Order means are stored in self.order_means
-        '''
+        The result is stored in the ``order_means`` attribute.
+        """
          # determines mean of the residuals per order in m/s
         order_means = {}
         unique_orders = np.unique(self.orders)
@@ -219,76 +220,3 @@ class WavelengthSolution:
             order_means[o] = np.average(residuals, weights=weights)
         self.order_means = order_means
 
-    def plot_solution_2D(self, plot_title=""):
-        """
-        Plot wavelength solution in 2D.
-
-        Parameters
-        ----------
-        plot_title : str
-            Title for the plot.
-
-        Returns
-        -------
-        None
-        """
-        fig = plt.figure(figsize=(5, 8.5))
-        fig.subplots_adjust(bottom=.07, left=0.15, right=0.86, top=0.95, hspace=0.25)
-        ax1 = fig.add_subplot(211)
-        ax2 = fig.add_subplot(212)
-        ax1.set_title('Lines used for fitting and their residuals '+plot_title)
-        ax1.set_xlabel('Normalized Detector Position')
-        ax1.set_ylabel('Wavelength (nm)')
-        ax1.set_xlim(-1.05,1.05)
-        ax1.scatter(self.x_norm[self.index_include], self.wavelengths[self.index_include],
-                    c=self.orders_norm[self.index_include],rasterized=True)
-        ax1.scatter(self.x_norm[np.logical_not(self.index_include)],
-                    self.wavelengths[np.logical_not(self.index_include)],
-                    facecolors='none', edgecolors='r',rasterized=True)
-
-        for x, o, oo, wl in zip(self.x_norm[self.index_include], self.orders_norm[self.index_include],
-                                self.orders[self.index_include], self.wavelengths[self.index_include]):
-            ax1.arrow(x, wl, 0, (self.solution(x, o) / oo - wl) * 1000., head_width=0.00005,
-                      head_length=0.0001, width=0.00005)
-
-        xi = np.linspace(min(self.x_norm[self.index_include]), max(self.x_norm[self.index_include]), 101)
-        yi = np.linspace(min(self.orders_norm[self.index_include]), max(self.orders_norm[self.index_include]), 101)
-        zi = griddata((self.x_norm[self.index_include], self.orders_norm[self.index_include]),
-                      ((self.wavelengths[self.index_include] - self.solution(self.x_norm[self.index_include],
-                                                                             self.orders_norm[self.index_include]) /
-                        self.orders[
-                            self.index_include]) / np.mean(self.wavelengths[self.index_include])) * 3e8,
-                      (xi[None, :], yi[:, None]), method='linear')
-
-        ax2.set_xlim(-1.05, 1.05)
-        ax2.set_ylim(-1.05, 1.05)
-        ax2.set_xlabel('Detector x normalized')
-        ax2.set_ylabel('order normalized')
-        plt.title(f'Legendre Poly Degree X: {self.poly_deg_x:d}  Y: {self.poly_deg_y:d}  -  #pars: '
-                  f'{len(self.solution.parameters)} '+plot_title)
-
-        im = ax2.imshow(zi, interpolation='nearest', extent=[np.min(xi), np.max(xi), np.min(yi), np.max(yi)],
-                       origin='lower',rasterized=True)
-        ax2.scatter(self.x_norm[self.index_include], self.orders_norm[self.index_include],color='k',s=2,rasterized=True)
-        divider = make_axes_locatable(ax2)
-        cax = divider.append_axes("right", size="5%", pad=0.05)
-
-        cb = plt.colorbar(im, cax=cax)
-        cb.set_label('RV deviation [m/s]')
-
-        #plt.tight_layout()
-
-        return fig
-
-    def plot_residuals(self, plot_title='', residuals=None, wavelengths=None, orders_norm=None,
-                       x_norm=None, weights=None, zoom=False):
-        """
-        Plot residuals.
-        """
-        pass
-
-    def plot_residuals_over_x(self, plot_title=''):
-        """
-        Plot residuals over x.
-        """
-        pass

@@ -4,231 +4,341 @@
 Tests
 *****
 
+Test Tiers
+==========
+
+The suite has two tiers, distinguished by pytest markers:
+
+Synthetic tests
+   Build their inputs in memory with ``astrodata.create()`` and small numpy
+   arrays. They need no data on disk and run in seconds. A test belongs to
+   this tier simply by carrying no ``preprocessed_data`` marker.
+
+Regression tests
+   Run a primitive on real MaroonX data and compare the result against a
+   stored reference. They are marked with both
+   ``@pytest.mark.preprocessed_data`` and ``@pytest.mark.regression`` and
+   read their data from per-module ``inputs/`` and ``refs/`` directories
+   under ``$DRAGONS_TEST``. These tests check that pipeline outputs stay
+   stable across refactors.
+
+The two standard invocations are:
+
+.. code-block:: bash
+
+   # Synthetic tests only, no data needed
+   pytest maroonx_instruments maroonxdr/maroonx/tests/ -m "not preprocessed_data"
+
+   # Regression tests only, needs the test data described below
+   pytest maroonxdr/maroonx/tests/ -m "regression"
+
+Most regression tests follow one of two patterns:
+
+* **The input carries its own reference.** The staged input file contains
+  both the primitive's input state and the output the blessed run produced
+  (as extra extensions or header keywords). The test re-runs the primitive
+  on a copy and compares against what the file already stores. Examples:
+  ``test_remove_straylight``, ``test_combine_fibers``,
+  ``test_apply_wavelength_solution``.
+
+* **Separate reference file.** When the primitive's inputs cannot be
+  written to FITS (the sparse ``STRIPES`` dictionaries), the test rebuilds
+  them live by running the recipe chain up to the primitive under test,
+  then compares against a reference file loaded from ``refs/`` with the
+  ``ref_ad_factory`` fixture. Examples: ``test_optimal_extraction``,
+  ``test_box_extraction``.
+
 Environment Setup
 =================
 
-Two environment variables control where test data is found:
+One environment variable controls where the suite finds its data.
 
 ``DRAGONS_TEST``
-    Root directory for DRAGONS test data (inputs, references,
-    preprocessed calibrations). Required for all unit tests::
+   Root of the test data tree. Required for the regression tests and for
+   all data staging; the synthetic tests run without it. The ``devenv``
+   nox session appends an ``export`` for this variable to
+   ``venv/bin/activate``, so activating ``mx_dev`` (see the *Setup and
+   Installation* chapter of the Tutorial) sets it for you. To override
+   the location, or to
+   set it outside a ``devenv``-managed shell, export it manually:
 
-        export DRAGONS_TEST="/path/to/test/data"
+   .. code-block:: bash
 
-``MAROONX_LEGACY_TEST``
-    Root directory containing legacy pipeline reduced data. Required only
-    for legacy regression tests::
-
-        export MAROONX_LEGACY_TEST="/path/to/legacy/data"
-
-    The legacy regression tests expect the following structure::
-
-        $MAROONX_LEGACY_TEST/
-        └── MaroonX_spectra_reduced/
-            ├── Maroonx_masterframes/
-            │   └── 202411xx/
-            │       ├── darks/               # legacy master darks
-            │       └── flats/               # legacy master flats
-            └── 20241124/                    # legacy reduced spectra & wavecals
+      export DRAGONS_TEST="/path/to/mx_test"
 
 
-.. note:: The ``devenv`` nox session writes ``DRAGONS_TEST`` into the
-   virtualenv activate script automatically. ``MAROONX_LEGACY_TEST`` must
-   be set manually if you intend to run legacy regression tests.
+Test Data Layout
+================
 
-Test Data Structure
--------------------
+.. code-block:: text
 
-Test data follows the DRAGONS convention. Each test module stores its inputs
-under a path derived from the package and test name::
+   $DRAGONS_TEST/
+   ├── raw_files/                        # raw bundle download cache (blessing only)
+   ├── preprocessed_files/               # blessed chain products (blessing only)
+   │   ├── calibrations/                 # caldb store of the blessed run
+   │   └── test.db                       # caldb database of the blessed run
+   ├── maroonxdr/maroonx/
+   │   ├── image/<test_module>/inputs/
+   │   ├── image/<test_module>/refs/
+   │   ├── echelle_extraction/<test_module>/inputs/
+   │   └── echelle_extraction/<test_module>/refs/
+   └── maroonx_instruments/maroonx/
+       ├── test_maroonx/inputs/
+       └── test_calibration/inputs/
 
-    $DRAGONS_TEST/
-    ├── maroonxdr/maroonx/
-    │   ├── bundle/
-    │   │   ├── test_bundle/inputs/            # raw bundle FITS
-    │   │   └── test_bundle_export/inputs/
-    │   ├── image/
-    │   │   ├── test_file_sorting/inputs/      # debundled FITS
-    │   │   ├── test_image_orientation_corrector/inputs/
-    │   │   ├── test_ND_filter_check/inputs/
-    │   │   ├── test_var/inputs/
-    │   │   ├── test_stray_light_removal/inputs/
-    │   │   └── test_stripe_finding/inputs/
-    │   └── echelle_extraction/
-    │       ├── test_extraction/inputs/
-    │       ├── test_measure_blaze/inputs/
-    │       ├── test_stripe_retrieval/inputs/
-    │       └── test_wavecal/inputs/
-    ├── maroonx_instruments/maroonx/
-    │   ├── test_maroonx/inputs/
-    │   └── test_calibration/inputs/
-    ├── preprocessed_files/                    # preprocessed calibrations
-    │   └── calibrations/
-    │       ├── processed_dark/
-    │       ├── processed_dark_coeff/
-    │       └── processed_flat/
-    └── raw_files/                             # raw file download cache
+The pytest-dragons plugin resolves each test module's data by mapping the
+module's on-disk path to a matching path under ``$DRAGONS_TEST``. For
+example, ``maroonxdr/maroonx/tests/image/test_remove_straylight.py`` finds
+its inputs under
+``$DRAGONS_TEST/maroonxdr/maroonx/image/test_remove_straylight/inputs/``.
+Modules with a separate reference file keep it in a sibling ``refs/``
+directory.
 
-The ``raw_files/`` subdirectory is used as a download cache by the
-DRAGONS ``download_from_archive`` helper. The ``inputs/`` directories contain the
-actual files each test expects, created by ``create_inputs`` (see below).
+The tests read only the ``maroonxdr/`` and ``maroonx_instruments/`` trees.
+``raw_files/`` and ``preprocessed_files/`` exist only on the machine that
+produces the blessed data (next section); no test opens them.
 
-The ``preprocessed_files/`` tree holds heavier calibration products (master
-darks, flats, dark coefficients) needed by the ``slow`` /
-``preprocessed_data`` tests. These are **not** created by the
-``create_inputs`` nox session and must be produced separately (e.g. by
-running the ``complete_tests`` session or a manual reduction).
+Getting the Test Data
+=====================
 
-Populating Test Data
---------------------
+There are two ways to populate ``$DRAGONS_TEST``.
 
-Before running unit tests for the first time, populate the inputs with the
-``create_inputs`` nox session::
+Using shared data
+-----------------
 
-    nox -s create_inputs
+The staged test data is distributed as a zip archive named
+``mx_test_<version>_<date>.zip``, produced by the ``package_test_data``
+nox session. Unpack it into your data root and you are done:
 
-This calls each test module's ``create_inputs()`` function, which downloads
-raw files from the Gemini Archive and preprocesses them (e.g. splitting
-bundles) into the ``inputs/`` directories listed above.
+.. code-block:: bash
 
+   mkdir -p /path/to/mx_test
+   unzip mx_test_0.0.1_20260722.zip -d /path/to/mx_test
+   export DRAGONS_TEST=/path/to/mx_test
+
+After this, both tiers run. You do not need archive access, a calibration
+database, or the ``preprocess`` and ``create_inputs`` nox sessions.
+
+Producing the blessed data
+--------------------------
+
+References come from a manually verified pipeline run, called the blessed
+run. Regenerating it is expensive and only needed when a code change
+intentionally alters primitive outputs. The procedure:
+
+1. Delete ``$DRAGONS_TEST/preprocessed_files/`` and
+   ``$DRAGONS_TEST/maroonxdr/``. Both are regenerated by the next two
+   steps.
+
+2. Run the blessing chain. This downloads the raw bundles from the Gemini
+   archive into ``$DRAGONS_TEST/raw_files/`` (the file manifest lives in
+   ``maroonxdr/maroonx/tests/preprocess/bundle.py``; files already present
+   are not fetched again, so ``raw_files/`` survives re-blessings as a
+   download cache), debundles them, and runs the dark, flat, wavecal, and
+   science reductions:
+
+   .. code-block:: bash
+
+      nox -s preprocess
+
+3. Stage the per-module inputs and references from the blessed products:
+
+   .. code-block:: bash
+
+      nox -s create_inputs
+
+4. Run both tiers and confirm everything passes.
+
+5. Package the result for sharing:
+
+   .. code-block:: bash
+
+      nox -s package_test_data
+
+   This writes ``mx_test_<version>_<date>.zip`` next to the data root.
+
+
+Each regression test module also has its own staging hook, so a single
+module can be restaged without the full ``create_inputs`` session:
+
+.. code-block:: bash
+
+   python -m maroonxdr.maroonx.tests.image.test_remove_straylight --create-inputs
+   python -m maroonxdr.maroonx.tests.echelle_extraction.test_optimal_extraction --create-refs
+
+Pytest Markers
+==============
+
+``regression``
+   Marks the regression tier. Registered in ``pyproject.toml`` under
+   ``[tool.pytest.ini_options]``. Select with ``-m regression``.
+
+``preprocessed_data``
+   Marks every test that needs staged data under ``$DRAGONS_TEST``.
+   Registered by the pytest-dragons plugin. All ``regression`` tests carry
+   it, as do a few calibration-association tests in
+   ``maroonx_instruments``. Deselect with ``-m "not preprocessed_data"``
+   to get the synthetic tier.
+
+
+Fixtures and Test Utilities
+===========================
+
+The suite uses the standard pytest-dragons fixtures plus small helper
+functions defined in the test packages themselves.
+
+pytest-dragons fixtures
+-----------------------
+
+``path_to_inputs`` / ``path_to_refs``
+   Absolute path to the calling module's ``inputs/`` or ``refs/``
+   directory under ``$DRAGONS_TEST``. Missing
+   inputs raise an error; missing refs fail the test.
+
+``change_working_dir``
+   Context manager that switches to a per-module outputs directory, so
+   logs and products written by a test do not land in the repository.
+
+``ref_ad_factory``
+   From ``recipe_system.testing``. Returns a function that opens a named
+   reference file from ``refs/`` as an AstroData object.
+
+Synthetic frame helpers
+-----------------------
+
+Each stage package defines helpers that build minimal MaroonX AstroData
+objects in memory:
+
+``maroonxdr/maroonx/tests/image/__init__.py``
+   ``make_frame(arm, ...)`` builds a single-extension 2D frame with the
+   headers needed for tag resolution and descriptor lookup.
+
+``maroonxdr/maroonx/tests/echelle_extraction/__init__.py``
+   ``make_echelle_frame(arm, fiber_setup)`` builds a minimal frame for
+   extraction and spectrum tests; tests attach synthetic ``STRIPES``
+   dictionaries or extracted-spectrum extensions to it as needed.
+
+Staging hooks
+-------------
+
+Every regression test module ends with a ``create_inputs_recipe()``
+function (and ``create_refs_recipe()`` where a separate reference file is
+used) plus a ``__main__`` block, so the module can be run as a script with
+``--create-inputs`` or ``--create-refs``. The hooks copy the needed
+products from ``$DRAGONS_TEST/preprocessed_files/`` into the module's own
+data directories; ``test_remove_straylight`` instead runs the
+``makeStrayLightCheck`` recipe on debundled flats.
 
 Running the Tests
 =================
 
-Basic Commands
---------------
+Four nox sessions cover testing. Each installs its own environment, so
+plain ``pytest`` inside an activated ``mx_dev`` shell (using the commands
+from Test Tiers above) is faster for day-to-day work; the sessions are the
+reproducible entry points.
 
-Run all unit tests::
+``unit_tests``
+   The synthetic tier: runs ``maroonxdr/maroonx/tests/`` and
+   ``maroonx_instruments/maroonx/tests/`` with
+   ``-m "not preprocessed_data"`` built in. Needs no test data. Extra
+   pytest arguments are forwarded after ``--``.
 
-    pytest maroonxdr/maroonx/tests/ maroonx_instruments/maroonx/tests/
+``regression_tests``
+   The regression tier: runs ``maroonxdr/maroonx/tests/`` with
+   ``-m regression``. Needs the staged data. The
+   ``test_barycentric_correction`` module also needs network access, since
+   it resolves the target through SIMBAD as the blessed run did.
 
-Run a specific test category::
+``coverage``
+   Runs both tiers over both packages with ``pytest-cov`` and prints a
+   terminal report including missing line numbers.
 
-    pytest maroonxdr/maroonx/tests/image/
-    pytest maroonxdr/maroonx/tests/echelle_extraction/
-    pytest maroonxdr/maroonx/tests/bundle/
+``package_test_data``
+   Zips the staged data for sharing; see Getting the Test Data.
 
-Run a single test file::
+Any argument after ``--`` in ``nox -s <session> -- <args>`` is forwarded
+to pytest. For example:
 
-    pytest maroonxdr/maroonx/tests/image/test_stray_light_removal.py
+.. code-block:: bash
 
-
-Test Markers
-------------
-
-Five custom markers are registered in ``conftest.py``. Three are
-auto-applied based on test location; two are applied manually per test:
-
-.. list-table::
-   :header-rows: 1
-   :widths: 25 15 60
-
-   * - Marker
-     - Applied
-     - Description
-   * - ``maroonx``
-     - auto
-     - All tests under ``maroonx/tests/``.
-   * - ``regression``
-     - auto
-     - Tests under any ``regression/`` subdirectory.
-   * - ``legacy_regression``
-     - auto
-     - Tests under ``legacy_regression/``.
-   * - ``slow``
-     - manual
-     - Long-running tests (e.g. full extractions).
-   * - ``preprocessed_data``
-     - manual
-     - Tests that require preprocessed calibrations in ``inputs/``.
-
-Filter tests using markers::
-
-    # Skip slow tests and those needing preprocessed data
-    pytest -m "not slow and not preprocessed_data" maroonxdr/maroonx/tests/
-
-    # Run only legacy regression tests
-    pytest -m legacy_regression maroonxdr/maroonx/tests/
-
-    # Combine markers
-    pytest -m "maroonx and not slow" maroonxdr/maroonx/tests/
-
+   nox -s unit_tests -- -k straylight -v
 
 Available Tests
 ===============
 
-The test suite is organized into four main categories, each containing multiple test modules.
+One test module per primitive, named after it. Modules marked (R) also
+contain regression tests.
 
-**Bundle Processing Tests**
+Pipeline tests (``maroonxdr/maroonx/tests/``)
+---------------------------------------------
 
-.. autosummary::
-   :nosignatures:
+**bundle/** (bundle splitting and arm streams)
 
-   maroonxdr.maroonx.tests.bundle.test_bundle
-   maroonxdr.maroonx.tests.bundle.test_bundle_export
+* ``test_bundle_arm_streams.py``
+* ``test_separate_arm_streams.py``
+* ``test_split_bundle.py``
 
-**2D Image Processing Tests**
+**image/** (2D image processing)
 
-.. autosummary::
-   :nosignatures:
+* ``test_add_var.py``
+* ``test_check_arm.py``
+* ``test_check_master.py``
+* ``test_check_nd.py``
+* ``test_combine_flat_streams.py``
+* ``test_correct_image_orientation.py``
+* ``test_fit_dark_coefficients.py``
+* ``test_remove_straylight.py`` (R)
+* ``test_separate_flat_streams.py``
+* ``test_stack_darks.py``
+* ``test_stack_flats.py`` (R)
+* ``test_subtract_overscan.py``
 
-   maroonxdr.maroonx.tests.image.test_file_sorting
-   maroonxdr.maroonx.tests.image.test_ND_filter_check
-   maroonxdr.maroonx.tests.image.test_image_orientation_corrector
-   maroonxdr.maroonx.tests.image.test_stray_light_removal
-   maroonxdr.maroonx.tests.image.test_stripe_finding
-   maroonxdr.maroonx.tests.image.test_var
+**echelle_extraction/** (extraction, wavelength calibration, 1D spectra)
 
-**Echelle Extraction Tests**
+* ``test_apply_wavelength_solution.py`` (R)
+* ``test_barycentric_correction.py`` (R)
+* ``test_box_extraction.py`` (R)
+* ``test_combine_fibers.py`` (R)
+* ``test_create_synthetic_dark.py``
+* ``test_fit_and_apply_etalon_wls.py`` (R)
+* ``test_get_peaks_and_polynomials.py`` (R)
+* ``test_measure_blaze.py``
+* ``test_optimal_extraction.py`` (R)
 
-.. autosummary::
-   :nosignatures:
+**preprocess/** is not a test package: it holds the blessing-chain scripts
+described in Getting the Test Data.
 
-   maroonxdr.maroonx.tests.echelle_extraction.test_extraction
-   maroonxdr.maroonx.tests.echelle_extraction.test_stripe_retrieval
-   maroonxdr.maroonx.tests.echelle_extraction.test_wavecal
+Instrument-package tests (``maroonx_instruments/maroonx/tests/``)
+-----------------------------------------------------------------
 
-**Legacy Regression Tests**
+Tests that exercise the AstroData instrument definition and calibration
+association.
 
-.. autosummary::
-   :nosignatures:
-
-   maroonxdr.maroonx.tests.legacy_regression.test_masterdark
-   maroonxdr.maroonx.tests.legacy_regression.test_masterflat
-   maroonxdr.maroonx.tests.legacy_regression.test_extractions
-   maroonxdr.maroonx.tests.legacy_regression.test_fitting
-   maroonxdr.maroonx.tests.legacy_regression.test_reduced_science
-   maroonxdr.maroonx.tests.legacy_regression.test_reduced_wavecal
+* ``test_calibration.py``
+* ``test_maroonx.py``
 
 GitHub Actions Integration
 ==========================
 
-The test suite runs automatically on GitHub Actions for every push and pull
-request to ``main``, ``release/*``, and ``develop``.
+The workflow file ``.github/workflows/testing.yml`` runs on every push and
+pull request to ``main``, ``release/*``, and ``develop``.
 
-**Workflow file:** ``.github/workflows/testing.yml``
+Pipeline steps, in order:
 
-The CI pipeline has two main steps:
+* Restore (or seed) the ``~/mx_test`` cache. The cache key includes a
+  ``CACHE_NUMBER`` env var; bumping it invalidates the cache.
+* Set up Python 3.12 and export ``DRAGONS_TEST=$HOME/mx_test``.
+* Install nox and run
+  ``nox -s unit_tests-3.12 -- -m "not slow and not preprocessed_data"``.
 
-1. **Populate test data** — downloads raw files and creates test inputs::
-
-       nox -s create_inputs
-
-2. **Run unit tests** — skipping slow and preprocessed-data tests::
-
-       nox -s unit_tests -- -m "not slow and not preprocessed_data"
-
-Test data is cached between runs (``~/mx_test``) so that archive downloads
-are only performed once.
-
+CI runs only the synthetic tier. The regression tests need the staged
+data, which is not available in CI, so a green CI run says nothing about
+them.
 
 Missing or Desirable Tests
 ==========================
 
-.. todo::
-
-   Document missing or desirable tests for MAROONX data reduction pipeline.
-
-   maroonx/maroonx_fit/
-   maroonx/maroonx_echellespectrum/
-
+* ``maroonx/maroonx_fit/`` has no direct unit tests.
+* ``maroonx/maroonx_echellespectrum/`` has no direct unit tests.
+* ``primitives_calibdb_maroonx.py`` round-trip tests are deferred until
+  the WAVECAL-to-ARC migration, which changes the store/get interface.

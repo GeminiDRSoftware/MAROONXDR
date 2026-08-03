@@ -1,0 +1,106 @@
+// Flow diagram for the `makeDynamicWavecal` recipe
+// (maroonxdr/maroonx/recipes/sq/recipes_DYNAMIC_WAVECAL.py).
+//
+// Conventions follow flows/nodes.dot (the node catalog).
+
+digraph makeDynamicWavecal {
+    rankdir=TB;
+    fontname="Helvetica";
+    labelloc="t";
+    label=<<b>makeDynamicWavecal</b>>;
+
+    node [fontname="Helvetica", fontsize=10];
+    edge [fontname="Helvetica", fontsize=9];
+
+    // =====================================================================
+    // Nodes
+    // =====================================================================
+
+    // ---- FITS data products (note shape, RED-arm border) ----------------
+    node [shape=note, style=filled, fontcolor=black,
+          color="#C62828", penwidth=1.5];
+    input    [label="RAW\nDEEEE",       fillcolor="#F5B26B", style="filled,dashed"];
+    cal_flat [label="PROCESSED\nDFFFF", fillcolor="#DB6DB2"];
+    cal_dark [label="PROCESSED\nDDDDE", fillcolor="#B6B6B6"];
+    output   [label="PROCESSED\nDEEEE", fillcolor="#F5B26B"];
+    log      [label="reduce.log", fillcolor="#e8f0fe", color=black, penwidth=1];
+
+    // ---- CalDB cylinders --------------------------------------------------
+    node [shape=cylinder, fillcolor="#2E7D32", fontcolor=white,
+          color=black, penwidth=1];
+    caldb_read  [label="CalDB storage"];
+    caldb_write [label="CalDB storage"];
+
+    // ---- Lookup FITS (shipped with the package) -------------------------
+    node [shape=component, style=filled, fontcolor=black,
+          color="#C62828", penwidth=1.5];
+    bpm         [label="BPM_r_0000.fits",      fillcolor="#e8f0fe"];
+    sid         [label="SID_r.fits",           fillcolor="#DB6DB2"];
+    refwl_peaks [label="REFWAVELENGTH_r.fits", fillcolor="#F5B26B"];
+    wlstat      [label="WLSTAT_r.fits",        fillcolor="#F5B26B"];
+    refwl_fit   [label="REFWAVELENGTH_r.fits", fillcolor="#F5B26B"];
+
+    // ---- Diagnostic report (fitAndApplyEtalonWls, report=True) ----------
+    node [shape=folder, fillcolor="#e8f0fe", color=black, penwidth=1];
+    fit_pdf [label="report.pdf"];
+
+    // ---- Primitives (fill = defining class, maroon border = MX-owned) ---
+    node [shape=box, style="rounded,filled", fontcolor=white, penwidth=1.5];
+    prepare                  [label="prepare()",                  fillcolor="#4A90A4", color="#4A90A4"];
+    checkArm                 [label="checkArm()",                 fillcolor="#A1342D", color="#A1342D"];
+    addDQ                    [label="addDQ()",                    fillcolor="#4A90A4", color="#A1342D"];
+    subtractOverscan         [label="subtractOverscan()",         fillcolor="#607d8b", color="#A1342D"];
+    trimOverscan             [label="trimOverscan()",             fillcolor="#607d8b", color="#607d8b"];
+    correctImageOrientation  [label="correctImageOrientation()",  fillcolor="#A1342D", color="#A1342D"];
+    addVAR                   [label="addVAR(read_noise=True,\npoisson_noise=True)",
+                              fillcolor="#4A90A4", color="#A1342D"];
+    extractStripes           [label="extractStripes()",           fillcolor="#A1342D", color="#A1342D"];
+    boxExtraction            [label="boxExtraction()",            fillcolor="#A1342D", color="#A1342D"];
+    getPeaksAndPolynomials   [label="getPeaksAndPolynomials()",   fillcolor="#A1342D", color="#A1342D"];
+    staticWavelengthSolution [label="staticWavelengthSolution()", fillcolor="#A1342D", color="#A1342D"];
+    fitAndApplyEtalonWls     [label="fitAndApplyEtalonWls()",     fillcolor="#A1342D", color="#A1342D"];
+    storeProcessedWavecal    [label="storeProcessedWavecal(suffix='_wavecal')",
+                              fillcolor="#6a1b9a", color="#6a1b9a"];
+
+    // =====================================================================
+    // Edges
+    // =====================================================================
+
+    // ---- Main flow (spine) -----------------------------------------------
+    input -> prepare -> checkArm -> addDQ -> subtractOverscan
+          -> trimOverscan -> correctImageOrientation -> addVAR
+          -> extractStripes -> boxExtraction -> getPeaksAndPolynomials
+          -> staticWavelengthSolution -> fitAndApplyEtalonWls
+          -> storeProcessedWavecal;
+
+    // ---- CalDB read: cylinder emits flat + dark, both feed extractStripes
+    caldb_read -> cal_flat;
+    caldb_read -> cal_dark;
+    cal_flat   -> extractStripes;
+    cal_dark   -> extractStripes;
+
+    // ---- Lookup attachments ----------------------------------------------
+    bpm         -> addDQ;
+    extractStripes -> sid [dir=back];   // SID on the right of extractStripes
+    refwl_peaks -> getPeaksAndPolynomials;
+    wlstat      -> staticWavelengthSolution;
+    refwl_fit   -> fitAndApplyEtalonWls;
+
+    // ---- Diagnostic report -------------------------------------------------
+    fitAndApplyEtalonWls -> fit_pdf;
+
+    // ---- Outputs -----------------------------------------------------------
+    storeProcessedWavecal -> output;
+    storeProcessedWavecal -> log;
+    storeProcessedWavecal -> caldb_write;
+
+    // =====================================================================
+    // LAYOUT ONLY — rank pinning, no semantics
+    // =====================================================================
+    { rank=same; bpm; addDQ; }
+    { rank=same; caldb_read; cal_flat; cal_dark; extractStripes; sid; }
+    { rank=same; refwl_peaks; getPeaksAndPolynomials; }
+    { rank=same; wlstat; staticWavelengthSolution; }
+    { rank=same; refwl_fit; fitAndApplyEtalonWls; fit_pdf; }
+    { rank=same; storeProcessedWavecal; caldb_write; }
+}

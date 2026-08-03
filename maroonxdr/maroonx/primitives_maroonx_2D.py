@@ -3,12 +3,12 @@
 # ------------------------------------------------------------------------------
 from copy import deepcopy
 
-import astrodata
+
 import matplotlib.pyplot as plt
 from maroonxdr.maroonx.maroonx_plots import plot_backgroundfit
 import numpy as np
 import pandas as pd
-from astrodata.fits import windowedOp
+
 from astrodata.provenance import add_provenance
 from astropy.io import fits
 from astropy.stats import SigmaClip, sigma_clipped_stats
@@ -17,7 +17,7 @@ from geminidr.core import CCD, NearIR
 from geminidr.gemini.lookups import DQ_definitions as DQ
 from geminidr.gemini.primitives_gemini import Gemini
 from gempy.gemini import gemini_tools as gt
-from gempy.library.nddops import NDStacker
+
 from matplotlib.backends.backend_pdf import PdfPages
 from photutils.background import Background2D, MedianBackground
 from recipe_system.utils.decorators import parameter_override
@@ -43,7 +43,8 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
     def addDQ(self, adinputs=None, **params):
         # just edited for bpm lookup, can be removed when MX is caldb compliant
-        """Add a DQ extension to the input AstroData objects.
+        """
+        Add a DQ extension to the input AstroData objects.
 
         The value of a pixel in the DQ extension will be the sum of the
         following: (0=good, 1=bad pixel (found in bad pixel mask), 2=pixel is
@@ -52,7 +53,8 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs : list of AstroData objects with no DQ extension
+        adinputs : list of AstroData
+            Input AstroData objects with no DQ extension.
         suffix: str
             suffix to be added to output files
         static_bpm: str
@@ -261,17 +263,19 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs : list of AstroData
-            List of unchecked AstroData objects
+        adinputs : list of :class:`~astrodata.AstroData`
+            List of unchecked AstroData objects.
+
         suffix : str
-            suffix to be added to output files
+            Suffix to be added to output files.
+
         require_wcs : bool
-            do all extensions have to have a defined WCS?
+            Do all extensions have to have a defined WCS?
 
         Returns
         -------
-        list of AstroData
-            List of checked AstroData objects
+        list of :class:`~astrodata.AstroData`
+            List of checked AstroData objects.
         """
         try:
             super().validateData(adinputs, **params)
@@ -281,9 +285,9 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
         return adinputs
 
     def standardizeWCS(self, adinputs=None, **params):
-        """MAROONXDR version of standarizeWCS to skip WCS processing."""
+        """MAROONXDR version of standardizeWCS to skip WCS processing."""
         log = self.log
-        log.stdinfo('Skipping standarizeWCS() primitive.')
+        log.stdinfo('Skipping standardizeWCS() primitive.')
         return adinputs
 
     def checkArm(self, adinputs=None, **params):
@@ -297,11 +301,16 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs - list of un-checked MX frames
+        adinputs : list of :class:`~astrodata.AstroData`
+            List of un-checked MX frames.
+
+        suffix : str
+            Suffix to be added to output files.
 
         Returns
         -------
-        adoutputs - set of list that passes test,  always at least first frame
+        list of :class:`~astrodata.AstroData`
+            Set of frames that pass the test, always at least the first frame.
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
@@ -344,11 +353,16 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs - list of un-checked MX frames
+        adinputs : list of :class:`~astrodata.AstroData`
+            List of un-checked MX frames.
+
+        suffix : str
+            Suffix to be added to output files.
 
         Returns
         -------
-        adoutputs - set of list that passes test,  always at least first frame
+        list of :class:`~astrodata.AstroData`
+            Set of frames that pass the test, always at least the first frame.
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
@@ -395,11 +409,16 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs - list of un-checked MX objects
+        adinputs : list of :class:`~astrodata.AstroData`
+            List of un-checked MX objects.
+
+        suffix : str
+            Suffix to be added to output files.
 
         Returns
         -------
-        adoutputs - same list as inputs, with correct orientation to SCI
+        list of :class:`~astrodata.AstroData`
+            Same list as inputs, with correct orientation to SCI.
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
@@ -452,19 +471,22 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs : list of AstroData
-            List of MX objects without variance extensions
+        adinputs : list of :class:`~astrodata.AstroData`
+            List of MX objects without variance extensions.
+
         suffix : str
-            Suffix to be added to output files
+            Suffix to be added to output files.
+
         read_noise : bool
-            Whether to include read noise in variance calculations
+            Whether to include read noise in variance calculations.
+
         poisson_noise : bool
-            Whether to include poisson noise in variance calculations
+            Whether to include poisson noise in variance calculations.
 
         Returns
         -------
-        list of AstroData
-            List of MX objects with variance extensions
+        list of :class:`~astrodata.AstroData`
+            List of MX objects with variance extensions.
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
@@ -494,7 +516,9 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
             if poisson_noise:
                 # The variance due to poisson noise is just the number of
                 # photons for each pixel. Add to the read noise variance.
-                var += ad[0].data
+                # var += ad[0].data
+                # gain is in e-/DN
+                var += np.abs(ad[0].data) / ad.gain()[0][0]
 
             ad[0].variance = var
             ad.update_filename(suffix=params['suffix'], strip=True)
@@ -512,12 +536,16 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs - list of MX-objects
+        adinputs : list of :class:`~astrodata.AstroData`
+            List of MX-objects.
+
+        suffix : str
+            Suffix to be added to output files.
 
         Returns
         -------
-        adoutputs - adinputs that pass test
-
+        list of :class:`~astrodata.AstroData`
+            Inputs that pass the test.
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
@@ -561,8 +589,16 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        suffix: str
-            suffix to be added to output files
+        adinputs : list of :class:`~astrodata.AstroData`
+            List of MX frames.
+
+        suffix : str
+            Suffix to be added to output files.
+
+        Returns
+        -------
+        list of :class:`~astrodata.AstroData`
+            Input frames with the overscan level subtracted.
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
@@ -598,335 +634,6 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
             ad.update_filename(suffix=params['suffix'], strip=True)
 
         return adinputs
-
-    def stackFramesMXCal(self, adinputs=None, **params):
-        """
-        Stack MAROON-X calibration frames with etalon flux scaling.
-
-        MX-specific version of stackFrames for calibration frames - changes
-        scaling to average full frame mean to purposely scale by etalon flux
-        and its drift between calibration exposures. This function should
-        not be used to combine MX science frames.
-
-        Parameters
-        ----------
-        adinputs : list of :class:`~astrodata.AstroData`
-            Any set of 2D.
-
-        suffix : str
-            Suffix to be added to output files.
-
-        apply_dq : bool
-            Apply DQ mask to data before combining?
-
-        nlow, nhigh : int
-            Number of low and high pixels to reject, for the 'minmax' method.
-            The way it works is inherited from IRAF: the fraction is specified
-            as the number of  high  and low  pixels,  the  nhigh and nlow
-            parameters, when data from all the input images are used.  If
-            pixels  have  been  rejected  by offseting,  masking, or
-            thresholding then a matching fraction of the remaining pixels,
-            truncated to an integer, are used.  Thus::
-
-                nl = n * nlow/nimages + 0.001
-                nh = n * nhigh/nimages + 0.001
-
-            where n is the number of pixels  surviving  offseting,  masking,
-            and  thresholding,  nimages  is the number of input images, nlow
-            and nhigh are task parameters  and  nl  and  nh  are  the  final
-            number  of  low  and high pixels rejected by the algorithm.  The
-            factor of 0.001 is to adjust for rounding of the ratio.
-
-        operation : str
-            Combine method.
-
-        reject_method : str
-            Pixel rejection method (none, minmax, sigclip, varclip).
-
-        zero : bool
-            Apply zero-level offset to match background levels?
-
-        scale : bool
-            Scale images to the same intensity?
-
-        memory : float or None
-            Available memory (in GB) for stacking calculations.
-
-        statsec : str
-            Section for statistics.
-
-        separate_ext : bool
-            Handle extensions separately?
-
-        Returns
-        -------
-        list of :class:`~astrodata.AstroData`
-            Sky stacked image. This list contains only one element. The list
-            format is maintained so this primitive is consistent with all the
-            others.
-
-        Raises
-        ------
-        IOError
-            If the number of extensions in any of the `AstroData` objects is
-            different.
-
-        IOError
-            If the shape of any extension in any `AstroData` object is different.
-
-        AssertError
-            If any of the `.gain()` descriptors is None.
-
-        AssertError
-            If any of the `.read_noise()` descriptors is None.
-        """
-
-        def flatten_item(*args):
-            return (
-                el
-                for item in args
-                for el in (
-                    flatten_item(*item) if isinstance(item, (list, tuple)) else (item,)
-                )
-            )
-
-        log = self.log
-        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
-        timestamp_key = self.timestamp_keys['stackFrames']
-        sfx = params['suffix']
-        memory = params['memory']
-        if memory is not None:
-            memory = int(memory * 1000000000)
-
-        zero = params['zero']
-        scale = params['scale']
-        apply_dq = params['apply_dq']
-        separate_ext = params['separate_ext']
-        statsec = params['statsec']
-        reject_method = params['reject_method']
-        save_rejection_map = params['save_rejection_map']
-
-        if statsec:
-            statsec = tuple(
-                [
-                    slice(int(start) - 1, int(end))
-                    for x in reversed(statsec.strip('[]').split(','))
-                    for start, end in [x.split(':')]
-                ]
-            )
-
-        # Check that the input AstroData objects are compatible
-        if len(adinputs) <= 1:
-            log.stdinfo(
-                'No stacking will be performed, since at least two '
-                'input AstroData objects are required for stackFrames'
-            )
-            return adinputs
-
-        if (
-            reject_method == 'minmax'
-            and self.mode == 'qa'
-            and params['nlow'] + params['nhigh'] >= len(adinputs)
-        ):
-            log.warning('Trying to reject too many images. Setting nlow=nhigh=0.')
-            params['nlow'] = 0
-            params['nhigh'] = 0
-
-        if len({len(ad) for ad in adinputs}) > 1:
-            msg = 'Not all inputs have the same number of extensions'
-            log.debug(msg)
-            raise OSError(msg)
-        if len({ext.nddata.shape for ad in adinputs for ext in ad}) > 1:
-            msg = 'Not all inputs images have the same shape'
-            log.debug(msg)
-            raise OSError(msg)
-
-        num_img = len(adinputs)
-        num_ext = len(adinputs[0])
-        zero_offsets = np.zeros((num_ext, num_img), dtype=np.float32)
-        scale_factors = np.ones_like(zero_offsets)
-
-        # Try to determine how much memory we're going to need to stack and
-        # whether it's necessary to flush pixel data to disk first
-        # Also determine kernel size from offered memory and bytes per pixel
-        num_bytes_per_ext = []
-        for ext in adinputs[0]:
-            num_bytes = 0
-            # Count _data twice to handle temporary arrays
-            num_bytes += 2 * ext.data.dtype.itemsize
-            num_bytes += 2  # mask always created
-            num_bytes_per_ext.append(num_bytes * np.prod(ext.shape))
-
-        if memory is not None and (num_img * max(num_bytes_per_ext) > memory):
-            adinputs = self.flushPixels(adinputs)
-
-        # Compute the scale and offset values by accessing the memmapped data
-        # so we can pass those to the stacking function
-        # TODO: Should probably be done better to consider only the overlap
-        # regions between frames
-        if scale or zero:
-            levels = np.empty((num_img, num_ext), dtype=np.float32)
-            for i, ad in enumerate(adinputs):
-                for index in range(num_ext):
-                    nddata = (
-                        ad[index].nddata.window[:]
-                        if statsec is None
-                        else ad[index].nddata.window[statsec]
-                    )
-                    scale_mask = (
-                        ad[index].nddata.window[:].mask
-                        if statsec is None
-                        else ad[index].nddata.window[statsec].mask
-                    ) == DQ.good
-                    # MX specific changed line
-                    # uses entire good pixel frame, purposely
-                    # including etalon flux, to calculate level as sum
-                    levels[i, index] = np.nansum(nddata.data[scale_mask])
-
-            if scale and zero:
-                log.warning('Both scale and zero are set. Setting scale=False.')
-                scale = False
-            if separate_ext:
-                # Target value is corresponding extension of first image
-                if scale:
-                    # MX specific changed line
-                    # scale each frame by its fractional change from the average
-                    # level as opposed to first frame value
-                    scale_factors = (np.mean(levels) / levels).T
-                else:
-                    zero_offsets = (levels[0] - levels).T
-            else:
-                # Target value is mean of all extensions of first image
-                target = np.mean(levels[0])
-                if scale:
-                    scale_factors = np.tile(
-                        target / np.mean(levels, axis=1), num_ext
-                    ).reshape(num_ext, num_img)
-                else:
-                    zero_offsets = np.tile(
-                        target - np.mean(levels, axis=1), num_ext
-                    ).reshape(num_ext, num_img)
-
-            # Check for negative, infinite or undefined scale factors
-            if scale and np.min(scale_factors) < 0:
-                log.warning('Some scale factors are negative. Not scaling.')
-                scale_factors = np.ones_like(scale_factors)
-                scale = False
-            if scale and np.any(np.isinf(scale_factors)):
-                log.warning('Some scale factors are infinite. Not scaling.')
-                scale_factors = np.ones_like(scale_factors)
-                scale = False
-            if scale and np.any(np.isnan(scale_factors)):
-                log.warning('Some scale factors are undefined. Not scaling.')
-                scale_factors = np.ones_like(scale_factors)
-                scale = False
-
-        if reject_method == 'varclip' and any(
-            ext.variance is None for ad in adinputs for ext in ad
-        ):
-            log.warning(
-                "Rejection method 'varclip' has been chosen but some"
-                " extensions have no variance. 'sigclip' will be used"
-                ' instead.'
-            )
-            reject_method = 'sigclip'
-
-        log.stdinfo(
-            f"Combining {num_img} inputs with {params['operation']}\
-                     and {reject_method} rejection"
-        )
-
-        stack_function = NDStacker(
-            combine=params['operation'], reject=reject_method, log=self.log, **params
-        )
-
-        # NDStacker uses DQ if it exists; if we don't want that, delete the DQs!
-        if not apply_dq:
-            for ad in adinputs:
-                for ext in ad:
-                    ext.mask = None  # delete mask
-
-        ad_out = astrodata.create(adinputs[0].phu)
-        for index, (ext, sfactors, zfactors) in enumerate(
-            zip(adinputs[0], scale_factors, zero_offsets)
-        ):
-            status = (
-                f'Combining extension {ext.id}.' if num_ext > 1 else 'Combining images.'
-            )
-            if scale:
-                status += ' Applying scale factors.'
-                numbers = sfactors
-            elif zero:
-                status += ' Applying offsets.'
-                numbers = zfactors
-            log.stdinfo(status)
-            if (scale or zero) and (index == 0 or separate_ext):
-                for ad, value in zip(adinputs, numbers):
-                    # need one digit beyond 10.3f to see differences
-                    log.stdinfo(f'{ad.filename:40s}{value:10.4f}')
-
-            shape = adinputs[0][index].nddata.shape
-            if memory is None:
-                kernel = shape
-            else:
-                # Chop the image horizontally into equal-sized chunks to process
-                # This uses the minimum number of steps and uses minimum memory
-                # per step.
-                oversubscription = (num_bytes_per_ext[index] * num_img) // memory + 1
-                kernel = (
-                    (shape[0] + oversubscription - 1) // oversubscription,
-                ) + shape[1:]
-
-            with_mask = apply_dq and not any(
-                ad[index].nddata.window[:].mask is None for ad in adinputs
-            )
-            result = windowedOp(
-                stack_function,
-                [ad[index].nddata for ad in adinputs],
-                scale=sfactors,
-                zero=zfactors,
-                kernel=kernel,
-                dtype=np.float32,
-                with_uncertainty=True,
-                with_mask=with_mask,
-                save_rejection_map=save_rejection_map,
-            )
-            ad_out.append(result)
-            log.stdinfo('')
-
-        # Set AIRMASS to be the mean of the input values
-        try:
-            airmass_kw = ad_out._keyword_for('airmass')
-            mean_airmass = np.mean([ad.airmass() for ad in adinputs])
-        except Exception:  # generic implementation failure (probably non-Gemini)
-            pass
-        else:
-            ad_out.phu.set(airmass_kw, mean_airmass, 'Mean airmass for the exposure')
-
-        # Add suffix to datalabel to distinguish from the reference frame
-        if sfx[0] == '_':
-            extension = sfx.replace('_', '-', 1).upper()
-        else:
-            extension = '-' + sfx.upper()
-        ad_out.phu.set(
-            'DATALAB',
-            f'{ad_out.data_label()}{extension}',
-            self.keyword_comments['DATALAB'],
-        )
-
-        # Add other keywords to the Fits Header Unit about the stacking inputs
-        ad_out.orig_filename = ad_out.phu.get('ORIGNAME')
-        ad_out.phu.set(
-            'NCOMBINE %d %s', len(adinputs), self.keyword_comments['NCOMBINE']
-        )
-        for i, ad in enumerate(adinputs, start=1):
-            ad_out.phu.set(f'IMCMB{i:03d}', ad.phu.get('ORIGNAME', ad.filename))
-
-        # Timestamp and update filename and prepare to return single output
-        gt.mark_history(ad_out, primname=self.myself(), keyword=timestamp_key)
-        ad_out.update_filename(suffix=sfx, strip=True)
-
-        return [ad_out]
 
     def stackDarks(self, adinputs=None, **params):
         """
@@ -1055,55 +762,6 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         return [ad_out]
 
-    def stackDarksOld(self, adinputs=None, **params):
-        """
-        Stack MAROON-X dark frames using old method.
-
-        MX-specific version of stack darks allowing scaling for etalon
-        intensity drift that is in MX 'darks'.
-        """
-        log = self.log
-        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
-
-        # Check that all inputs are DARKs and have same exposure time
-        if not all('DARK' in dark.tags for dark in adinputs):
-            msg = 'Not all inputs have DARK tag'
-            log.debug(msg)
-            raise ValueError(msg)
-
-        if not all(
-            dark.exposure_time() == adinputs[0].exposure_time() for dark in adinputs[1:]
-        ):
-            msg = 'Darks are not of equal exposure time'
-            log.debug(msg)
-            raise ValueError(msg)
-
-        # MX specific-changed lines start
-        # MX 'dark' frames have flux in them, need to scale.
-        # Also utilizes special stackFramesMXCal scaling.
-        stack_params = self._inherit_params(params, 'stackFramesMXCal')
-        stack_params.update({'zero': False})
-        adinputs = self.stackFramesMXCal(adinputs, **params)
-        # MX specific-changed lines end
-
-        return adinputs
-
-    def stackFlatsOld(self, adinputs=None, **params):
-        """
-        Stack MAROON-X flat frames using old method.
-
-        MaroonX-specific version of stack flats to call correct stackframes
-        for the flats.
-        """
-        log = self.log
-        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
-        # MX specific-changed line
-        # Utilizes special stackFramesMXCal scaling.
-        stack_params = self._inherit_params(params, 'stackFramesMXCal')
-        stack_params.update({'zero': False})
-        adinputs = self.stackFramesMXCal(adinputs, **stack_params)
-        return adinputs
-
     def stackFlats(self, adinputs=None, **params):
         """
         Stack MAROON-X flat field frames.
@@ -1217,32 +875,43 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
         stripe. To improve algorithm stability, the image is first median
         filtered and then smoothed with a gaussian. It not only eliminates
         noise, but also ensures that the cross-section profile of the flat
-        becomes peaked in the middle, which helps to identify the center of each
-        stripe. Choose gauss_filter accordingly. To avoid false positives, only
-        peaks above a certain (relative) intensity threshold are used.
+        becomes peaked in the middle, which helps to identify the center of
+        each stripe. Choose ``gauss_filter_sigma`` accordingly. To avoid
+        false positives, only peaks above a certain (relative) intensity
+        threshold are used.
 
         Parameters
         ----------
-        adinputs : list of AstroData
-            Single MX astrodata object, is either a DFFFD flat,
-            FDDDF flat, or combined FFFFF flat
+        adinputs : list of :class:`~astrodata.AstroData`
+            MX flat frames. Each frame is either a DFFFD flat, an FDDDF
+            flat, or a combined FFFFF flat.
+
         suffix : str
-            Suffix to be added to output files
+            Suffix to be added to output files.
+
         deg_polynomial : int
-            Degree of the polynomial fit
+            Degree of the polynomial fit to each stripe.
+
         med_filter : int
-            Median filter parameter
+            Median filter window size applied before peak detection.
+
         gauss_filter_sigma : float
-            Sigma of the gaussian filter used to smooth the image
+            Sigma of the gaussian filter used to smooth the image before
+            peak detection.
+
         min_peak : float
-            Minimum relative peak height
+            Minimum peak height, relative to the frame maximum, for a
+            stripe to be accepted.
 
         Returns
         -------
-        list of AstroData
-            Single MX astrodata object with STRIPES_LOC extension.
-            This extension temporarily holds the fits-unsavable fiber information
-            before it is utilized and then removed.
+        list of :class:`~astrodata.AstroData`
+            The input frame with the following extension added:
+
+            - ``STRIPES_LOC`` : per-fiber polynomial coefficients tracing
+              each stripe. This extension temporarily holds the
+              fits-unsavable fiber information before it is utilized and
+              then removed.
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
@@ -1343,28 +1012,35 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs : list of AstroData
-            Single MX astrodata object, is either a DFFFD flat,
-            FDDDF flat, or combined FFFFF flat with STRIPES_LOC extension
+        adinputs : list of :class:`~astrodata.AstroData`
+            MX flat frames with STRIPES_LOC extension. Each frame is
+            either a DFFFD flat, an FDDDF flat, or a combined FFFFF flat.
+
         suffix : str
-            Suffix to be added to output files
+            Suffix to be added to output files.
+
         positions_dir : str
-            Lookup fits location of nominal y positions and
-            fiber/order labels. Shape is Nx3, columns are
-            [fibers, orders, y_positions], nominally found in lookups/SID
+            Lookup fits location of nominal y positions and fiber/order
+            labels. Shape is Nx3, columns are [fibers, orders, y_positions],
+            nominally found in lookups/SID.
+
         selected_fibers : list of int
-            List of fiber numbers illuminated in the flat, if None assumes all
-            can work if not given on partially illuminated frame, but best
-            practice is to explicitly identify on function call
+            List of fiber numbers illuminated in the flat. If None, assumes
+            all. Can work if not given on partially illuminated frame, but
+            best practice is to explicitly identify on function call.
 
         Returns
         -------
-        list of AstroData
-            Single MX astrodata object with STRIPES_ID extension.
-            This extension temporarily holds the fits-unsavable fiber information
-            before it is utilized and then removed. A new extension REMOVED_STRIPES
-            also saves the polynomial info for every stripe that is not identified
-            from the original set inherited from findStripes
+        list of :class:`~astrodata.AstroData`
+            The input frames with the following extensions added:
+
+            - ``STRIPES_ID`` : per-fiber, per-order stripe identification.
+              This extension temporarily holds the fits-unsavable fiber
+              information before it is utilized and then removed.
+
+            - ``REMOVED_STRIPES`` : polynomial info for every stripe that
+              is not identified, from the original set inherited from
+              findStripes.
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
@@ -1510,23 +1186,37 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs : list of AstroData
-            Single MX astrodata object, is either a DFFFD, FDDDF flat,
-            or combined FFFFF flat
+        adinputs : list of :class:`~astrodata.AstroData`
+            MX flat frames. Each frame is either a DFFFD flat, an FDDDF flat,
+            or a combined FFFFF flat.
+
         suffix : str
-            Suffix to be added to output files
+            Suffix to be added to output files.
+
         slit_height : int
-            Half pixel height of box in each dimension to
-            perform box extraction with
+            Half pixel height of box in each dimension to perform box
+            extraction with.
+
         extract : bool
-            If True, will write STRIPES_ID in fits-acceptable
-            format. Utilized in combined, all fiber illuminated FFFFF_flat
+            If True, will write STRIPES_ID in fits-acceptable format. Utilized
+            in combined, all fiber illuminated FFFFF_flat.
 
         Returns
         -------
-        list of AstroData
-            Single MX astrodata object with INDEX_FIBER, INDEX_ORDER
-            extensions and possibly STRIPES_ID and STRIPES_FIBERS extensions
+        list of :class:`~astrodata.AstroData`
+            The input frames with the following extensions added:
+
+            - ``INDEX_FIBER`` : 2D pixel map of fiber assignments.
+
+            - ``INDEX_ORDER`` : 2D pixel map of echelle order assignments.
+
+            - ``STRIPES_ID`` : (if ``extract=True``) FITS-savable
+              by-spectral-order polynomial plate solution for each
+              illuminated fiber.
+
+            - ``STRIPES_FIBERS`` : (if ``extract=True``) companion to
+              ``STRIPES_ID`` used to define 2D extraction regions in
+              science extractions.
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
@@ -1602,27 +1292,36 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs : list of AstroData
-            Single MX astrodata object, is either a DFFFD or FDDDF flat
-            that has not previously had its stray light removed
+        adinputs : list of :class:`~astrodata.AstroData`
+            MX flat frames. Each frame is either a DFFFD or FDDDF flat that
+            has not previously had its stray light removed.
+
         suffix : str
-            Suffix to be added to output files
+            Suffix to be added to output files.
+
         box_size : int
-            Pixel height and width of 'mesh_element' used in
-            background identification sub-routine
+            Pixel height and width of 'mesh_element' used in background
+            identification sub-routine.
+
         filter_size : int
-            Pixel height and width of window to perform
-            background identification sub-routine
+            Pixel height and width of window to perform background
+            identification sub-routine.
+
         snapshot : bool
-            Bool to save difference frame of removed stray light as
-            extension STRAYLIGHT_DIFFERENCE
+            If True, save the difference frame of removed stray light as
+            the ``STRAYLIGHT_DIFFERENCE`` extension.
+
         report : bool
-            Generate PDF diagnostic report showing straylight removal stages
+            Generate PDF diagnostic report showing straylight removal stages.
 
         Returns
         -------
-        list of AstroData
-            Single MX astrodata object with stray light removed from SCI
+        list of :class:`~astrodata.AstroData`
+            The input frames with stray light removed from SCI, and the
+            following extension added when ``snapshot=True``:
+
+            - ``STRAYLIGHT_DIFFERENCE`` : difference frame of the removed
+              stray light.
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
@@ -1926,8 +1625,11 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs : list of MX flats
-        **params : dict of parameters
+        adinputs : list of :class:`~astrodata.AstroData`
+            MX flats.
+
+        suffix : str
+            Suffix to be added to output files.
 
         Returns
         -------
@@ -1995,19 +1697,21 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs : list of AstroData
-            Primary stream of flat objects (typically FDDDF flats)
+        adinputs : list of :class:`~astrodata.AstroData`
+            Primary stream of flat objects (typically FDDDF flats).
+
         suffix : str
-            Suffix to be added to output files
+            Suffix to be added to output files.
+
         stream_2 : str
             Name of the secondary stream to combine with the main stream
-            (typically 'DFFFD_flats')
+            (typically 'DFFFD_flats').
 
         Returns
         -------
-        list of AstroData
-            List containing a single AstroData object with the combined flat field
-            data.
+        list of :class:`~astrodata.AstroData`
+            List containing a single AstroData object with the combined flat
+            field data.
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
@@ -2063,16 +1767,20 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs : list of AstroData objects
+        adinputs : list of :class:`~astrodata.AstroData`
             List of multi-extension AstroData objects to be split.
+
+        suffix : str
+            Suffix to be added to output files.
 
         keep_suffix : bool
             If True, retains the suffix from the processed file name.
 
         Returns
         -------
-        adouputs : list of AstroData objects
-            List containing a separate AstroData object for each extension in each input
+        list of :class:`~astrodata.AstroData`
+            List containing a separate AstroData object for each extension in
+            each input.
         """
         log = self.log
         log.debug(gt.log_message("primitive", self.myself(), "starting"))
@@ -2128,15 +1836,24 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
 
         Parameters
         ----------
-        adinputs : list of AstroData
-            Input frames to be combined
+        adinputs : list of :class:`~astrodata.AstroData`
+            Input frames to be combined.
+
         suffix : str
-            Suffix to be added to output files
+            Suffix to be added to output files.
 
         Returns
         -------
-        list of AstroData
-            Combined output frame
+        list of :class:`~astrodata.AstroData`
+            Single-element list containing the combined output frame with the
+            following extensions added:
+
+            - ``COEFF_Z0`` : 2D array of the log-linear slope coefficients.
+
+            - ``COEFF_Z1`` : 2D array of the log-linear intercept coefficients.
+
+            - ``LOGEXPTIME`` : Table with columns ``logexptime``, ``exptime``,
+              ``filename``.
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
@@ -2285,118 +2002,3 @@ def _scaleCube(cube, scale_mode='first_frame'):
     return cube
 
 
-def make_report_backgroundfit(ad, **kwargs):
-    """
-    Generate a PDF diagnostic report for straylight removal.
-
-    Creates PDF with diagnostic plots showing each stage of the
-    straylight removal process.
-
-    Parameters
-    ----------
-    ad : AstroData
-        The AstroData object being processed (used for filename).
-    data_original : ndarray
-        Original frame data before straylight removal.
-    data_masked : ndarray
-        Frame data with orders masked for background fitting.
-    bkg1 : Background2D
-        First iteration background model from photutils.
-    bkg2 : Background2D
-        Second iteration (correction) background model.
-    result : ndarray
-        Final straylight-subtracted data.
-    max_val_masked : float
-        Maximum value in the masked data used for scaling plots.
-
-    Returns
-    -------
-    str
-        Filename of the generated PDF report.
-    """
-    pdf_name = f"{ad.filename.replace('.fits', '_backgroundfit.pdf')}"
-
-    # get array from kwargs
-    data_original = kwargs.get('data_original')
-    data_masked = kwargs.get('data_masked')
-    bkg1 = kwargs.get('bkg1')
-    bkg2 = kwargs.get('bkg2')
-    result = kwargs.get('result')
-    max_val_masked = kwargs.get('max_val_masked')
-
-    # for legacy patch
-    if hasattr(bkg1, 'background'):
-        bkg1_background = bkg1.background
-        bkg1_mesh_nmasked = bkg1.mesh_nmasked
-        bkg2_background = bkg2.background
-        box_size = bkg1.box_size[0]
-    else:    
-        bkg1_background = bkg1
-        bkg1_mesh_nmasked = kwargs.get('bkg1_mesh_nmasked')
-        bkg2_background = bkg2
-        box_size = kwargs.get('box_size')
-        pdf_name = f"{ad.filename.replace('.fits', '_backgroundfit_legacy.pdf')}"    
-    
-
-    with PdfPages(pdf_name) as pdf:
-        figsize = (10, 8)
-        # Figure 1: Raw frame, bias corrected
-        fig1 = plt.figure(figsize=figsize)
-        plt.title(
-            f'Raw frame, bias corrected (max signal level: {int(max_val_masked):5d})'
-        )
-        plt.imshow(data_original, origin='lower', vmin=0, vmax=np.nanmax(data_masked))
-        plt.colorbar()
-        pdf.savefig(fig1)
-        plt.close(fig1)
-
-        # Figure 2: Raw frame, orders masked
-        fig2 = plt.figure(figsize=figsize)
-        plt.title('Raw frame, orders masked')
-        plt.imshow(data_masked, origin='lower', vmin=0, vmax=np.nanmax(data_masked))
-        plt.colorbar()
-        pdf.savefig(fig2)
-        plt.close(fig2)
-
-        # Figure 3: Background model (first iteration)
-        fig3 = plt.figure(figsize=figsize)
-        plt.title('Background model')
-        plt.imshow(bkg1_background, origin='lower', vmin=0, vmax=np.nanmax(data_masked))
-        plt.colorbar()
-        pdf.savefig(fig3)
-        plt.close(fig3)
-
-        # Figure 4: Background subtracted data (first iteration)
-        fig4 = plt.figure(figsize=figsize)
-        plt.title('Background subtracted data')
-        plt.imshow(data_original - bkg1_background, origin='lower', vmin=-30, vmax=30)
-        plt.colorbar()
-        pdf.savefig(fig4)
-        plt.close(fig4)
-
-        # Figure 5: Number of masked pixels in background mesh
-        fig5 = plt.figure(figsize=figsize)
-        plt.title('Number of masked pixels in background mesh')
-        #box_size = bkg1.box_size[0]
-        plt.imshow(bkg1_mesh_nmasked, origin='lower', vmin=0, vmax=box_size**2)
-        plt.colorbar()
-        pdf.savefig(fig5)
-        plt.close(fig5)
-
-        # Figure 6: Background model, correction step
-        fig6 = plt.figure(figsize=figsize)
-        plt.title('Background model, correction step')
-        plt.imshow(bkg2_background, origin='lower', vmin=-10, vmax=10)
-        plt.colorbar()
-        pdf.savefig(fig6)
-        plt.close(fig6)
-
-        # Figure 7: Final background subtracted data
-        fig7 = plt.figure(figsize=figsize)
-        plt.title('Final background subtracted data')
-        plt.imshow(result, origin='lower', vmin=-30, vmax=30)
-        plt.colorbar()
-        pdf.savefig(fig7)
-        plt.close(fig7)
-
-    return pdf_name

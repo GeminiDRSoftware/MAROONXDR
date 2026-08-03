@@ -16,26 +16,23 @@ These parameters control the behavior of primitives and are organized by process
 2D Image Processing Parameters
 ===============================
 
-.. note::
-   automodule commented out to avoid ReadTheDocs build timeout.
-
-.. .. automodule:: maroonxdr.maroonx.parameters_maroonx_2D
-..    :members:
-..    :no-inherited-members:
-..    :show-inheritance:
+.. automodule:: maroonxdr.maroonx.parameters_maroonx_2D
+   :members:
+   :no-inherited-members:
+   :show-inheritance:
 
 Echelle Extraction Parameters
 ==============================
 
-.. .. automodule:: maroonxdr.maroonx.parameters_maroonx_echelle
-..    :members:
-..    :no-inherited-members:
-..    :show-inheritance:
+.. automodule:: maroonxdr.maroonx.parameters_maroonx_echelle
+   :members:
+   :no-inherited-members:
+   :show-inheritance:
 
 Spectrum Processing Parameters
 ===============================
 
-.. .. automodule:: maroonxdr.maroonx.parameters_maroonx_spectrum
-..    :members:
-..    :no-inherited-members:
-..    :show-inheritance:
+.. automodule:: maroonxdr.maroonx.parameters_maroonx_spectrum
+   :members:
+   :no-inherited-members:
+   :show-inheritance:

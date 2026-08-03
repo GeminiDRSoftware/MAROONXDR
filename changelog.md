@@ -7,8 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Fitting peaks to 30-knot spline
-- Integration with DRAGONS caldb
+- ThAr (static) wavelength solutions
+
+## [0.4.0] - 2026-08-03
+
+### Added
+
+- Complete 2D to 1D science reduction recipe (`reduce`): stripe extraction with
+  dark subtraction and straylight removal, box and optimal extraction,
+  drift-corrected wavelength calibration, fiber combination, and barycentric
+  correction from exposure-meter flux-weighted timestamps
+- Dynamic wavelength calibration recipe (`makeDynamicWavecal`): etalon peak
+  fitting and 30-knot cubic spline solutions, stored as processed wavecal
+  calibrations
+- Dark coefficient fitting (`makeDarkCoefficients`) and synthetic dark
+  generation (`makeSyntheticDark`) for arbitrary exposure times
+- Blaze function measurement (`makeBlaze`) per fiber of a processed flat
+- Bundle handling: `processBundle` splits GOA bundles into arm files,
+  `exportReducedBundle` re-bundles reduced spectra
+- Integration with the DRAGONS calibration database (user and local
+  databases), including the MAROON-X caltypes `processed_wavecal` and
+  `processed_dark_coeff`
+- Interactive QA recipes with a Bokeh spectrum viewer (`reduceQA`,
+  `makeProcessedFlatQA`)
+- nox-based development environment and task automation (`devenv`,
+  `devconda`, test, docs and packaging sessions)
+- Documentation: Tutorial nad User Manual published on Read the Docs, Programmer
+  manual built locally, with recipe and primitive reference pages generated
+  from the live docstrings
+- GitHub Actions testing workflow
+- Reference lookup files (BPM, SID, WLS) distributed as `lookups_files.zip`
+  with each release
+- BSD 3-Clause LICENSE, matching DRAGONS
+
+### Changed
+
+- Test suite rewritten to DRAGONS conventions: unit and regression tests with
+  pytest-dragons inputs/refs layout under `DRAGONS_TEST`, plus preprocess
+  scripts that build the shared test data
+- Straylight removal reworked; the legacy-compatible variant is preserved for
+  regression comparisons
+- Recipe docstrings cleaned up and README updated for release
+
+### Fixed
+
+- Optimal extraction was saving the error instead of the variance
+- Variance propagation in stacked frames
+
+### Removed
+
+- In-repo legacy regression tests; legacy comparisons now live outside the
+  repository
+- `science_dir/` deprecated in favor of `$DRAGONS_TEST/raw_files/`
 
 ## [0.3.0] - 2023-09-04
 

@@ -1,0 +1,207 @@
+// Node catalog for MAROON-X recipe flow diagrams.
+// No edges — this file exists to preview every node style in one render.
+//
+// Locked shape vocabulary:
+//   FITS file (data product)   -> shape=note
+//   Lookup FITS + DARK_COEFFS  -> shape=component
+//   CalDB storage              -> shape=cylinder
+//   Primitive                  -> shape=box, style="rounded,filled"
+
+digraph nodes {
+    rankdir=TB;
+    fontname="Helvetica";
+    labelloc="t";
+    label=<<b>MAROON-X recipe flow · node catalog</b>>;
+
+    node [fontname="Helvetica", fontsize=10,
+          penwidth=1.5, fontcolor=white];
+    edge [style=invis];
+
+    // ---- Row 1: primitives by defining class -----------------------------
+    subgraph cluster_primitives {
+        label="Primitives (fill = defining class)";
+        style="rounded";
+        color="#bdbdbd";
+        fontcolor=black;
+        fontsize=10;
+
+        p_maroonx [label="primitiveX()\nMAROONX",
+                   shape=box, style="rounded,filled",
+                   fillcolor="#A1342D", color="#A1342D"];
+
+        p_gemini [label="primitiveX()\nGemini",
+                  shape=box, style="rounded,filled",
+                  fillcolor="#0d47a1", color="#0d47a1"];
+
+        p_ccd [label="primitiveX()\nCCD",
+               shape=box, style="rounded,filled",
+               fillcolor="#607d8b", color="#607d8b"];
+
+        p_nearir [label="primitiveX()\nNearIR",
+                  shape=box, style="rounded,filled",
+                  fillcolor="#E65100", color="#E65100"];
+
+        p_calibdb [label="storeProcessed*()\nCalibDB",
+                   shape=box, style="rounded,filled",
+                   fillcolor="#6a1b9a", color="#6a1b9a"];
+
+        p_core [label="primitiveX()\ncore",
+                shape=box, style="rounded,filled",
+                fillcolor="#4A90A4", color="#4A90A4"];
+    }
+
+    // ---- Row 2: overrides (fill = origin class, border = MAROONX) --------
+    subgraph cluster_overrides {
+        label="Overrides (border = MAROONX)";
+        style="rounded";
+        color="#bdbdbd";
+        fontcolor=black;
+        fontsize=10;
+
+        o_gemini [label="primitiveX()\nGemini override",
+                  shape=box, style="rounded,filled",
+                  fillcolor="#0d47a1", color="#A1342D"];
+
+        o_ccd [label="primitiveX()\nCCD override",
+               shape=box, style="rounded,filled",
+               fillcolor="#607d8b", color="#A1342D"];
+
+        o_nearir [label="primitiveX()\nNearIR override",
+                  shape=box, style="rounded,filled",
+                  fillcolor="#E65100", color="#A1342D"];
+
+        o_core [label="primitiveX()\ncore override",
+                shape=box, style="rounded,filled",
+                fillcolor="#4A90A4", color="#A1342D"];
+    }
+
+    // ---- Row 3a: raw bundles (dashed + black, both arms) -----------------
+    subgraph cluster_fits_raw {
+        label="Raw bundles (dashed + black, both arms)";
+        style="rounded";
+        color="#bdbdbd";
+        fontcolor=black;
+        fontsize=10;
+
+        f_flat_bundle [label="FLAT\nDFFFD",
+                       shape=note, style="filled,dashed",
+                       fillcolor="#DB6DB2", fontcolor=black,
+                       color=black, penwidth=1];
+
+        f_dark_bundle [label="DARK\nDDDDE",
+                       shape=note, style="filled,dashed",
+                       fillcolor="#B6B6B6", fontcolor=black,
+                       color=black, penwidth=1];
+
+        f_etalon_bundle [label="ETALON\nDEEEE",
+                         shape=note, style="filled,dashed",
+                         fillcolor="#F5B26B", fontcolor=black,
+                         color=black, penwidth=1];
+
+        f_science_bundle [label="SCIENCE\nSOOOE",
+                          shape=note, style="filled,dashed",
+                          fillcolor="#7BA5E8", fontcolor=black,
+                          color=black, penwidth=1];
+
+    }
+
+    // ---- Row 3c: processed / master per-arm (solid, arm-colored) ---------
+    subgraph cluster_fits_master {
+        label="Processed / master per-arm (solid)";
+        style="rounded";
+        color="#bdbdbd";
+        fontcolor=black;
+        fontsize=10;
+
+        f_flat_pb [label="processedFlat\nDFFFF",
+                   shape=note, style=filled,
+                   fillcolor="#DB6DB2", fontcolor=black,
+                   color="#1976D2", penwidth=1.5];
+
+        f_flat_pr [label="processedFlat\nDFFFF",
+                   shape=note, style=filled,
+                   fillcolor="#DB6DB2", fontcolor=black,
+                   color="#C62828", penwidth=1.5];
+
+        f_science_pb [label="processedScience\nSOOOE-Ō",
+                      shape=note, style=filled,
+                      fillcolor="#7BA5E8", fontcolor=black,
+                      color="#1976D2", penwidth=1.5];
+
+        f_science_pr [label="processedScience\nSOOOE-Ō",
+                      shape=note, style=filled,
+                      fillcolor="#7BA5E8", fontcolor=black,
+                      color="#C62828", penwidth=1.5];
+    }
+
+    // ---- Row 4: lookup FITS files ---------------------------------------
+    subgraph cluster_lookups {
+        label="Lookup FITS (maroonxdr/maroonx/lookups/)";
+        style="rounded";
+        color="#bdbdbd";
+        fontcolor=black;
+        fontsize=10;
+
+        l_bpm [label="BPM_[b|r].fits\n(bad-pixel mask)",
+               shape=component, style=filled,
+               fillcolor="#e8f0fe", fontcolor=black,
+               color=black, penwidth=1];
+
+        l_sid [label="SID_[b|r].fits\n(stripe ID reference)",
+               shape=component, style=filled,
+               fillcolor="#DB6DB2", fontcolor=black,
+               color=black, penwidth=1];
+
+        l_wlstat [label="WLSTAT_[b|r].fits\n(static wavelength solution)",
+                  shape=component, style=filled,
+                  fillcolor="#F5B26B", fontcolor=black,
+                  color=black, penwidth=1];
+
+        l_refwl [label="REFWAVELENGTH_[b|r].fits\n(reference WL + etalon params)",
+                 shape=component, style=filled,
+                 fillcolor="#F5B26B", fontcolor=black,
+                 color=black, penwidth=1];
+    }
+
+    // ---- Row 5: other artifacts -----------------------------------------
+    subgraph cluster_artifacts {
+        label="Other artifacts";
+        style="rounded";
+        color="#bdbdbd";
+        fontcolor=black;
+        fontsize=10;
+
+        a_darkcoeffs [label="DARK_COEFFS\n(z0, z1 arrays)",
+                      shape=component, style=filled,
+                      fillcolor="#B6B6B6", fontcolor=black,
+                      color=black, penwidth=1];
+
+        a_darksynth [label="DARK_SYNTH\n(synthetic dark)",
+                     shape=component, style=filled,
+                     fillcolor="#B6B6B6", fontcolor=black,
+                     color="#7BA5E8", penwidth=1.5];
+
+        a_caldb [label="CalDB storage",
+                 shape=cylinder, style=filled,
+                 fillcolor="#2E7D32", fontcolor=white,
+                 color=black, penwidth=1];
+
+        a_log [label="reduce.log",
+               shape=note, style=filled,
+               fillcolor="#e8f0fe", fontcolor=black,
+               color=black, penwidth=1];
+
+        a_pdf [label="diagnostic.pdf",
+               shape=folder, style=filled,
+               fillcolor="#e8f0fe", fontcolor=black,
+               color=black, penwidth=1];
+    }
+
+    // ---- Invisible edges lock each cluster's nodes into one row ---------
+    p_maroonx -> p_gemini -> p_ccd -> p_nearir -> p_calibdb -> p_core;
+    o_gemini  -> o_ccd    -> o_nearir -> o_core;
+    f_flat_bundle -> f_dark_bundle -> f_etalon_bundle -> f_science_bundle;
+    f_flat_pb     -> f_flat_pr     -> f_science_pb    -> f_science_pr;
+    l_bpm     -> l_sid    -> l_wlstat -> l_refwl;
+    a_darkcoeffs -> a_darksynth -> a_caldb -> a_log -> a_pdf;
+}

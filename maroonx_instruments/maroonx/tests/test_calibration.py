@@ -15,11 +15,12 @@ import maroonx_instruments  # noqa - registers AstroDataMAROONX
 from recipe_system import cal_service
 from recipe_system.config import globalConf
 
-# Re-use the same split files from test_maroonx inputs.
-# The create_inputs() below copies them and stamps PROCDARK / PROCFLAT
-# to make them appear as processed calibrations.
-blue_dark = '20250721T170049Z_DDDDE_b_0300.fits'
-red_dark = '20250721T170049Z_DDDDE_r_0300.fits'
+# Debundled files from $DRAGONS_TEST/preprocessed_files/, all covered by
+# the preprocess/bundle.py manifest. The create_inputs() below copies them
+# and stamps PROCDARK / PROCFLAT to make them appear as processed
+# calibrations.
+blue_dark = '20250707T172105Z_DDDDE_b_0300.fits'
+red_dark = '20250707T172105Z_DDDDE_r_0300.fits'
 blue_flat = '20250701T170101Z_DFFFD_b_0008.fits'
 red_flat = '20250701T170101Z_DFFFD_r_0002.fits'
 blue_wavecal = '20250717T163124Z_DEEEE_b_0010.fits'
@@ -101,16 +102,13 @@ def test_store_and_retrieve_wavecal(path_to_inputs, tmp_path):
 # -- Create inputs -------------------------------------------------------------
 
 def create_inputs():
-    """Create processed-stamped calibration files from raw split files.
+    """Create processed-stamped calibration files from debundled files.
 
-    Copies raw files from the test_maroonx inputs directory and adds
+    Copies debundled files from $DRAGONS_TEST/preprocessed_files/ and adds
     PROCDARK or PROCFLAT keywords to make them appear as processed
     calibrations to the FitsStorage ingester.
     """
-    source_dir = os.path.join(
-        os.environ['DRAGONS_TEST'],
-        'maroonx_instruments', 'maroonx', 'test_maroonx', 'inputs',
-    )
+    source_dir = os.path.join(os.environ['DRAGONS_TEST'], 'preprocessed_files')
     dest_dir = os.path.join(
         os.environ['DRAGONS_TEST'],
         'maroonx_instruments', 'maroonx', 'test_calibration', 'inputs',

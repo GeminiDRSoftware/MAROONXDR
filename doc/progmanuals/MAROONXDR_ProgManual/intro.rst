@@ -1,182 +1,216 @@
 .. intro.rst
 
-.. _intro:
+.. _maroonxdr_prog_intro:
 
-******************************
-Introduction to the Instrument
-******************************
+************
+Introduction
+************
 
-General Description
-===================
+This Programmer's Manual documents the internal structure of the
+MAROON-X DRAGONS pipeline (``maroonxdr``) for developers extending,
+maintaining, or porting it. It assumes you have already installed the
+development environment and are familiar with the end-to-end reduction
+workflow.
 
-MAROON-X is a fiber-fed, cross-dispersed echelle spectrograph installed at the
-Gemini-North Observatory. Its primary science goal is the detection of
-Earth-sized planets in the habitable zones of mid to late M dwarf stars
-through high-precision radial velocity measurements, with a target precision
-of 1 m/s.
+For the user-facing instrument description (detector arms, fiber
+configurations, frame types, calibration requirements, and known
+operational issues), see the *Instrument and Data* chapter of the User Manual.
 
-The instrument has no movable parts and operates in a single fixed
-configuration. Incoming light is split into two arms that are
-recorded simultaneously on independent CCD detectors:
+For installation and the reduction walkthrough, see the Tutorial: the
+*Setup and Installation* chapter first, then the CLI or Python API
+example chapters for the two versions of the same reduction.
 
-- **Blue arm**: 491-670 nm
-- **Red arm**: 649-920 nm
+Purpose and Audience
+====================
 
-The blue detector is a 4400×4400 pixel, 16-bit array read through four
-amplifiers (quadrants Q1–Q4), with a gain of 2.72 e⁻/DN and read noise of
-1.14 (variance units). The red detector is also 4400×4400 pixels, read through
-two amplifiers (R1–R2), with a gain of 2.74 e⁻/DN and read noise of 1.63
-(variance units).
+This manual documents the internal structure of ``maroonxdr`` so that a
+new developer can extend a primitive, add or modify a recipe, port a
+legacy MaroonX algorithm, or track down a bug. It focuses on the parts
+of the codebase that DRAGONS itself does not document: the MaroonX tag
+system, the recipe-level data flow, the primitive class hierarchy, 
+the PDF-report wiring, the parameter ``Config`` classes, and the test 
+infrastructure. The goal is to make the design decisions legible so 
+that future changes stay consistent with them.
 
-Raw data delivered from the Gemini Observatory Archive (GOA) arrives as a
-bundle — a single Multi-Extension FITS (MEF) file containing both arms
-(``NYYYYMMDDMnnnn.fits``). The first pipeline step is to split this bundle
-into separate blue and red arm files for independent processing.
+Who this is for:
 
-Description of the Modes
-=========================
+* Developers adding or modifying primitives, parameters, or recipes.
+* Maintainers keeping the pipeline aligned with upstream DRAGONS.
+* Anyone porting a legacy MaroonX algorithm into the DRAGONS framework.
 
-MAROON-X has only one observing mode. At each wavelength, five fibers are
-arranged along the cross-dispersion direction on the detector:
+.. note::
 
-- **Fiber 1**: Off-target sky background fiber
-- **Fibers 2, 3, 4**: Three pupil-sliced fractions of the on-sky science target
-- **Fiber 5**: Simultaneous calibration fiber (fed calibration light during
-  science observations)
+   MaroonX is currently an *external* DRAGONS instrument package. That
+   is why every CLI invocation carries ``--adpkg maroonx_instruments``
+   and ``--drpkg maroonxdr``, and why every Python API script begins
+   with ``import maroonx_instruments`` followed by
+   ``myreduce.drpkg = 'maroonxdr'``. Several design choices covered in
+   this manual (the packaging of AstroData tags, the location of
+   lookup tables, the calibration database wiring) follow from that
+   external-package status. Once upstream integration completes, those
+   flags and the explicit import go away, but the internal structure
+   documented here will remain.
 
-Each fiber traces a stripe across the detector for each echelle order. The
-blue arm covers 34 orders per fiber and the red arm covers 28 orders per fiber.
+Architecture Overview
+=====================
 
-The fiber illumination pattern for each frame is encoded as a five-character
-string — one character per fiber — in the file header and used by the pipeline
-for frame classification:
+The MaroonX code is split across two Python packages under ``MAROONXDR/``.
+``maroonx_instruments/maroonx/`` defines
+the AstroData instrument class ``AstroDataMAROONX``, a set of
+``@astro_data_tag``-decorated methods that classify raw files by fiber
+configuration, and ``@astro_data_descriptor``-decorated methods that
+expose header keywords under stable names. ``maroonxdr/maroonx/`` holds
+the primitives, parameter ``Config`` classes, recipes, lookup tables, and
+tests, and is where all reduction logic lives. DRAGONS registers the two
+packages separately, which is why every CLI invocation passes
+``--adpkg maroonx_instruments`` and ``--drpkg maroonxdr``, and why at the 
+moment the Python API needs both ``import maroonx_instruments`` and
+``myreduce.drpkg = 'maroonxdr'``.
 
-.. list-table::
-   :header-rows: 1
-   :widths: 10 40
+When ``reduce`` (or ``Reduce.runr()``) is called on a file, AstroData opens
+it and the ``@astro_data_tag`` methods in ``maroonx_instruments`` assign a
+tag set based on the fiber illumination pattern and header keywords. ``recipe_system``
+then resolves that tag set to a recipe (the tag-to-recipe mapping is
+covered in :ref:`tags`). A recipe is a Python function that instantiates
+the ``MAROONX`` primitives class and calls a sequence of primitive methods
+on it, passing intermediate products between them.
+Each primitive is a method on the ``MAROONX`` class, and its parameter
+defaults are drawn from a matching ``Config`` class in a
+``parameters_maroonx_*.py`` file. Processed calibrations produced along
+the way are registered with ``caldb`` and served back automatically to
+later recipes that request them.
 
-   * - Code
-     - Illumination source
-   * - ``D``
-     - Dark (no illumination)
-   * - ``F``
-     - Flat field lamp
-   * - ``O``
-     - Object (stellar target)
-   * - ``S``
-     - Sky background (fiber 1 only)
-   * - ``E``
-     - Fabry-Perot etalon comb
-   * - ``T``
-     - ThAr hollow-cathode arc lamp
-   * - ``I``
-     - Iodine cell
-   * - ``L``
-     - Laser Frequency Comb (LFC)
+The ``MAROONX`` class, defined in ``primitives_maroonx_2D.py``, inherits
+from ``Gemini, CCD, NearIR, CalibDBMaroonX``. Those bases contribute the
+shared Gemini primitives (``prepare``, ``addDQ``, header standardization,
+generic CCD handling) that MaroonX reuses unchanged. On top of them the
+class adds the MaroonX-specific primitives: bundle splitting, straylight
+removal, stripe extraction, etalon-based wavelength calibration, fiber
+combination, and barycentric correction. The full member list is explained
+in detail in :ref:`primitives`.
 
-Common frame types and their fiber patterns are summarised in the table below:
+The reduction logic is spread across three primitive files by processing
+stage: ``primitives_maroonx_2D.py`` for image-plane operations,
+``primitives_maroonx_echelle.py`` for stripe finding and extraction, and
+``primitives_maroonx_spectrum.py`` for 1D spectrum-level work including
+wavelength assignment and barycentric correction. Recipes live under
+``recipes/sq/``, and each ``parameters_maroonx_*.py`` file mirrors the
+primitive file of the same suffix.
 
-.. list-table::
-   :header-rows: 1
-   :widths: 15 15 40
+Repository Layout
+=================
 
-   * - Frame type
-     - Pattern
-     - Purpose
-   * - Science
-     - ``SOOOE``
-     - Standard science: sky in fiber 1, target in fibers 2–4, etalon in fiber 5
-   * - Dark
-     - ``DDDDE``
-     - Dark calibration with etalon in simultaneous calibration fiber
-   * - Flat (science fibers)
-     - ``DFFFD``
-     - Flat field for science fibers 2, 3, 4
-   * - Flat (outer fibers)
-     - ``FDDDF``
-     - Flat field for fibers 1 and 5
-   * - Etalon wavecal
-     - ``DEEEE``
-     - Dynamic (nightly) wavelength calibration
-   * - ThAr wavecal
-     - ``DTTTT``
-     - Static wavelength calibration
-   * - LFC wavecal
-     - ``DLLLL``
-     - Alternative wavelength calibration with Laser Frequency Comb
+The tree below shows the layout of the two MaroonX packages within ``MAROONXDR/``.
 
-Required Calibration and Associated Observations
-================================================
+.. code-block:: text
 
-The following calibration frames are required to reduce MAROON-X data:
+   MAROONXDR/
+   ├── maroonx_instruments/maroonx/
+   │   ├── __init__.py
+   │   ├── adclass.py                       # AstroDataMAROONX: tags and descriptors
+   │   ├── calibration_maroonx.py           # CalibrationMAROONX: custom caltype resolution
+   │   ├── lookup.py                        # header-keyword lookup table
+   │   └── tests/
+   ├── maroonxdr/maroonx/
+   │   ├── primitives_maroonx_2D.py         # image-plane primitives; defines the MAROONX class
+   │   ├── primitives_maroonx_echelle.py    # stripe finding, extraction, wavelength calibration
+   │   ├── primitives_maroonx_spectrum.py   # 1D spectrum work, fiber combination, barycentric
+   │   ├── primitives_calibdb_maroonx.py    # CalibDBMaroonX: custom caldb store/get primitives
+   │   ├── parameters_maroonx_2D.py
+   │   ├── parameters_maroonx_echelle.py
+   │   ├── parameters_maroonx_spectrum.py
+   │   ├── parameters_calibdb_maroonx.py
+   │   ├── maroonx_utils.py                 # shared helpers used across primitive files
+   │   ├── maroonx_plots.py                 # PDF-report plotting helpers
+   │   ├── maroonx_echellespectrum/         # subpackage: echelle-spectrum data model
+   │   ├── recipes/                         # science-quality and QA recipes
+   │   ├── lookups/                         # static calibration tables (BPM, SID, WLS, MDF)
+   │   └── tests/
+   ├── doc/                                 # this Sphinx documentation tree
+   ├── noxfile.py
+   ├── pyproject.toml
+   └── setup.cfg
 
-**Master Darks (DDDDE)**
+Inside ``maroonxdr/maroonx/``, filenames follow a predictable pattern.
+Every ``primitives_maroonx_X.py`` file has a sibling
+``parameters_maroonx_X.py`` that holds the ``Config`` classes for the
+primitives in it; the 2D image primitives, for example, live in
+``primitives_maroonx_2D.py`` and their parameters in
+``parameters_maroonx_2D.py``.
 
-Dark frames are taken with all science fibers dark and the etalon illuminating
-fiber 5. This is necessary because during science observations the etalon wings
-contribute a few tens of counts into adjacent fibers. Dark frames must be
-matched to the science frame by **exposure time** and by the **ND filter
-position** of the simultaneous calibration fiber, and should be taken within
-one to two days of the science frames due to variability in the etalon source
-brightness.
+Recipes live under ``maroonxdr/maroonx/recipes/sq/`` and are named after
+the tag set they trigger on: ``recipes_DARK.py`` for darks,
+``recipes_BUNDLE.py`` for bundles, and so on. Static calibration data is
+grouped by product under ``maroonxdr/maroonx/lookups/`` (``BPM/`` for bad
+pixel masks, ``SID/`` for stripe identification, ``WLS/`` for reference
+wavelength solutions).
 
-Standard exposure times are 60, 120, 300, 600, 900, 1200, and 1800 seconds.
-Multiple master darks at different exposure times can be combined into
-pixel-by-pixel coefficient files (``z0``, ``z1``), parameterising the
-relationship ``F = z1 + z0 × log10(Texp)``. These coefficient files allow
-synthetic master darks to be generated for any required exposure time.
+Tests follow the same split as the primitive files: the echelle
+primitives are covered by ``maroonxdr/maroonx/tests/echelle_extraction/``,
+the 2D primitives by ``tests/image/``, and so on. See :ref:`tests` for
+fixtures, markers, and environment variables.
 
-**Master Flats (DFFFD + FDDDF)**
+Development Environment
+=======================
 
-Two complementary sets of flat frames are required, because no single
-illumination pattern can expose all five fibers simultaneously without the
-wings of illuminated fibers contaminating adjacent dark fibers for straylight
-removal:
+The full environment setup (cloning the repository, running the ``devenv``
+nox session, and configuring the calibration database) is covered in the
+*Setup and Installation* chapter of the Tutorial; treat that as the
+canonical walkthrough
+rather than repeating it here. Day-to-day development happens inside the
+``mx_dev`` virtual environment that ``devenv`` creates at ``venv/``, and
+that same environment is what the nox sessions below assume is available.
+For how the test suite consumes ``DRAGONS_TEST``, see :ref:`tests`.
 
-- ``DFFFD``: illuminates science fibers 2, 3, 4 only.
-- ``FDDDF``: illuminates the outer fibers 1 and 5 only.
+The developer-facing nox sessions are:
 
-Each partial-illumination flat has its 2D straylight background removed before
-the two sets are combined into a single five-fiber (``FFFFF``) master flat. The
-master flat provides the fiber/order trace polynomials used by all subsequent
-extractions and the blaze function for flux normalisation.
+``devenv``
+   Creates the ``mx_dev`` virtual environment at ``venv/``, clones or
+   updates DRAGONS, and installs ``maroonxdr`` and ``maroonx_instruments``
+   in editable mode. Covered in the *Setup and Installation* chapter of the Tutorial; you
+   should not need
+   to re-run it unless the environment is wiped or dependencies change.
 
-Due to the spectrograph's stability, one processed master flat is typically
-valid for at least two weeks.
+``devconda``
+   Conda-based alternative to ``devenv`` that creates the ``mx_devconda``
+   environment. Use it only if you specifically need a conda-managed
+   stack; the rest of this manual assumes ``mx_dev``.
 
-**Static Wavelength Calibration (ThAr, DTTTT)**
+``preprocess``
+   Runs the blessed reduction chain (bundle, dark, flat, wavecal,
+   science) that produces the reference data for the regression tests.
+   Slow, and only needed by whoever regenerates the blessed data; see
+   :ref:`tests`.
 
-ThAr hollow-cathode lamp frames establish an absolute wavelength scale accurate
-to approximately 500 m/s. This calibration has been performed only once in the
-instrument's lifetime. The resulting solution is stored as precomputed lookup
-files (``WLSTAT_b.fits`` and ``WLSTAT_r.fits``) and is not regenerated through
-the pipeline.
+``create_inputs``
+   Stages the per-module ``inputs/`` and ``refs/`` directories under
+   ``DRAGONS_TEST`` from the products of ``preprocess``, by running each
+   test module's own staging hook. Also blessing-side only: developers
+   who received the packaged test data do not run it.
 
-**Dynamic Wavelength Calibration (Etalon, DEEEE)**
+``unit_tests``
+   Runs the synthetic test tier over ``maroonxdr/maroonx/tests/`` and
+   ``maroonx_instruments/maroonx/tests/``. Needs no test data. Extra
+   pytest arguments are forwarded, so ``nox -s unit_tests -- -k arm``
+   will narrow the selection further.
 
-Fabry-Perot etalon frames are taken every night of observing to track
-instrumental drift relative to the static wavelength solution. Fitting etalon
-peak positions to a cubic spline restores wavelength accuracy from ~500 m/s
-(static) to 10-20 cm/s.
+``regression_tests``
+   Runs the regression test tier (stored-reference comparison on real
+   data, selected with the ``regression`` marker). Needs the test data
+   under ``DRAGONS_TEST``.
 
-**Simultaneous Wavelength Calibration (Etalon in Fiber 5)**
+``coverage``
+   Runs both test tiers with ``pytest-cov`` and prints a terminal
+   coverage report.
 
-During standard science observations (``SOOOE``), fiber 5 is simultaneously
-illuminated by the etalon. This provides a continuous record of instrumental
-drift at the time of each science exposure and is used in the
-``applyWavelengthSolution`` step to correct the science fibers (2, 3, 4).
+``package_test_data``
+   Zips the staged test data into a versioned archive for sharing with
+   other developers; see :ref:`tests`.
 
-Important Instrument Characteristics or Issues
-==============================================
+``docs``
+   Builds this Sphinx documentation using the unified ``doc/conf.py``.
+   The ``usermanual``, ``progmanual``, and ``tutorial`` sessions build
+   the individual manuals instead, with ``-- --pdf`` for a PDF build.
 
-**Sky fiber (fiber 1) illumination failure**
-
-The original flat-field design called for two complementary illumination
-patterns — ``DFFFD`` (science fibers 2, 3, 4) and ``FDDDF`` (outer fibers 1
-and 5) — so that all five fibers could be traced and the combined master flat
-would be a fully illuminated ``FFFFF`` frame. In practice, there have been 
-issues illuminating the sky fiber (fiber 1), and ``FDDDF`` flats have been
-replaced by ``DDDDF`` frames that illuminate only fiber 5. The pipeline
-therefore accepts ``DDDDF`` as a substitute for ``FDDDF`` when building the
-master flat.
-
+Run ``nox -l`` from the repository root to see every available session
+together with its docstring.

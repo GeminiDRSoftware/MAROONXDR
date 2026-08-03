@@ -1,0 +1,1 @@
+MAROONXDR version of standardizeWCS to skip WCS processing.

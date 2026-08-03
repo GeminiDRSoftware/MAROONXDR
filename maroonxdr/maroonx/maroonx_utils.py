@@ -284,7 +284,7 @@ def load_refwls_from_fits(file, ext_name=None):
         # Initialize result dictionary
         res = {
             # scalar values
-            'maxx': wls_ext.header['MAXX'],
+            'max_x': wls_ext.header['MAXX'],
             'poly_deg_x': wls_ext.header['POLYDEGX'],
             'poly_deg_y': wls_ext.header['POLYDEGY'],
             # array values

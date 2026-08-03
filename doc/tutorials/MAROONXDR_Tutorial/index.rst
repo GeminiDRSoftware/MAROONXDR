@@ -4,8 +4,8 @@
    contain the root `toctree` directive.
 
 
-DRAGONS MAROONX Data Reduction Tutorial
-=======================================
+DRAGONS MAROON-X DRP: Tutorial
+==============================
 
 .. toctree::
    :numbered:

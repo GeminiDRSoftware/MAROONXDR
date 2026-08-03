@@ -2,9 +2,9 @@
 
 .. _maroonx_setup:
 
-************************************
-MAROON-X DRP: Setup and Installation
-************************************
+**********************
+Setup and Installation
+**********************
 
 Introduction
 ============
@@ -42,6 +42,23 @@ First, clone the MAROON-X DRAGONS repository:
     git clone https://github.com/GeminiDRSoftware/MAROONXDR.git
     cd MAROONXDR
 
+The pipeline also needs a set of static instrument reference files that are
+not tracked in git: bad pixel masks (BPM), stripe ID traces (SID), and
+static wavelength solutions (WLS). They are distributed with each release
+as ``lookups_files.zip`` on the `GitHub releases page
+<https://github.com/GeminiDRSoftware/MAROONXDR/releases>`_.
+
+Download the archive and extract it into the package lookup directory:
+
+.. code-block:: bash
+
+    unzip lookups_files.zip -d maroonxdr/maroonx/lookups/
+
+This places the FITS files under ``lookups/BPM/``, ``lookups/SID/`` and
+``lookups/WLS/``, where the pipeline expects them. The packages are
+installed in editable mode later in this guide, so the extracted files are
+picked up automatically.
+
 Step 2: Install Nox
 --------------------
 
@@ -68,21 +85,16 @@ View all available nox sessions to understand what tasks are available:
     # List all nox sessions
     nox -l
 
-You should see an output similar to:
+``noxfile.py`` defines several sessions; the most relevant to a new
+developer are:
 
 .. code-block:: text
 
-    Sessions defined in MAROONXDR/noxfile.py:
-
-    - devenv                 -> Create a development environment.
-    - devconda               -> Create a conda development environment.
-    - create_inputs          -> Create test input files.
-    - complete_tests         -> Run complete workflow tests.
-    - unit_tests             -> Run unit tests.
-    - legacy_regression_tests -> Run legacy regression tests.
-    - regression_tests       -> Run regression tests.
-    - docs                   -> Build documentation using Sphinx.
-    - docstyle               -> Check docstring style using pydocstyle.
+    - devenv -> Create a development environment.
+    - devconda -> Create a conda development environment.
+    - unit_tests -> Run unit tests.
+    - regression_tests -> Run DRAGONS-style regression tests with inputs/refs comparison.
+    - docs -> Build documentation using Sphinx.
 
 The ``devenv`` session is what we'll use to create the development environment.
 
@@ -100,9 +112,9 @@ Run the ``devenv`` nox session to automatically set up the complete development 
 
     1. Creates a Python 3.12 virtual environment at ``venv/``
     2. Clones the DRAGONS framework into ``DRAGONS/`` directory (if not already present)
-    3. Installs DRAGONS in development mode
-    4. Installs FitsStorage and pytest_dragons from GitHub
-    5. Installs all Python dependencies from ``pyproject.toml``
+    3. Installs DRAGONS in development mode along with FitsStorage from GitHub
+    4. Installs all Python dependencies from ``pyproject.toml`` (main, dev, docs, test groups)
+    5. Installs ``pytest_dragons`` from GitHub
     6. Installs ``maroonxdr`` and ``maroonx_instruments`` in editable mode
     7. Sets ``DRAGONS_TEST`` environment variable in the activate script
 
@@ -116,14 +128,11 @@ Your shell prompt should now show ``(mx_dev)`` indicating the environment is act
 
 .. note:: The ``devenv`` session automatically writes ``DRAGONS_TEST`` into the
    activate script, pointing to a ``mx_test/`` directory next to the repository.
-   If you need to run legacy regression tests, set ``MAROONX_LEGACY_TEST``
-   manually:
-
-    .. code-block:: bash
-
-        export MAROONX_LEGACY_TEST=/path/to/legacy/data
-
-    See :ref:`tests` for the expected directory structure under each variable.
+   The synthetic unit tests run without any data there; to also run the
+   regression tests, unpack the shared test data archive into that
+   directory. The Tests chapter of the Programmer Manual describes how to
+   obtain the archive and the expected layout (the Programmer Manual is
+   built locally, see :ref:`maroonx_local_manuals`).
 
 
 Step 5: Verify Installation
@@ -139,6 +148,75 @@ Verify that the installation was successful:
     # Check that maroonx_instruments is installed
     python -c "import maroonx_instruments; print('maroonx_instruments installed.')"
 
+
+.. _maroonx_caldb_setup:
+
+Calibration Database Setup
+==========================
+
+The DRAGONS calibration database (``caldb``) keeps track of every processed
+calibration produced during a reduction and serves it back to later steps
+on demand. The reduction tutorials assume ``caldb`` is configured and
+initialised before you start. This is a one-time setup per working
+directory.
+
+Create the configuration file
+-----------------------------
+
+DRAGONS reads its configuration from ``~/.dragons/dragonsrc``. Create the
+directory and file:
+
+.. code-block:: bash
+
+    mkdir -p ~/.dragons
+    touch ~/.dragons/dragonsrc
+
+Edit ``~/.dragons/dragonsrc`` so it contains a single ``[calibs]`` section
+pointing at the calibration database file for the tutorial. We recommend
+keeping the database inside the same working directory you will reduce in,
+so the tutorial state is self-contained:
+
+.. code-block:: ini
+
+    [calibs]
+    databases = /absolute/path/to/science_dir/cal_manager.db get store
+
+The trailing ``get store`` flags tell DRAGONS to **retrieve** calibrations
+from this database during reductions and to **store** every newly produced
+calibration into it automatically. Both flags are required for the
+tutorials to work as written - without ``store``, every processed
+calibration would have to be registered manually with ``caldb add``.
+
+.. note:: Use an absolute path for the database file.
+
+Initialise the database
+-----------------------
+
+Once the config file is in place, create the (empty) database file with:
+
+.. code-block:: bash
+
+    caldb init
+
+If a database already exists at the configured path, pass ``-w`` 
+(``--wipe``) to start over.
+
+Verify the configuration
+------------------------
+
+To confirm DRAGONS is reading the file you just wrote and to see which
+database it will use, run:
+
+.. code-block:: bash
+
+    caldb config
+
+The output should show ``~/.dragons/dragonsrc`` as the configuration file
+and the absolute path of your ``cal_manager.db`` as the configured
+database.
+
+For full details on the calibration service, including remote databases
+and multi-database setups, see the DRAGONS Recipe System User Manual.
 
 
 Understanding the Development Environment
@@ -166,6 +244,57 @@ After running ``nox -s devenv``, your directory structure will look like this:
     ├── pyproject.toml                # Package metadata and dependencies
     └── README.md                     # Repository README
 
+To activate the working environment, run:
+
+.. code-block:: bash
+
+    source venv/bin/activate
+
+You should see ``(mx_dev)`` in your shell prompt, indicating the environment is active.
+
+.. _maroonx_local_manuals:
+
+Building the Manuals Locally
+============================
+
+Only this Tutorial is published to Read the Docs. The **User Manual** and
+**Programmer Manual** live in the repository under
+``doc/usermanuals/MAROONXDR_UserManual/`` and
+``doc/progmanuals/MAROONXDR_ProgManual/`` and are built on demand with two
+``nox`` sessions.
+
+With ``mx_dev`` activated:
+
+.. code-block:: bash
+
+    # HTML build (default)
+    nox -s usermanual
+    nox -s progmanual
+
+    # PDF build (requires latexmk and a TeX Live install)
+    nox -s usermanual -- --pdf
+    nox -s progmanual -- --pdf
+
+The User Manual's primitive and recipe reference pages are generated from the
+live docstrings and parameter defaults. Pass ``--regen`` to rebuild those
+fragments from the current code before building:
+
+.. code-block:: bash
+
+    # Regenerate the primitive/recipe reference, then build HTML
+    nox -s usermanual -- --regen
+
+Use it after editing a primitive or recipe docstring so the reference reflects
+your changes. Without ``--regen`` the build uses old fragments. 
+The flag can be combined with ``--pdf``.
+
+Each session prints a clickable ``file://`` link to the rendered output when
+it finishes. Most terminals turn it into a hyperlink you can open with
+Ctrl+Click (Cmd+Click on macOS).
+
+The Tutorial itself can also be rebuilt locally with ``nox -s tutorial`` (or
+``nox -s tutorial -- --pdf``), useful when you're editing tutorial pages and
+want to preview them before pushing.
 
 
 Alternative: Conda Environment

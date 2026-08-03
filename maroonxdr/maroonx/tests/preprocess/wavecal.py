@@ -1,25 +1,40 @@
-"""Run wavecal reduction on v2 (202507xx) etalon data.
+"""Build dynamic wavelength calibrations from etalon frames.
 
-Reads debundled files from $DRAGONS_TEST/preprocessed_files/ (produced by
-preprocess/bundle.py) and writes wavecal outputs back to the same directory.
+Reads debundled etalon (DEEEE) frames from ``$DRAGONS_TEST/preprocessed_files/``
+(produced by preprocess/bundle.py) and runs the default WAVECAL recipe
+(``makeDynamicWavecal``) per arm: stripe extraction, box extraction, etalon
+peak fitting, static solution lookup, and the dynamic etalon fit.
 
-Make sure that you have created the darks and flats first (see dark.py and flat.py).
+The master flat produced by preprocess/flat.py is passed explicitly to
+``extractStripes`` (hardcoded per arm in ``MASTERFLATS``, read from the
+working-directory copy in ``preprocessed_files/``), so the run does not depend
+on caldb association for the flat. Dark subtraction is skipped for all fibers
+by default in this recipe, so no dark is used.
+
+Make sure that you have created the darks and flats first (see dark.py and
+flat.py).
 
 Usage:
-    python -m maroonxdr.maroonx.tests.preprocess.wavecal [--populate-inputs] [--legacy-patch]
+    python -m maroonxdr.maroonx.tests.preprocess.wavecal
 """
 
 import os
-import shutil
-import sys
 from pathlib import Path
 
 from gempy.adlibrary import dataselect
 from gempy.utils import logutils
 from recipe_system.reduction.coreReduce import Reduce
 
-import maroonx_instruments  # noqa - import is necessary for astrodata
+import maroonx_instruments  # noqa - import is necessary for dataselect
 from maroonxdr.maroonx.tests.test_utils import change_cwd_context
+
+ARMS = ['BLUE', 'RED']
+
+# Master flats produced by preprocess/flat.py, per arm.
+MASTERFLATS = {
+    'BLUE': '20250701T171553Z_DDDDF_b_0007_DFFFF_flat.fits',
+    'RED': '20250701T171553Z_DDDDF_r_0002_DFFFF_flat.fits',
+}
 
 
 def _get_dragons_test():
@@ -29,74 +44,30 @@ def _get_dragons_test():
     return Path(p)
 
 
-def complete_wavecal_reduction(legacy_patch=False):
-    """Reduce v2 etalon frames for both red and blue arms."""
+def make_wavecals():
+    """Build the dynamic wavelength calibration for each arm's etalon frame."""
     dragons_test = _get_dragons_test()
     preprocessed_dir = dragons_test / 'preprocessed_files'
 
     all_files = sorted(str(p) for p in preprocessed_dir.glob('*.fits'))
 
     with change_cwd_context(preprocessed_dir):
-        logutils.config(file_name='test_wavecal.log', stomp=False)
-        log = logutils.get_logger('test_wavecal.log')
+        logutils.config(file_name='wavecal.log', stomp=False)
+        log = logutils.get_logger('wavecal.log')
         log.setLevel('DEBUG')
 
-        for arm in ['BLUE', 'RED']:
+        for arm in ARMS:
             only_wavecal = dataselect.select_data(
                 all_files, tags=['RAW', 'WAVECAL', arm]
             )
-
             myreduce = Reduce()
             myreduce.files.extend(only_wavecal)
             myreduce.drpkg = 'maroonxdr'
-            myreduce.uparms = {'extractStripes:legacy': legacy_patch}
+            myreduce.uparms = {'extractStripes:flat': MASTERFLATS[arm]}
             myreduce.runr()
-
-
-def populate_inputs(legacy_patch=False):
-    """Copy wavecal outputs to test inputs/ directories."""
-    dragons_test = _get_dragons_test()
-    src = dragons_test / 'preprocessed_files'
-    base = dragons_test / 'maroonxdr' / 'maroonx'
-
-    # echelle_extraction/test_wavecal
-    _copy_files(
-        src,
-        base / 'echelle_extraction' / 'test_wavecal' / 'inputs',
-        [
-            '20250717T163124Z_DEEEE_b_0010_wavecal.fits',
-        ],
-    )
-
-    if not legacy_patch:
-        return
-
-    _copy_files(
-        src,
-        base / 'legacy_regression' / 'test_reduced_wavecal' / 'inputs',
-        [
-            '20250717T163124Z_DEEEE_b_0010_wavecal.fits',
-            '20250717T163124Z_DEEEE_r_0004_wavecal.fits',
-        ],
-    )
-
-
-def _copy_files(src_dir, dst_dir, filenames):
-    """Copy specific files from src_dir to dst_dir, creating dst_dir if needed."""
-    dst_dir.mkdir(parents=True, exist_ok=True)
-    for f in filenames:
-        src_file = src_dir / f
-        if src_file.exists():
-            shutil.copy2(src_file, dst_dir / f)
-            print(f'  Copied {f} -> {dst_dir}')
-        else:
-            print(f'  WARNING: {src_file} not found, skipping')
 
 
 if __name__ == '__main__':
 
-    legacy_patch = '--legacy-patch' in sys.argv[1:]
-    complete_wavecal_reduction(legacy_patch=legacy_patch)
-
-    if '--populate-inputs' in sys.argv[1:]:
-        populate_inputs(legacy_patch=legacy_patch)
+    # reduce etalons per arm
+    make_wavecals()

@@ -1,0 +1,54 @@
+// Flow diagram for the `processBundle` recipe
+// (maroonxdr/maroonx/recipes/sq/recipes_BUNDLE.py).
+//
+// Conventions follow flows/nodes.dot (the node catalog).
+
+digraph processBundle {
+    rankdir=TB;
+    fontname="Helvetica";
+    labelloc="t";
+    label=<<b>processBundle</b>>;
+
+    node [fontname="Helvetica", fontsize=10,
+          shape=box, style="rounded,filled",
+          penwidth=1.5, fontcolor=white];
+    edge [fontname="Helvetica", fontsize=9];
+
+    // ---- Input: raw SCIENCE bundle (both arms) ---------------------------
+    input [label="RAW\nSOOOE",
+           shape=note, style="filled,dashed",
+           fillcolor="#7BA5E8", fontcolor=black,
+           color=black, penwidth=1];
+
+    // ---- Primitive chain -------------------------------------------------
+    // splitBundle: new in MAROONX
+    splitBundle [label="splitBundle()",
+                 fillcolor="#A1342D", color="#A1342D"];
+
+    // writeOutputs: DRAGONS core, unchanged
+    writeOutputs [label="writeOutputs()",
+                  fillcolor="#4A90A4", color="#4A90A4"];
+
+    // ---- Outputs: per-arm raw SCIENCE frames + log ----------------------
+    out_blue [label="RAW\nSOOOE",
+              shape=note, style="filled,dashed",
+              fillcolor="#7BA5E8", fontcolor=black,
+              color="#1976D2", penwidth=1.5];
+
+    out_red [label="RAW\nSOOOE",
+             shape=note, style="filled,dashed",
+             fillcolor="#7BA5E8", fontcolor=black,
+             color="#C62828", penwidth=1.5];
+
+    log [label="reduce.log",
+         shape=note, style=filled,
+         fillcolor="#e8f0fe", fontcolor=black,
+         color=black, penwidth=1];
+
+    // ---- Edges -----------------------------------------------------------
+    input        -> splitBundle;
+    splitBundle  -> writeOutputs;
+    writeOutputs -> out_blue;
+    writeOutputs -> out_red;
+    writeOutputs -> log;
+}
