@@ -212,7 +212,7 @@ class bundleArmStreamsConfig(config.Config):
     """
     Configuration for bundleArmStreams primitive.
     """
-    suffix = config.Field('Filename suffix', str, '_rebundled')
+    suffix = config.Field('Filename suffix', str, '_reduced')
 
 
 class displaySpectraConfig(config.Config):

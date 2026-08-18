@@ -2563,9 +2563,6 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             blue_ad = blue_dict[archname]
             red_ad = red_dict[archname]
 
-            suffix = params.get("suffix")
-            new_name = f"{archname}_{suffix}" if suffix else archname
-            log.stdinfo(f"{blue_ad.filename} + {red_ad.filename} -> {new_name}")
 
             # Create bundle with ARCHNAME as filename
             bundle_ad = deepcopy(blue_ad)
@@ -2584,7 +2581,8 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
             # Update name and append to output
             gt.mark_history(bundle_ad, primname=self.myself(), keyword=timestamp_key)
-            bundle_ad.update_filename(suffix=suffix, strip=True)
+            bundle_ad.update_filename(suffix=params.get("suffix"), strip=True)
+            log.stdinfo(f"{blue_ad.filename} + {red_ad.filename} -> {bundle_ad.filename}")
             adoutputs.append(bundle_ad)
 
         return adoutputs
