@@ -30,7 +30,6 @@ class createSyntheticDarkConfig(config.Config):
     '''
     This parameter set controls the createSyntheticDark primitive for MAROON-X.
     '''
-    suffix = config.Field("Filename suffix", str, "")
     dark_coeff = config.ListField("Dark coefficient file", (str, AstroData), None,
                                 optional=True, single=True)
     individual = config.Field(

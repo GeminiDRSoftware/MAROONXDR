@@ -43,21 +43,22 @@ class MAROONXEchelle(MAROONX, Spect):
 
     def createSyntheticDark(self, adinputs=None, **params):
         """
-        Creates synthetic dark frames from science input files.
+        Create synthetic dark frames matching the exposure time of the inputs.
 
-        This primitive generates synthetic dark frames using pre-computed coefficients
-        and the log-linear relationship: dark = z1 + z0 * log10(exptime * factor)
+        The per-pixel log-linear model of a processed dark coefficients
+        calibration, dark = z1 + z0 * log10(exptime), is evaluated at the
+        exposure time of each input. By default inputs are grouped by
+        exposure time and arm, and one dark is produced per group.
 
         Parameters
         ----------
         adinputs : list of :class:`~astrodata.AstroData`
-            Science files to create darks for.
+            Frames to create synthetic darks for. Exposure time, ND filter
+            position and arm tag (BLUE or RED) are read from each frame.
 
-        suffix : str
-            Suffix to be added to output files.
-
-        dark_coeff : str or :class:`~astrodata.AstroData`, optional
-            Adinput of dark coefficients file.
+        dark_coeff : str or :class:`~astrodata.AstroData`
+            Processed dark coefficients calibration. If None, it is retrieved
+            from the calibration database for each input.
 
         individual : bool
             If False, one synthetic dark per unique exposure time and arm,
@@ -67,8 +68,12 @@ class MAROONXEchelle(MAROONX, Spect):
         Returns
         -------
         list of :class:`~astrodata.AstroData`
-            Synthetic dark frames, one per exposure time and arm group (or one
-            per input when ``individual`` is True).
+            Synthetic dark frames only; the inputs are not returned. Each is a
+            deep copy of the first frame of its group with the data replaced
+            by the evaluated dark and the PHU fiber keywords set to
+            ``FIBER1`` to ``FIBER4`` = ``'Dark'``, ``FIBER5`` = ``'Etalon'``.
+            Inputs already covered by a previous group, or with no dark
+            coefficients available, produce no output.
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
@@ -882,35 +887,32 @@ def _evaluate_synthetic_dark(coeff_ad, exptime, nd_filter=None, log=None):
     """
     Evaluate dark coefficients at an exposure time.
 
-    Applies the log-linear relationship
-    ``dark = z1 + z0 * log10(exptime * factor)`` stored in a processed dark
-    coefficients calibration. When the ``LOGEXPTIME`` table carries an
-    ``ndfilter`` column with more than one distinct value, the ND filter
-    position is used to derive the effective exposure time; otherwise
-    ``factor`` is 1.
+    Returns ``z1 + z0 * log10(exptime * factor)`` from the ``COEFF_Z0``,
+    ``COEFF_Z1`` and ``LOGEXPTIME`` extensions of `coeff_ad`. The
+    ``factor`` is 1 unless ``LOGEXPTIME`` carries an ``ndfilter`` column,
+    in which case the ND filter position is used to correct the exposure
+    time (see the Case 1 to 3 comments in the body).
 
     Parameters
     ----------
     coeff_ad : :class:`~astrodata.AstroData`
-        Dark coefficients calibration with ``COEFF_Z0``, ``COEFF_Z1`` and
-        ``LOGEXPTIME`` extensions on its first slice.
+        Processed dark coefficients calibration.
     exptime : float
         Exposure time in seconds. May be None when `nd_filter` is given.
     nd_filter : float
         ND filter position. May be None when `exptime` is given.
-    log : logger
-        DRAGONS logger for warnings and info messages.
+    log : logging.Logger
+        DRAGONS logger, or None for no messages.
 
     Returns
     -------
-    numpy.ndarray
-        Synthetic dark array (float32) with the shape of ``COEFF_Z0``.
+    ndarray
+        Synthetic dark, float32, with the shape of ``COEFF_Z0``.
 
     Raises
     ------
     ValueError
-        If both `exptime` and `nd_filter` are None, or a required extension
-        is missing.
+        If both `exptime` and `nd_filter` are None, or an extension is missing.
     """
     # Validate inputs
     if exptime is None and nd_filter is None:
