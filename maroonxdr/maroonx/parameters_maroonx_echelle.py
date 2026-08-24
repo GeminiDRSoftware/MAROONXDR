@@ -33,7 +33,11 @@ class createSyntheticDarkConfig(config.Config):
     suffix = config.Field("Filename suffix", str, "")
     dark_coeff = config.ListField("Dark coefficient file", (str, AstroData), None,
                                 optional=True, single=True)
-    individual = config.Field("Unique dark for each frame", bool, False)
+    individual = config.Field(
+        "If False, one synthetic dark per unique exposure time and arm, "
+        "named after the first frame of each group. If True, one per "
+        "input frame.",
+        bool, False)
 
 class extractStripesConfig(config.Config):
     '''

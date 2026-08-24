@@ -60,13 +60,15 @@ class MAROONXEchelle(MAROONX, Spect):
             Adinput of dark coefficients file.
 
         individual : bool
-            If True, creates unique dark for each frame (no reuse). If False,
-            reuses darks for frames with same exposure time, ND filter, and arm.
+            If False, one synthetic dark per unique exposure time and arm,
+            named after the first frame of each group. If True, one synthetic
+            dark per input frame.
 
         Returns
         -------
         list of :class:`~astrodata.AstroData`
-            Synthetic dark frames.
+            Synthetic dark frames, one per exposure time and arm group (or one
+            per input when ``individual`` is True).
         """
         log = self.log
         log.debug(gt.log_message('primitive', self.myself(), 'starting'))
@@ -81,151 +83,54 @@ class MAROONXEchelle(MAROONX, Spect):
         else:
             dark_coeff_list = (dark_coeff, None)
 
-        # Cache for storing created darks when individual=False
+        # Synthetic darks already created, keyed by group (or by filename
+        # when individual=True). A frame whose key is present is covered by
+        # an existing product and yields no new output.
         dark_cache = {}
         adoutputs = []
 
         for ad, dark_coeff_ad, _ in zip(
             *gt.make_lists(adinputs, *dark_coeff_list, force_ad=(1,))
         ):
-            log.stdinfo(f"{ad.filename}: creating synthetic dark")
-            log.stdinfo(f"{dark_coeff_ad.filename}: selected dark coefficients")
-
             exptime = ad.exposure_time()
             nd_filter = ad.filter_orientation()['ND']
             arm_tag = 'BLUE' if 'BLUE' in ad.tags else 'RED'
+            cache_key = ad.filename if individual else (exptime, arm_tag)
 
-            # Create cache key based on individual parameter
-            if individual:
-                cache_key = ad.filename  # Unique key - no reuse
-            else:
-                cache_key = (exptime, nd_filter, arm_tag)  # Grouping key - allows reuse
+            if cache_key in dark_cache:
+                log.stdinfo(
+                    f'{ad.filename}: covered by synthetic dark '
+                    f'{dark_cache[cache_key].filename}'
+                )
+                continue
 
-            synthetic_dark_data = None
+            if dark_coeff_ad is None:
+                log.warning(
+                    'No dark coefficients found for %s arm, %s',
+                    arm_tag,
+                    ad.filename,
+                )
+                continue
 
-            if cache_key not in dark_cache:
+            log.stdinfo(f"{ad.filename}: creating synthetic dark")
+            log.stdinfo(f"{dark_coeff_ad.filename}: selected dark coefficients")
 
-                if dark_coeff_ad is not None:
-                    # Validate inputs
-                    if exptime is None and nd_filter is None:
-                        msg = 'Either exptime or nd_filter must be provided'
-                        log.warning(msg)
-                        raise ValueError(msg)
+            synthetic_dark_data = _evaluate_synthetic_dark(
+                dark_coeff_ad, exptime, nd_filter=nd_filter, log=log
+            )
 
-                    # Check for required extensions
-                    required_extensions = ['COEFF_Z0', 'COEFF_Z1', 'LOGEXPTIME']
-                    for ext_name in required_extensions:
-                        if not hasattr(dark_coeff_ad[0], ext_name):
-                            msg = f'Required extension {ext_name} not found'
-                            log.warning(msg)
-                            raise ValueError(msg)
+            # Create copy of input AstroData with synthetic dark data
+            adout = copy.deepcopy(ad)
+            adout[0].data = synthetic_dark_data
 
-                    # Extract coefficient arrays
-                    z0 = dark_coeff_ad[0].COEFF_Z0
-                    z1 = dark_coeff_ad[0].COEFF_Z1
-                    logexptime_table = dark_coeff_ad[0].LOGEXPTIME
-
-                    # Extract calibration data
-                    logexptimes = np.array(logexptime_table['logexptime'])
-                    exptimes = np.array(logexptime_table['exptime'])
-
-                    # Check if ND filter data is available
-                    has_nd_data = 'ndfilter' in logexptime_table.colnames
-                    if has_nd_data:
-                        ndfilters = np.array(logexptime_table['ndfilter'])
-                    else:
-                        # Default to zero if no ND data
-                        ndfilters = np.zeros_like(exptimes)
-
-                    # Initialize variables
-                    factor = 1.0
-                    actual_exptime = exptime
-                    actual_nd = nd_filter
-
-                    # Case 1: Only exposure time provided
-                    if exptime is not None and nd_filter is None:
-                        actual_exptime = exptime
-
-                        if has_nd_data and len(np.unique(ndfilters)) > 1:
-                            # Calculate expected ND position from exposure time
-                            z_nd_logt = np.polyfit(logexptimes, ndfilters, 1)
-                            f_nd_logt = np.poly1d(z_nd_logt)
-                            actual_nd = f_nd_logt(np.log10(exptime))
-                        else:
-                            actual_nd = ndfilters[0] if len(ndfilters) > 0 else 0.0
-
-                    # Case 2: Only ND value provided
-                    elif nd_filter is not None and exptime is None:
-                        actual_nd = nd_filter
-
-                        if has_nd_data and len(np.unique(ndfilters)) > 1:
-                            # Calculate exposure time from ND position
-                            z_logt_nd = np.polyfit(ndfilters, logexptimes, 1)
-                            f_logt_nd = np.poly1d(z_logt_nd)
-                            actual_exptime = 10 ** (f_logt_nd(nd_filter))
-                        else:
-                            # Use median exposure time as default
-                            actual_exptime = np.median(exptimes)
-
-                    # Case 3: Both exposure time and ND value provided
-                    elif exptime is not None and nd_filter is not None:
-                        actual_exptime = exptime
-                        actual_nd = nd_filter
-
-                        # Check for ND filter mismatch and apply correction if needed
-                        if has_nd_data and len(np.unique(ndfilters)) > 1:
-                            z_nd_logt = np.polyfit(logexptimes, ndfilters, 1)
-                            f_nd_logt = np.poly1d(z_nd_logt)
-                            z_logt_nd = np.polyfit(ndfilters, logexptimes, 1)
-                            f_logt_nd = np.poly1d(z_logt_nd)
-
-                            expected_nd = f_nd_logt(np.log10(exptime))
-                            nd_difference = abs(actual_nd - expected_nd)
-
-                            # Apply correction if ND mismatch is significant
-                            if nd_difference > 0.2:
-                                logt_nominal = f_logt_nd(actual_nd)
-                                factor = 10 ** (np.log10(exptime) - logt_nominal)
-
-                    # Calculate synthetic dark frame
-                    # Formula: dark = z1 + z0 * log10(exptime * factor)
-                    effective_logexptime = np.log10(actual_exptime * factor)
-                    synthetic_dark_data = (z1 + z0 * effective_logexptime).astype(
-                        np.float32
-                    )
-
-                    dark_cache[cache_key] = synthetic_dark_data
-                    log.fullinfo(
-                        f'Created synthetic dark for {ad.filename}: '
-                        f'exptime={actual_exptime:.1f}s, nd={actual_nd:.2f}, '
-                        f'factor={factor:.2f}'
-                    )
-                else:
-                    log.warning(
-                        'No dark coefficients found for %s arm, %s',
-                        arm_tag,
-                        ad.filename,
-                    )
-                    dark_cache[cache_key] = None
-            else:
-                # Use cached dark
-                synthetic_dark_data = dark_cache[cache_key]
-
-            # Create AstroData object for synthetic dark
-            if synthetic_dark_data is not None:
-                # Create copy of input AstroData with synthetic dark data
-                adout = copy.deepcopy(ad)
-                adout[0].data = synthetic_dark_data
-
-                # Rename fiber keywords to match a Dark fiber setup
-                for fiber in [1, 2, 3, 4]:
-                    adout.phu[f'FIBER{fiber}'] = 'Dark'
-                adout.phu['FIBER5'] = 'Etalon'
-                add_provenance(adout, dark_coeff_ad.filename,
-                               md5sum(dark_coeff_ad.path) or "", self.myself())
-                adoutputs.append(adout)
-            else:
-                log.warning('No synthetic dark created for %s', ad.filename)
+            # Rename fiber keywords to match a Dark fiber setup
+            for fiber in [1, 2, 3, 4]:
+                adout.phu[f'FIBER{fiber}'] = 'Dark'
+            adout.phu['FIBER5'] = 'Etalon'
+            add_provenance(adout, dark_coeff_ad.filename,
+                           md5sum(dark_coeff_ad.path) or "", self.myself())
+            dark_cache[cache_key] = adout
+            adoutputs.append(adout)
 
         gt.mark_history(adoutputs, primname=self.myself(), keyword=timestamp_key)
         return adoutputs
@@ -971,6 +876,137 @@ class MAROONXEchelle(MAROONX, Spect):
 ##############################################################################
 # Below are the helper functions for the primitives in this module           #
 ##############################################################################
+
+
+def _evaluate_synthetic_dark(coeff_ad, exptime, nd_filter=None, log=None):
+    """
+    Evaluate dark coefficients at an exposure time.
+
+    Applies the log-linear relationship
+    ``dark = z1 + z0 * log10(exptime * factor)`` stored in a processed dark
+    coefficients calibration. When the ``LOGEXPTIME`` table carries an
+    ``ndfilter`` column with more than one distinct value, the ND filter
+    position is used to derive the effective exposure time; otherwise
+    ``factor`` is 1.
+
+    Parameters
+    ----------
+    coeff_ad : :class:`~astrodata.AstroData`
+        Dark coefficients calibration with ``COEFF_Z0``, ``COEFF_Z1`` and
+        ``LOGEXPTIME`` extensions on its first slice.
+    exptime : float
+        Exposure time in seconds. May be None when `nd_filter` is given.
+    nd_filter : float
+        ND filter position. May be None when `exptime` is given.
+    log : logger
+        DRAGONS logger for warnings and info messages.
+
+    Returns
+    -------
+    numpy.ndarray
+        Synthetic dark array (float32) with the shape of ``COEFF_Z0``.
+
+    Raises
+    ------
+    ValueError
+        If both `exptime` and `nd_filter` are None, or a required extension
+        is missing.
+    """
+    # Validate inputs
+    if exptime is None and nd_filter is None:
+        msg = 'Either exptime or nd_filter must be provided'
+        if log:
+            log.warning(msg)
+        raise ValueError(msg)
+
+    # Check for required extensions
+    required_extensions = ['COEFF_Z0', 'COEFF_Z1', 'LOGEXPTIME']
+    for ext_name in required_extensions:
+        if not hasattr(coeff_ad[0], ext_name):
+            msg = f'Required extension {ext_name} not found'
+            if log:
+                log.warning(msg)
+            raise ValueError(msg)
+
+    # Extract coefficient arrays
+    z0 = coeff_ad[0].COEFF_Z0
+    z1 = coeff_ad[0].COEFF_Z1
+    logexptime_table = coeff_ad[0].LOGEXPTIME
+
+    # Extract calibration data
+    logexptimes = np.array(logexptime_table['logexptime'])
+    exptimes = np.array(logexptime_table['exptime'])
+
+    # Check if ND filter data is available
+    has_nd_data = 'ndfilter' in logexptime_table.colnames
+    if has_nd_data:
+        ndfilters = np.array(logexptime_table['ndfilter'])
+    else:
+        # Default to zero if no ND data
+        ndfilters = np.zeros_like(exptimes)
+
+    # Initialize variables
+    factor = 1.0
+    actual_exptime = exptime
+    actual_nd = nd_filter
+
+    # Case 1: Only exposure time provided
+    if exptime is not None and nd_filter is None:
+        actual_exptime = exptime
+
+        if has_nd_data and len(np.unique(ndfilters)) > 1:
+            # Calculate expected ND position from exposure time
+            z_nd_logt = np.polyfit(logexptimes, ndfilters, 1)
+            f_nd_logt = np.poly1d(z_nd_logt)
+            actual_nd = f_nd_logt(np.log10(exptime))
+        else:
+            actual_nd = ndfilters[0] if len(ndfilters) > 0 else 0.0
+
+    # Case 2: Only ND value provided
+    elif nd_filter is not None and exptime is None:
+        actual_nd = nd_filter
+
+        if has_nd_data and len(np.unique(ndfilters)) > 1:
+            # Calculate exposure time from ND position
+            z_logt_nd = np.polyfit(ndfilters, logexptimes, 1)
+            f_logt_nd = np.poly1d(z_logt_nd)
+            actual_exptime = 10 ** (f_logt_nd(nd_filter))
+        else:
+            # Use median exposure time as default
+            actual_exptime = np.median(exptimes)
+
+    # Case 3: Both exposure time and ND value provided
+    elif exptime is not None and nd_filter is not None:
+        actual_exptime = exptime
+        actual_nd = nd_filter
+
+        # Check for ND filter mismatch and apply correction if needed
+        if has_nd_data and len(np.unique(ndfilters)) > 1:
+            z_nd_logt = np.polyfit(logexptimes, ndfilters, 1)
+            f_nd_logt = np.poly1d(z_nd_logt)
+            z_logt_nd = np.polyfit(ndfilters, logexptimes, 1)
+            f_logt_nd = np.poly1d(z_logt_nd)
+
+            expected_nd = f_nd_logt(np.log10(exptime))
+            nd_difference = abs(actual_nd - expected_nd)
+
+            # Apply correction if ND mismatch is significant
+            if nd_difference > 0.2:
+                logt_nominal = f_logt_nd(actual_nd)
+                factor = 10 ** (np.log10(exptime) - logt_nominal)
+
+    # Calculate synthetic dark frame
+    # Formula: dark = z1 + z0 * log10(exptime * factor)
+    effective_logexptime = np.log10(actual_exptime * factor)
+    synthetic_dark_data = (z1 + z0 * effective_logexptime).astype(np.float32)
+
+    if log:
+        log.fullinfo(
+            f'Synthetic dark evaluated: exptime={actual_exptime:.1f}s, '
+            f'nd={actual_nd:.2f}, factor={factor:.2f}'
+        )
+
+    return synthetic_dark_data
 
 
 def _extract_single_stripe(data=None, polynomials=None, slit_height=10):
