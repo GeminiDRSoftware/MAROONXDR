@@ -75,6 +75,22 @@ def test_createSyntheticDarkFromCoeffs(dark_coeff):
     assert single[0].filename == f'{stem}_0120.fits'
 
 
+def test_both_routes_evaluate_the_same_dark(dark_coeff):
+    """The science route and the coefficients route agree on the dark data."""
+    exptime = 600.0
+    science = make_frame('RED', np.zeros(SHAPE, dtype=np.float32),
+                         nd_position=1.5)
+    science.phu['EXPTIME'] = exptime
+    science[0].hdr['EXPTIME'] = exptime
+
+    from_science = MAROONXEchelle([]).createSyntheticDark(
+        [science], dark_coeff=dark_coeff)[0]
+    from_coeffs = MAROONXEchelle([]).createSyntheticDarkFromCoeffs(
+        [dark_coeff], exptime=exptime)[0]
+
+    np.testing.assert_array_equal(from_science[0].data, from_coeffs[0].data)
+
+
 def test_createSyntheticDarkFromCoeffs_requires_exptime(dark_coeff):
     """An empty or missing exptime list is rejected."""
     with pytest.raises(ValueError, match='exptime'):
