@@ -76,10 +76,12 @@ def test_createSyntheticDark(ad_science):
     # The output shape follows the coefficient arrays.
     assert result[0][0].data.shape == SHAPE
 
-    # Fiber keywords are stamped to a dark setup on the way out.
+    # Fiber keywords are stamped to a dark setup on the way out, and the
+    # product tags as a synthetic dark.
     for fiber in (1, 2, 3, 4):
         assert result[0].phu[f'FIBER{fiber}'] == 'Dark'
     assert result[0].phu['FIBER5'] == 'Etalon'
+    assert 'DARK_SYNTH' in result[0].tags
 
 
 @pytest.mark.parametrize('arm', ['RED', 'BLUE'])

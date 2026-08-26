@@ -140,6 +140,91 @@ class MAROONXEchelle(MAROONX, Spect):
         gt.mark_history(adoutputs, primname=self.myself(), keyword=timestamp_key)
         return adoutputs
 
+    def createSyntheticDarkFromCoeffs(self, adinputs=None, **params):
+        """
+        Create synthetic dark frames at given exposure times from coefficients.
+
+        The per-pixel log-linear model of the input processed dark
+        coefficients calibration, dark = z1 + z0 * log10(exptime), is
+        evaluated at each requested exposure time. Each product is a copy of
+        the input with the data replaced, the COEFF_Z0, COEFF_Z1 and
+        LOGEXPTIME extensions removed, EXPTIME set in the primary and
+        extension headers, and the exposure time field of the filename
+        rewritten (also in ORIGNAME).
+
+        Parameters
+        ----------
+        adinputs : list of :class:`~astrodata.AstroData`
+            Processed dark coefficients calibrations (tag DARK_COEFF).
+
+        exptime : float or list of float
+            Exposure times in seconds, one synthetic dark per value.
+
+        Returns
+        -------
+        list of :class:`~astrodata.AstroData`
+            Synthetic dark frames, one per input and exposure time.
+
+        Raises
+        ------
+        ValueError
+            If ``exptime`` is empty or an input is not tagged DARK_COEFF.
+        """
+        log = self.log
+        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
+        timestamp_key = self.timestamp_keys[self.myself()]
+
+        exptimes = params['exptime']
+        if not exptimes:
+            raise ValueError('exptime parameter is required')
+        exptimes = exptimes if isinstance(exptimes, list) else [exptimes]
+
+        adoutputs = []
+        for coeff_ad in adinputs:
+            if 'DARK_COEFF' not in coeff_ad.tags:
+                raise ValueError(
+                    f'{coeff_ad.filename} is not a dark coefficients file'
+                )
+
+            for exptime in exptimes:
+                exptime = float(exptime)
+                log.stdinfo(
+                    f'{coeff_ad.filename}: creating synthetic dark '
+                    f'for {exptime:.0f}s'
+                )
+
+                synthetic_dark_data = _evaluate_synthetic_dark(
+                    coeff_ad, exptime, log=log
+                )
+
+                # Copy of the input with the coefficients replaced by the
+                # evaluated dark. Without the COEFF_* extensions the product
+                # tags as DARK instead of DARK_COEFF.
+                adout = copy.deepcopy(coeff_ad)
+                adout[0].data = synthetic_dark_data
+                del adout[0].COEFF_Z0
+                del adout[0].COEFF_Z1
+                del adout[0].LOGEXPTIME
+
+                # Descriptor reads the PHU, exposure time tag reads the
+                # extension.
+                adout.phu['EXPTIME'] = exptime
+                adout[0].hdr['EXPTIME'] = exptime
+
+                # Rewrite the exposure time field of the name. ORIGNAME must
+                # follow, as storeProcessedDark strips suffixes against it.
+                stem, _ = adout.phu['ORIGNAME'].rsplit('_', 1)
+                basename = f'{stem}_{int(round(exptime)):04d}.fits'
+                adout.filename = basename
+                adout.phu['ORIGNAME'] = basename
+
+                add_provenance(adout, coeff_ad.filename,
+                               md5sum(coeff_ad.path) or "", self.myself())
+                adoutputs.append(adout)
+
+        gt.mark_history(adoutputs, primname=self.myself(), keyword=timestamp_key)
+        return adoutputs
+
     def extractStripes(self, adinputs=None, **params):
         """
         Extracts the stripes from the original 2D spectrum to a sparse array,

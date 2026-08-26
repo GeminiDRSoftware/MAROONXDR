@@ -7,25 +7,6 @@ from astrodata import AstroData
 from gempy.library import config
 
 
-class attachSyntheticDarkConfig(config.Config):
-    '''
-    This parameter set controls the attachDark primitive for MAROON-X.
-    '''
-    suffix = config.Field("Filename suffix", str, "")
-    dark_coeff = config.ListField("Dark coefficient file", (str, AstroData), None,
-                                optional=True, single=True)
-    individual = config.Field("Unique dark for each frame", bool, False)
-
-class attachDarkSubtractionConfig(config.Config):
-    '''
-    This parameter set controls the darkSubtraction primitive for MAROON-X.
-    '''
-    suffix = config.Field("Filename suffix", str, "")
-    dark_type = config.ChoiceField("Dark to attach", str,
-                                allowed={"synthetic": "Interpolated dark",
-                                         "closest": "Closest in time"},
-                                default="synthetic")
-
 class createSyntheticDarkConfig(config.Config):
     '''
     This parameter set controls the createSyntheticDark primitive for MAROON-X.
@@ -37,6 +18,13 @@ class createSyntheticDarkConfig(config.Config):
         "named after the first frame of each group. If True, one per "
         "input frame.",
         bool, False)
+
+class createSyntheticDarkFromCoeffsConfig(config.Config):
+    '''
+    This parameter set controls the createSyntheticDarkFromCoeffs primitive for MAROON-X.
+    '''
+    exptime = config.ListField("Exposure times in seconds", float, None,
+                               optional=True, single=True)
 
 class extractStripesConfig(config.Config):
     '''
@@ -111,11 +99,4 @@ class boxExtractionConfig(config.Config):
     This parameter set controls the boxExtraction primitive for MAROON-X.
     '''
     suffix = config.Field("Filename suffix", str, "")
-
-# class darkSubtraction_oldConfig(config.Config):
-#     '''
-#     This parameter set controls the darkSubtraction primitive for MAROON-X.
-#     '''
-#     suffix = config.Field("Filename suffix", str, "")
-#     individual = config.Field("individual or group caldb call", bool, False)
 
