@@ -203,10 +203,12 @@ Dark Coefficient Files
    * **Naming**: ``masterdarks_coeffs_YYYYMMxx_[blue|red].npz`` and ``masterdarks_YYYYMMxx_[blue|red].npz``.
    * **Coefficient NPZ arrays**:
 
-     * ``z0``: ``(4400, 4400)`` float64 (intercept per pixel)
-     * ``z1``: ``(4400, 4400)`` float64 (slope per pixel)
+     * ``z0``: ``(4400, 4400)`` float64 (slope per pixel)
+     * ``z1``: ``(4400, 4400)`` float64 (intercept per pixel)
      * ``logexptime``: ``(7,)`` float64
-     * ``ndfilter``: ``(7,)`` float64
+
+     Some coefficient files carry an additional ``ndfilter`` array of shape
+     ``(7,)``; the example above does not.
 
    * **Cube NPZ arrays**:
 
@@ -263,7 +265,14 @@ Synthetic Darks
    :class: dragons-block
 
    * **Example**: ``20250717T144308Z_SOOOE_b_0300_synth_dark.fits``
-   * **Naming**: takes the timestamp of the source SOOOE frame and appends ``_synth_dark``.
+   * **Naming**: depends on the route that produced it. From science frames
+     (``makeSyntheticDark``), the name of the first frame of the exposure-time
+     and arm group with ``_synth_dark`` appended, as in the example above. From
+     a coefficients file (``makeSyntheticDarksFromCoeffs``), the name of the
+     coefficients file with its exposure-time field replaced by the requested
+     exposure time and ``_synth_dark`` in place of ``_darkCoefficients``, so
+     ``20250707T164838Z_DDDDE_b_0120_darkCoefficients.fits`` at 300 s yields
+     ``20250707T164838Z_DDDDE_b_0300_synth_dark.fits``.
    * **Structure**: single-arm file. ``(4400, 4400)`` float32.
 
       .. code-block:: pycon
@@ -285,9 +294,16 @@ Synthetic Darks
          .HISTORY       Table       (2, 4)
          .PROVENANCE    Table       (2, 4)
 
-   * **Tag distinguisher**: ``DARK_SYNTH``.
+   * **Tag distinguisher**: ``DARK_SYNTH``, applied when the primary header
+     carries the ``SYNTHETIC_DARK_CREATED`` keyword. Both creation routes
+     stamp it.
    * **Processing recipe**: ``recipes_ECHELLE_SPECT.py::makeSyntheticDark``
+     (from the science frames being reduced) or
+     ``recipes_DARK.py::makeSyntheticDarksFromCoeffs`` (from a dark
+     coefficients calibration, at exposure times given by the user).
    * **Storage**: written under the ``processed_dark`` caltype in the calibration store.
+     When a science frame is matched against the store, synthetic darks are
+     searched before master darks.
 
 Flat Field Products
 ===================

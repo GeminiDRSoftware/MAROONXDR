@@ -2,7 +2,7 @@ testRegressionDark
 ==================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_DARK
-| **Astrodata Tags**: {'MAROONX', 'CAL', 'DARK'}
+| **Astrodata Tags**: {'CAL', 'MAROONX', 'DARK'}
 
 Produce a processed dark for regression comparison against legacy.
 

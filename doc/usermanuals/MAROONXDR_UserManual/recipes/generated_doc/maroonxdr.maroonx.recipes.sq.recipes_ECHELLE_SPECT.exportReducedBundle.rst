@@ -22,5 +22,5 @@ multi-extension bundle, which is stored with a "_reduced" suffix.
     def exportReducedBundle(p):
         p.separateArmStreams()
         p.bundleArmStreams()
-        p.storeProcessedScience(suffix='_reduced')
+        p.storeProcessedScience()
 

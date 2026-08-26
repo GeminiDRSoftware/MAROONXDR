@@ -86,7 +86,7 @@ The tag set for a MAROON-X file is determined primarily by the illumination patt
 
 .. note::
 
-   **Dark subtype tags.** A dark file (fiber setup ``DDDDE``) additionally carries ``DARK_COEFF`` if it has a ``COEFF_Z0`` extension (fitted dark coefficients), or ``DARK_SYNTH`` if its ``OBSTYPE`` is ``OBJECT`` (synthetic dark derived from a science exposure). These subtype tags are applied in the same ``_tag_dark`` method that assigns ``DARK, CAL``.
+   **Dark subtype tags.** A dark file (fiber setup ``DDDDE``) additionally carries ``DARK_COEFF`` if it has a ``COEFF_Z0`` extension (fitted dark coefficients), or ``DARK_SYNTH`` if its primary header carries the ``SYNTHETIC_DARK_CREATED`` keyword (dark evaluated from a coefficients file rather than stacked from raw darks). That keyword is the timestamp of both ``createSyntheticDark`` and ``createSyntheticDarkFromCoeffs``, so the tag follows either creation route. These subtype tags are applied in the same ``_tag_dark`` method that assigns ``DARK, CAL``.
 
 
 
@@ -112,7 +112,8 @@ file must be requested explicitly with ``--recipe`` (or
      - ``processBundle``
    * - ``DARK``
      - :meth:`~maroonxdr.maroonx.recipes.sq.recipes_DARK.makeProcessedDark`
-     - ``makeProcessedDark``, ``makeDarkCoefficients``, ``testVARDark``,
+     - ``makeProcessedDark``, ``makeDarkCoefficients``,
+       ``makeSyntheticDarksFromCoeffs``, ``testVARDark``,
        ``testRegressionDark``
    * - ``FLAT``
      - :meth:`~maroonxdr.maroonx.recipes.sq.recipes_FLAT_SPECT.makeProcessedFlat`
@@ -260,7 +261,9 @@ setup.
 
 ``DARK_COEFF`` : Processed dark with fitted coefficients
 
-``DARK_SYNTH`` : Synthetic dark from science frame
+``DARK_SYNTH`` : Synthetic dark, evaluated from a dark coefficients
+calibration. Applied when the ``SYNTHETIC_DARK_CREATED`` keyword is
+present in the primary header.
 
 ``BARYCOR`` : Barycentric velocity correction recorded
 

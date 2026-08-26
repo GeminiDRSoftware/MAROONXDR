@@ -29,7 +29,7 @@ The full reduction proceeds in nine steps, executed in order:
 3. **Dark Coefficients** - fit dark scaling vs. exposure time per arm
 4. **Master Flats** - build per-arm master flats from DFFFD + DDDDF inputs
 5. **Wavelength Calibration** - fit the dynamic etalon wavelength solution
-6. **Synthetic Darks** - interpolate a dark matched to each science exposure
+6. **Synthetic Darks** - interpolate one dark per science exposure time and arm
 7. **Science Reduction** - extract and wavelength-calibrate science spectra
 8. **Barycentric Correction** - apply the BERV shift to the reduced spectra
 9. **Export Bundle** - combine BLUE and RED arms into a single output FITS
@@ -346,13 +346,17 @@ copy under the ``processed_wavecal`` caltype in
 Step 6: Synthetic Darks
 ------------------------
 
-**Purpose**: interpolate, per science frame, a synthetic dark matched to
-its exact exposure time using the dark coefficients fit in Step 3.
+**Purpose**: interpolate a synthetic dark matched to the science exposure
+time, using the dark coefficients fit in Step 3.
 
 The ``makeSyntheticDark`` recipe takes the raw science frames and uses the
 ``DARK_COEFF`` calibration to build a dark frame at the science exposure
-time. The synthetic darks are stored under the ``processed_dark`` caltype
-with the ``DARK_SYNTH`` tag so Step 7 can find them as ordinary darks.
+time. The inputs are grouped by exposure time and arm, and one synthetic
+dark is written per group, named after the first frame of the group. Add
+``-p createSyntheticDark:individual=True`` to get one product per input
+frame instead. The synthetic darks are stored under the ``processed_dark``
+caltype with the ``DARK_SYNTH`` tag so Step 7 can find them as ordinary
+darks.
 
 Run once per arm:
 
@@ -364,10 +368,38 @@ Run once per arm:
         dataselect --adpkg maroonx_instruments --tags RAW,SCI,$arm \
             -o sci_${arm}.lis *.fits
 
-        # Build the synthetic dark for each science frame
+        # Build the synthetic darks for this arm
         reduce --adpkg maroonx_instruments --drpkg maroonxdr \
             --recipe makeSyntheticDark @sci_${arm}.lis
     done
+
+Synthetic darks can also be built without any science frame at hand,
+straight from the dark-coefficient file of Step 3, with the
+``makeSyntheticDarksFromCoeffs`` recipe. The exposure times are requested
+explicitly through the ``exptime`` parameter of
+``createSyntheticDarkFromCoeffs``, as a single value or as a
+comma-separated list. Square brackets are not accepted here:
+
+.. code-block:: bash
+
+    for arm in BLUE RED; do
+
+        # Select the dark-coefficient file for this arm
+        dataselect --adpkg maroonx_instruments --tags DARK_COEFF,$arm \
+            -o dark_coeff_${arm}.lis *.fits
+
+        # Build synthetic darks at 300 s and 600 s
+        reduce --adpkg maroonx_instruments --drpkg maroonxdr \
+            --recipe makeSyntheticDarksFromCoeffs \
+            -p createSyntheticDarkFromCoeffs:exptime=300,600 \
+            @dark_coeff_${arm}.lis
+    done
+
+Each product is named after the coefficient file with its exposure-time
+field replaced by the requested value, so
+``20250707T164838Z_DDDDE_b_0120_darkCoefficients.fits`` at 300 s yields
+``20250707T164838Z_DDDDE_b_0300_synth_dark.fits``. This is the route to
+take when building a library of synthetic darks ahead of a reduction.
 
 
 Step 7: Science Data Reduction
@@ -382,6 +414,12 @@ dark and flat correction, straylight removal, stripe extraction, optimal
 extraction, wavelength assignment, and fiber combination. ``caldb``
 resolves each input calibration automatically from the work done in
 Steps 2-6.
+
+The dark lookup runs in two tiers: the synthetic darks of Step 6 (tag
+``DARK_SYNTH``) are searched first, and only when none matches does
+``caldb`` fall back to the master darks of Step 2. Inside each tier the
+match is on the same arm and the same exposure time, closest in time.
+Dark-coefficient files are never served as darks.
 
 The three ``-p`` overrides below are the recommended defaults for the
 current pipeline: ``extractStripes:straylight_removal_fibers=[5]`` applies

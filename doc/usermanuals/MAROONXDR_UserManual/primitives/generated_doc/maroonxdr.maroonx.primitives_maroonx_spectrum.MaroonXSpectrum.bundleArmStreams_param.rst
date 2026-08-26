@@ -2,4 +2,4 @@ Parameter defaults and options
 ------------------------------
 ::
 
-   suffix               '_rebundled'         Filename suffix
+   suffix               '_reduced'           Filename suffix
