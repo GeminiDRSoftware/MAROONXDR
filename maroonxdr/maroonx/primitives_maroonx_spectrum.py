@@ -612,8 +612,8 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
  
             if report:
                 # Create pdf for plots
-                report_prefix = "spline_symmetrical_" if symmetric_linefits else "spline_"
-                pdf = PdfPages(report_prefix + ad.filename.replace('.fits', '.pdf'))
+                report_suffix = "_spline_symmetrical" if symmetric_linefits else "_spline"
+                pdf = PdfPages(ad.filename.replace('.fits', report_suffix + '.pdf'))
 
             # Load the etalon spectrum
             mx_spectrum = MXSpectrum(ad, etalon_peaks_symmetric=symmetric_linefits)
