@@ -29,7 +29,7 @@ The full reduction proceeds in nine steps, executed in order:
 3. **Dark Coefficients** - fit dark scaling vs. exposure time per arm
 4. **Master Flats** - build per-arm master flats from DFFFD + DDDDF inputs
 5. **Wavelength Calibration** - fit the dynamic etalon wavelength solution
-6. **Synthetic Darks** - interpolate a dark matched to each science exposure
+6. **Synthetic Darks** - interpolate one dark per science exposure time and arm
 7. **Science Reduction** - extract and wavelength-calibrate science spectra
 8. **Barycentric Correction** - compute the BERV shift of the reduced spectra
 9. **Export Bundle** - combine BLUE and RED arms into a single output FITS
@@ -395,13 +395,51 @@ copy under the ``processed_wavecal`` caltype in
 Step 6: Synthetic Darks
 ------------------------
 
-**Purpose**: interpolate, per science frame, a synthetic dark matched to
-its exact exposure time using the dark coefficients fit in Step 3.
+**Purpose**: interpolate a synthetic dark matched to the science exposure
+time, using the dark coefficients fit in Step 3.
 
-The ``makeSyntheticDark`` recipe takes the raw science frames and uses the
-``DARK_COEFF`` calibration to build a dark frame at the science exposure
-time. The synthetic darks are stored under the ``processed_dark`` caltype
-with the ``DARK_SYNTH`` tag.
+The recommended route is the ``makeSyntheticDarksFromCoeffs`` recipe,
+which builds synthetic darks straight from the dark-coefficient file of
+Step 3, without needing any science frame at hand. The exposure times are
+requested explicitly through the ``exptime`` parameter of
+``createSyntheticDarkFromCoeffs``, as a single value or as a list. The
+synthetic darks are stored under the ``processed_dark`` caltype with the
+``DARK_SYNTH`` tag.
+
+Run once per arm:
+
+.. code-block:: python
+
+    for arm in arm_tags:
+
+        # Select the dark-coefficient file for this arm
+        selected_coeffs = dataselect.select_data(get_files(), tags=['DARK_COEFF', arm])
+
+        # Build synthetic darks at 300 s and 600 s
+        myreduce = Reduce()
+        myreduce.files.extend(selected_coeffs)
+        myreduce.drpkg = 'maroonxdr'
+        myreduce.recipename = 'makeSyntheticDarksFromCoeffs'
+        myreduce.uparms = {'createSyntheticDarkFromCoeffs:exptime': [300, 600]}
+        myreduce.runr()
+
+Each product is named after the coefficient file with its exposure-time
+field replaced by the requested value, so
+``20250707T164838Z_DDDDE_b_0120_darkCoefficients.fits`` at 300 s yields
+``20250707T164838Z_DDDDE_b_0300_synth_dark.fits``. This makes the recipe
+well suited to building a library of synthetic darks ahead of a
+reduction.
+
+Alternatively, the ``makeSyntheticDark`` recipe derives the exposure
+times from the science frames themselves: it takes the raw science frames
+and uses the ``DARK_COEFF`` calibration to build a dark frame at each
+science exposure time. The inputs are grouped by exposure time and arm,
+and one synthetic dark is written per group, named after the first frame
+of the group. Add ``{'createSyntheticDark:individual': True}`` to
+``uparms`` to get one product per input frame instead. Because the
+products are named after the science frames, running it over several
+science sets that share an exposure time leaves equivalent darks on
+disk, which is why ``makeSyntheticDarksFromCoeffs`` is preferred.
 
 Run once per arm:
 
@@ -412,7 +450,7 @@ Run once per arm:
         # Select raw science frames for this arm
         selected_sci = dataselect.select_data(get_files(), tags=['RAW', 'SCI', arm])
 
-        # Build the synthetic dark for each science frame
+        # Build the synthetic darks for this arm
         myreduce = Reduce()
         myreduce.files.extend(selected_sci)
         myreduce.drpkg = 'maroonxdr'
@@ -432,6 +470,12 @@ dark and flat correction, straylight removal, stripe extraction, optimal
 extraction, wavelength assignment, and fiber combination. ``caldb``
 resolves each input calibration automatically from the work done in
 Steps 2-6.
+
+The dark lookup runs in two tiers: the synthetic darks of Step 6 (tag
+``DARK_SYNTH``) are searched first, and only when none matches does
+``caldb`` fall back to the master darks of Step 2. Inside each tier the
+match is on the same arm and the same exposure time, closest in time.
+Dark-coefficient files are never served as darks.
 
 The three ``uparms`` overrides below are the recommended defaults for the
 current pipeline: ``extractStripes:straylight_removal_fibers=[5]`` applies

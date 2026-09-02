@@ -129,9 +129,15 @@ brightness.
 
 Standard exposure times are 60, 120, 300, 600, 900, 1200, and 1800 seconds.
 Multiple master darks at different exposure times can be combined into
-pixel-by-pixel coefficient files (``z0``, ``z1``), parameterising the
-relationship ``F = z1 + z0 × log10(Texp)``. These coefficient files allow
-synthetic master darks to be generated for any required exposure time.
+pixel-by-pixel coefficient files (``z0`` the slope, ``z1`` the intercept),
+parameterising the relationship ``F = z1 + z0 × log10(Texp)``. These
+coefficient files allow synthetic master darks to be generated for any
+required exposure time, by either of two routes: from the science frames
+being reduced, giving one synthetic dark per exposure time and arm, or
+directly from a coefficient file at a list of exposure times requested by
+the user. When a science frame is matched against the calibration
+database, synthetic darks are searched before master darks; the match is
+on the same arm and the same exposure time, closest in time.
 
 **Master Flats (DFFFD + FDDDF)**
 

@@ -2,7 +2,7 @@ makeProcessedDark
 =================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_DARK
-| **Astrodata Tags**: {'MAROONX', 'CAL', 'DARK'}
+| **Astrodata Tags**: {'CAL', 'MAROONX', 'DARK'}
 
 Convert raw MAROON-X dark frames into a single processed dark.
 

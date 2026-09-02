@@ -7,7 +7,9 @@ to match science frames with their calibrations (flats, darks, BPMs, etc.).
 Matching rules (from 'MaroonX calibration and association rules.md'):
 
 - Flat: same arm, closest in time
-- Dark: same arm, same exposure time, closest in time
+- Dark: same arm, same exposure time, closest in time; synthetic darks
+  (DARK_SYNTH) take priority over master darks, dark coefficient files
+  are never served as darks
 - BPM: same arm, single master
 """
 
@@ -52,15 +54,32 @@ class CalibrationMAROONX(Calibration):
         return query.all(howmany)
 
     def dark(self, processed=False, howmany=None):
-        """Find matching dark: same arm, same exposure time, closest in time."""
+        """Find matching dark: same arm, same exposure time, closest in time.
+
+        Processed darks are searched in two tiers: synthetic darks
+        (DARK_SYNTH) first, master darks second. Dark coefficient files
+        (DARK_COEFF) are never returned as darks.
+        """
         howmany = howmany if howmany else 1
 
-        query = self.get_query() \
-            .dark(processed) \
-            .match_descriptors(Header.instrument, Header.camera,
-                               Header.exposure_time)
+        def base_query():
+            return self.get_query() \
+                .dark(processed) \
+                .match_descriptors(Header.instrument, Header.camera,
+                                   Header.exposure_time)
 
-        return query.all(howmany)
+        if not processed:
+            return base_query().all(howmany)
+
+        synthetic = base_query() \
+            .add_filters(Header.types.contains('DARK_SYNTH')) \
+            .all(howmany)
+        if synthetic:
+            return synthetic
+
+        return base_query() \
+            .add_filters(~Header.types.contains('DARK_COEFF')) \
+            .all(howmany)
 
     def bpm(self, processed=False, howmany=None):
         """Find matching BPM: same arm."""

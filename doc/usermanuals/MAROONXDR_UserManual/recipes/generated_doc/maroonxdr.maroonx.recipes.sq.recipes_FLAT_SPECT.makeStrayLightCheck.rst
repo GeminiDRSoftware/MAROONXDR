@@ -2,7 +2,7 @@ makeStrayLightCheck
 ===================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_FLAT_SPECT
-| **Astrodata Tags**: {'MAROONX', 'CAL', 'FLAT'}
+| **Astrodata Tags**: {'CAL', 'MAROONX', 'FLAT'}
 
 Check the stray light subtraction in normal flat frame processing.
 

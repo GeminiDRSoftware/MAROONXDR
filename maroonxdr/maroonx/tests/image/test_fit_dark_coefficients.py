@@ -10,9 +10,9 @@ from . import make_frame
 # A small frame keeps the per-pixel polynomial fit fast.
 SHAPE = (4, 4)
 # Known log-linear coefficients to recover: flux = Z1 + Z0 * log10(exptime).
-Z0 = np.arange(16, dtype=np.float32).reshape(SHAPE)          # slope
-Z1 = (100 - np.arange(16, dtype=np.float32)).reshape(SHAPE)  # intercept
-# Powers of ten give clean log-spaced exposure times; at least five are required.
+Z0 = np.arange(16, dtype=np.float32).reshape(SHAPE)
+Z1 = (100 - np.arange(16, dtype=np.float32)).reshape(SHAPE)
+# Usual dark exptimes by MX
 EXPOSURE_TIMES = [60., 120., 300., 600., 900., 1200., 1800.]
 
 
