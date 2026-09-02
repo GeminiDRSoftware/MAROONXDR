@@ -349,36 +349,16 @@ Step 6: Synthetic Darks
 **Purpose**: interpolate a synthetic dark matched to the science exposure
 time, using the dark coefficients fit in Step 3.
 
-The ``makeSyntheticDark`` recipe takes the raw science frames and uses the
-``DARK_COEFF`` calibration to build a dark frame at the science exposure
-time. The inputs are grouped by exposure time and arm, and one synthetic
-dark is written per group, named after the first frame of the group. Add
-``-p createSyntheticDark:individual=True`` to get one product per input
-frame instead. The synthetic darks are stored under the ``processed_dark``
-caltype with the ``DARK_SYNTH`` tag so Step 7 can find them as ordinary
-darks.
+The recommended route is the ``makeSyntheticDarksFromCoeffs`` recipe,
+which builds synthetic darks straight from the dark-coefficient file of
+Step 3, without needing any science frame at hand. The exposure times are
+requested explicitly through the ``exptime`` parameter of
+``createSyntheticDarkFromCoeffs``, as a single value or as a
+comma-separated list (square brackets are not accepted here). The
+synthetic darks are stored under the ``processed_dark`` caltype with the
+``DARK_SYNTH`` tag so Step 7 can find them as ordinary darks.
 
 Run once per arm:
-
-.. code-block:: bash
-
-    for arm in BLUE RED; do
-
-        # Select raw science frames for this arm
-        dataselect --adpkg maroonx_instruments --tags RAW,SCI,$arm \
-            -o sci_${arm}.lis *.fits
-
-        # Build the synthetic darks for this arm
-        reduce --adpkg maroonx_instruments --drpkg maroonxdr \
-            --recipe makeSyntheticDark @sci_${arm}.lis
-    done
-
-Synthetic darks can also be built without any science frame at hand,
-straight from the dark-coefficient file of Step 3, with the
-``makeSyntheticDarksFromCoeffs`` recipe. The exposure times are requested
-explicitly through the ``exptime`` parameter of
-``createSyntheticDarkFromCoeffs``, as a single value or as a
-comma-separated list. Square brackets are not accepted here:
 
 .. code-block:: bash
 
@@ -398,8 +378,35 @@ comma-separated list. Square brackets are not accepted here:
 Each product is named after the coefficient file with its exposure-time
 field replaced by the requested value, so
 ``20250707T164838Z_DDDDE_b_0120_darkCoefficients.fits`` at 300 s yields
-``20250707T164838Z_DDDDE_b_0300_synth_dark.fits``. This is the route to
-take when building a library of synthetic darks ahead of a reduction.
+``20250707T164838Z_DDDDE_b_0300_synth_dark.fits``. This makes the recipe
+well suited to building a library of synthetic darks ahead of a
+reduction.
+
+Alternatively, the ``makeSyntheticDark`` recipe derives the exposure
+times from the science frames themselves: it takes the raw science frames
+and uses the ``DARK_COEFF`` calibration to build a dark frame at each
+science exposure time. The inputs are grouped by exposure time and arm,
+and one synthetic dark is written per group, named after the first frame
+of the group. Add ``-p createSyntheticDark:individual=True`` to get one
+product per input frame instead. Because the products are named after the
+science frames, running it over several science sets that share an
+exposure time leaves equivalent darks on disk, which is why
+``makeSyntheticDarksFromCoeffs`` is preferred.
+
+Run once per arm:
+
+.. code-block:: bash
+
+    for arm in BLUE RED; do
+
+        # Select raw science frames for this arm
+        dataselect --adpkg maroonx_instruments --tags RAW,SCI,$arm \
+            -o sci_${arm}.lis *.fits
+
+        # Build the synthetic darks for this arm
+        reduce --adpkg maroonx_instruments --drpkg maroonxdr \
+            --recipe makeSyntheticDark @sci_${arm}.lis
+    done
 
 
 Step 7: Science Data Reduction

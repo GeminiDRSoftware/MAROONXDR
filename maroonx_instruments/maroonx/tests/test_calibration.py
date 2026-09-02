@@ -102,6 +102,10 @@ def test_synthetic_dark_preferred_over_master(path_to_inputs, tmp_path):
     caldb.add_cal(os.path.join(path_to_inputs, proc_blue_dark))
     caldb.add_cal(os.path.join(path_to_inputs, blue_synth_dark))
 
+    # The query is a raw dark, not a science frame: the only 300s blue
+    # science frame available is the one the synthetic dark was made for,
+    # so querying with it would let the synthetic dark win on time
+    # proximity alone. The explicit caltype bypasses set_applicable.
     # Same night as proc_blue_dark, ten days before the synthetic dark
     ad_sci = astrodata.open(os.path.join(path_to_inputs, blue_dark))
     result = caldb.get_calibrations([ad_sci], caltype='processed_dark')
@@ -115,6 +119,9 @@ def test_dark_coefficients_not_served_as_dark(path_to_inputs, tmp_path):
 
     caldb.add_cal(os.path.join(path_to_inputs, blue_dark_coeff))
 
+    # The query is a raw dark because no 120s science frame exists; only
+    # a same-exptime query proves the DARK_COEFF exclusion rather than an
+    # exposure time mismatch. The explicit caltype bypasses set_applicable.
     # Same arm and exposure time as the coefficients file
     ad_sci = astrodata.open(os.path.join(path_to_inputs, blue_dark_120))
     result = caldb.get_calibrations([ad_sci], caltype='processed_dark')
