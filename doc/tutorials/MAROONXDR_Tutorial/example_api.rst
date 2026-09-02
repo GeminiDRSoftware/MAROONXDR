@@ -337,6 +337,13 @@ tag set.
    ``DDDDF`` instead of ``FDDDF`` (as in this tutorial), use the
    ``makeProcessedFlatDFFFF`` variant explicitly via ``recipename``.
 
+.. note:: This step also writes ``*_backgroundfit.pdf`` diagnostic
+   reports into the working directory, and several later steps write
+   similar PDFs. These are quality-control products, enabled by
+   default; see :ref:`maroonxdr_user_pdf_reports` in the User Manual
+   for what each one shows. To disable a primitive's report, add it to
+   ``uparms``, for example ``{'removeStrayLight:report': False}``.
+
 **Verify processed flats:**
 
 .. code-block:: python

@@ -54,14 +54,16 @@ Primitives That Generate Reports
 - **Pages**: raw frame, orders masked, background model (1st iteration),
   background subtracted, masked pixels per mesh cell, correction background
   model, final subtracted data
-- **Called in**: ``makeProcessedFlat`` recipe
+- **Called in**: ``makeProcessedFlat`` and ``makeProcessedFlatDFFFF``
+  recipes; also runs inside ``extractStripes`` in the ``reduce`` recipe,
+  which forwards its own ``report`` parameter
 - **Plotting function**: :func:`~maroonxdr.maroonx.maroonx_plots.plot_backgroundfit`
 
 ``fitAndApplyEtalonWls``
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 - **Source**: ``primitives_maroonx_spectrum.py``
-- **Output**: ``spline_[symmetrical_]{input}.pdf``
+- **Output**: ``{input}_spline[_symmetrical].pdf``
 - **Content**: etalon dispersion plots per fiber, wavelength solution residuals
   after spline fit
 - **Called in**: ``makeDynamicWavecal`` recipe
@@ -100,7 +102,7 @@ Primitives That Generate Reports
 - **Output**: ``{input}_exposuremeter.pdf`` (1 page)
 - **Content**: dual-axis time series of PC and FRD exposure meter channels with
   exposure boundaries and zeropoints
-- **Called in**: ``applyBarycentricCorrection`` sub-recipe
+- **Called in**: ``reduce`` and ``applyBarycentricCorrection`` recipes
 - **Plotting function**:
   :func:`~maroonxdr.maroonx.maroonx_plots.plot_exposuremeter`
 

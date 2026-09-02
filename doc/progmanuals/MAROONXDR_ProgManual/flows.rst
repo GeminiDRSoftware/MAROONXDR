@@ -157,7 +157,7 @@ drift-corrected solution using the processed wavecal and the
 ``REFWAVELENGTH`` lookup. ``combineFibers`` adds the virtual sixth
 fiber from the three science fibers, and ``barycentricCorrection``
 computes the BERV values before the final ``_reduced`` product is
-written to the working directory. Five primitives emit PDF diagnostic
+written to the working directory. Four primitives emit PDF diagnostic
 reports by default. The diagram shows the BLUE arm.
 
 .. graphviz:: flows/reduce.dot

@@ -59,7 +59,7 @@ digraph reduce {
     // ---- Diagnostic reports (all identical) ------------------------------
     node [shape=folder, style=filled, label="report.pdf",
           fillcolor="#e8f0fe", fontcolor=black, color=black, penwidth=1];
-    report_extract; report_peaks; report_apply; report_combine; report_barycor;
+    report_extract; report_apply; report_combine; report_barycor;
 
     // ---- Outputs (storeProcessedScience writes to CWD only, NOT CalDB) --
     node [shape=note, color="#1976D2", penwidth=1.5];
@@ -95,8 +95,7 @@ digraph reduce {
     refwl_apply -> applyWavelengthSolution;
 
     // ---- Diagnostic reports ------------------------------------------------
-    extractStripes          -> report_extract;
-    getPeaksAndPolynomials  -> report_peaks;
+    report_extract          -> extractStripes [dir=back];
     applyWavelengthSolution -> report_apply;
     combineFibers           -> report_combine;
     barycentricCorrection   -> report_barycor;
@@ -112,8 +111,7 @@ digraph reduce {
     { rank=same; refwl_peaks; getPeaksAndPolynomials; }
     { rank=same; wlstat; staticWavelengthSolution; }
     { rank=same; refwl_apply; applyWavelengthSolution; }
-    { rank=same; extractStripes; report_extract; }
-    { rank=same; getPeaksAndPolynomials; report_peaks; }
+    { rank=same; report_extract; extractStripes; }
     { rank=same; applyWavelengthSolution; report_apply; }
     { rank=same; combineFibers; report_combine; }
     { rank=same; barycentricCorrection; report_barycor; }
