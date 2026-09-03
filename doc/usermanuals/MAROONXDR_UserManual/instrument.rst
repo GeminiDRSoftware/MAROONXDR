@@ -56,6 +56,16 @@ arranged along the cross-dispersion direction on the detector:
 Each fiber traces a stripe across the detector for each echelle order. The
 blue arm covers 34 orders per fiber and the red arm covers 28 orders per fiber.
 
+.. figure:: images/soooe_fibers.png
+   :width: 90%
+   :align: center
+
+   300x300 pixel cutout of a ``SOOOE`` science frame (blue arm, flipped
+   orientation), showing two echelle orders. Each order carries the five fiber
+   traces: fiber 1 carries only sky and is nearly dark, fibers 2-4 show
+   the stellar spectrum with common absorption features, and fiber 5
+   shows the etalon comb of the simultaneous calibration.
+
 The fiber illumination pattern for each frame is encoded as a five-character
 string — one character per fiber — in the file header and used by the pipeline
 for frame classification:

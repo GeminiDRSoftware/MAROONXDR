@@ -18,6 +18,15 @@ Algorithm
 .. todo::
     add description
 
+.. figure:: ../images/removeStrayLight_before_after.png
+   :width: 100%
+   :align: center
+
+   The same 400x400 pixel cutout of a stacked ``DFFFD`` flat stream
+   before (left) and after (right) straylight removal, at a common
+   0-100 DN range that saturates the fiber stripes to expose the
+   inter-order background.
+
 Issues and Limitations
 ----------------------
 
