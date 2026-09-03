@@ -296,10 +296,14 @@ class MAROONXEchelle(MAROONX, Spect):
         if dark_subtraction_skip_fibers is None:
             # skip all dark subtraction by default
             dark_subtraction_skip_fibers = [1, 2, 3, 4, 5]
+        elif isinstance(dark_subtraction_skip_fibers, int):
+            dark_subtraction_skip_fibers = [dark_subtraction_skip_fibers]
 
         if straylight_removal_fibers is None:
             # skip all
             straylight_removal_fibers = []
+        elif isinstance(straylight_removal_fibers, int):
+            straylight_removal_fibers = [straylight_removal_fibers]
 
         # When the input is itself a processed flat (e.g. measureBlaze),
         # use it as its own flat calibration and skip dark lookup.

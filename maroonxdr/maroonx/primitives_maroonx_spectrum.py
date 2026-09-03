@@ -171,6 +171,8 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         fibers = params.get("fibers")
         if fibers is None:
             fibers = [1, 2, 3, 4, 5]
+        elif isinstance(fibers, int):
+            fibers = [fibers]
 
         for ad in adinputs:
             log.stdinfo(f"{ad.filename}: loading static wavelength solution")
@@ -285,6 +287,10 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         guess_file = params.get("guess_file")
         fibers = params.get("fibers")
         orders = params.get("orders")
+        if isinstance(fibers, int):
+            fibers = [fibers]
+        if isinstance(orders, int):
+            orders = [orders]
         degree_sigma = params.get("degree_sigma")
         degree_width = params.get("degree_width")
         use_sigma_lr = params.get("use_sigma_lr")
@@ -595,6 +601,8 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
 
         # get the parameters from the config
         fibers = params.get("fibers")
+        if isinstance(fibers, int):
+            fibers = [fibers]
         symmetric_linefits = params.get("symmetric_linefits")
         n_knots = params.get("n_knots")
         thar = params.get("thar")
@@ -955,7 +963,11 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         timestamp_key = self.timestamp_keys[self.myself()]
 
         # Get parameters from config
-        fibers = params.get("fibers", [2, 3, 4])
+        fibers = params.get("fibers")
+        if fibers is None:
+            fibers = [2, 3, 4]
+        elif isinstance(fibers, int):
+            fibers = [fibers]
         ref_fiber = params.get("ref_fiber", 5)
         symmetric_linefits = params.get("symmetric_linefits", False)
         n_knots = params.get("n_knots", 30)
