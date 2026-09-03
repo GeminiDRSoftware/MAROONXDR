@@ -31,6 +31,16 @@ bundle — a single Multi-Extension FITS (MEF) file containing both arms
 (``NYYYYMMDDMnnnn.fits``). The first pipeline step is to split this bundle
 into separate blue and red arm files for independent processing.
 
+.. list-table::
+   :widths: 50 50
+
+   * - .. image:: images/raw_soooe_blue.png
+          :width: 100%
+     - .. image:: images/raw_soooe_red.png
+          :width: 100%
+   * - Raw science frame (``SOOOE``), blue arm.
+     - Raw science frame (``SOOOE``), red arm.
+
 
 Fiber Configuration and Frame Classification
 --------------------------------------------

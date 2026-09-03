@@ -2,7 +2,7 @@ processBundle
 =============
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_BUNDLE
-| **Astrodata Tags**: {'BUNDLE', 'MAROONX'}
+| **Astrodata Tags**: {'MAROONX', 'BUNDLE'}
 
 Split MAROON-X observation bundles into arm-specific files.
 

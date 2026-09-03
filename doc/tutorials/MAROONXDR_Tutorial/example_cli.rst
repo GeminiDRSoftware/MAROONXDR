@@ -263,6 +263,13 @@ tutorial contains both patterns and uses the ``makeProcessedFlatDFFFF``
 recipe, which combines the two into a single ``DFFFF`` master flat per
 arm.
 
+.. figure:: images/flat_combination.png
+   :width: 100%
+   :align: center
+
+   400x400 pixel cutouts of the two flat patterns and the resulting
+   master flat: ``DFFFD`` + ``DDDDF`` = ``DFFFF``.
+
 Run the reduction per arm:
 
 .. code-block:: bash
@@ -435,7 +442,7 @@ match is on the same arm and the same exposure time, closest in time.
 Dark-coefficient files are never served as darks.
 
 The three ``-p`` overrides below are the recommended defaults for the
-current pipeline: ``extractStripes:straylight_removal_fibers=[5]`` applies
+current pipeline: ``extractStripes:straylight_removal_fibers=5`` applies
 the straylight correction to the calibration fiber, ``getPeaksAndPolynomials``
 runs the per-order fits in parallel, and ``combineFibers:max_clips=20``
 sets the outlier rejection threshold when combining the science fibers.
@@ -452,7 +459,7 @@ Run once per arm:
 
         # Full echelle reduction
         reduce --adpkg maroonx_instruments --drpkg maroonxdr \
-            -p 'extractStripes:straylight_removal_fibers=[5]' \
+            -p 'extractStripes:straylight_removal_fibers=5' \
             -p 'getPeaksAndPolynomials:multithreading=True' \
             -p 'combineFibers:max_clips=20' \
             @sci_${arm}.lis
@@ -607,7 +614,7 @@ Several ``-p`` flags can be chained:
 .. code-block:: bash
 
     reduce --adpkg maroonx_instruments --drpkg maroonxdr \
-        -p extractStripes:straylight_removal_fibers=[5] \
+        -p extractStripes:straylight_removal_fibers=5 \
         -p getPeaksAndPolynomials:multithreading=True \
         -p combineFibers:max_clips=20 \
         @sci_BLUE.lis

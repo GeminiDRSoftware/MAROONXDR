@@ -2,7 +2,7 @@ exportReducedBundle
 ===================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_ECHELLE_SPECT
-| **Astrodata Tags**: {'MAROONX', 'SCI'}
+| **Astrodata Tags**: {'SCI', 'MAROONX'}
 
 Bundle reduced Red and Blue arm spectra into a single output file.
 

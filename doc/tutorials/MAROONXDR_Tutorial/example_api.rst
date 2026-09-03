@@ -311,6 +311,13 @@ tutorial contains both patterns and uses the ``makeProcessedFlatDFFFF``
 recipe, which combines the two into a single ``DFFFF`` master flat per
 arm.
 
+.. figure:: images/flat_combination.png
+   :width: 100%
+   :align: center
+
+   400x400 pixel cutouts of the two flat patterns and the resulting
+   master flat: ``DFFFD`` + ``DDDDF`` = ``DFFFF``.
+
 Run the reduction per arm:
 
 .. code-block:: python
