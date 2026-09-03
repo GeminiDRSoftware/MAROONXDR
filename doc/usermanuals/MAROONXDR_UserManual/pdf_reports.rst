@@ -57,7 +57,7 @@ below.
    ``extractStripes``, which runs ``removeStrayLight`` internally.
 
 Disabling Reports
-=================
+-----------------
 
 Each primitive in the table above has its own ``report`` parameter, so
 reports are switched off per primitive. On the command line:
@@ -110,8 +110,17 @@ outliers.
    inspecting, although high signal-to-noise targets have also been
    observed to produce large rejection counts.
 
-.. todo::
-    add example figure
+.. figure:: images/background_raw_example-1.png
+   :width: 100%
+   :align: center
+
+   Raw frame, bias corrected.
+
+.. figure:: images/background_final_example-7.png
+   :width: 100%
+   :align: center
+
+   Final background-subtracted frame.
 
 Etalon Wavelength Fit Report
 ============================
@@ -127,7 +136,11 @@ The report opens with one etalon dispersion page per etalon-lit fiber,
 followed by one residuals page per fiber titled "Etalon residuals after
 Etalon-based spline fit", with three panels: residuals against
 wavelength, residual RMS per order, and residuals against normalized
-detector position.
+detector position. The dispersion pages compare the measured peaks, on
+the wavelength scale of the static solution, against the reference
+etalon model, so their mean offset reflects the instrument drift; the
+residuals pages show how the new spline solution reproduces
+the etalon model, on its own wavelength scale.
 
 **What to look for.** The residuals should scatter flat around zero.
 Red flags are extremely high residuals and orders whose residual RMS
@@ -142,8 +155,22 @@ does not follow the smooth curved trend of the neighboring orders.
    minima and maxima, is usually caused by leftover image artifacts or
    cosmic rays.
 
-.. todo::
-    add example figure
+.. figure:: images/etalonfit_example-1.png
+   :width: 100%
+   :align: center
+
+   Etalon dispersion page for fiber 2: residuals to the reference etalon
+   model before (top, with the dispersion correction in red) and after
+   (middle, bottom) the dispersion correction.
+
+.. figure:: images/etalonfit_example-5.png
+   :width: 100%
+   :align: center
+
+   Residuals page for fiber 2: etalon residuals after the etalon-based
+   spline fit, against wavelength (top, with per-order means), as
+   residual RMS per order (middle), and against normalized detector
+   position (bottom).
 
 Wavelength Solution Report
 ==========================
@@ -173,8 +200,14 @@ follow the curved trend of the rest.
    in the ``INSTRUME_DRIFT`` and ``RELATIVE_DRIFT`` header keywords of
    the reduced file.
 
-.. todo::
-    add example figure
+.. figure:: images/science_spline_example-1.png
+   :width: 100%
+   :align: center
+
+   First page of a wavelength solution report: offset of the simultaneous
+   calibration fiber to the etalon frame of the wavelength solution,
+   against wavelength (top), as the mean fitted offset per order
+   (middle), and against detector position (bottom).
 
 Fiber Combination Report
 ========================
@@ -202,8 +235,13 @@ outliers in a single fiber are the red flag.
    reduction sets ``combineFibers:max_clips=20`` so the log warns at
    that threshold.
 
-.. todo::
-    add example figure
+.. figure:: images/science_fiber6_example-03.png
+   :width: 100%
+   :align: center
+
+   One order page of a fiber combination report: intensity of the three
+   science fibers and the combined spectrum, sigma deviations from the
+   median, weights, and SNR of the combined spectrum.
 
 Exposure Meter Report
 =====================
@@ -231,5 +269,10 @@ zeropoint during the exposure.
    when it fails, when outliers are replaced, or when gaps are found in
    the exposure meter data.
 
-.. todo::
-    add example figure
+.. figure:: images/science_emeter_example-1.png
+   :width: 100%
+   :align: center
+
+   Exposure meter report: PC and FRD channel time series with the
+   exposure boundaries (vertical lines) and the flux zeropoints of both
+   channels (dashed lines).
