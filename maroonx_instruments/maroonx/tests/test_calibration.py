@@ -24,6 +24,15 @@ red_dark = '20250707T172105Z_DDDDE_r_0300.fits'
 blue_flat = '20250701T170101Z_DFFFD_b_0008.fits'
 red_flat = '20250701T170101Z_DFFFD_r_0002.fits'
 blue_wavecal = '20250717T163124Z_DEEEE_b_0010.fits'
+blue_dark_120 = '20250707T164838Z_DDDDE_b_0120.fits'
+
+# Real processed products from $DRAGONS_TEST/preprocessed_files/. These already
+# carry PROCDARK / PRDKCOEF and their own tags, so create_inputs just copies
+# them. The synthetic dark is ten days younger than blue_dark, so a lookup
+# querying with blue_dark has the master dark closer in time.
+blue_synth_dark = '20250717T144308Z_SOOOE_b_0300_synth_dark.fits'
+blue_dark_coeff = '20250707T164838Z_DDDDE_b_0120_darkCoefficients.fits'
+blue_master_dark_120 = '20250707T164838Z_DDDDE_b_0120_dark.fits'
 
 # Processed-stamped copies (created by create_inputs)
 proc_blue_dark = 'proc_blue_dark.fits'
@@ -79,10 +88,49 @@ def test_no_cross_arm_match(path_to_inputs, tmp_path):
     cal_path = os.path.join(path_to_inputs, proc_red_dark)
     caldb.add_cal(cal_path)
 
-    # Use blue dark as query — same exposure time but wrong arm
+    # Use blue dark as query. same exposure time but wrong arm
     ad_sci = astrodata.open(os.path.join(path_to_inputs, blue_dark))
     result = caldb.get_calibrations([ad_sci], caltype='processed_dark')
     assert result.files[0] is None
+
+
+@pytest.mark.preprocessed_data
+def test_synthetic_dark_preferred_over_master(path_to_inputs, tmp_path):
+    """A synthetic dark is used even when a master dark is closer in time."""
+    caldb = _init_caldb(tmp_path)
+
+    caldb.add_cal(os.path.join(path_to_inputs, proc_blue_dark))
+    caldb.add_cal(os.path.join(path_to_inputs, blue_synth_dark))
+
+    # The query is a raw dark, not a science frame: the only 300s blue
+    # science frame available is the one the synthetic dark was made for,
+    # so querying with it would let the synthetic dark win on time
+    # proximity alone. The explicit caltype bypasses set_applicable.
+    # Same night as proc_blue_dark, ten days before the synthetic dark
+    ad_sci = astrodata.open(os.path.join(path_to_inputs, blue_dark))
+    result = caldb.get_calibrations([ad_sci], caltype='processed_dark')
+    assert os.path.basename(result.files[0]) == blue_synth_dark
+
+
+@pytest.mark.preprocessed_data
+def test_dark_coefficients_not_served_as_dark(path_to_inputs, tmp_path):
+    """A dark coefficients file is never returned as a processed dark."""
+    caldb = _init_caldb(tmp_path)
+
+    caldb.add_cal(os.path.join(path_to_inputs, blue_dark_coeff))
+
+    # The query is a raw dark because no 120s science frame exists; only
+    # a same-exptime query proves the DARK_COEFF exclusion rather than an
+    # exposure time mismatch. The explicit caltype bypasses set_applicable.
+    # Same arm and exposure time as the coefficients file
+    ad_sci = astrodata.open(os.path.join(path_to_inputs, blue_dark_120))
+    result = caldb.get_calibrations([ad_sci], caltype='processed_dark')
+    assert result.files[0] is None
+
+    # A master dark of the same exposure time is used instead
+    caldb.add_cal(os.path.join(path_to_inputs, blue_master_dark_120))
+    result = caldb.get_calibrations([ad_sci], caltype='processed_dark')
+    assert os.path.basename(result.files[0]) == blue_master_dark_120
 
 
 @pytest.mark.preprocessed_data
@@ -115,8 +163,10 @@ def create_inputs():
     )
     os.makedirs(dest_dir, exist_ok=True)
 
-    # Copy raw files needed as query targets
-    for name in [blue_wavecal, blue_dark]:
+    # Copy raw files needed as query targets, and the processed products that
+    # already carry the keywords and tags the association rules read
+    for name in [blue_wavecal, blue_dark, blue_dark_120,
+                 blue_synth_dark, blue_dark_coeff, blue_master_dark_120]:
         shutil.copy2(os.path.join(source_dir, name),
                      os.path.join(dest_dir, name))
         print(f'  Copied {name}')

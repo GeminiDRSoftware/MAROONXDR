@@ -2,7 +2,7 @@ exportReducedBundle
 ===================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_ECHELLE_SPECT
-| **Astrodata Tags**: {'MAROONX', 'SCI'}
+| **Astrodata Tags**: {'SCI', 'MAROONX'}
 
 Bundle reduced Red and Blue arm spectra into a single output file.
 
@@ -22,5 +22,5 @@ multi-extension bundle, which is stored with a "_reduced" suffix.
     def exportReducedBundle(p):
         p.separateArmStreams()
         p.bundleArmStreams()
-        p.storeProcessedScience(suffix='_reduced')
+        p.storeProcessedScience()
 

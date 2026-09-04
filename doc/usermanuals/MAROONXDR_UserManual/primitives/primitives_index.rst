@@ -40,6 +40,7 @@ Echelle Extraction
    :maxdepth: 1
 
    primitive_createSyntheticDark
+   primitive_createSyntheticDarkFromCoeffs
    primitive_extractStripes
    primitive_optimalExtraction
    primitive_measureBlaze

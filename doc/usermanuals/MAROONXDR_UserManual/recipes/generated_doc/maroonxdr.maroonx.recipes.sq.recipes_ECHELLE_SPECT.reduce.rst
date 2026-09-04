@@ -2,7 +2,7 @@ reduce
 ======
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_ECHELLE_SPECT
-| **Astrodata Tags**: {'MAROONX', 'SCI'}
+| **Astrodata Tags**: {'SCI', 'MAROONX'}
 
 Process MAROON-X science echelle spectrum with tracing and extraction.
 

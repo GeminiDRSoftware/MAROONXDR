@@ -29,7 +29,7 @@ The full reduction proceeds in nine steps, executed in order:
 3. **Dark Coefficients** - fit dark scaling vs. exposure time per arm
 4. **Master Flats** - build per-arm master flats from DFFFD + DDDDF inputs
 5. **Wavelength Calibration** - fit the dynamic etalon wavelength solution
-6. **Synthetic Darks** - interpolate a dark matched to each science exposure
+6. **Synthetic Darks** - interpolate one dark per science exposure time and arm
 7. **Science Reduction** - extract and wavelength-calibrate science spectra
 8. **Barycentric Correction** - apply the BERV shift to the reduced spectra
 9. **Export Bundle** - combine BLUE and RED arms into a single output FITS
@@ -263,6 +263,13 @@ tutorial contains both patterns and uses the ``makeProcessedFlatDFFFF``
 recipe, which combines the two into a single ``DFFFF`` master flat per
 arm.
 
+.. figure:: images/flat_combination.png
+   :width: 100%
+   :align: center
+
+   400x400 pixel cutouts of the two flat patterns and the resulting
+   master flat: ``DFFFD`` + ``DDDDF`` = ``DFFFF``.
+
 Run the reduction per arm:
 
 .. code-block:: bash
@@ -287,6 +294,12 @@ tag set.
    ``FDDDF`` patterns into an ``FFFFF`` master flat. When the dataset has
    ``DDDDF`` instead of ``FDDDF`` (as in this tutorial), use the
    ``makeProcessedFlatDFFFF`` variant explicitly via ``--recipe``.
+
+.. note:: This step also writes ``*_backgroundfit.pdf`` diagnostic
+   reports into the working directory, and several later steps write
+   similar PDFs. These are quality-control products, enabled by
+   default; see :ref:`maroonxdr_user_pdf_reports` in the User Manual
+   for what each one shows and how to disable them.
 
 **Verify processed flats:**
 
@@ -346,13 +359,52 @@ copy under the ``processed_wavecal`` caltype in
 Step 6: Synthetic Darks
 ------------------------
 
-**Purpose**: interpolate, per science frame, a synthetic dark matched to
-its exact exposure time using the dark coefficients fit in Step 3.
+**Purpose**: interpolate a synthetic dark matched to the science exposure
+time, using the dark coefficients fit in Step 3.
 
-The ``makeSyntheticDark`` recipe takes the raw science frames and uses the
-``DARK_COEFF`` calibration to build a dark frame at the science exposure
-time. The synthetic darks are stored under the ``processed_dark`` caltype
-with the ``DARK_SYNTH`` tag so Step 7 can find them as ordinary darks.
+The recommended route is the ``makeSyntheticDarksFromCoeffs`` recipe,
+which builds synthetic darks straight from the dark-coefficient file of
+Step 3, without needing any science frame at hand. The exposure times are
+requested explicitly through the ``exptime`` parameter of
+``createSyntheticDarkFromCoeffs``, as a single value or as a
+comma-separated list (square brackets are not accepted here). The
+synthetic darks are stored under the ``processed_dark`` caltype with the
+``DARK_SYNTH`` tag so Step 7 can find them as ordinary darks.
+
+Run once per arm:
+
+.. code-block:: bash
+
+    for arm in BLUE RED; do
+
+        # Select the dark-coefficient file for this arm
+        dataselect --adpkg maroonx_instruments --tags DARK_COEFF,$arm \
+            -o dark_coeff_${arm}.lis *.fits
+
+        # Build synthetic darks at 300 s and 600 s
+        reduce --adpkg maroonx_instruments --drpkg maroonxdr \
+            --recipe makeSyntheticDarksFromCoeffs \
+            -p createSyntheticDarkFromCoeffs:exptime=300,600 \
+            @dark_coeff_${arm}.lis
+    done
+
+Each product is named after the coefficient file with its exposure-time
+field replaced by the requested value, so
+``20250707T164838Z_DDDDE_b_0120_darkCoefficients.fits`` at 300 s yields
+``20250707T164838Z_DDDDE_b_0300_synth_dark.fits``. This makes the recipe
+well suited to building a library of synthetic darks ahead of a
+reduction.
+
+Alternatively, the ``makeSyntheticDark`` recipe derives the exposure
+times from the science frames themselves: it takes the raw science frames
+and uses the ``DARK_COEFF`` calibration to build a dark frame at each
+science exposure time. The inputs are grouped by exposure time and arm,
+and one synthetic dark is written per group, named after the first frame
+of the group. Add ``-p createSyntheticDark:individual=True`` to get one
+product per input frame instead. Because the products are named after the
+science frames, running it over several science sets that share an
+exposure time leaves equivalent darks on disk, which is why
+``makeSyntheticDarksFromCoeffs`` is preferred.
 
 Run once per arm:
 
@@ -364,7 +416,7 @@ Run once per arm:
         dataselect --adpkg maroonx_instruments --tags RAW,SCI,$arm \
             -o sci_${arm}.lis *.fits
 
-        # Build the synthetic dark for each science frame
+        # Build the synthetic darks for this arm
         reduce --adpkg maroonx_instruments --drpkg maroonxdr \
             --recipe makeSyntheticDark @sci_${arm}.lis
     done
@@ -383,8 +435,14 @@ extraction, wavelength assignment, and fiber combination. ``caldb``
 resolves each input calibration automatically from the work done in
 Steps 2-6.
 
+The dark lookup runs in two tiers: the synthetic darks of Step 6 (tag
+``DARK_SYNTH``) are searched first, and only when none matches does
+``caldb`` fall back to the master darks of Step 2. Inside each tier the
+match is on the same arm and the same exposure time, closest in time.
+Dark-coefficient files are never served as darks.
+
 The three ``-p`` overrides below are the recommended defaults for the
-current pipeline: ``extractStripes:straylight_removal_fibers=[5]`` applies
+current pipeline: ``extractStripes:straylight_removal_fibers=5`` applies
 the straylight correction to the calibration fiber, ``getPeaksAndPolynomials``
 runs the per-order fits in parallel, and ``combineFibers:max_clips=20``
 sets the outlier rejection threshold when combining the science fibers.
@@ -401,7 +459,7 @@ Run once per arm:
 
         # Full echelle reduction
         reduce --adpkg maroonx_instruments --drpkg maroonxdr \
-            -p 'extractStripes:straylight_removal_fibers=[5]' \
+            -p 'extractStripes:straylight_removal_fibers=5' \
             -p 'getPeaksAndPolynomials:multithreading=True' \
             -p 'combineFibers:max_clips=20' \
             @sci_${arm}.lis
@@ -556,12 +614,15 @@ Several ``-p`` flags can be chained:
 .. code-block:: bash
 
     reduce --adpkg maroonx_instruments --drpkg maroonxdr \
-        -p extractStripes:straylight_removal_fibers=[5] \
+        -p extractStripes:straylight_removal_fibers=5 \
         -p getPeaksAndPolynomials:multithreading=True \
         -p combineFibers:max_clips=20 \
         @sci_BLUE.lis
 
-Discover available parameters with ``showpars`` (above).
+Discover available parameters with ``showpars`` (above). The same
+syntax turns off a primitive's diagnostic PDF report, for example
+``-p removeStrayLight:report=False`` (see
+:ref:`maroonxdr_user_pdf_reports`).
 
 Managing the calibration database: ``caldb``
 ---------------------------------------------

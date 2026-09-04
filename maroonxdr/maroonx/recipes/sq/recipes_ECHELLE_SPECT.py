@@ -130,7 +130,7 @@ def exportReducedBundle(p):
     """
     p.separateArmStreams()
     p.bundleArmStreams()
-    p.storeProcessedScience(suffix='_reduced')
+    p.storeProcessedScience()
 
 
 def applyBarycentricCorrection(p):

@@ -156,7 +156,7 @@ class AstroDataMAROONX(AstroDataGemini):
             ext = self if self.is_single else self[0]
             if hasattr(ext, 'COEFF_Z0'):
                 return TagSet(['DARK', 'DARK_COEFF', 'CAL'])
-            if self.phu.get('OBSTYPE') == 'OBJECT':
+            if 'SYNTHETIC_DARK_CREATED' in self.phu:
                 return TagSet(['DARK', 'DARK_SYNTH', 'CAL'])
             return TagSet(['DARK', 'CAL'])
 

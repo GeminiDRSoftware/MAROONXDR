@@ -59,6 +59,53 @@ different arm. The diagram shows the BLUE arm.
    :align: center
    :caption: ``makeDarkCoefficients`` recipe flow (BLUE arm shown).
 
+Synthetic Dark Flow
+~~~~~~~~~~~~~~~~~~~
+
+A synthetic dark is a ``DDDDE`` dark evaluated per pixel from the
+coefficient arrays at an exposure time that was never observed directly.
+Two recipes produce one; they differ in where the exposure times come
+from and in whether the coefficients are looked up or passed in.
+
+The ``makeSyntheticDark`` recipe reads the exposure times off the raw
+per-arm science frames it is given, and pulls the ``DARK_COEFF``
+calibration from the calibration database (or takes it from the
+``dark_coeff`` parameter of ``createSyntheticDark``). The inputs are
+grouped by exposure time and arm and one dark is returned per group, in
+place of the inputs, named after the first frame of the group; setting
+``individual=True`` returns one dark per input frame. Each product is a
+deep copy of that frame with the data replaced and the ``FIBER1`` to
+``FIBER5`` keywords rewritten to ``DDDDE``. The diagram shows the BLUE
+arm.
+
+.. graphviz:: flows/makeSyntheticDark.dot
+   :align: center
+   :caption: ``makeSyntheticDark`` recipe flow (BLUE arm shown).
+
+The ``makeSyntheticDarksFromCoeffs`` recipe takes the dark coefficients
+calibration itself as its input and reads the exposure times off the
+``exptime`` parameter of ``createSyntheticDarkFromCoeffs``, one product
+per value. There is no ``prepare`` in this chain and no calibration
+database lookup: the input is already a processed calibration. Each
+product is a copy of it with the ``COEFF_Z0``, ``COEFF_Z1`` and
+``LOGEXPTIME`` extensions dropped, ``EXPTIME`` reset in the primary and
+extension headers, and the exposure-time field of ``filename`` and
+``ORIGNAME`` rewritten. Dropping the ``COEFF_*`` extensions is what makes
+the product tag as ``DARK`` rather than ``DARK_COEFF``. The diagram shows
+the BLUE arm.
+
+.. graphviz:: flows/makeSyntheticDarksFromCoeffs.dot
+   :align: center
+   :caption: ``makeSyntheticDarksFromCoeffs`` recipe flow (BLUE arm shown).
+
+Both routes stamp ``SYNTHETIC_DARK_CREATED`` in the primary header, which
+is what ``_tag_dark`` reads to apply ``DARK_SYNTH``.
+``CalibrationMAROONX.dark`` searches processed darks in two tiers,
+``DARK_SYNTH`` first and master darks second, so a synthetic dark at the
+right exposure time wins over a master dark of the same exposure time
+taken closer in time. Files tagged ``DARK_COEFF`` are filtered out of the
+second tier and are never served as darks.
+
 Flat Field Processing Flow
 --------------------------
 
@@ -110,7 +157,7 @@ drift-corrected solution using the processed wavecal and the
 ``REFWAVELENGTH`` lookup. ``combineFibers`` adds the virtual sixth
 fiber from the three science fibers, and ``barycentricCorrection``
 computes the BERV values before the final ``_reduced`` product is
-written to the working directory. Five primitives emit PDF diagnostic
+written to the working directory. Four primitives emit PDF diagnostic
 reports by default. The diagram shows the BLUE arm.
 
 .. graphviz:: flows/reduce.dot

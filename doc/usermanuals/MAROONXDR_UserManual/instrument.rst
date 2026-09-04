@@ -31,6 +31,16 @@ bundle — a single Multi-Extension FITS (MEF) file containing both arms
 (``NYYYYMMDDMnnnn.fits``). The first pipeline step is to split this bundle
 into separate blue and red arm files for independent processing.
 
+.. list-table::
+   :widths: 50 50
+
+   * - .. image:: images/raw_soooe_blue.png
+          :width: 100%
+     - .. image:: images/raw_soooe_red.png
+          :width: 100%
+   * - Raw science frame (``SOOOE``), blue arm.
+     - Raw science frame (``SOOOE``), red arm.
+
 
 Fiber Configuration and Frame Classification
 --------------------------------------------
@@ -45,6 +55,16 @@ arranged along the cross-dispersion direction on the detector:
 
 Each fiber traces a stripe across the detector for each echelle order. The
 blue arm covers 34 orders per fiber and the red arm covers 28 orders per fiber.
+
+.. figure:: images/soooe_fibers.png
+   :width: 90%
+   :align: center
+
+   300x300 pixel cutout of a ``SOOOE`` science frame (blue arm, flipped
+   orientation), showing two echelle orders. Each order carries the five fiber
+   traces: fiber 1 carries only sky and is nearly dark, fibers 2-4 show
+   the stellar spectrum with common absorption features, and fiber 5
+   shows the etalon comb of the simultaneous calibration.
 
 The fiber illumination pattern for each frame is encoded as a five-character
 string — one character per fiber — in the file header and used by the pipeline
@@ -129,9 +149,15 @@ brightness.
 
 Standard exposure times are 60, 120, 300, 600, 900, 1200, and 1800 seconds.
 Multiple master darks at different exposure times can be combined into
-pixel-by-pixel coefficient files (``z0``, ``z1``), parameterising the
-relationship ``F = z1 + z0 × log10(Texp)``. These coefficient files allow
-synthetic master darks to be generated for any required exposure time.
+pixel-by-pixel coefficient files (``z0`` the slope, ``z1`` the intercept),
+parameterising the relationship ``F = z1 + z0 × log10(Texp)``. These
+coefficient files allow synthetic master darks to be generated for any
+required exposure time, by either of two routes: from the science frames
+being reduced, giving one synthetic dark per exposure time and arm, or
+directly from a coefficient file at a list of exposure times requested by
+the user. When a science frame is matched against the calibration
+database, synthetic darks are searched before master darks; the match is
+on the same arm and the same exposure time, closest in time.
 
 **Master Flats (DFFFD + FDDDF)**
 

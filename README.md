@@ -30,6 +30,7 @@ Recipes available in `maroonxdr/maroonx/recipes/sq/`:
 | `recipes_BUNDLE.processBundle` | Split GOA bundle into red/blue arm frames |
 | `recipes_DARK.makeProcessedDark` | Master dark |
 | `recipes_DARK.makeDarkCoefficients` | Per-pixel dark coefficients fitted from master darks |
+| `recipes_DARK.makeSyntheticDarksFromCoeffs` | Synthetic darks at chosen exposure times, built from the dark coefficients |
 | `recipes_ECHELLE_SPECT.makeSyntheticDark` | Synthetic dark matching a science exposure |
 | `recipes_FLAT_SPECT.makeProcessedFlat` | Master flat with stripe traces and 1D extractions |
 | `recipes_FLAT_SPECT.makeBlaze` | Blaze function for each fiber of a master flat |
@@ -91,7 +92,9 @@ installation is editable, so no reinstallation is needed.
 - **Tutorial** — step-by-step walkthrough of a full reduction
 - **Programmer Manual** — primitives, recipes, internals
 
-All three are at **https://maroonxdr.readthedocs.io/latest/**.
+The User Manual and the Tutorial are at **https://maroonxdr.readthedocs.io/latest/**.
+The Programmer Manual is distributed as a PDF with each release on the
+GitHub releases page.
 
 ## License
 

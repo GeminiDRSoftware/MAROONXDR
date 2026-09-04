@@ -1,0 +1,64 @@
+// Flow diagram for the `makeSyntheticDarksFromCoeffs` recipe
+// (maroonxdr/maroonx/recipes/sq/recipes_DARK.py).
+//
+// Conventions follow flows/nodes.dot (the node catalog).
+
+digraph makeSyntheticDarksFromCoeffs {
+    rankdir=TB;
+    fontname="Helvetica";
+    labelloc="t";
+    label=<<b>makeSyntheticDarksFromCoeffs</b>>;
+
+    node [fontname="Helvetica", fontsize=10,
+          shape=box, style="rounded,filled",
+          penwidth=1.5, fontcolor=white];
+    edge [fontname="Helvetica", fontsize=9];
+
+    // ---- Input: dark coefficients calibration (BLUE shown; RED symmetric)
+    input [label="DARK_COEFF",
+           shape=component, style=filled,
+           fillcolor="#B6B6B6", fontcolor=black,
+           color="#1976D2", penwidth=1.5];
+
+    // ---- Primitive chain -------------------------------------------------
+    // No prepare(): the input is already a processed calibration.
+    // checkArm: new in MAROONX
+    checkArm [label="checkArm()",
+              fillcolor="#A1342D", color="#A1342D"];
+
+    // createSyntheticDarkFromCoeffs: new in MAROONX. One dark per value of
+    // the exptime parameter, no calibration database lookup.
+    createSyntheticDarkFromCoeffs [label="createSyntheticDarkFromCoeffs(exptime=[300, 600])",
+                                   fillcolor="#A1342D", color="#A1342D"];
+
+    // storeProcessedDark: DRAGONS CalibDB core, unchanged
+    storeProcessedDark [label="storeProcessedDark(suffix='_synth_dark')",
+                        fillcolor="#6a1b9a", color="#6a1b9a"];
+
+    // ---- Outputs: one synthetic dark per requested exposure time ---------
+    output [label="DARK_SYNTH\nDDDDE",
+            shape=component, style=filled,
+            fillcolor="#B6B6B6", fontcolor=black,
+            color="#1976D2", penwidth=1.5];
+
+    log [label="reduce.log",
+         shape=note, style=filled,
+         fillcolor="#e8f0fe", fontcolor=black,
+         color=black, penwidth=1];
+
+    caldb [label="CalDB storage",
+           shape=cylinder, style=filled,
+           fillcolor="#2E7D32", fontcolor=white,
+           color=black, penwidth=1];
+
+    // ---- Edges: primitive chain ------------------------------------------
+    input                         -> checkArm;
+    checkArm                      -> createSyntheticDarkFromCoeffs;
+    createSyntheticDarkFromCoeffs -> storeProcessedDark;
+
+    // ---- Edges: outputs ---------------------------------------------------
+    storeProcessedDark -> output;
+    storeProcessedDark -> log;
+    { rank=same; storeProcessedDark; caldb; }
+    storeProcessedDark -> caldb;
+}

@@ -20,7 +20,7 @@ ND_POSITION = 0.5
 DARK_FIBER_SETUP = ['Dark', 'Dark', 'Dark', 'Dark', 'Etalon']
 
 
-def make_dark_coeff(arm, ndfilters=(ND_POSITION,)):
+def make_dark_coeff(arm):
     """A dark-coefficient AD with constant COEFF_Z0/Z1 and a LOGEXPTIME table."""
     phu = fits.PrimaryHDU()
     phu.header.set('INSTRUME', 'MAROON-X')
@@ -33,11 +33,21 @@ def make_dark_coeff(arm, ndfilters=(ND_POSITION,)):
 
     ad[0].COEFF_Z0 = np.full(SHAPE, Z0, dtype=np.float32)
     ad[0].COEFF_Z1 = np.full(SHAPE, Z1, dtype=np.float32)
+    # Same columns as written by fitDarkCoefficients (no ndfilter column).
     ad[0].LOGEXPTIME = Table({
-        'logexptime': np.log10([EXPTIME] * len(ndfilters)),
-        'exptime': [EXPTIME] * len(ndfilters),
-        'ndfilter': list(ndfilters),
+        'logexptime': [np.log10(EXPTIME)],
+        'exptime': [EXPTIME],
     })
+    return ad
+
+
+def make_science_frame(arm, exptime, nd_position, filename):
+    """A dark-context science frame with a given exposure time and ND position."""
+    ad = make_echelle_frame(arm, fiber_setup=DARK_FIBER_SETUP)
+    ad.phu['EXPTIME'] = exptime
+    ad[0].hdr['EXPTIME'] = exptime
+    ad[0].hdr['HIERARCH MAROONX ND POSITION'] = nd_position
+    ad.filename = filename
     return ad
 
 
@@ -66,10 +76,50 @@ def test_createSyntheticDark(ad_science):
     # The output shape follows the coefficient arrays.
     assert result[0][0].data.shape == SHAPE
 
-    # Fiber keywords are stamped to a dark setup on the way out.
+    # Fiber keywords are stamped to a dark setup on the way out, and the
+    # product tags as a synthetic dark.
     for fiber in (1, 2, 3, 4):
         assert result[0].phu[f'FIBER{fiber}'] == 'Dark'
     assert result[0].phu['FIBER5'] == 'Etalon'
+    assert 'DARK_SYNTH' in result[0].tags
+
+
+@pytest.mark.parametrize('arm', ['RED', 'BLUE'])
+def test_createSyntheticDark_groups_same_exptime(arm):
+    """Frames sharing an exposure time yield one product; ND jitter is ignored."""
+    frames = [
+        make_science_frame(arm, EXPTIME, ND_POSITION, 'first.fits'),
+        make_science_frame(arm, EXPTIME, ND_POSITION + 0.01, 'second.fits'),
+    ]
+    dark_coeff = make_dark_coeff(arm)
+
+    grouped = MAROONXEchelle([]).createSyntheticDark(
+        frames, dark_coeff=dark_coeff)
+    assert len(grouped) == 1
+    assert grouped[0].filename == 'first.fits'
+
+    separate = MAROONXEchelle([]).createSyntheticDark(
+        frames, dark_coeff=dark_coeff, individual=True)
+    assert len(separate) == 2
+    assert [ad.filename for ad in separate] == ['first.fits', 'second.fits']
+
+
+@pytest.mark.parametrize('arm', ['RED', 'BLUE'])
+def test_createSyntheticDark_separate_exptimes(arm):
+    """Frames with different exposure times each get their own product."""
+    frames = [
+        make_science_frame(arm, 300.0, ND_POSITION, 'short.fits'),
+        make_science_frame(arm, 600.0, ND_POSITION, 'long.fits'),
+    ]
+    dark_coeff = make_dark_coeff(arm)
+
+    result = MAROONXEchelle([]).createSyntheticDark(
+        frames, dark_coeff=dark_coeff)
+
+    assert [ad.filename for ad in result] == ['short.fits', 'long.fits']
+    for ad, exptime in zip(result, (300.0, 600.0)):
+        np.testing.assert_allclose(
+            ad[0].data, Z1 + Z0 * np.log10(exptime), rtol=1e-6)
 
 
 def test_createSyntheticDark_missing_coefficients(ad_science):

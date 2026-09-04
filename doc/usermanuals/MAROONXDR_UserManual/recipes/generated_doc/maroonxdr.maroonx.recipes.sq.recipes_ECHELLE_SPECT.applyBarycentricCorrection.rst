@@ -2,7 +2,7 @@ applyBarycentricCorrection
 ==========================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_ECHELLE_SPECT
-| **Astrodata Tags**: {'MAROONX', 'SCI'}
+| **Astrodata Tags**: {'SCI', 'MAROONX'}
 
 Apply barycentric velocity correction to already reduced MAROON-X spectra.
 

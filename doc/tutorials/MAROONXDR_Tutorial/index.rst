@@ -15,3 +15,4 @@ DRAGONS MAROON-X DRP: Tutorial
    intro
    example_api
    example_cli
+   display
