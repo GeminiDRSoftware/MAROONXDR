@@ -9,6 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - ThAr (static) wavelength solutions
 
+## [0.4.1] - 2026-09-04
+
+### Added
+
+- `makeSyntheticDarksFromCoeffs` recipe and `createSyntheticDarkFromCoeffs`
+  primitive: synthetic darks at a list of exposure times built directly from
+  a processed dark coefficients file, without needing science frames
+- Calibration database tests for the dark association rules
+- Documentation: PDF reports page in the User Manual, example figures for
+  the flat, stripe extraction and science reduction primitives, tutorial
+  section on synthetic darks
+
+### Changed
+
+- Calibration database dark lookup prefers synthetic darks (`DARK_SYNTH`)
+  over master darks and never returns a dark coefficients file
+  (`DARK_COEFF`) as a processed dark
+- `createSyntheticDark` groups inputs by exposure time and arm only; the
+  ND filter position no longer splits groups
+- Synthetic darks are tagged `DARK_SYNTH` from the `SYNTHETIC_DARK_CREATED`
+  timestamp keyword instead of the `OBSTYPE` header value
+- `fitAndApplyEtalonWls` PDF report is now written as `<input>_spline.pdf`
+  (`_spline_symmetrical` with `symmetric_linefits=True`), matching the
+  naming of the other reports
+- Unused `attachSyntheticDark` and `attachDarkSubtraction` parameter
+  classes removed
+
+### Fixed
+
+- Re-bundled science products are named `<archive name>_reduced.fits` again;
+  the `_reduced` suffix is now applied by `bundleArmStreams`
+- Fiber and order parameters given as a single integer instead of a list
+  are accepted by `extractStripes`, `staticWavelengthSolution`,
+  `getPeaksAndPolynomials`, `fitAndApplyEtalonWls` and
+  `applyWavelengthSolution`
+
 ## [0.4.0] - 2026-08-03
 
 ### Added

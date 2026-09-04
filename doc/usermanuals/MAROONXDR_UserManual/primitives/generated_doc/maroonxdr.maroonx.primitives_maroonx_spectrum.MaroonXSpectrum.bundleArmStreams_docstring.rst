@@ -13,7 +13,7 @@ adinputs : list of :class:`~astrodata.AstroData`
     previously stored Red arm stream in self.streams['RED'].
 
 suffix : str, optional
-    Suffix to append to output filenames. Default is ``'_rebundled'``.
+    Suffix to append to output filenames. Default is ``'_reduced'``.
 
 Returns
 -------

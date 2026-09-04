@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.poetry]
 name = "maroonxdr"
-version = "0.4.0"
+version = "0.4.1"
 description = "A package in the DRAGONS ecosystem."
 authors = ["The Maroon-X Team"]
 license = "BSD3"
