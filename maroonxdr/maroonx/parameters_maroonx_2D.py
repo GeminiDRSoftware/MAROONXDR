@@ -7,12 +7,15 @@ from geminidr.core import parameters_ccd, parameters_stack, parameters_standardi
 from gempy.library import config
 
 
-class addDQMXConfig(parameters_standardize.addDQConfig):
+class addDQConfig(parameters_standardize.addDQConfig):
     """
     This parameter set controls the addDQ primitive for MAROON-X.
     """
 
     suffix = config.Field('Filename suffix', str, '')
+
+    def setDefaults(self):
+        self.suffix = ''
 
 
 class addVARConfig(config.Config):
