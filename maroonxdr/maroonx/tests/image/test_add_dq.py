@@ -32,6 +32,7 @@ def synthetic_bpm(arm, tmp_path):
 
 
 # -- Tests ---------------------------------------------------------------------
+@pytest.mark.preprocessed_data
 @pytest.mark.parametrize('arm', ['RED', 'BLUE'])
 def test_addDQ_default_uses_packaged_lookup(caplog, arm):
     """With the default static_bpm, the packaged lookup of the arm is applied."""
