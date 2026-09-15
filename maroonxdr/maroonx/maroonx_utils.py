@@ -284,7 +284,7 @@ def load_refwls_from_fits(file, ext_name=None):
             'orders': wls_ext.data['ORDERS'].flatten(),
             'weights': wls_ext.data['WEIGHTS'].flatten(),
             'wavelengths': wls_ext.data['WAVELEN'].flatten(),
-            'x_norm': wls_ext.data['X_NORM'].flatten(),
+            'x_norm': wls_ext.data['XNORM'].flatten(),
         }
         
         return res

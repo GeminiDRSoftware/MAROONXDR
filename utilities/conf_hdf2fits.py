@@ -1,3 +1,4 @@
+# DEPRECATED: superseded by the build_*_lookup functions in maroonxdr/maroonx/maroonx_utils.py
 # Function to load old config files in HDF5 format and convert them to FITS format
 # This file should produce:
 # BPM_b.fits

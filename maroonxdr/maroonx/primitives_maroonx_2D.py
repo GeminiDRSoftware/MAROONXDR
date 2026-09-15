@@ -9,7 +9,6 @@ from maroonxdr.maroonx.maroonx_plots import plot_backgroundfit
 import numpy as np
 import pandas as pd
 
-from astrodata.provenance import add_provenance
 from astropy.io import fits
 from astropy.stats import SigmaClip, sigma_clipped_stats
 from astropy.table import Table, vstack
@@ -21,8 +20,7 @@ from gempy.gemini import gemini_tools as gt
 from matplotlib.backends.backend_pdf import PdfPages
 from photutils.background import Background2D, MedianBackground
 from recipe_system.utils.decorators import parameter_override
-from recipe_system.utils.md5 import md5sum
-from scipy.ndimage import gaussian_filter, measurements, median_filter
+from scipy.ndimage import gaussian_filter, median_filter
 
 from . import maroonx_utils, parameters_maroonx_2D
 from .lookups import timestamp_keywords as maroonx_stamps

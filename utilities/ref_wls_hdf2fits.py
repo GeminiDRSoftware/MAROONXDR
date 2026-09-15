@@ -1,5 +1,6 @@
+# DEPRECATED: superseded by build_refwls_lookup in maroonxdr/maroonx/maroonx_utils.py
 from datetime import datetime
-from pathlib import Path 
+from pathlib import Path
 
 from astropy.io import fits
 from astropy.table import Table
