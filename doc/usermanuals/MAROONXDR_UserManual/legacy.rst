@@ -474,9 +474,12 @@ Static Wavelength Solutions
 .. topic:: DRAGONS Format (FITS)
    :class: dragons-block
 
-   In DRAGONS the reference peak model lives as a lookup file
-   (``lookups/WLS/REFWAVELENGTH_[b|r].fits``), and ``staticWavelengthSolution()`` evaluates it
-   into ``WLS_STATIC_FIBER_*`` extensions on the wavecal file.
+   In DRAGONS the pre-evaluated static solution lives as a lookup file
+   (``lookups/WLS/WLSTAT_[b|r].fits``, one column per order and fiber), and
+   ``staticWavelengthSolution()`` stacks the columns of the extracted orders
+   into ``WLS_STATIC_FIBER_*`` extensions on the wavecal file. The
+   underlying peak model is the separate ``REFWAVELENGTH_[b|r].fits``
+   lookup, used by the etalon fit.
 
    * **Example**: ``20250717T163124Z_DEEEE_b_0010_wavecal.fits``
    * **Structure**: ``(n_orders, n_samples)`` per fiber. Blue arm is ``(34, 3954)``, red arm is

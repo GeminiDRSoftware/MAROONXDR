@@ -185,7 +185,8 @@ The trailing ``get store`` flags tell DRAGONS to **retrieve** calibrations
 from this database during reductions and to **store** every newly produced
 calibration into it automatically. Both flags are required for the
 tutorials to work as written - without ``store``, every processed
-calibration would have to be registered manually with ``caldb add``.
+calibration would have to be registered manually from Python (see the
+``caldb`` section of the CLI example).
 
 .. note:: Use an absolute path for the database file.
 

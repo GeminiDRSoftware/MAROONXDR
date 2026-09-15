@@ -635,8 +635,23 @@ yesterday is shadowing today's" - ``caldb`` has a small set of commands:
 .. code-block:: bash
 
     caldb list                            # show every calibration registered
-    caldb add calibrations/processed_flat/<file>.fits
     caldb remove <file>.fits
+
+``caldb add`` does not work for MAROON-X files: the command has no
+``--adpkg`` option, so it opens the file without the MAROON-X AstroData
+class and stores metadata that never matches a MAROON-X frame. The file
+shows up in ``caldb list`` but is never retrieved. To register a
+calibration by hand, do it from Python with the class imported:
+
+.. code-block:: python
+
+    import maroonx_instruments
+    from recipe_system import cal_service
+    from recipe_system.config import load_config
+
+    load_config()
+    caldb = cal_service.set_local_database()
+    caldb.add_cal('<file>.fits')
 
 For initial configuration and database initialisation, see
 :ref:`maroonx_caldb_setup`.
