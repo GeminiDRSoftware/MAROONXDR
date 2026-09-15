@@ -2,7 +2,9 @@
 MAROONX Utils file.  Contains functions used to load data from reference files.
 '''
 import os
+import json
 import logging
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -10,7 +12,7 @@ from astropy.io import fits
 from astropy.table import Table
 from matplotlib import pyplot as plt
 
-from lmfit import Parameters
+from lmfit import Parameters, Parameter
 
 import astrodata
 
@@ -133,15 +135,10 @@ def get_sid_filename(ad):
      -------
     str/None: Filename of appropriate sid
     """
-    logging.basicConfig(level=logging.DEBUG)
     log = logging.getLogger(__name__)
-    arm = ('b' if 'BLUE' in ad.tags else 'r') #Get appropriate arm
     sid_dir = os.path.join(os.path.dirname(siddb.__file__), 'SID')
-    db_matches = sorted((k, v) for k, v in siddb.sid_dict.items()
-                            if arm in k) #Check if there is a Stripe ID file for the given arm
-    if db_matches:
-        sid = db_matches[-1][1]
-    else:
+    sid = siddb.sid_dict.get(ad.camera()) #Check if there is a Stripe ID file for the arm
+    if sid is None:
         log.warning(f'No SID found for {ad.filename}')
         return None
     return sid if sid.startswith(os.path.sep) else \
@@ -149,16 +146,20 @@ def get_sid_filename(ad):
 
 def get_bpm_filename(ad):
     """
-    Gets bad pixel mask for input MX science frame.
-    this function can be removed when MX is bpm caldb compliant
+    Gets the packaged bad pixel mask for input MX science frame.
+    Used by addDQ as the fallback when the calibration database has no
+    processed BPM for the frame.
 
     Returns
     -------
     str/None: Filename of the appropriate bpms
     """
-    arm = ('b' if 'BLUE' in ad.tags else 'r') #Get appropriate arm
+    log = logging.getLogger(__name__)
     bpm_dir = os.path.join(os.path.dirname(maskdb.__file__), 'BPM')
-    bpm = 'BPM_'+arm+'_0000.fits' #Append appropriate arm to the bpm name
+    bpm = maskdb.bpm_dict.get(ad.camera()) #Check if there is a BPM for the arm
+    if bpm is None:
+        log.warning(f'No BPM found for {ad.filename}')
+        return None
     return bpm if bpm.startswith(os.path.sep) else \
         os.path.join(bpm_dir, bpm)
 
@@ -171,15 +172,11 @@ def get_refwavelength_filename(ad):
     -------
     str/None: Filename of the appropriate ref wavelength file
     """
-    logging.basicConfig(level=logging.DEBUG)
     log = logging.getLogger(__name__)
-    arm = ('b' if 'BLUE' in ad.tags else 'r') #Get appropriate arm
     wavelength_dir = os.path.join(os.path.dirname(wavelengthdb.__file__), 'WLS')
-    db_matches = sorted((k, v) for k, v in wavelengthdb.refwavelength_dict.items()\
-    if arm in k) #Check if there is a reference wavelength file for the given arm
-    if db_matches:
-        wavelength = db_matches[-1][1]
-    else:
+    #Check if there is a reference wavelength file for the arm
+    wavelength = wavelengthdb.refwavelength_dict.get(ad.camera())
+    if wavelength is None:
         log.warning(f'No reference wavelength file found for {ad.filename}')
         return None
     return wavelength if wavelength.startswith(os.path.sep) else \
@@ -194,15 +191,11 @@ def get_statwavelength_filename(ad):
     -------
     str/None: Filename of the appropriate wavelength file
     """
-    logging.basicConfig(level=logging.DEBUG)
     log = logging.getLogger(__name__)
-    arm = ('b' if 'BLUE' in ad.tags else 'r') #Get appropriate arm
     wavelength_dir = os.path.join(os.path.dirname(wavelengthdb.__file__), 'WLS')
-    db_matches = sorted((k, v) for k, v in wavelengthdb.statwavelength_dict.items()\
-    if arm in k) #Check if there is a reference wavelength file for the given arm
-    if db_matches:
-        wavelength = db_matches[-1][1]
-    else:
+    #Check if there is a static wavelength file for the arm
+    wavelength = wavelengthdb.statwavelength_dict.get(ad.camera())
+    if wavelength is None:
         log.warning(f'No static wavelength file found for {ad.filename}')
         return None
     return wavelength if wavelength.startswith(os.path.sep) else \
@@ -336,4 +329,223 @@ def load_statwls_from_fits(file, ext_name=None, orders=None):
             res = {o: wls_ext.data[o] for o in orders}
 
         return res
+
+def build_bpm_lookup(config_hdf, arm, outdir):
+    """
+    Build the packaged bad pixel mask lookup from a legacy configuration file.
+
+    The legacy ``/bad_pixel_map`` uses 1 for good pixels; the lookup follows
+    the DRAGONS DQ convention (nonzero is bad), so the map is inverted. The
+    product is a DRAGONS multi-extension file: primary header plus one
+    ``SCI`` extension holding the uint16 mask, tagged as a processed BPM.
+
+    Parameters
+    ----------
+    config_hdf : str or Path
+        Path to the legacy ``config_b.hdf`` or ``config_r.hdf``
+    arm : str
+        Arm name, ``'BLUE'`` or ``'RED'``
+    outdir : str or Path
+        Directory where the lookup file is written. The file name is taken
+        from ``maskdb.bpm_dict``.
+
+    Returns
+    -------
+    str
+        Path of the written lookup file
+    """
+    import h5py
+
+    with h5py.File(config_hdf, 'r') as hdf:
+        bad_pixel_map = hdf['/bad_pixel_map'][()]
+    mask = (1 - bad_pixel_map).astype(np.uint16)
+
+    phu = fits.Header()
+    phu['INSTRUME'] = 'MAROON-X'
+    phu['OBSTYPE'] = 'BPM'
+    phu['ARM'] = arm
+    phu['ORIGNAME'] = os.path.basename(config_hdf)
+    phu['DATE'] = datetime.now().strftime('%Y-%m-%d')
+    phu['PROCBPM'] = (datetime.now().isoformat(timespec='seconds'),
+                      'Processed bad pixel mask')
+
+    ad = astrodata.create(phu)
+    ad.append(mask, name='SCI', header=fits.Header({'ARM': arm}))
+
+    filename = os.path.join(outdir, maskdb.bpm_dict[arm])
+    ad.write(filename, overwrite=True)
+    return filename
+
+def build_sid_lookup(config_hdf, arm, outdir):
+    """
+    Build the stripe identification lookup from a legacy configuration file.
+
+    Writes the ``/identify_stripes`` ``positions`` attribute as a ``SID``
+    table with columns ``identify_fiber``, ``fiber_order`` and
+    ``fiber_position``.
+
+    Parameters
+    ----------
+    config_hdf : str or Path
+        Path to the legacy ``config_b.hdf`` or ``config_r.hdf``
+    arm : str
+        Arm name, ``'BLUE'`` or ``'RED'``
+    outdir : str or Path
+        Directory where the lookup file is written. The file name is taken
+        from ``siddb.sid_dict``.
+
+    Returns
+    -------
+    str
+        Path of the written lookup file
+    """
+    import h5py
+
+    with h5py.File(config_hdf, 'r') as hdf:
+        positions = hdf['/identify_stripes'].attrs['positions']
+
+    phu = fits.Header()
+    phu['INSTRUME'] = 'MAROON-X'
+    phu['OBSTYPE'] = 'SID'
+    phu['ARM'] = arm
+    phu['ORIGNAME'] = os.path.basename(config_hdf)
+    phu['DATE'] = datetime.now().strftime('%Y-%m-%d')
+
+    ad = astrodata.create(phu)
+    ad.SID = Table(positions.astype(np.int16),
+                   names=('identify_fiber', 'fiber_order', 'fiber_position'))
+
+    filename = os.path.join(outdir, siddb.sid_dict[arm])
+    ad.write(filename, overwrite=True)
+    return filename
+
+def build_statwls_lookup(config_hdf, arm, outdir):
+    """
+    Build the static wavelength solution lookup from a legacy configuration
+    file.
+
+    Writes one ``FIBER_N`` table per fiber (1 to 5) with one column per
+    order, named by the order number, holding the ``/wavelengths_static``
+    wavelengths in nm.
+
+    Parameters
+    ----------
+    config_hdf : str or Path
+        Path to the legacy ``config_b.hdf`` or ``config_r.hdf``
+    arm : str
+        Arm name, ``'BLUE'`` or ``'RED'``
+    outdir : str or Path
+        Directory where the lookup file is written. The file name is taken
+        from ``wavelengthdb.statwavelength_dict``.
+
+    Returns
+    -------
+    str
+        Path of the written lookup file
+    """
+    import h5py
+
+    phu = fits.Header()
+    phu['INSTRUME'] = 'MAROON-X'
+    phu['OBSTYPE'] = 'WLSTAT'
+    phu['ARM'] = arm
+    phu['ORIGNAME'] = os.path.basename(config_hdf)
+    phu['DATE'] = datetime.now().strftime('%Y-%m-%d')
+
+    ad = astrodata.create(phu)
+    with h5py.File(config_hdf, 'r') as hdf:
+        for fiber in [1, 2, 3, 4, 5]:
+            orders = hdf[f'/wavelengths_static/fiber_{fiber}']
+            setattr(ad, f'FIBER_{fiber}',
+                    Table({order: dataset[()] for order, dataset in orders.items()}))
+
+    filename = os.path.join(outdir, wavelengthdb.statwavelength_dict[arm])
+    ad.write(filename, overwrite=True)
+    return filename
+
+def build_refwls_lookup(peakmodel_hdf, outdir):
+    """
+    Build the reference wavelength solution lookups, one per arm, from the
+    legacy etalon peak model file.
+
+    Each file holds the ``PARAMETERS`` table (the full lmfit Parameter
+    record: ``Name``, ``Value``, ``Min``, ``Max``, ``Stderr``, ``Vary``,
+    ``Expr``, ``Brute_Step``), which is the same for both arms, and one
+    single-row ``FIBER_N`` table per fiber (2 to 4) with the array columns
+    ``XNORM``, ``ORDERS``, ``WEIGHTS`` and ``WAVELEN`` and the scalars
+    ``MAXX``, ``POLYDEGX`` and ``POLYDEGY`` in the table header.
+
+    Parameters
+    ----------
+    peakmodel_hdf : str or Path
+        Path to the legacy ``wl_combined_final_etalon_peakmodel_2020.hdf``
+    outdir : str or Path
+        Directory where the lookup files are written. The file names are
+        taken from ``wavelengthdb.refwavelength_dict``.
+
+    Returns
+    -------
+    list of str
+        Paths of the written lookup files, blue then red
+    """
+    import h5py
+
+    filenames = []
+    with h5py.File(peakmodel_hdf, 'r') as hdf:
+        # The legacy JSON dump also carries dill-encoded callables saved
+        # under Python 3.7 that current lmfit cannot decode, so the
+        # parameter states are read directly instead of through
+        # Parameters.loads. No parameter has an expression, so the
+        # callables are not needed.
+        parstates = json.loads(hdf['dispersion/parameter'][()])['params']
+        params = Parameters()
+        for parstate in parstates:
+            par = Parameter(name='')
+            par.__setstate__(parstate)
+            params.add(par)
+        params_table = Table({
+            'Name': np.array(list(params.keys()), dtype='U20'),
+            'Value': [p.value for p in params.values()],
+            'Min': [p.min for p in params.values()],
+            'Max': [p.max for p in params.values()],
+            'Stderr': [np.nan if p.stderr is None else p.stderr
+                       for p in params.values()],
+            'Vary': [p.vary for p in params.values()],
+            'Expr': np.array([str(p.expr) for p in params.values()], dtype='U20'),
+            'Brute_Step': [np.nan if p.brute_step is None else p.brute_step
+                           for p in params.values()],
+        })
+
+        for arm in ['BLUE', 'RED']:
+            phu = fits.Header()
+            phu['INSTRUME'] = 'MAROON-X'
+            phu['OBSTYPE'] = 'WLREF'
+            phu['ARM'] = arm
+            phu['ORIGNAME'] = os.path.basename(peakmodel_hdf)
+            phu['DATE'] = datetime.now().strftime('%Y-%m-%d')
+
+            ad = astrodata.create(phu)
+            ad.PARAMETERS = params_table
+
+            for fiber in [2, 3, 4]:
+                wls = hdf[f'wls_{arm.lower()}/fiber_{fiber}']
+                # Single-row table: each array is one cell
+                table = Table({
+                    'XNORM': [wls['x_norm'][()]],
+                    'ORDERS': [wls['orders'][()]],
+                    'WEIGHTS': [wls['weights'][()]],
+                    'WAVELEN': [wls['wavelengths'][()]],
+                })
+                table.meta['header'] = fits.Header({
+                    'MAXX': int(wls['maxx'][()]),
+                    'POLYDEGX': int(wls['poly_deg_x'][()]),
+                    'POLYDEGY': int(wls['poly_deg_y'][()]),
+                })
+                setattr(ad, f'FIBER_{fiber}', table)
+
+            filename = os.path.join(outdir, wavelengthdb.refwavelength_dict[arm])
+            ad.write(filename, overwrite=True)
+            filenames.append(filename)
+
+    return filenames
 
