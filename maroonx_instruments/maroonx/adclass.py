@@ -115,6 +115,11 @@ class AstroDataMAROONX(AstroDataGemini):
     @astro_data_tag
     def _tag_arm(self):
         """Tag the data as either BLUE, RED, or BUNDLE."""
+        # Lookup files carry ARM in the primary header; raw and processed
+        # frames carry it only in the extension headers.
+        if self.phu.get('ARM') in ('BLUE', 'RED'):
+            return TagSet([self.phu['ARM']])
+
         if self.is_single:
             if self.hdr.get('ARM') == 'BLUE':
                 return TagSet(['BLUE'])
@@ -139,15 +144,22 @@ class AstroDataMAROONX(AstroDataGemini):
 
     @astro_data_tag
     def _tag_exptime(self):
-        """Tag the frame with its integer exposure time, e.g. ``60s``."""
+        """
+        Tag the frame with its integer exposure time, e.g. ``60s``.
+
+        Files without ``EXPTIME`` (the lookup files) get no exposure tag.
+        """
         if self.is_single:
-            return TagSet([f'{int(self.hdr.get("EXPTIME"))}s'])
-        if len(self.indices) == 1:
-            return TagSet([f'{int(self[0].hdr.get("EXPTIME"))}s'])
+            exptime = self.hdr.get("EXPTIME")
+        elif len(self.indices) == 1:
+            exptime = self[0].hdr.get("EXPTIME")
         elif len(self.indices) == 2:
             exptimes = set(self.hdr.get("EXPTIME"))
-            if len(exptimes) == 1:
-                return TagSet([f'{int(exptimes.pop())}s'])
+            exptime = exptimes.pop() if len(exptimes) == 1 else None
+        else:
+            exptime = None
+        if exptime is not None:
+            return TagSet([f'{int(exptime)}s'])
 
     @astro_data_tag
     def _tag_dark(self):
