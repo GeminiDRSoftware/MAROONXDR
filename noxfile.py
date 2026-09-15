@@ -694,6 +694,52 @@ def package_test_data(session: nox.Session):
     session.log(f'Packaged {n_files} files into {archive} ({size_gb:.1f} GB)')
 
 
+@nox.session(venv_backend='none')
+def package_lookups(session: nox.Session):
+    """Package the lookup FITS files for distribution.
+
+    Zips the runtime lookup set under ``maroonxdr/maroonx/lookups/`` (the
+    BPM, SID, WLSTAT and REFWAVELENGTH files of both arms plus the READMEs)
+    with paths relative to ``lookups/``, so recipients unzip it in place.
+    The archive ``lookups_files_<version>.zip`` is written into the
+    ``lookups/`` directory. The lookup files themselves are built from the
+    legacy HDF5 files with the ``build_*_lookup`` functions in
+    ``maroonx_utils.py``; this session only packages them.
+    """
+    lookups = PATH / 'maroonxdr' / 'maroonx' / 'lookups'
+    runtime_files = [
+        'BPM/BPM_b_0000.fits',
+        'BPM/BPM_r_0000.fits',
+        'BPM/README',
+        'SID/SID_b.fits',
+        'SID/SID_r.fits',
+        'SID/README',
+        'WLS/WLSTAT_b.fits',
+        'WLS/WLSTAT_r.fits',
+        'WLS/REFWAVELENGTH_b.fits',
+        'WLS/REFWAVELENGTH_r.fits',
+        'WLS/README.md',
+    ]
+
+    missing = [f for f in runtime_files if not (lookups / f).is_file()]
+    if missing:
+        message = f'Lookup files missing under {lookups}: {", ".join(missing)}'
+        raise FileNotFoundError(message)
+
+    pyproject = tomllib.loads((PATH / 'pyproject.toml').read_text())
+    version = pyproject['tool']['poetry']['version']
+    archive = lookups / f'lookups_files_{version}.zip'
+
+    with zipfile.ZipFile(archive, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+        for relative in runtime_files:
+            zf.write(lookups / relative, relative)
+
+    size_mb = archive.stat().st_size / 1024**2
+    session.log(
+        f'Packaged {len(runtime_files)} files into {archive} ({size_mb:.1f} MB)'
+    )
+
+
 # Documentation
 @nox.session(venv_backend='virtualenv')
 def docs(session: nox.Session):
