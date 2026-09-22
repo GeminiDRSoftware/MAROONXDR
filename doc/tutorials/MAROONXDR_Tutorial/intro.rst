@@ -181,14 +181,17 @@ so the tutorial state is self-contained:
     [calibs]
     databases = /absolute/path/to/science_dir/cal_manager.db get store
 
+.. note:: Use an absolute path for the database file.
+
 The trailing ``get store`` flags tell DRAGONS to **retrieve** calibrations
 from this database during reductions and to **store** every newly produced
 calibration into it automatically. Both flags are required for the
-tutorials to work as written - without ``store``, every processed
-calibration would have to be registered manually from Python (see the
-``caldb`` section of the CLI example).
+tutorials to work as written.
 
-.. note:: Use an absolute path for the database file.
+.. note:: ``caldb add`` cannot be used to register MAROON-X calibrations
+   by hand. If you ever need to, see :ref:`maroonx_caldb_manual` in the
+   CLI example.
+
 
 Initialise the database
 -----------------------

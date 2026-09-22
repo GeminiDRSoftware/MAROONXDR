@@ -624,34 +624,59 @@ syntax turns off a primitive's diagnostic PDF report, for example
 ``-p removeStrayLight:report=False`` (see
 :ref:`maroonxdr_user_pdf_reports`).
 
+.. _maroonx_caldb_manual:
+
 Managing the calibration database: ``caldb``
 ---------------------------------------------
 
 ``reduce`` registers processed calibrations with ``caldb`` automatically,
 so the linear walk-through above never needs to call ``caldb`` directly.
-For troubleshooting - "this run picked the wrong flat", "the wavecal from
-yesterday is shadowing today's" - ``caldb`` has a small set of commands:
+For troubleshooting (e.g. "this run picked the wrong flat"), ``caldb`` has a
+small set of commands:
 
 .. code-block:: bash
 
     caldb list                            # show every calibration registered
     caldb remove <file>.fits
 
-``caldb add`` does not work for MAROON-X files: the command has no
-``--adpkg`` option, so it opens the file without the MAROON-X AstroData
-class and stores metadata that never matches a MAROON-X frame. The file
-shows up in ``caldb list`` but is never retrieved. To register a
-calibration by hand, do it from Python with the class imported:
+.. warning:: Do not use ``caldb add`` with MAROON-X files. Unlike
+   ``reduce`` and the other DRAGONS tools, ``caldb`` has no ``--adpkg``
+   option, so it opens the file without the MAROON-X AstroData class and
+   stores metadata that never matches a MAROON-X frame (the instrument
+   name is recorded as ``MAROON-X`` instead of ``MAROONX``, the arm is
+   missing, and the ``DARK``, ``FLAT`` and ``WAVECAL`` tags are absent).
+   The file shows up normally in ``caldb list``, but ``reduce`` reports
+   the calibration as not found.
+
+To register a calibration by hand, do it from Python with the MAROON-X
+class imported. ``set_local_database()`` reads the same ``dragonsrc`` as
+the ``caldb`` command:
 
 .. code-block:: python
 
     import maroonx_instruments
     from recipe_system import cal_service
-    from recipe_system.config import load_config
 
-    load_config()
     caldb = cal_service.set_local_database()
     caldb.add_cal('<file>.fits')
+
+If a file was already added with ``caldb add``, ``caldb remove`` it
+first and re-add it from Python.
+
+To check which calibrations ``reduce`` will pick for a given frame
+without running the reduction, query the database directly:
+
+.. code-block:: python
+
+    import astrodata
+    import maroonx_instruments
+    from recipe_system import cal_service
+
+    caldb = cal_service.set_local_database()
+    ad = astrodata.open('<science>.fits')
+    for caltype in ('processed_flat', 'processed_dark', 'processed_wavecal'):
+        print(caltype, caldb.get_calibrations([ad], caltype=caltype,
+                                              procmode='sq').files[0])
 
 For initial configuration and database initialisation, see
 :ref:`maroonx_caldb_setup`.

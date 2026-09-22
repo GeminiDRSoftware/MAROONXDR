@@ -2,7 +2,7 @@ reduceQA
 ========
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.qa.recipes_ECHELLE_SPECT
-| **Astrodata Tags**: {'MAROONX', 'SCI'}
+| **Astrodata Tags**: {'SCI', 'MAROONX'}
 
 Inspect a MAROON-X science echelle spectrum at an interactive checkpoint.
 

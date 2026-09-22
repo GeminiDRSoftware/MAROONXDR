@@ -2,7 +2,7 @@ makeDynamicWavecal
 ==================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_DYNAMIC_WAVECAL
-| **Astrodata Tags**: {'MAROONX', 'WAVECAL'}
+| **Astrodata Tags**: {'WAVECAL', 'MAROONX'}
 
 Process MAROON-X 2D etalon exposures into a dynamic wavelength solution.
 

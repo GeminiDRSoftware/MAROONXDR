@@ -2,7 +2,7 @@ makeBlaze
 =========
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_FLAT_SPECT
-| **Astrodata Tags**: {'FLAT', 'MAROONX', 'CAL'}
+| **Astrodata Tags**: {'CAL', 'FLAT', 'MAROONX'}
 
 Measure the blaze function for each fiber of a processed masterflat.
 

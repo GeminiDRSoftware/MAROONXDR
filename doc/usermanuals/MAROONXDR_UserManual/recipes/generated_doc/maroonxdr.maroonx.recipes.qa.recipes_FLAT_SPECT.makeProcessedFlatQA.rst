@@ -2,7 +2,7 @@ makeProcessedFlatQA
 ===================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.qa.recipes_FLAT_SPECT
-| **Astrodata Tags**: {'PROCESSED', 'MAROONX', 'CAL', 'FLAT'}
+| **Astrodata Tags**: {'MAROONX', 'CAL', 'PROCESSED', 'FLAT'}
 
 Inspect the extractions of a processed MAROON-X flat interactively.
 

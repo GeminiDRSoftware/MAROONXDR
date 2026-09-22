@@ -2,7 +2,7 @@ Parameter defaults and options
 ------------------------------
 ::
 
-   suffix               '_dqAdded'           Filename suffix
+   suffix               ''                   Filename suffix
    illum_mask           None                 Name of illumination mask
    static_bpm           'default'            Static bad pixel mask
    user_bpm             None                 User bad pixel mask

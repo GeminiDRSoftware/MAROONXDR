@@ -2,7 +2,7 @@ makeProcessedFlatDFFFF
 ======================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_FLAT_SPECT
-| **Astrodata Tags**: {'FLAT', 'MAROONX', 'CAL'}
+| **Astrodata Tags**: {'CAL', 'FLAT', 'MAROONX'}
 
 Convert raw MAROON-X flat frames into a processed DFFFF flat.
 
