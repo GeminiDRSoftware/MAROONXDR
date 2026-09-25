@@ -1051,7 +1051,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
                     )
 
                 if o == 94 and "RED" in etalon_ad.tags:
-                    shift[0:600] = np.nanmedian(shift[600:])
+                    shift.loc[0:600] = np.nanmedian(shift.loc[600:])
                 mask = np.isnan(shift)
                 spl = scipy.interpolate.LSQUnivariateSpline(
                     shift.index[~mask], shift.values[~mask], [1000, 2000, 3000], k=3

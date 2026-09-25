@@ -34,11 +34,13 @@ OBSDB_URL = (
 )
 
 # Meeting with Paul H. indicated that fits_storage is needed
-# DRAGONS master (commit 22f4d9ff9) requires FitsStorage >= 3.4.0b1
+# Pinned to v3.4.0b1; v3.6.2 adds header.processing_tag, which requires
+# recreating existing cal.db files
 FITSS_URL = R'https://github.com/GeminiDRSoftware/FitsStorage.git@v3.4.0b1'
 
 
-DRAGONS_BRANCH = 'master'
+# DRAGONS_BRANCH = 'master'
+DRAGONS_TAG = 'v4.2.2'
 DRAGONS_LOCATION = 'DRAGONS/'
 
 PATH = Path(__file__).parent.resolve()
@@ -50,39 +52,22 @@ NEW_ENV_VARIABLES = {
 
 
 def check_dragons_version(session: nox.Session):
-    """Check if dragons is the expected version."""
+    """Check that the local DRAGONS checkout is at the expected tag."""
     with session.chdir(DRAGONS_LOCATION):
-        result = session.run('git', 'branch', silent=True, external=True)
+        result = session.run(
+            'git', 'describe', '--tags', '--always', silent=True, external=True
+        ).strip()
 
-        match_ = re.match(r'^.*\s+(\w+)\s*.*$', result)
+    if result != DRAGONS_TAG:
+        message = (
+            f'DRAGONS checkout at {DRAGONS_LOCATION} is {result}, '
+            f'expected {DRAGONS_TAG}. Run:\n\n'
+            f'    git -C {DRAGONS_LOCATION} fetch --tags && '
+            f'git -C {DRAGONS_LOCATION} checkout {DRAGONS_TAG}\n'
+        )
+        raise RuntimeError(message)
 
-        if not match_:
-            message = 'No DRAGONS branch found.'
-            raise ValueError(message)
-
-        branch_name = match_.group(1)
-
-        if branch_name != DRAGONS_BRANCH:
-            session.warn(f'Unexpected git branch: {branch_name} (not {DRAGONS_BRANCH})')
-
-        else:
-            session.log(f'Found correct branch: {branch_name}')
-
-        result = session.run('git', 'fetch', '--dry-run', silent=True, external=True)
-
-        if result:
-            session.warn(
-                f'Your DRAGONS version is not up-to-date.\n'
-                f'Please check the latest version at:\n'
-                f'    {DRAGONS_URL}\n'
-                f'And, if you would like to update, run:\n\n'
-                f'    git fetch && git pull\n\n'
-                f' We strongly encourage you do this regularly in case of '
-                f' important updates.'
-            )
-
-        else:
-            session.log('DRAGONS is up to date!')
+    session.log(f'Found DRAGONS {DRAGONS_TAG}')
 
 
 def install_dragons(session: nox.Session, python: Path | None = None):
@@ -99,7 +84,7 @@ def install_dragons(session: nox.Session, python: Path | None = None):
             'git',
             'clone',
             '-b',
-            DRAGONS_BRANCH,
+            DRAGONS_TAG,
             DRAGONS_URL,
             str(dragons_path),
             external=True,
@@ -188,8 +173,8 @@ def devenv(session: nox.Session):
 
     + Create a new virtual environment at ``venv/``
     + Install DRAGONS:
-        + If DRAGONS does not exist locally, clone it.
-        + Otherwise, perform a ``git fetch && git pull``
+        + If DRAGONS does not exist locally, clone it at ``DRAGONS_TAG``.
+        + Otherwise, check that it is at ``DRAGONS_TAG``.
     + Install any other dependencies needed.
     """
     session.install('poetry', 'poetry-plugin-export')
@@ -340,10 +325,10 @@ def devconda(session: nox.Session):
         '--no-update-deps',
         # '-c',
         # 'conda-forge',
-        'astropy>=6',
+        'astropy>=7.1.2',  # was 'astropy>=6'
         'astroquery',
         'matplotlib',
-        'numpy<2',
+        'numpy>=2',  # was 'numpy<2'
         'psutil',
         'python-dateutil',
         'requests',
@@ -352,7 +337,7 @@ def devconda(session: nox.Session):
         'sextractor',
         'sqlalchemy>=2.0.0',
         'ds9',
-        'gwcs>=0.15,<=0.22.1',
+        'gwcs>=0.25',  # was 'gwcs>=0.15,<=0.22.1'
         'specutils',
         'sphinx',
         'sphinx_rtd_theme',
@@ -678,7 +663,7 @@ def package_test_data(session: nox.Session):
     # build output filename
     stamp = datetime.datetime.now(tz=datetime.UTC).strftime('%Y%m%d')
     pyproject = tomllib.loads((PATH / 'pyproject.toml').read_text())
-    version = pyproject['tool']['poetry']['version']
+    version = pyproject['project']['version']
     archive = dragons_test.parent / f'mx_test_{version}_{stamp}.zip'
 
     n_files = 0
@@ -727,7 +712,7 @@ def package_lookups(session: nox.Session):
         raise FileNotFoundError(message)
 
     pyproject = tomllib.loads((PATH / 'pyproject.toml').read_text())
-    version = pyproject['tool']['poetry']['version']
+    version = pyproject['project']['version']
     archive = lookups / f'lookups_files_{version}.zip'
 
     with zipfile.ZipFile(archive, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
