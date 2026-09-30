@@ -2,7 +2,7 @@ makeSyntheticDarksFromCoeffs
 ============================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_DARK
-| **Astrodata Tags**: {'CAL', 'DARK', 'MAROONX'}
+| **Astrodata Tags**: {'MAROONX', 'CAL', 'DARK'}
 
 Construct synthetic DDDDE darks at given exposure times from coefficients.
 

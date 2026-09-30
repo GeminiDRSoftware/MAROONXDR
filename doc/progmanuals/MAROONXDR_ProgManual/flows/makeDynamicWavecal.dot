@@ -59,7 +59,7 @@ digraph makeDynamicWavecal {
     getPeaksAndPolynomials   [label="getPeaksAndPolynomials()",   fillcolor="#A1342D", color="#A1342D"];
     staticWavelengthSolution [label="staticWavelengthSolution()", fillcolor="#A1342D", color="#A1342D"];
     fitAndApplyEtalonWls     [label="fitAndApplyEtalonWls()",     fillcolor="#A1342D", color="#A1342D"];
-    storeProcessedWavecal    [label="storeProcessedWavecal(suffix='_wavecal')",
+    storeProcessedArc        [label="storeProcessedArc()",
                               fillcolor="#6a1b9a", color="#6a1b9a"];
 
     // =====================================================================
@@ -71,7 +71,7 @@ digraph makeDynamicWavecal {
           -> trimOverscan -> correctImageOrientation -> addVAR
           -> extractStripes -> boxExtraction -> getPeaksAndPolynomials
           -> staticWavelengthSolution -> fitAndApplyEtalonWls
-          -> storeProcessedWavecal;
+          -> storeProcessedArc;
 
     // ---- CalDB read: cylinder emits flat + dark, both feed extractStripes
     caldb_read -> cal_flat;
@@ -90,9 +90,9 @@ digraph makeDynamicWavecal {
     fitAndApplyEtalonWls -> fit_pdf;
 
     // ---- Outputs -----------------------------------------------------------
-    storeProcessedWavecal -> output;
-    storeProcessedWavecal -> log;
-    storeProcessedWavecal -> caldb_write;
+    storeProcessedArc -> output;
+    storeProcessedArc -> log;
+    storeProcessedArc -> caldb_write;
 
     // =====================================================================
     // LAYOUT ONLY — rank pinning, no semantics
@@ -102,5 +102,5 @@ digraph makeDynamicWavecal {
     { rank=same; refwl_peaks; getPeaksAndPolynomials; }
     { rank=same; wlstat; staticWavelengthSolution; }
     { rank=same; refwl_fit; fitAndApplyEtalonWls; fit_pdf; }
-    { rank=same; storeProcessedWavecal; caldb_write; }
+    { rank=same; storeProcessedArc; caldb_write; }
 }

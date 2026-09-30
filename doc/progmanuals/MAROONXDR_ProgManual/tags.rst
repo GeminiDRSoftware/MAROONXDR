@@ -54,31 +54,31 @@ The tag set for a MAROON-X file is determined primarily by the illumination patt
      - ``SCI, SPECT``
    * - ``DTTTT``
      - Dark, ThAr, ThAr, ThAr, ThAr
-     - ``WAVECAL, SPECT, ThAr, CAL``
+     - ``ARC, SPECT,ThAr, CAL``
    * - ``DTTTE``
      - Dark, ThAr, ThAr, ThAr, Etalon
-     - ``WAVECAL, SPECT, ThAr, CAL``
+     - ``ARC, SPECT,ThAr, CAL``
    * - ``DTTTD``
      - Dark, ThAr, ThAr, ThAr, Dark
-     - ``WAVECAL, SPECT, ThAr, CAL``
+     - ``ARC, SPECT,ThAr, CAL``
    * - ``DEEEE``
      - Dark, Etalon, Etalon, Etalon, Etalon
-     - ``WAVECAL, SPECT, ETALON, CAL``
+     - ``ARC, SPECT,ETALON, CAL``
    * - ``DEEEI``
      - Dark, Etalon, Etalon, Etalon, Iodine cell
-     - ``WAVECAL, SPECT, ETALON, CAL``
+     - ``ARC, SPECT,ETALON, CAL``
    * - ``DLLLL``
      - Dark, LFC, LFC, LFC, LFC
-     - ``WAVECAL, SPECT, LFC, CAL``
+     - ``ARC, SPECT,LFC, CAL``
    * - ``DLLLE``
      - Dark, LFC, LFC, LFC, Etalon
-     - ``WAVECAL, SPECT, LFC, CAL``
+     - ``ARC, SPECT,LFC, CAL``
    * - ``DLLLD``
      - Dark, LFC, LFC, LFC, Dark
-     - ``WAVECAL, SPECT, LFC, CAL``
+     - ``ARC, SPECT,LFC, CAL``
    * - ``DEEEL``
      - Dark, Etalon, Etalon, Etalon, LFC
-     - ``WAVECAL, SPECT, LFC, CAL``
+     - ``ARC, SPECT,LFC, CAL``
 
 .. note::
 
@@ -119,10 +119,10 @@ file must be requested explicitly with ``--recipe`` (or
      - :meth:`~maroonxdr.maroonx.recipes.sq.recipes_FLAT_SPECT.makeProcessedFlat`
      - ``makeProcessedFlat``, ``makeProcessedFlatDFFFF``,
        ``makeStrayLightCheck``, ``makeFlatVarCheck``, ``measureBlaze``
-   * - ``WAVECAL, ThAr``
+   * - ``ARC, ThAr``
      - :meth:`~maroonxdr.maroonx.recipes.sq.recipes_STATICWAVECAL.makeStaticWavecal`
      - ``makeStaticWavecal``
-   * - ``WAVECAL``
+   * - ``ARC``
      - :meth:`~maroonxdr.maroonx.recipes.sq.recipes_DYNAMIC_WAVECAL.makeDynamicWavecal`
      - ``makeDynamicWavecal``
    * - ``SCI``
@@ -166,7 +166,7 @@ directory:
 .. code-block:: bash
 
     # All wavelength calibrations
-    dataselect --adpkg maroonx_instruments --tags WAVECAL *.fits
+    dataselect --adpkg maroonx_instruments --tags ARC *.fits
 
     # Blue arm science
     dataselect --adpkg maroonx_instruments --tags SCI,BLUE *.fits
@@ -237,7 +237,7 @@ calibration file.
 
 ``FLAT`` : Flat field.
 
-``WAVECAL`` : Wavelength calibration. Further specialised by source:
+``ARC`` : Wavelength calibration. Further specialised by source:
 
   * ``ThAr`` : Thorium-argon arc lamp.
   * ``ETALON`` : Fabry-Perot etalon.

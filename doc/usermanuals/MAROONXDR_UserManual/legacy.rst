@@ -442,7 +442,7 @@ Raw Wavelength Calibrations
          >>> ad = astrodata.open('N20250717M5948.fits')
          >>> ad.info()
          Filename: N20250717M5948.fits
-         Tags: BUNDLE CAL ETALON GEMINI MAROONX NORTH RAW SPECT UNPREPARED WAVECAL
+         Tags: ARC BUNDLE CAL ETALON GEMINI MAROONX NORTH RAW SPECT UNPREPARED
 
          Pixels Extensions
          Index  Content                  Type              Dimensions     Format
@@ -477,11 +477,11 @@ Static Wavelength Solutions
    In DRAGONS the pre-evaluated static solution lives as a lookup file
    (``lookups/WLS/WLSTAT_[b|r].fits``, one column per order and fiber), and
    ``staticWavelengthSolution()`` stacks the columns of the extracted orders
-   into ``WLS_STATIC_FIBER_*`` extensions on the wavecal file. The
+   into ``WLS_STATIC_FIBER_*`` extensions on the arc file. The
    underlying peak model is the separate ``REFWAVELENGTH_[b|r].fits``
    lookup, used by the etalon fit.
 
-   * **Example**: ``20250717T163124Z_DEEEE_b_0010_wavecal.fits``
+   * **Example**: ``20250717T163124Z_DEEEE_b_0010_arc.fits``
    * **Structure**: ``(n_orders, n_samples)`` per fiber. Blue arm is ``(34, 3954)``, red arm is
      ``(28, 4036)``. Fiber 1 stays empty as ``(1, 1)``.
 
@@ -538,19 +538,19 @@ Dynamic Wavelength Solutions
 .. topic:: DRAGONS Format (FITS)
    :class: dragons-block
 
-   * **Example**: ``20250717T163124Z_DEEEE_b_0010_wavecal.fits``
-   * **Naming**: ``YYYYMMDDTHHmmSSZ_DEEEE_[b|r]_nnnn_wavecal.fits``
+   * **Example**: ``20250717T163124Z_DEEEE_b_0010_arc.fits``
+   * **Naming**: ``YYYYMMDDTHHmmSSZ_DEEEE_[b|r]_nnnn_arc.fits``
    * **Structure**: single-arm file, ``OVERSCAN_SUBTRACTED`` and ``OVERSCAN_TRIMMED`` to
      ``(4072, 3954)``. Wavelength solutions, extracted spectra, peak fits, and stripe indices
      all live on extension 0.
 
       .. code-block:: pycon
 
-         >>> ad = astrodata.open('20250717T163124Z_DEEEE_b_0010_wavecal.fits')
+         >>> ad = astrodata.open('20250717T163124Z_DEEEE_b_0010_arc.fits')
          >>> ad.info()
-         Filename: 20250717T163124Z_DEEEE_b_0010_wavecal.fits
-         Tags: 10s BLUE CAL ETALON GEMINI MAROONX NORTH OVERSCAN_SUBTRACTED
-             OVERSCAN_TRIMMED PREPARED PROCESSED SPECT WAVECAL
+         Filename: 20250717T163124Z_DEEEE_b_0010_arc.fits
+         Tags: 10s ARC BLUE CAL ETALON GEMINI MAROONX NORTH OVERSCAN_SUBTRACTED
+             OVERSCAN_TRIMMED PREPARED PROCESSED SPECT
 
          Pixels Extensions
          Index  Content                  Type              Dimensions     Format
@@ -602,7 +602,7 @@ Dynamic Wavelength Solutions
          Other Extensions
                         Type        Dimensions
          .EXPOSUREMETER Table       (257, 3)
-         .HISTORY       Table       (3, 4)
+         .HISTORY       Table       (4, 4)
          .PROVENANCE    Table       (3, 4)
 
    * **Processing recipe**: ``recipes_DYNAMIC_WAVECAL.py::makeDynamicWavecal``
@@ -618,7 +618,7 @@ Simultaneous Wavelength Solutions
    and fiber 6 stores the etalon wavelengths after drift correction.
 
    * **Example**: ``20250817T131207Z_SOOOE_b_0300.hdf``
-   * **Added groups** (on top of the dynamic-wavecal tree shown above):
+   * **Added groups** (on top of the dynamic wavelength solution tree shown above):
 
      .. code-block:: text
 

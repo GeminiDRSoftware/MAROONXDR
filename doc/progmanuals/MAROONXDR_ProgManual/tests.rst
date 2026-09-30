@@ -340,5 +340,6 @@ Missing or Desirable Tests
 
 * ``maroonx/maroonx_fit/`` has no direct unit tests.
 * ``maroonx/maroonx_echellespectrum/`` has no direct unit tests.
-* ``primitives_calibdb_maroonx.py`` round-trip tests are deferred until
-  the WAVECAL-to-ARC migration, which changes the store/get interface.
+* ``primitives_calibdb_maroonx.py`` has no round-trip tests for its
+  store/get primitives (``storeProcessedDarkCoeff``,
+  ``getProcessedDarkCoeff``).
