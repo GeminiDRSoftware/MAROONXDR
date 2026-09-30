@@ -1,10 +1,10 @@
 """
-Recipes available to data with tags ['MAROONX', 'WAVECAL', 'ThAr'].
+Recipes available to data with tags ['MAROONX', 'ARC', 'ThAr'].
 
 Default is "makeStaticWavecal".
 """
 
-recipe_tags = {'MAROONX', 'WAVECAL', 'ThAr'}
+recipe_tags = {'MAROONX', 'ARC', 'ThAr'}
 blocked_tags = {'BUNDLE'}
 
 
@@ -16,7 +16,7 @@ def makeStaticWavecal(p):
     fibers is the basis for all wavelength calibrations on MAROON-X data
     (i.e. dynamical wavecals and science reductions). This recipe currently
     performs the 2D processing and box extraction of the ThAr frames and
-    stores the result as a processed arc with a "_static_wavecal" suffix.
+    stores the result as a processed arc with a "_static_arc" suffix.
     The computation of the static solution itself from the extracted lines
     is not yet implemented; the pipeline relies on the static solution
     distributed as a lookup file.
@@ -39,7 +39,7 @@ def makeStaticWavecal(p):
     p.boxExtraction()
     # TODO: second perform static wavecal calculations on the extracted fibers
     #
-    p.storeProcessedArc(suffix='_static_wavecal')
+    p.storeProcessedArc(suffix='_static_arc')
 
 
 _default = makeStaticWavecal

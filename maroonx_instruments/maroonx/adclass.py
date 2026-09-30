@@ -73,7 +73,7 @@ LFC_FIBER_SETUPS = [
     [DARK, ETALON, ETALON, ETALON, LFC],
 ]
 
-WAVECAL_FIBER_SETUPS = THAR_FIBER_SETUPS + ETALON_FIBER_SETUPS + LFC_FIBER_SETUPS
+ARC_FIBER_SETUPS = THAR_FIBER_SETUPS + ETALON_FIBER_SETUPS + LFC_FIBER_SETUPS
 
 
 class AstroDataMAROONX(AstroDataGemini):
@@ -186,21 +186,21 @@ class AstroDataMAROONX(AstroDataGemini):
 
     @astro_data_tag
     def _tag_etalon(self):
-        """Tag etalon frames as WAVECAL, SPECT, ETALON, and CAL."""
+        """Tag etalon frames as ARC, SPECT, ETALON, and CAL."""
         if self.fiber_setup() in ETALON_FIBER_SETUPS:
-            return TagSet(['WAVECAL', 'SPECT', 'ETALON', 'CAL'])        
+            return TagSet(['ARC', 'SPECT', 'ETALON', 'CAL'])
 
     @astro_data_tag
     def _tag_thar(self):
-        """Tag ThAr frames as WAVECAL, SPECT, ThAr, and CAL."""
+        """Tag ThAr frames as ARC, SPECT, ThAr, and CAL."""
         if self.fiber_setup() in THAR_FIBER_SETUPS:
-            return TagSet(['WAVECAL', 'SPECT', 'ThAr', 'CAL'])
+            return TagSet(['ARC', 'SPECT', 'ThAr', 'CAL'])
 
     @astro_data_tag
     def _tag_lfc(self):
-        """Tag laser frequency comb frames as WAVECAL, SPECT, LFC, and CAL."""
+        """Tag laser frequency comb frames as ARC, SPECT, LFC, and CAL."""
         if self.fiber_setup() in LFC_FIBER_SETUPS:
-            return TagSet(['WAVECAL', 'SPECT', 'LFC', 'CAL'])
+            return TagSet(['ARC', 'SPECT', 'LFC', 'CAL'])
 
     @astro_data_tag
     def _tag_bpm(self):
@@ -210,8 +210,8 @@ class AstroDataMAROONX(AstroDataGemini):
 
     @astro_data_tag
     def _status_processed_maroonx_cals(self):
-        """Tag frames with PRWAVECAL or PRDKCOEF as PROCESSED."""
-        kwords = {'PRWAVECAL', 'PRDKCOEF'}
+        """Tag frames with PRDKCOEF as PROCESSED."""
+        kwords = {'PRDKCOEF'}
         if set(self.phu) & kwords:
             return TagSet(['PROCESSED'])
 

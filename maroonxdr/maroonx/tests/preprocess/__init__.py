@@ -2,7 +2,7 @@
 
 Self-contained factory that fetches raw MaroonX bundles from the Gemini Archive
 and reduces them into the shared calibrations (master darks, dark coefficients,
-master flats, wavecals, synthetic darks) and reduced science frames that the
+master flats, arcs, synthetic darks) and reduced science frames that the
 regression tests build their inputs from. Run manually, module by module, in
 dependency order: bundle -> dark -> flat -> wavecal -> science.
 

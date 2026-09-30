@@ -23,7 +23,7 @@ blue_dark = '20250707T172105Z_DDDDE_b_0300.fits'
 red_dark = '20250707T172105Z_DDDDE_r_0300.fits'
 blue_flat = '20250701T170101Z_DFFFD_b_0008.fits'
 red_flat = '20250701T170101Z_DFFFD_r_0002.fits'
-blue_wavecal = '20250717T163124Z_DEEEE_b_0010.fits'
+blue_arc = '20250717T163124Z_DEEEE_b_0010.fits'
 blue_dark_120 = '20250707T164838Z_DDDDE_b_0120.fits'
 
 # Real processed products from $DRAGONS_TEST/preprocessed_files/. These already
@@ -38,7 +38,7 @@ blue_master_dark_120 = '20250707T164838Z_DDDDE_b_0120_dark.fits'
 proc_blue_dark = 'proc_blue_dark.fits'
 proc_red_dark = 'proc_red_dark.fits'
 proc_blue_flat = 'proc_blue_flat.fits'
-proc_blue_wavecal = 'proc_blue_wavecal.fits'
+proc_blue_arc = 'proc_blue_arc.fits'
 
 
 def _init_caldb(tmp_path):
@@ -53,7 +53,7 @@ def _init_caldb(tmp_path):
 
 @pytest.mark.preprocessed_data
 def test_store_and_retrieve_dark(path_to_inputs, tmp_path):
-    """Store a processed blue dark; retrieve it using a blue wavecal as science."""
+    """Store a processed blue dark; retrieve it using a blue dark as science."""
     caldb = _init_caldb(tmp_path)
 
     cal_path = os.path.join(path_to_inputs, proc_blue_dark)
@@ -68,13 +68,13 @@ def test_store_and_retrieve_dark(path_to_inputs, tmp_path):
 
 @pytest.mark.preprocessed_data
 def test_store_and_retrieve_flat(path_to_inputs, tmp_path):
-    """Store a processed blue flat; retrieve it using a blue wavecal as science."""
+    """Store a processed blue flat; retrieve it using a blue arc as science."""
     caldb = _init_caldb(tmp_path)
 
     cal_path = os.path.join(path_to_inputs, proc_blue_flat)
     caldb.add_cal(cal_path)
 
-    ad_sci = astrodata.open(os.path.join(path_to_inputs, blue_wavecal))
+    ad_sci = astrodata.open(os.path.join(path_to_inputs, blue_arc))
     result = caldb.get_calibrations([ad_sci], caltype='processed_flat')
     assert result.files[0] is not None
     assert os.path.basename(result.files[0]) == proc_blue_flat
@@ -134,17 +134,17 @@ def test_dark_coefficients_not_served_as_dark(path_to_inputs, tmp_path):
 
 
 @pytest.mark.preprocessed_data
-def test_store_and_retrieve_wavecal(path_to_inputs, tmp_path):
-    """Store a processed blue wavecal; retrieve it using a blue wavecal as science."""
+def test_store_and_retrieve_arc(path_to_inputs, tmp_path):
+    """Store a processed blue arc; retrieve it using a blue arc as science."""
     caldb = _init_caldb(tmp_path)
 
-    cal_path = os.path.join(path_to_inputs, proc_blue_wavecal)
+    cal_path = os.path.join(path_to_inputs, proc_blue_arc)
     caldb.add_cal(cal_path)
 
-    ad_sci = astrodata.open(os.path.join(path_to_inputs, blue_wavecal))
-    result = caldb.get_calibrations([ad_sci], caltype='processed_wavecal')
+    ad_sci = astrodata.open(os.path.join(path_to_inputs, blue_arc))
+    result = caldb.get_calibrations([ad_sci], caltype='processed_arc')
     assert result.files[0] is not None
-    assert os.path.basename(result.files[0]) == proc_blue_wavecal
+    assert os.path.basename(result.files[0]) == proc_blue_arc
 
 
 # -- Create inputs -------------------------------------------------------------
@@ -165,7 +165,7 @@ def create_inputs():
 
     # Copy raw files needed as query targets, and the processed products that
     # already carry the keywords and tags the association rules read
-    for name in [blue_wavecal, blue_dark, blue_dark_120,
+    for name in [blue_arc, blue_dark, blue_dark_120,
                  blue_synth_dark, blue_dark_coeff, blue_master_dark_120]:
         shutil.copy2(os.path.join(source_dir, name),
                      os.path.join(dest_dir, name))
@@ -173,10 +173,10 @@ def create_inputs():
 
     # Create processed calib files by hacking the header of raw files
     processed_cals = {
-        proc_blue_dark:    (blue_dark, 'PROCDARK'),
-        proc_red_dark:     (red_dark, 'PROCDARK'),
-        proc_blue_flat:    (blue_flat, 'PROCFLAT'),
-        proc_blue_wavecal: (blue_wavecal, 'PROCARC'),
+        proc_blue_dark: (blue_dark, 'PROCDARK'),
+        proc_red_dark:  (red_dark, 'PROCDARK'),
+        proc_blue_flat: (blue_flat, 'PROCFLAT'),
+        proc_blue_arc:  (blue_arc, 'PROCARC'),
     }
 
     for proc_name, (raw_name, keyword) in processed_cals.items():

@@ -890,7 +890,7 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
             Input AstroData objects containing 1D extracted science spectra with
             PEAKS and POLY extensions from getPeaksAndPolynomials.
 
-        wavecal : str or :class:`~astrodata.AstroData`, optional
+        arc : str or :class:`~astrodata.AstroData`, optional
             Corresponding etalon calibration file with dynamic wavelength
             solutions from fitAndApplyEtalonWls. If None, calibration database
             is queried for matching etalon frames. Default is None.
@@ -971,21 +971,21 @@ class MaroonXSpectrum(MAROONXEchelle, Spect):
         ref_fiber = params.get("ref_fiber", 5)
         symmetric_linefits = params.get("symmetric_linefits", False)
         n_knots = params.get("n_knots", 30)
-        wavecal = params.get("wavecal")
+        arc = params.get("arc")
         report = params.get("report")
 
-        # Resolve wavecal: use parameter or fall back to caldb
-        if wavecal is None:
-            wavecal_list = self.caldb.get_processed_wavecal(adinputs)
+        # Resolve arc: use parameter or fall back to caldb
+        if arc is None:
+            arc_list = self.caldb.get_processed_arc(adinputs)
         else:
-            wavecal_list = (wavecal, None)
+            arc_list = (arc, None)
 
         for science_ad, etalon_ad, _ in zip(
-            *gt.make_lists(adinputs, *wavecal_list, force_ad=(1,))
+            *gt.make_lists(adinputs, *arc_list, force_ad=(1,))
         ):
             if etalon_ad is None:
                 raise RuntimeError(
-                    f"No processed wavecal listed for {science_ad.filename}"
+                    f"No processed arc listed for {science_ad.filename}"
                 )
             log.stdinfo(f"{science_ad.filename}: applying wavelength solution from {etalon_ad.filename}")
             log.fullinfo(f"Etalon reference fiber: {ref_fiber}")

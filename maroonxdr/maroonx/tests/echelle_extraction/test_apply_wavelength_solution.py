@@ -1,7 +1,7 @@
 """Regression tests for the applyWavelengthSolution primitive.
 
 The input files are the reduced science products written by
-preprocess/science.py, together with its dynamic wavecal calibration. 
+preprocess/science.py, together with its dynamic arc calibration.
 The reduced product carries both the primitive's input state
 (PEAKS/POLY from the science etalon fiber, WLS_STATIC_* and the box-extracted
 spectra) and its blessed output (the WLS_SIMULTANEOUS_* arrays and the
@@ -24,12 +24,12 @@ import astrodata
 import maroonx_instruments  # noqa - registers the MaroonX AstroData class
 from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
 
-# Reduced science product and its dynamic wavecal calibration, per arm.
+# Reduced science product and its dynamic arc calibration, per arm.
 datasets = [
     ('20250717T144308Z_SOOOE_b_0300_reduced.fits',
-     '20250717T163124Z_DEEEE_b_0010_wavecal.fits'),
+     '20250717T163124Z_DEEEE_b_0010_arc.fits'),
     ('20250717T144308Z_SOOOE_r_0300_reduced.fits',
-     '20250717T163124Z_DEEEE_r_0004_wavecal.fits'),
+     '20250717T163124Z_DEEEE_r_0004_arc.fits'),
 ]
 
 # Science fibers and simultaneous-etalon reference fiber, as in the recipe.
@@ -40,13 +40,13 @@ REF_FIBER = 5
 # -- Tests ---------------------------------------------------------------------
 @pytest.mark.preprocessed_data
 @pytest.mark.regression
-@pytest.mark.parametrize('filename, wavecal', datasets)
+@pytest.mark.parametrize('filename, arc', datasets)
 def test_apply_wavelength_solution(
-    filename, wavecal, path_to_inputs, change_working_dir
+    filename, arc, path_to_inputs, change_working_dir
 ):
     """Run drift-corrected wavelength solution against reference."""
     ad = astrodata.open(os.path.join(path_to_inputs, filename))
-    wavecal_path = os.path.join(path_to_inputs, wavecal)
+    arc_path = os.path.join(path_to_inputs, arc)
 
     # Stored output from the reference run
     ref_wls = {fiber: getattr(ad[0], f'WLS_SIMULTANEOUS_FIBER_{fiber}')
@@ -58,7 +58,7 @@ def test_apply_wavelength_solution(
         logutils.config(file_name=f'log_{filename.replace(".fits", "")}.txt')
         ad_out = MaroonXSpectrum([]).applyWavelengthSolution(
             [deepcopy(ad)],
-            wavecal=wavecal_path,
+            arc=arc_path,
             fibers=FIBERS,
             ref_fiber=REF_FIBER,
             report=False,
@@ -80,7 +80,7 @@ def test_apply_wavelength_solution(
 
 # -- Recipe to create the inputs -----------------------------------------------
 def create_inputs_recipe():
-    """Copy the reduced science products and their wavecals into inputs/."""
+    """Copy the reduced science products and their arcs into inputs/."""
     import shutil
     from pathlib import Path
 
