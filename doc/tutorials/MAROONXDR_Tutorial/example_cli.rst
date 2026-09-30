@@ -642,15 +642,28 @@ small set of commands:
 .. warning:: Do not use ``caldb add`` with MAROON-X files. Unlike
    ``reduce`` and the other DRAGONS tools, ``caldb`` has no ``--adpkg``
    option, so it opens the file without the MAROON-X AstroData class and
-   stores metadata that never matches a MAROON-X frame (the instrument
-   name is recorded as ``MAROON-X`` instead of ``MAROONX``, the arm is
+   stores metadata that never matches a MAROON-X frame (the arm is
    missing, and the ``DARK``, ``FLAT`` and ``WAVECAL`` tags are absent).
    The file shows up normally in ``caldb list``, but ``reduce`` reports
    the calibration as not found.
 
-To register a calibration by hand, do it from Python with the MAROON-X
-class imported. ``set_local_database()`` reads the same ``dragonsrc`` as
-the ``caldb`` command:
+To register a calibration by hand, run the matching ``storeProcessed``
+primitive on the file with ``reduce``:
+
+.. code-block:: bash
+
+    reduce --adpkg maroonx_instruments --drpkg maroonxdr \
+        -r storeProcessedFlat <file>.fits
+
+Use ``storeProcessedDark`` for master and synthetic darks,
+``storeProcessedDarkCoeff`` for dark coefficients, ``storeProcessedFlat``
+for flats and ``storeProcessedWavecal`` for wavelength solutions. The
+primitive writes a copy of the file under ``calibrations/<caltype>/`` in
+the current directory and registers that copy.
+
+To register the file where it is, without writing a copy, do it from
+Python with the MAROON-X class imported. ``set_local_database()`` reads
+the same ``dragonsrc`` as the ``caldb`` command:
 
 .. code-block:: python
 
@@ -661,7 +674,7 @@ the ``caldb`` command:
     caldb.add_cal('<file>.fits')
 
 If a file was already added with ``caldb add``, ``caldb remove`` it
-first and re-add it from Python.
+first and register it again with either method.
 
 To check which calibrations ``reduce`` will pick for a given frame
 without running the reduction, query the database directly:

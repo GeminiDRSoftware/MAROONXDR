@@ -66,9 +66,10 @@ def test_is_right_instance(inputs, filename):
 
 @pytest.mark.parametrize('filename', [blue_dark])
 def test_instrument_descriptor(inputs, filename):
-    """instrument() returns 'MAROONX' (hyphen stripped)."""
+    """instrument() returns the header name."""
     ad = astrodata.open(os.path.join(inputs, filename))
-    assert ad.instrument() == 'MAROONX'
+    assert ad.instrument() == 'MAROON-X'
+    assert ad.instrument(generic=True) == 'MAROONX'
 
 
 @pytest.mark.parametrize('filename', [blue_dark, red_dark])

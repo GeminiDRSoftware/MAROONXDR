@@ -7,12 +7,13 @@ from .lookup import filter_wavelengths
 
 factory.addClass(AstroDataMAROONX)
 
+# No dash: the table is looked up with instrument(generic=True)
 addInstrumentFilterWavelengths('MAROONX', filter_wavelengths)
 
 # Register MAROONX calibration association rules with FitsStorage
 from fits_storage.cal.calibration import inst_class
 from .calibration_maroonx import CalibrationMAROONX
-inst_class["MAROONX"] = CalibrationMAROONX
+inst_class["MAROON-X"] = CalibrationMAROONX
 
 try:
     # Register MaroonX-specific caltypes with the local calibration manager

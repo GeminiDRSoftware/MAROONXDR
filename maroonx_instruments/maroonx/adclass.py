@@ -266,23 +266,24 @@ class AstroDataMAROONX(AstroDataGemini):
     @astro_data_descriptor
     def instrument(self, generic=False):
         """
-        Return the instrument name without the dash, i.e. 'MAROONX'.
+        Return the instrument name.
 
-        The header value 'MAROON-X' is stripped of its dash so that the
-        name matches the ``maroonxdr`` and ``maroonx_instruments``
-        package directories used by the recipe system.
+        By default this is the header value, 'MAROON-X'. With
+        ``generic=True`` the dash is dropped, so that the name matches the
+        ``maroonx`` package directory and primitive tagset used by the
+        recipe system.
 
         Parameters
         ----------
         generic : bool
-            Inherited from the Gemini descriptor signature; unused.
+            If True, return 'MAROONX' instead of the header value.
 
         Returns
         -------
         str
-            'MAROONX'
+            'MAROON-X', or 'MAROONX' if ``generic`` is True.
         """
-        return super().instrument().replace('-', '')
+        return 'MAROONX' if generic else super().instrument()
 
     @returns_list
     @astro_data_descriptor
