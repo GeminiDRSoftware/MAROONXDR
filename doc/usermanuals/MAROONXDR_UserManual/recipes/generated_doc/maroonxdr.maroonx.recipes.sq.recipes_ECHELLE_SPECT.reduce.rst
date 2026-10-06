@@ -26,7 +26,7 @@ applied to the science fibers 2, 3 and 4.
 The wavelength calibration fits the etalon lines of the sim cal fiber
 5, loads the static wavelength solution from a lookup file, and applies
 a drift corrected solution to the science fibers by comparison with a
-processed wavecal etalon frame retrieved from the calibration database.
+processed arc etalon frame retrieved from the calibration database.
 The barycentric velocity correction is computed from the exposure meter
 flux-weighted timestamps and stored in header keywords.
 

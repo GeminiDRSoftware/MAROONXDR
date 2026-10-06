@@ -1,6 +1,6 @@
 """Regression tests for the fitAndApplyEtalonWls primitive.
 
-The input files are the wavecal products written by preprocess/wavecal.py.
+The input files are the arc products written by preprocess/wavecal.py.
 Each one carries both the primitive's input state (PEAKS/POLY tables and
 WLS_STATIC_* extensions) and its blessed output (the WLS_DYNAMIC_* arrays,
 the PEAK_DATA table, and the DRIFT_FIBER_* header keywords). The test re-runs
@@ -21,10 +21,10 @@ import astrodata
 import maroonx_instruments  # noqa - registers the MaroonX AstroData class
 from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
 
-# Wavecal products, per arm.
+# Arc products, per arm.
 datasets = [
-    '20250717T163124Z_DEEEE_b_0010_wavecal.fits',
-    '20250717T163124Z_DEEEE_r_0004_wavecal.fits',
+    '20250717T163124Z_DEEEE_b_0010_arc.fits',
+    '20250717T163124Z_DEEEE_r_0004_arc.fits',
 ]
 
 # Etalon fibers of the DEEEE frames
@@ -84,7 +84,7 @@ def test_fit_and_apply_etalon_wls(filename, path_to_inputs, change_working_dir):
 
 # -- Recipe to create the inputs -----------------------------------------------
 def create_inputs_recipe():
-    """Copy the wavecal products into inputs/."""
+    """Copy the arc products into inputs/."""
     import shutil
     from pathlib import Path
 

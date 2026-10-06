@@ -29,14 +29,14 @@ red_dark = '00000000T000000Z_DDDDE_r_0300.fits'
 blue_flat = '00000000T000000Z_DFFFD_b_0300.fits'
 red_flat = '00000000T000000Z_DFFFD_r_0300.fits'
 
-blue_wavecal = '00000000T000000Z_DEEEE_b_0300.fits'
-red_wavecal = '00000000T000000Z_DEEEE_r_0300.fits'
+blue_arc = '00000000T000000Z_DEEEE_b_0300.fits'
+red_arc = '00000000T000000Z_DEEEE_r_0300.fits'
 
 bundle_file = 'N00000000M0000.fits'
 
 # Convenience lists
-all_blue = [blue_dark, blue_flat, blue_wavecal]
-all_red = [red_dark, red_flat, red_wavecal]
+all_blue = [blue_dark, blue_flat, blue_arc]
+all_red = [red_dark, red_flat, red_arc]
 all_split = all_blue + all_red
 
 
@@ -66,9 +66,10 @@ def test_is_right_instance(inputs, filename):
 
 @pytest.mark.parametrize('filename', [blue_dark])
 def test_instrument_descriptor(inputs, filename):
-    """instrument() returns 'MAROONX' (hyphen stripped)."""
+    """instrument() returns the header name."""
     ad = astrodata.open(os.path.join(inputs, filename))
-    assert ad.instrument() == 'MAROONX'
+    assert ad.instrument() == 'MAROON-X'
+    assert ad.instrument(generic=True) == 'MAROONX'
 
 
 @pytest.mark.parametrize('filename', [blue_dark, red_dark])
@@ -118,11 +119,11 @@ def test_tag_flat(inputs, filename):
     assert {'FLAT', 'CAL'} <= ad.tags
 
 
-@pytest.mark.parametrize('filename', [blue_wavecal, red_wavecal])
-def test_tag_wavecal(inputs, filename):
-    """Wavecal files carry WAVECAL, SPECT, and CAL tags."""
+@pytest.mark.parametrize('filename', [blue_arc, red_arc])
+def test_tag_arc(inputs, filename):
+    """Arc files carry ARC, SPECT, and CAL tags."""
     ad = astrodata.open(os.path.join(inputs, filename))
-    assert {'WAVECAL', 'SPECT', 'CAL'} <= ad.tags
+    assert {'ARC', 'SPECT', 'CAL'} <= ad.tags
 
 
 @pytest.mark.parametrize('filename', all_blue)

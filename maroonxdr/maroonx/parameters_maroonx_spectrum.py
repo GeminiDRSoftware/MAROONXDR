@@ -97,8 +97,8 @@ class applyWavelengthSolutionConfig(config.Config):
     This parameter set controls the applyWavelengthSolution primitive for MAROON-X.
     """
     suffix = config.Field('Filename suffix', str, '_wls')
-    wavecal = config.ListField("Processed wavecal (etalon)", (str, AstroData),
-                               None, optional=True, single=True)
+    arc = config.ListField("Processed arc (etalon)", (str, AstroData),
+                           None, optional=True, single=True)
     fibers = config.ListField(
         'List of fibers to process.',
         int,

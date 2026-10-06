@@ -76,7 +76,7 @@ managed by ``caldb``::
     │   ├── processed_dark/              # Master darks (per exptime, per arm)
     │   ├── processed_dark_coeff/        # Dark scaling coefficients (per arm)
     │   ├── processed_flat/              # Master flats (per arm)
-    │   └── processed_wavecal/           # Dynamic etalon wavelength solutions
+    │   └── processed_arc/               # Dynamic etalon wavelength solutions
     └── reduce_*.log                     # Reduction log files
 
 .. note:: Calibration files produced by ``reduce`` are written twice: once
@@ -343,17 +343,17 @@ Run once per arm:
             @wavecal_${arm}.lis
     done
 
-Each call writes one ``*_wavecal.fits`` file into ``science_dir/`` and a
-copy under the ``processed_wavecal`` caltype in
-``calibrations/processed_wavecal/``. The output carries the
-``PROCESSED,WAVECAL`` tag set.
+Each call writes one ``*_arc.fits`` file into ``science_dir/`` and a
+copy under the ``processed_arc`` caltype in
+``calibrations/processed_arc/``. The output carries the
+``PROCESSED,ARC`` tag set.
 
 **Verify wavelength calibrations:**
 
 .. code-block:: bash
 
-    # List processed wavecal files
-    dataselect --adpkg maroonx_instruments --tags PROCESSED,WAVECAL *.fits
+    # List processed arc files
+    dataselect --adpkg maroonx_instruments --tags PROCESSED,ARC *.fits
 
 
 Step 6: Synthetic Darks
@@ -642,15 +642,28 @@ small set of commands:
 .. warning:: Do not use ``caldb add`` with MAROON-X files. Unlike
    ``reduce`` and the other DRAGONS tools, ``caldb`` has no ``--adpkg``
    option, so it opens the file without the MAROON-X AstroData class and
-   stores metadata that never matches a MAROON-X frame (the instrument
-   name is recorded as ``MAROON-X`` instead of ``MAROONX``, the arm is
-   missing, and the ``DARK``, ``FLAT`` and ``WAVECAL`` tags are absent).
+   stores metadata that never matches a MAROON-X frame (the arm is
+   missing, and the ``DARK``, ``FLAT`` and ``ARC`` tags are absent).
    The file shows up normally in ``caldb list``, but ``reduce`` reports
    the calibration as not found.
 
-To register a calibration by hand, do it from Python with the MAROON-X
-class imported. ``set_local_database()`` reads the same ``dragonsrc`` as
-the ``caldb`` command:
+To register a calibration by hand, run the matching ``storeProcessed``
+primitive on the file with ``reduce``:
+
+.. code-block:: bash
+
+    reduce --adpkg maroonx_instruments --drpkg maroonxdr \
+        -r storeProcessedFlat <file>.fits
+
+Use ``storeProcessedDark`` for master and synthetic darks,
+``storeProcessedDarkCoeff`` for dark coefficients, ``storeProcessedFlat``
+for flats and ``storeProcessedArc`` for wavelength solutions. The
+primitive writes a copy of the file under ``calibrations/<caltype>/`` in
+the current directory and registers that copy.
+
+To register the file where it is, without writing a copy, do it from
+Python with the MAROON-X class imported. ``set_local_database()`` reads
+the same ``dragonsrc`` as the ``caldb`` command:
 
 .. code-block:: python
 
@@ -661,7 +674,7 @@ the ``caldb`` command:
     caldb.add_cal('<file>.fits')
 
 If a file was already added with ``caldb add``, ``caldb remove`` it
-first and re-add it from Python.
+first and register it again with either method.
 
 To check which calibrations ``reduce`` will pick for a given frame
 without running the reduction, query the database directly:
@@ -674,7 +687,7 @@ without running the reduction, query the database directly:
 
     caldb = cal_service.set_local_database()
     ad = astrodata.open('<science>.fits')
-    for caltype in ('processed_flat', 'processed_dark', 'processed_wavecal'):
+    for caltype in ('processed_flat', 'processed_dark', 'processed_arc'):
         print(caltype, caldb.get_calibrations([ad], caltype=caltype,
                                               procmode='sq').files[0])
 

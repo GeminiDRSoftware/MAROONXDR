@@ -461,7 +461,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
             for osec_, asec_ in zip(osec, asec):
                 oslice = osec_.asslice()
                 aslice = asec_.asslice()
-                data[aslice] -= np.mean(data[oslice])  # TODO: use nanmean
+                data[aslice] -= np.mean(data[oslice], dtype=np.float64)  # TODO: use nanmean
 
             # Timestamp, and update filename
             gt.mark_history(ad, primname=self.myself(), keyword=timestamp_key)

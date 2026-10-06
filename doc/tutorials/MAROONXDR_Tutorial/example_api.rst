@@ -77,7 +77,7 @@ subtree managed by ``caldb``::
     │   ├── processed_dark/              # Master darks (per exptime, per arm)
     │   ├── processed_dark_coeff/        # Dark scaling coefficients (per arm)
     │   ├── processed_flat/              # Master flats (per arm)
-    │   └── processed_wavecal/           # Dynamic etalon wavelength solutions
+    │   └── processed_arc/               # Dynamic etalon wavelength solutions
     └── reduce_*.log                     # Reduction log files
 
 .. note:: Calibration files produced by ``Reduce.runr()`` are written
@@ -393,17 +393,17 @@ Run once per arm:
         myreduce.uparms = {'getPeaksAndPolynomials:multithreading': True}
         myreduce.runr()
 
-Each call writes one ``*_wavecal.fits`` file into ``science_dir/`` and a
-copy under the ``processed_wavecal`` caltype in
-``calibrations/processed_wavecal/``. The output carries the
-``PROCESSED,WAVECAL`` tag set.
+Each call writes one ``*_arc.fits`` file into ``science_dir/`` and a
+copy under the ``processed_arc`` caltype in
+``calibrations/processed_arc/``. The output carries the
+``PROCESSED,ARC`` tag set.
 
 **Verify wavelength calibrations:**
 
 .. code-block:: python
 
-    # List processed wavecal files
-    print(dataselect.select_data(get_files(), tags=['PROCESSED', 'WAVECAL']))
+    # List processed arc files
+    print(dataselect.select_data(get_files(), tags=['PROCESSED', 'ARC']))
 
 
 Step 6: Synthetic Darks

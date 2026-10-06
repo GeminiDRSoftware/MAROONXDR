@@ -1,6 +1,6 @@
 """Regression tests for the getPeaksAndPolynomials primitive.
 
-The input files are the wavecal products written by preprocess/wavecal.py.
+The input files are the arc products written by preprocess/wavecal.py.
 Each one carries both the primitive's input state (the BOX_REDUCED_*
 extensions from boxExtraction) and its blessed output (the PEAKS and POLY
 tables, which no later primitive in the recipe modifies). The test re-fits a
@@ -23,10 +23,10 @@ import astrodata
 import maroonx_instruments  # noqa - registers the MaroonX AstroData class
 from maroonxdr.maroonx.primitives_maroonx_spectrum import MaroonXSpectrum
 
-# Wavecal products and select the orders to re-fit
+# Arc products and select the orders to re-fit
 datasets = [
-    ('20250717T163124Z_DEEEE_b_0010_wavecal.fits', [100, 108]),
-    ('20250717T163124Z_DEEEE_r_0004_wavecal.fits', [75, 81]),
+    ('20250717T163124Z_DEEEE_b_0010_arc.fits', [100, 108]),
+    ('20250717T163124Z_DEEEE_r_0004_arc.fits', [75, 81]),
 ]
 
 FIBER = 5
@@ -89,7 +89,7 @@ def test_get_peaks_and_polynomials(
 
 # -- Recipe to create the inputs -----------------------------------------------
 def create_inputs_recipe():
-    """Copy the wavecal products into inputs/.
+    """Copy the arc products into inputs/.
 
     The products written by preprocess/wavecal.py already contain both the
     input state and the blessed PEAKS/POLY tables, so staging is a copy from

@@ -94,9 +94,9 @@ class CalibrationMAROONX(Calibration):
     def dark_coeff(self, processed=False, howmany=None):
         """Find matching dark coefficient file: same arm, closest in time.
 
-        Dark coefficient files are tagged DARK_COEFF.  Like WAVECAL,
-        this type has no dedicated FitsStorage REDUCTION_STATUS, so we
-        filter by Header.types.
+        Dark coefficient files are tagged DARK_COEFF.  This type has no
+        dedicated FitsStorage REDUCTION_STATUS, so we filter by
+        Header.types.
         """
         howmany = howmany if howmany else 1
 
@@ -114,25 +114,20 @@ class CalibrationMAROONX(Calibration):
 
         return query.all(howmany)
 
-    def wavecal(self, processed=False, howmany=None):
-        """Find matching wavecal: same arm, closest in time.
+    def arc(self, processed=False, howmany=None):
+        """Find matching arc: same arm, closest in time.
 
-        FitsStorage's REDUCTION_STATUS doesn't include WAVECAL, so
-        processed wavecals are ingested as PROCESSED_UNKNOWN.  Filter
-        by Header.types instead of Header.reduction until the WAVECAL
-        tag is migrated to ARC.
+        Raw etalon, ThAr and LFC frames have OBSTYPE = CAL, so raw arcs
+        are selected by the ARC tag in Header.types.
         """
         howmany = howmany if howmany else 1
 
         query = self.get_query()
         if processed:
-            query = query.filter(
-                Header.types.contains('PROCESSED'),
-                Header.types.contains('WAVECAL'),
-            )
+            query = query.arc(processed)
         else:
             query = query.raw().filter(
-                Header.types.contains('WAVECAL'),
+                Header.types.contains('ARC'),
             )
         query = query.match_descriptors(Header.instrument, Header.camera)
 

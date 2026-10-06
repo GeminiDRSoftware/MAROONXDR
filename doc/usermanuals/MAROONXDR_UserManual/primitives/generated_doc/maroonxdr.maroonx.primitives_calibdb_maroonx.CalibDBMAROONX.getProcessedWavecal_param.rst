@@ -1,4 +1,0 @@
-Parameter defaults and options
-------------------------------
-::
-

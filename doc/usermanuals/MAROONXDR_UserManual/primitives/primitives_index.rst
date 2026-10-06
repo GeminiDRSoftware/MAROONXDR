@@ -69,6 +69,4 @@ Calibration Database
    :maxdepth: 1
 
    primitive_getProcessedDarkCoeff
-   primitive_getProcessedWavecal
    primitive_storeProcessedDarkCoeff
-   primitive_storeProcessedWavecal

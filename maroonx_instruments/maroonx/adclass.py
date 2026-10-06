@@ -73,7 +73,7 @@ LFC_FIBER_SETUPS = [
     [DARK, ETALON, ETALON, ETALON, LFC],
 ]
 
-WAVECAL_FIBER_SETUPS = THAR_FIBER_SETUPS + ETALON_FIBER_SETUPS + LFC_FIBER_SETUPS
+ARC_FIBER_SETUPS = THAR_FIBER_SETUPS + ETALON_FIBER_SETUPS + LFC_FIBER_SETUPS
 
 
 class AstroDataMAROONX(AstroDataGemini):
@@ -186,21 +186,21 @@ class AstroDataMAROONX(AstroDataGemini):
 
     @astro_data_tag
     def _tag_etalon(self):
-        """Tag etalon frames as WAVECAL, SPECT, ETALON, and CAL."""
+        """Tag etalon frames as ARC, SPECT, ETALON, and CAL."""
         if self.fiber_setup() in ETALON_FIBER_SETUPS:
-            return TagSet(['WAVECAL', 'SPECT', 'ETALON', 'CAL'])        
+            return TagSet(['ARC', 'SPECT', 'ETALON', 'CAL'])
 
     @astro_data_tag
     def _tag_thar(self):
-        """Tag ThAr frames as WAVECAL, SPECT, ThAr, and CAL."""
+        """Tag ThAr frames as ARC, SPECT, ThAr, and CAL."""
         if self.fiber_setup() in THAR_FIBER_SETUPS:
-            return TagSet(['WAVECAL', 'SPECT', 'ThAr', 'CAL'])
+            return TagSet(['ARC', 'SPECT', 'ThAr', 'CAL'])
 
     @astro_data_tag
     def _tag_lfc(self):
-        """Tag laser frequency comb frames as WAVECAL, SPECT, LFC, and CAL."""
+        """Tag laser frequency comb frames as ARC, SPECT, LFC, and CAL."""
         if self.fiber_setup() in LFC_FIBER_SETUPS:
-            return TagSet(['WAVECAL', 'SPECT', 'LFC', 'CAL'])
+            return TagSet(['ARC', 'SPECT', 'LFC', 'CAL'])
 
     @astro_data_tag
     def _tag_bpm(self):
@@ -210,8 +210,8 @@ class AstroDataMAROONX(AstroDataGemini):
 
     @astro_data_tag
     def _status_processed_maroonx_cals(self):
-        """Tag frames with PRWAVECAL or PRDKCOEF as PROCESSED."""
-        kwords = {'PRWAVECAL', 'PRDKCOEF'}
+        """Tag frames with PRDKCOEF as PROCESSED."""
+        kwords = {'PRDKCOEF'}
         if set(self.phu) & kwords:
             return TagSet(['PROCESSED'])
 
@@ -266,23 +266,24 @@ class AstroDataMAROONX(AstroDataGemini):
     @astro_data_descriptor
     def instrument(self, generic=False):
         """
-        Return the instrument name without the dash, i.e. 'MAROONX'.
+        Return the instrument name.
 
-        The header value 'MAROON-X' is stripped of its dash so that the
-        name matches the ``maroonxdr`` and ``maroonx_instruments``
-        package directories used by the recipe system.
+        By default this is the header value, 'MAROON-X'. With
+        ``generic=True`` the dash is dropped, so that the name matches the
+        ``maroonx`` package directory and primitive tagset used by the
+        recipe system.
 
         Parameters
         ----------
         generic : bool
-            Inherited from the Gemini descriptor signature; unused.
+            If True, return 'MAROONX' instead of the header value.
 
         Returns
         -------
         str
-            'MAROONX'
+            'MAROON-X', or 'MAROONX' if ``generic`` is True.
         """
-        return super().instrument().replace('-', '')
+        return 'MAROONX' if generic else super().instrument()
 
     @returns_list
     @astro_data_descriptor

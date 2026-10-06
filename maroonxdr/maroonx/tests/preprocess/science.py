@@ -13,10 +13,10 @@ runs two steps per arm:
 All calibrations are passed explicitly per arm (hardcoded filenames read from
 the working-directory copies in ``preprocessed_files/``), so the run does not
 depend on caldb association: the master flat and synthetic dark go to
-``extractStripes``, the dynamic wavecal to ``applyWavelengthSolution``, and the
+``extractStripes``, the dynamic arc to ``applyWavelengthSolution``, and the
 dark coefficients to ``createSyntheticDark``.
 
-Make sure that you have created the darks, flats, and wavecals first (see
+Make sure that you have created the darks, flats, and arcs first (see
 dark.py, flat.py, and wavecal.py).
 
 Usage:
@@ -48,9 +48,9 @@ SYNTH_DARKS = {
     'BLUE': '20250717T144308Z_SOOOE_b_0300_synth_dark.fits',
     'RED': '20250717T144308Z_SOOOE_r_0300_synth_dark.fits',
 }
-WAVECALS = {
-    'BLUE': '20250717T163124Z_DEEEE_b_0010_wavecal.fits',
-    'RED': '20250717T163124Z_DEEEE_r_0004_wavecal.fits',
+ARCS = {
+    'BLUE': '20250717T163124Z_DEEEE_b_0010_arc.fits',
+    'RED': '20250717T163124Z_DEEEE_r_0004_arc.fits',
 }
 
 
@@ -110,7 +110,7 @@ def make_science_reduction():
                 'extractStripes:flat': MASTERFLATS[arm],
                 'extractStripes:dark': SYNTH_DARKS[arm],
                 'extractStripes:straylight_removal_fibers': [5],
-                'applyWavelengthSolution:wavecal': WAVECALS[arm],
+                'applyWavelengthSolution:arc': ARCS[arm],
                 'combineFibers:max_clips': 20,
             }
             myreduce.runr()
