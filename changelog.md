@@ -24,6 +24,10 @@ re-initialised and refilled, and scripts that use the `WAVECAL` tag, the
   `maroonx_utils.py`, and packaged for a release with the
   `package_lookups` nox session
 - Tutorial section on managing the calibration database by hand
+- `plot_extracted_spectra` function in `maroonx_plots.py` for a quick view
+  of the extracted spectra of a reduced file, one offset line per order,
+  for a chosen fiber and extraction type. Intended for the [P] plot
+  in the Gemini Archive.
 
 ### Changed
 
@@ -42,10 +46,16 @@ re-initialised and refilled, and scripts that use the `WAVECAL` tag, the
   given
 - Project metadata moved to the standard `[project]` table in
   `pyproject.toml`
+- `exportReducedBundle` is now a shared recipe available for all frame
+  types: reduced science, processed darks (including dark coefficients
+  and synthetic darks), processed flats, and dynamic wavelength solutions
 
 ### Fixed
 
 - `XNORM` column handling when loading the reference wavelength lookup
+- `devconda` nox session: conda channels are now passed to every install
+  step, the docs dependencies are included, and `pytest-dragons` is
+  installed
 
 ### Removed
 
@@ -114,7 +124,7 @@ re-initialised and refilled, and scripts that use the `WAVECAL` tag, the
   `makeProcessedFlatQA`)
 - nox-based development environment and task automation (`devenv`,
   `devconda`, test, docs and packaging sessions)
-- Documentation: Tutorial nad User Manual published on Read the Docs, Programmer
+- Documentation: Tutorial and User Manual published on Read the Docs, Programmer
   manual built locally, with recipe and primitive reference pages generated
   from the live docstrings
 - GitHub Actions testing workflow
