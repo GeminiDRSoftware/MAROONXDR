@@ -558,6 +558,41 @@ The output is a single ``<ARCHNAME>_reduced.fits`` per observation in
 ``N20250717M5299_reduced.fits``. This is the science-ready product.
 
 
+Exporting Calibration Products
+-------------------------------
+
+**Purpose**: bundle processed calibrations with the same recipe used for
+the science product.
+
+``exportReducedBundle`` works for any processed per-arm product: master
+darks (including dark coefficients and synthetic darks), master flats,
+and dynamic wavelength solutions. The output bundle is again named from
+the ``ARCHNAME``, with a suffix mirroring the input product type - for
+example ``<ARCHNAME>_dark.fits`` for a processed dark pair, or
+``<ARCHNAME>_darkCoefficients.fits`` for dark coefficients.
+
+Because the recipe pairs files by ``ARCHNAME`` and writes one bundle per
+observation, run it once per product type. Different products of the
+same observation (for example a master dark and its dark coefficients)
+must not be mixed in one call; otherwise only the first file per arm is
+kept and the rest are skipped with a warning. To export the master dark
+pairs of Step 2:
+
+.. code-block:: bash
+
+    # Select all processed dark pairs (both arms)
+    dataselect --adpkg maroonx_instruments --tags PROCESSED,DARK \
+        -o dark_bundle.lis *_dark.fits
+
+    # Combine BLUE + RED into one bundle per observation
+    reduce --adpkg maroonx_instruments --drpkg maroonxdr \
+        --recipe exportReducedBundle @dark_bundle.lis
+
+The glob ``*_dark.fits`` deliberately excludes ``*_darkCoefficients.fits``
+and ``*_synth_dark.fits``, which also carry the ``DARK`` tag - that is
+how a single product type is selected per run.
+
+
 Advanced CLI Usage
 ==================
 

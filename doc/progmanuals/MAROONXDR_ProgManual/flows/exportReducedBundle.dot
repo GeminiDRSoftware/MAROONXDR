@@ -1,5 +1,5 @@
 // Flow diagram for the `exportReducedBundle` recipe
-// (maroonxdr/maroonx/recipes/sq/recipes_ECHELLE_SPECT.py).
+// (maroonxdr/maroonx/recipes/sq/recipes_common.py).
 //
 // Conventions follow flows/nodes.dot (the node catalog).
 
@@ -33,11 +33,12 @@ digraph exportReducedBundle {
     bundleArmStreams [label="bundleArmStreams()",
                       fillcolor="#A1342D", color="#A1342D"];
 
-    storeProcessedScience [label="storeProcessedScience()",
-                           fillcolor="#6a1b9a", color="#6a1b9a"];
+    // writeOutputs: DRAGONS core, unchanged
+    writeOutputs [label="writeOutputs()",
+                  fillcolor="#4A90A4", color="#4A90A4"];
 
     // ---- Outputs: recombined MEF bundle + log ---------------------------
-    // storeProcessedScience writes to CWD only, NOT to CalDB.
+    // writeOutputs writes to CWD only, NOT to CalDB.
     output [label="PROCESSED\nSOOOE-O",
             shape=note, style=filled,
             fillcolor="#7BA5E8", fontcolor=black,
@@ -58,7 +59,7 @@ digraph exportReducedBundle {
         [color="black:transparent:black", penwidth=1.5];
 
     // ---- Edges: merge → store → outputs ---------------------------------
-    bundleArmStreams      -> storeProcessedScience;
-    storeProcessedScience -> output;
-    storeProcessedScience -> log;
+    bundleArmStreams -> writeOutputs;
+    writeOutputs     -> output;
+    writeOutputs     -> log;
 }

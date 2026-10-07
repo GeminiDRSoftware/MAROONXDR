@@ -1,9 +1,8 @@
 exportReducedBundle
 ===================
 
-| **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_ECHELLE_SPECT
-| **Recipe Imported From**: maroonxdr.maroonx.recipes.sq.recipes_common
-| **Astrodata Tags**: {'MAROONX', 'SCI'}
+| **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_common
+| **Astrodata Tags**: None
 
 Bundle processed Blue and Red arm frames into a single output file.
 
