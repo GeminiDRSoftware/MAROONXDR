@@ -4,6 +4,10 @@ Recipes available to data with tags ['MAROONX', 'ARC'].
 Default is "makeDynamicWavecal".
 """
 
+from maroonxdr.maroonx.recipes.sq.recipes_common import (
+    exportReducedBundle,  # noqa: F401
+)
+
 recipe_tags = {'MAROONX', 'ARC'}
 blocked_tags = {'BUNDLE'}
 

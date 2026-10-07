@@ -4,6 +4,10 @@ Recipes available to data with tags ['MAROONX', 'SCI'].
 Default is "reduce".
 """
 
+from maroonxdr.maroonx.recipes.sq.recipes_common import (
+    exportReducedBundle,  # noqa: F401
+)
+
 recipe_tags = {'MAROONX', 'SCI'}
 blocked_tags = {'BUNDLE'}
 
@@ -113,24 +117,6 @@ def makeSyntheticDark(p):
     p.addVAR(read_noise=True, poisson_noise=True)
     p.createSyntheticDark()
     p.storeProcessedDark(suffix='_synth_dark')
-
-
-def exportReducedBundle(p):
-    """
-    Bundle reduced Red and Blue arm spectra into a single output file.
-
-    Reverses the arm split performed by processBundle: the reduced Blue and
-    Red arm files of the same observation are combined into one
-    multi-extension bundle, which is stored with a "_reduced" suffix.
-
-    Parameters
-    ----------
-    p : Primitives object
-        A primitive set matching the recipe_tags.
-    """
-    p.separateArmStreams()
-    p.bundleArmStreams()
-    p.storeProcessedScience()
 
 
 def applyBarycentricCorrection(p):
