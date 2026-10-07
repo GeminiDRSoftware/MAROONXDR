@@ -1,5 +1,6 @@
 """Diagnostic plotting functions for the MaroonX DRAGONS pipeline."""
 
+import astrodata
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -472,4 +473,55 @@ def plot_exposuremeter(context_times_pc, context_readings_pc,
     ax1.axvline(endtime.to_value('datetime64'), color='k', linestyle='-')
 
     plt.tight_layout()
+    return fig
+
+
+def plot_extracted_spectra(reduced_file, fiber=3, extraction='box',
+                           plottitle=''):
+    """
+    Plot the extracted spectra of one fiber, one line per echelle order.
+
+    Each row of the ``BOX_REDUCED_FIBER_N`` (or
+    ``OPTIMAL_REDUCED_FIBER_N``) extension is drawn against pixel
+    position, with a constant vertical offset between consecutive
+    orders.
+
+    Parameters
+    ----------
+    reduced_file : str or AstroData
+        Filename of a reduced frame containing extracted spectra, or an
+        already opened AstroData object.
+    fiber : int, optional
+        Fiber number to plot. Defaults to 3.
+    extraction : str, optional
+        Extraction type, ``'box'`` or ``'optimal'``. Defaults to ``'box'``.
+    plottitle : str, optional
+        Title for the plot.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        Figure with the per-order spectra.
+    """
+    if isinstance(reduced_file, str):
+        ad = astrodata.open(reduced_file)
+    else:
+        ad = reduced_file
+
+    extname = f'{extraction.upper()}_REDUCED_FIBER_{fiber}'
+    data = getattr(ad[0], extname, None)
+    if data is None or data.size <= 1:
+        raise ValueError(f'{extname} not found or empty in {ad.filename}')
+
+    offset = np.nanpercentile(data, 95)
+
+    fig, ax = plt.subplots(figsize=(10, 8))
+    ax.set_title(plottitle)
+    for i, spectrum in enumerate(data):
+        ax.plot(spectrum + i * offset, 'k', linewidth=0.5, rasterized=True)
+    ax.set_xlim(0, data.shape[1] - 1)
+    ax.set_xlabel('x (pixel)')
+    ax.set_ylabel('Counts + offset per order (DN)')
+    plt.tight_layout()
+
     return fig
