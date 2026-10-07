@@ -252,7 +252,7 @@ def devenv(session: nox.Session):
 def devconda(session: nox.Session):
     """Create a conda development environment."""
     session.install('poetry', 'poetry-plugin-export')
-    dependencies = get_dependencies(session, only='main,dev,test')
+    dependencies = get_dependencies(session, only='main,dev,docs,test')
 
     env_name = 'mx_devconda'
     session.run(
@@ -313,7 +313,11 @@ def devconda(session: nox.Session):
     # Install conda dependencies
     for dep in conda_deps:
         session.run(
-            'conda', 'install', f'--name={env_name}', '--yes', dep, external=True
+            'conda', 'install', f'--name={env_name}', '--yes',
+            '-c', 'http://astroconda.gemini.edu/public',
+            '-c', 'conda-forge',
+            '-c', 'defaults',
+            dep, external=True
         )
 
     # Install DRAGONS conda dependencies as stated in its README
@@ -323,8 +327,9 @@ def devconda(session: nox.Session):
         f'--name={env_name}',
         '--yes',
         '--no-update-deps',
-        # '-c',
-        # 'conda-forge',
+        '-c', 'http://astroconda.gemini.edu/public',
+        '-c', 'conda-forge',
+        '-c', 'defaults',
         'astropy>=7.1.2',  # was 'astropy>=6'
         'astroquery',
         'matplotlib',
@@ -365,6 +370,16 @@ def devconda(session: nox.Session):
             *pip_deps,
             external=True,
         )
+
+    # Install pytest_dragons
+    session.run(
+        str(env_python),
+        '-m',
+        'pip',
+        'install',
+        PYTEST_DRAGONS_URL,
+        external=True,
+    )
 
     # Install maroonxdr and maroonx_instruments
     session.run(
