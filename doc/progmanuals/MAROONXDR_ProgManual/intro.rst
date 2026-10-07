@@ -207,6 +207,11 @@ The developer-facing nox sessions are:
    Zips the staged test data into a versioned archive for sharing with
    other developers; see :ref:`tests`.
 
+``package_lookups``
+   Zips the lookup FITS files under ``maroonxdr/maroonx/lookups/`` into
+   the versioned ``lookups_files_<version>.zip`` that ships with a release;
+   see `Building the Lookup Files`_.
+
 ``docs``
    Builds this Sphinx documentation using the unified ``doc/conf.py``.
    The ``usermanual``, ``progmanual``, and ``tutorial`` sessions build
@@ -214,3 +219,95 @@ The developer-facing nox sessions are:
 
 Run ``nox -l`` from the repository root to see every available session
 together with its docstring.
+
+Building the Lookup Files
+-------------------------
+
+The lookup FITS files under ``maroonxdr/maroonx/lookups/`` are not tracked
+by git. They are built from the legacy HDF5 configuration files and shipped
+as ``lookups_files_<version>.zip`` on the GitHub releases page, which users
+unzip into ``lookups/`` as described in the Tutorial. Rebuilding them is
+only needed when the legacy sources change or when the lookup layout
+changes.
+
+Two legacy sources feed the eight runtime files:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 45 55
+
+   * - Legacy source
+     - Lookup files built from it
+   * - ``config_b.hdf``, ``config_r.hdf`` (one per arm)
+     - ``BPM/BPM_[b|r]_0000.fits``, ``SID/SID_[b|r].fits``,
+       ``WLS/WLSTAT_[b|r].fits``
+   * - ``wl_combined_final_etalon_peakmodel_2020.hdf`` (shared)
+     - ``WLS/REFWAVELENGTH_b.fits``, ``WLS/REFWAVELENGTH_r.fits``
+
+The builders are four functions in ``maroonxdr/maroonx/maroonx_utils.py``.
+Each one writes its product through ``astrodata`` and takes the output file
+name from the matching lookup dictionary (``maskdb.bpm_dict``,
+``siddb.sid_dict``, ``wavelengthdb.statwavelength_dict`` and
+``wavelengthdb.refwavelength_dict``), so the registry and the files on disk
+cannot drift apart.
+
+``build_bpm_lookup(config_hdf, arm, outdir)``
+   Reads ``/bad_pixel_map`` and writes the bad pixel mask as a
+   multi-extension file with the mask in a ``SCI`` extension. The legacy
+   map uses 1 for good pixels; the lookup follows the DRAGONS DQ
+   convention (nonzero is bad), so the builder inverts it.
+
+``build_sid_lookup(config_hdf, arm, outdir)``
+   Reads the ``positions`` attribute of ``/identify_stripes`` and writes
+   it as the ``SID`` table.
+
+``build_statwls_lookup(config_hdf, arm, outdir)``
+   Reads ``/wavelengths_static/fiber_N`` for the five fibers and writes one
+   ``FIBER_N`` table per fiber, one column per echelle order.
+
+``build_refwls_lookup(peakmodel_hdf, outdir)``
+   Reads the lmfit parameter dump under ``dispersion/parameter`` and the
+   ``wls_[blue|red]/fiber_N`` groups and writes both arms in one call: the
+   ``PARAMETERS`` table, shared by the two files, and one ``FIBER_N`` table
+   per fiber. The legacy parameter dump embeds callables pickled under
+   Python 3.7 that current lmfit versions cannot decode, so the builder
+   reads the parameter states directly instead of calling
+   ``lmfit.Parameters.loads``; no parameter carries an expression, so
+   nothing is lost.
+
+``arm`` is ``'BLUE'`` or ``'RED'`` and is written to the ``ARM`` header
+card, alongside ``INSTRUME``, ``OBSTYPE``, the legacy file name in
+``ORIGNAME`` and the build date in ``DATE``. The functions import ``h5py``
+lazily; it is a test-group dependency, so it is available in the ``mx_dev``
+environment but is not needed to run the pipeline.
+
+To rebuild the complete set in place, from the repository root in the
+``mx_dev`` environment, with the legacy files at their usual location:
+
+.. code-block:: python
+
+   from maroonxdr.maroonx import maroonx_utils as mu
+
+   legacy = '/path/to/legacy/'
+   lookups = 'maroonxdr/maroonx/lookups/'
+   for arm, letter in (('BLUE', 'b'), ('RED', 'r')):
+       config = f'{legacy}config_{letter}.hdf'
+       mu.build_bpm_lookup(config, arm, lookups + 'BPM')
+       mu.build_sid_lookup(config, arm, lookups + 'SID')
+       mu.build_statwls_lookup(config, arm, lookups + 'WLS')
+   mu.build_refwls_lookup(
+       f'{legacy}wl_combined_final_etalon_peakmodel_2020.hdf',
+       lookups + 'WLS',
+   )
+
+This overwrites the files under ``lookups/``. Then package the set
+for release:
+
+.. code-block:: bash
+
+   nox -s package_lookups
+
+The session zips the eight FITS files and the three READMEs with paths
+relative to ``lookups/``, refuses to run if any of them is missing, and
+writes ``lookups/lookups_files_<version>.zip`` with the version taken from
+``pyproject.toml``.

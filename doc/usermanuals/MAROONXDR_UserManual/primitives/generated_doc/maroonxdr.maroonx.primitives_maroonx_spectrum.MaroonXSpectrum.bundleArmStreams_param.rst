@@ -2,4 +2,4 @@ Parameter defaults and options
 ------------------------------
 ::
 
-   suffix               '_reduced'           Filename suffix
+   suffix               None                 Filename suffix; if None, derived from the bundle tags

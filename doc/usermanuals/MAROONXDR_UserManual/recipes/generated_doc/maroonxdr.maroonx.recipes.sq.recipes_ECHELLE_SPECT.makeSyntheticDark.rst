@@ -2,7 +2,7 @@ makeSyntheticDark
 =================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_ECHELLE_SPECT
-| **Astrodata Tags**: {'SCI', 'MAROONX'}
+| **Astrodata Tags**: {'MAROONX', 'SCI'}
 
 Construct synthetic DDDDE darks for science exposures.
 

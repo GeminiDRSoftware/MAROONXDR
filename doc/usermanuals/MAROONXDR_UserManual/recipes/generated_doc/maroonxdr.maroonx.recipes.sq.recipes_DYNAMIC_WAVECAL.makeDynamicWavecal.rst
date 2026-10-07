@@ -2,7 +2,7 @@ makeDynamicWavecal
 ==================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_DYNAMIC_WAVECAL
-| **Astrodata Tags**: {'MAROONX', 'WAVECAL'}
+| **Astrodata Tags**: {'ARC', 'MAROONX'}
 
 Process MAROON-X 2D etalon exposures into a dynamic wavelength solution.
 
@@ -27,7 +27,7 @@ This is done in the following steps:
    the spectrograph with time and restores an accuracy of 10 to 20
    centimeters per second.
 
-The result is stored in the calibration database as a processed wavecal.
+The result is stored in the calibration database as a processed arc.
 
 ::
 
@@ -54,5 +54,5 @@ The result is stored in the calibration database as a processed wavecal.
 
         p.staticWavelengthSolution()
         p.fitAndApplyEtalonWls()
-        p.storeProcessedWavecal(suffix='_wavecal')
+        p.storeProcessedArc()
 

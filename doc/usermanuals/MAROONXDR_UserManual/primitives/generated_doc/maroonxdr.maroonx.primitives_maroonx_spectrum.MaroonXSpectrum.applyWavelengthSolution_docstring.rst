@@ -21,7 +21,7 @@ adinputs : list of :class:`~astrodata.AstroData`
     Input AstroData objects containing 1D extracted science spectra with
     PEAKS and POLY extensions from getPeaksAndPolynomials.
 
-wavecal : str or :class:`~astrodata.AstroData`, optional
+arc : str or :class:`~astrodata.AstroData`, optional
     Corresponding etalon calibration file with dynamic wavelength
     solutions from fitAndApplyEtalonWls. If None, calibration database
     is queried for matching etalon frames. Default is None.

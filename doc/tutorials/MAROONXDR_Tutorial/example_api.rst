@@ -77,7 +77,7 @@ subtree managed by ``caldb``::
     │   ├── processed_dark/              # Master darks (per exptime, per arm)
     │   ├── processed_dark_coeff/        # Dark scaling coefficients (per arm)
     │   ├── processed_flat/              # Master flats (per arm)
-    │   └── processed_wavecal/           # Dynamic etalon wavelength solutions
+    │   └── processed_arc/               # Dynamic etalon wavelength solutions
     └── reduce_*.log                     # Reduction log files
 
 .. note:: Calibration files produced by ``Reduce.runr()`` are written
@@ -393,17 +393,17 @@ Run once per arm:
         myreduce.uparms = {'getPeaksAndPolynomials:multithreading': True}
         myreduce.runr()
 
-Each call writes one ``*_wavecal.fits`` file into ``science_dir/`` and a
-copy under the ``processed_wavecal`` caltype in
-``calibrations/processed_wavecal/``. The output carries the
-``PROCESSED,WAVECAL`` tag set.
+Each call writes one ``*_arc.fits`` file into ``science_dir/`` and a
+copy under the ``processed_arc`` caltype in
+``calibrations/processed_arc/``. The output carries the
+``PROCESSED,ARC`` tag set.
 
 **Verify wavelength calibrations:**
 
 .. code-block:: python
 
-    # List processed wavecal files
-    print(dataselect.select_data(get_files(), tags=['PROCESSED', 'WAVECAL']))
+    # List processed arc files
+    print(dataselect.select_data(get_files(), tags=['PROCESSED', 'ARC']))
 
 
 Step 6: Synthetic Darks
@@ -610,4 +610,42 @@ Select every barycor output and run the recipe once:
 The output is a single ``<ARCHNAME>_reduced.fits`` per observation in
 ``science_dir/`` - for this tutorial,
 ``N20250717M5299_reduced.fits``. This is the science-ready product.
+
+
+Exporting Calibration Products
+-------------------------------
+
+**Purpose**: bundle processed calibrations with the same recipe used for
+the science product.
+
+``exportReducedBundle`` works for any processed per-arm product: master
+darks (including dark coefficients and synthetic darks), master flats,
+and dynamic wavelength solutions. The output bundle is again named from
+the ``ARCHNAME``, with a suffix mirroring the input product type - for
+example ``<ARCHNAME>_dark.fits`` for a processed dark pair, or
+``<ARCHNAME>_darkCoefficients.fits`` for dark coefficients.
+
+Because the recipe pairs files by ``ARCHNAME`` and writes one bundle per
+observation, run it once per product type. Different products of the
+same observation (for example a master dark and its dark coefficients)
+must not be mixed in one call; otherwise only the first file per arm is
+kept and the rest are skipped with a warning. To export the master dark
+pairs of Step 2:
+
+.. code-block:: python
+
+    # Select all processed dark pairs (both arms)
+    selected_darks = dataselect.select_data(
+        get_files('*_dark.fits'), tags=['PROCESSED', 'DARK'])
+
+    # Combine BLUE + RED into one bundle per observation
+    myreduce = Reduce()
+    myreduce.files.extend(selected_darks)
+    myreduce.drpkg = 'maroonxdr'
+    myreduce.recipename = 'exportReducedBundle'
+    myreduce.runr()
+
+The glob ``*_dark.fits`` deliberately excludes ``*_darkCoefficients.fits``
+and ``*_synth_dark.fits``, which also carry the ``DARK`` tag - that is
+how a single product type is selected per run.
 

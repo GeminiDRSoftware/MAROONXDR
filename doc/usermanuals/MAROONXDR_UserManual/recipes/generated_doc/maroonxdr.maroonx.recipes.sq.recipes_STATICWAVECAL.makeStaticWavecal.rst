@@ -2,7 +2,7 @@ makeStaticWavecal
 =================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_STATICWAVECAL
-| **Astrodata Tags**: {'ThAr', 'MAROONX', 'WAVECAL'}
+| **Astrodata Tags**: {'ARC', 'ThAr', 'MAROONX'}
 
 Process Thorium Argon exposures towards a static wavelength solution.
 
@@ -10,7 +10,7 @@ A static wavelength solution reference for the science and sim cal
 fibers is the basis for all wavelength calibrations on MAROON-X data
 (i.e. dynamical wavecals and science reductions). This recipe currently
 performs the 2D processing and box extraction of the ThAr frames and
-stores the result as a processed arc with a "_static_wavecal" suffix.
+stores the result as a processed arc with a "_static_arc" suffix.
 The computation of the static solution itself from the extracted lines
 is not yet implemented; the pipeline relies on the static solution
 distributed as a lookup file.
@@ -38,5 +38,5 @@ distributed as a lookup file.
         p.boxExtraction()
         # TODO: second perform static wavecal calculations on the extracted fibers
         #
-        p.storeProcessedArc(suffix='_static_wavecal')
+        p.storeProcessedArc(suffix='_static_arc')
 

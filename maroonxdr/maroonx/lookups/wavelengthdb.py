@@ -1,13 +1,15 @@
-# maroonx/refwavelengthdb.py
+# maroonx/wavelengthdb.py
 #
-# This file contains the reference wavelength lookup table for MaroonX
+# This file contains the reference and static wavelength lookup tables
+# for MaroonX. Keys are the arm name ('BLUE' or 'RED'); values are file
+# names relative to lookups/WLS/, or absolute paths.
 
 refwavelength_dict = {
-    "REFWAVELENGTH_b.fits" : "REFWAVELENGTH_b.fits",
-    "REFWAVELENGTH_r.fits" : "REFWAVELENGTH_r.fits"
+    "BLUE" : "REFWAVELENGTH_b.fits",
+    "RED" : "REFWAVELENGTH_r.fits"
 }
 
 statwavelength_dict = {
-    "WLSTAT_b.fits" : "WLSTAT_b.fits",
-    "WLSTAT_r.fits" : "WLSTAT_r.fits"
+    "BLUE" : "WLSTAT_b.fits",
+    "RED" : "WLSTAT_r.fits"
 }

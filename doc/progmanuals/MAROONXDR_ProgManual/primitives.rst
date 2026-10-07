@@ -110,7 +110,7 @@ Plotting Functions Reference
 -----------------------------
 
 The following functions in ``maroonxdr/maroonx/maroonx_plots.py`` produce the
-figures written into the PDF reports.
+figures written into the PDF reports, plus standalone diagnostics.
 
 .. list-table::
    :header-rows: 1
@@ -135,6 +135,12 @@ figures written into the PDF reports.
        ``plotnumber`` and ``fig`` parameters.
    * - ``plot_exposuremeter()``
      - Returns 1 Figure with dual y-axes (PC and FRD exposure meter channels).
+   * - ``plot_extracted_spectra()``
+     - Returns 1 Figure showing the extracted spectra of one fiber, one line
+       per echelle order with a constant vertical offset. Not called by any
+       primitive; takes a reduced frame (filename or AstroData object) for
+       interactive inspection of box or optimal extraction results. Intended
+       for the Archive [P] plot button.
 
 Disabling Reports
 ------------------

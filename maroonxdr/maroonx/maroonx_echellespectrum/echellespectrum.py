@@ -269,4 +269,4 @@ class EchelleSpectrum:
 
         for o in self.orders:
             x = np.arange(len(self.data.loc[o]['box_data']))
-            self._data.loc[o]["wavelength"] = wavelength_solution.get_wavelength(x, o)
+            self._data.at[o, "wavelength"] = wavelength_solution.get_wavelength(x, o)

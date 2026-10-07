@@ -3,7 +3,7 @@ Parameter defaults and options
 ::
 
    suffix               '_wls'               Filename suffix
-   wavecal              None                 Processed wavecal (etalon)
+   arc                  None                 Processed arc (etalon)
    fibers               None                 List of fibers to process.
    symmetric_linefits   False                Symmetric line fits
    n_knots              30                   Number of knots for the cubic spline fit

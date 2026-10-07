@@ -4,6 +4,10 @@ Recipes available to data with tags ['MAROONX', 'CAL', 'FLAT'].
 Default is "makeProcessedFlat".
 """
 
+from maroonxdr.maroonx.recipes.sq.recipes_common import (
+    exportReducedBundle,  # noqa: F401
+)
+
 recipe_tags = {'MAROONX', 'CAL', 'FLAT'}
 blocked_tags = {'BUNDLE'}
 

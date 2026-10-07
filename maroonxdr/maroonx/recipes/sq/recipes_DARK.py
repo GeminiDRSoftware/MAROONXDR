@@ -4,6 +4,10 @@ Recipes available to data with tags ['MAROONX', 'CAL', 'DARK'].
 Default is "makeProcessedDark".
 """
 
+from maroonxdr.maroonx.recipes.sq.recipes_common import (
+    exportReducedBundle,  # noqa: F401
+)
+
 recipe_tags = {'MAROONX', 'CAL', 'DARK'}
 blocked_tags = {'BUNDLE'}
 

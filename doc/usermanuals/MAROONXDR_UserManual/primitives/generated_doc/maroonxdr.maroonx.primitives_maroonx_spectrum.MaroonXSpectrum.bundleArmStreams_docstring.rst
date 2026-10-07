@@ -13,7 +13,16 @@ adinputs : list of :class:`~astrodata.AstroData`
     previously stored Red arm stream in self.streams['RED'].
 
 suffix : str, optional
-    Suffix to append to output filenames. Default is ``'_reduced'``.
+    Suffix appended to output filenames. If None (the default),
+    the suffix is derived per bundle from the bundle tags so the
+    output name mirrors the per-arm input products, checking the
+    most specific tag first: ``DARK_COEFF`` gives
+    ``'_darkCoefficients'``, ``DARK_SYNTH`` gives ``'_synth_dark'``,
+    ``DARK`` gives ``'_dark'``, ``FLAT`` gives ``'_flat'``, and
+    ``ARC`` gives ``'_arc'``; ``'_reduced'`` is used for science
+    frames and as the fallback when no mapped tag is present.
+    An explicitly passed suffix, including an empty string,
+    always overrides the derivation.
 
 Returns
 -------
@@ -26,4 +35,9 @@ Notes
 This primitive requires that the separateArmStreams primitive has
 been run beforehand to populate self.streams['RED'] with the Red
 arm AstroData objects. Each Blue/Red pair must have matching
-ARCHNAME headers to be properly bundled together.
+ARCHNAME headers to be properly bundled together, and exactly one
+bundle is produced per ARCHNAME. If several files of the same arm
+share an ARCHNAME (e.g. a processed dark and its dark
+coefficients), only the first one in the input list is kept and a
+warning is logged for each skipped file. To bundle mixed product types, feed the
+primitive one product type at a time.

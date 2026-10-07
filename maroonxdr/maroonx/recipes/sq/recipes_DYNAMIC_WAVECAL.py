@@ -1,10 +1,14 @@
 """
-Recipes available to data with tags ['MAROONX', 'WAVECAL'].
+Recipes available to data with tags ['MAROONX', 'ARC'].
 
 Default is "makeDynamicWavecal".
 """
 
-recipe_tags = {'MAROONX', 'WAVECAL'}
+from maroonxdr.maroonx.recipes.sq.recipes_common import (
+    exportReducedBundle,  # noqa: F401
+)
+
+recipe_tags = {'MAROONX', 'ARC'}
 blocked_tags = {'BUNDLE'}
 
 
@@ -33,7 +37,7 @@ def makeDynamicWavecal(p):
        the spectrograph with time and restores an accuracy of 10 to 20
        centimeters per second.
 
-    The result is stored in the calibration database as a processed wavecal.
+    The result is stored in the calibration database as a processed arc.
 
     Parameters
     ----------
@@ -55,7 +59,7 @@ def makeDynamicWavecal(p):
 
     p.staticWavelengthSolution()
     p.fitAndApplyEtalonWls()
-    p.storeProcessedWavecal(suffix='_wavecal')
+    p.storeProcessedArc()
 
 
 _default = makeDynamicWavecal

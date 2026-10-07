@@ -1,7 +1,7 @@
 """Build dynamic wavelength calibrations from etalon frames.
 
 Reads debundled etalon (DEEEE) frames from ``$DRAGONS_TEST/preprocessed_files/``
-(produced by preprocess/bundle.py) and runs the default WAVECAL recipe
+(produced by preprocess/bundle.py) and runs the default ARC recipe
 (``makeDynamicWavecal``) per arm: stripe extraction, box extraction, etalon
 peak fitting, static solution lookup, and the dynamic etalon fit.
 
@@ -57,11 +57,11 @@ def make_wavecals():
         log.setLevel('DEBUG')
 
         for arm in ARMS:
-            only_wavecal = dataselect.select_data(
-                all_files, tags=['RAW', 'WAVECAL', arm]
+            only_arc = dataselect.select_data(
+                all_files, tags=['RAW', 'ARC', arm]
             )
             myreduce = Reduce()
-            myreduce.files.extend(only_wavecal)
+            myreduce.files.extend(only_arc)
             myreduce.drpkg = 'maroonxdr'
             myreduce.uparms = {'extractStripes:flat': MASTERFLATS[arm]}
             myreduce.runr()

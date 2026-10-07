@@ -4,7 +4,7 @@ The fast tests run on synthetic sparse stripes. The
 preprocessed_data test rebuilds the makeDynamicWavecal chain up to
 extractStripes on a real etalon frame (the sparse STRIPES inputs cannot be
 persisted to FITS) and compares the box-extracted spectra against the blessed
-wavecal product written by preprocess/wavecal.py, whose BOX_* extensions come
+arc product written by preprocess/wavecal.py, whose BOX_* extensions come
 from this same primitive.
 
 Usage:
@@ -34,14 +34,14 @@ HEIGHT = 6
 FIBERS = [2, 3, 4]
 ORDERS = ['90', '91', '92']
 
-# Raw etalon frame, master flat, and blessed wavecal product, per arm.
+# Raw etalon frame, master flat, and blessed arc product, per arm.
 datasets = [
     ('20250717T163124Z_DEEEE_b_0010.fits',
      '20250701T171553Z_DDDDF_b_0007_DFFFF_flat.fits',
-     '20250717T163124Z_DEEEE_b_0010_wavecal.fits'),
+     '20250717T163124Z_DEEEE_b_0010_arc.fits'),
     ('20250717T163124Z_DEEEE_r_0004.fits',
      '20250701T171553Z_DDDDF_r_0002_DFFFF_flat.fits',
-     '20250717T163124Z_DEEEE_r_0004_wavecal.fits'),
+     '20250717T163124Z_DEEEE_r_0004_arc.fits'),
 ]
 
 # Fibers traced by the DFFFF master flat.
@@ -180,7 +180,7 @@ def create_inputs_recipe():
 
 
 def create_refs_recipe():
-    """Copy the blessed wavecal products into refs/."""
+    """Copy the blessed arc products into refs/."""
     import shutil
     from pathlib import Path
 

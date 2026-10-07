@@ -2,7 +2,7 @@ makeStripeExtractionCheck
 =========================
 
 | **Recipe Library**: maroonxdr.maroonx.recipes.sq.recipes_ECHELLE_SPECT
-| **Astrodata Tags**: {'SCI', 'MAROONX'}
+| **Astrodata Tags**: {'MAROONX', 'SCI'}
 
 Check the stripe extraction in normal processing of a science frame.
 

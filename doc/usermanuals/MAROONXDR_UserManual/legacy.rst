@@ -442,7 +442,7 @@ Raw Wavelength Calibrations
          >>> ad = astrodata.open('N20250717M5948.fits')
          >>> ad.info()
          Filename: N20250717M5948.fits
-         Tags: BUNDLE CAL ETALON GEMINI MAROONX NORTH RAW SPECT UNPREPARED WAVECAL
+         Tags: ARC BUNDLE CAL ETALON GEMINI MAROONX NORTH RAW SPECT UNPREPARED
 
          Pixels Extensions
          Index  Content                  Type              Dimensions     Format
@@ -474,11 +474,14 @@ Static Wavelength Solutions
 .. topic:: DRAGONS Format (FITS)
    :class: dragons-block
 
-   In DRAGONS the reference peak model lives as a lookup file
-   (``lookups/WLS/REFWAVELENGTH_[b|r].fits``), and ``staticWavelengthSolution()`` evaluates it
-   into ``WLS_STATIC_FIBER_*`` extensions on the wavecal file.
+   In DRAGONS the pre-evaluated static solution lives as a lookup file
+   (``lookups/WLS/WLSTAT_[b|r].fits``, one column per order and fiber), and
+   ``staticWavelengthSolution()`` stacks the columns of the extracted orders
+   into ``WLS_STATIC_FIBER_*`` extensions on the arc file. The
+   underlying peak model is the separate ``REFWAVELENGTH_[b|r].fits``
+   lookup, used by the etalon fit.
 
-   * **Example**: ``20250717T163124Z_DEEEE_b_0010_wavecal.fits``
+   * **Example**: ``20250717T163124Z_DEEEE_b_0010_arc.fits``
    * **Structure**: ``(n_orders, n_samples)`` per fiber. Blue arm is ``(34, 3954)``, red arm is
      ``(28, 4036)``. Fiber 1 stays empty as ``(1, 1)``.
 
@@ -535,19 +538,19 @@ Dynamic Wavelength Solutions
 .. topic:: DRAGONS Format (FITS)
    :class: dragons-block
 
-   * **Example**: ``20250717T163124Z_DEEEE_b_0010_wavecal.fits``
-   * **Naming**: ``YYYYMMDDTHHmmSSZ_DEEEE_[b|r]_nnnn_wavecal.fits``
+   * **Example**: ``20250717T163124Z_DEEEE_b_0010_arc.fits``
+   * **Naming**: ``YYYYMMDDTHHmmSSZ_DEEEE_[b|r]_nnnn_arc.fits``
    * **Structure**: single-arm file, ``OVERSCAN_SUBTRACTED`` and ``OVERSCAN_TRIMMED`` to
      ``(4072, 3954)``. Wavelength solutions, extracted spectra, peak fits, and stripe indices
      all live on extension 0.
 
       .. code-block:: pycon
 
-         >>> ad = astrodata.open('20250717T163124Z_DEEEE_b_0010_wavecal.fits')
+         >>> ad = astrodata.open('20250717T163124Z_DEEEE_b_0010_arc.fits')
          >>> ad.info()
-         Filename: 20250717T163124Z_DEEEE_b_0010_wavecal.fits
-         Tags: 10s BLUE CAL ETALON GEMINI MAROONX NORTH OVERSCAN_SUBTRACTED
-             OVERSCAN_TRIMMED PREPARED PROCESSED SPECT WAVECAL
+         Filename: 20250717T163124Z_DEEEE_b_0010_arc.fits
+         Tags: 10s ARC BLUE CAL ETALON GEMINI MAROONX NORTH OVERSCAN_SUBTRACTED
+             OVERSCAN_TRIMMED PREPARED PROCESSED SPECT
 
          Pixels Extensions
          Index  Content                  Type              Dimensions     Format
@@ -599,7 +602,7 @@ Dynamic Wavelength Solutions
          Other Extensions
                         Type        Dimensions
          .EXPOSUREMETER Table       (257, 3)
-         .HISTORY       Table       (3, 4)
+         .HISTORY       Table       (4, 4)
          .PROVENANCE    Table       (3, 4)
 
    * **Processing recipe**: ``recipes_DYNAMIC_WAVECAL.py::makeDynamicWavecal``
@@ -615,7 +618,7 @@ Simultaneous Wavelength Solutions
    and fiber 6 stores the etalon wavelengths after drift correction.
 
    * **Example**: ``20250817T131207Z_SOOOE_b_0300.hdf``
-   * **Added groups** (on top of the dynamic-wavecal tree shown above):
+   * **Added groups** (on top of the dynamic wavelength solution tree shown above):
 
      .. code-block:: text
 
@@ -869,6 +872,18 @@ sources feed this:
 * ``wl_combined_final_etalon_peakmodel_2020.hdf`` (shared reference peak model):
   the polynomial fit that the evaluated static grid is derived from.
 
+The lookup files are built from these sources by the ``build_*_lookup``
+functions in ``maroonxdr/maroonx/maroonx_utils.py``; the procedure is
+described in the *Building the Lookup Files* section of the Programmer's
+Manual. Every lookup carries the same primary header cards: ``INSTRUME``
+(``MAROON-X``), ``OBSTYPE`` (``BPM``, ``SID``, ``WLSTAT`` or ``WLREF``),
+``ARM`` (``BLUE`` or ``RED``), ``ORIGNAME`` (the legacy file it was built
+from) and ``DATE`` (the build date). With them AstroData resolves every
+lookup to the MAROON-X class and tags it with its arm, so ``typewalk`` and
+``dataselect`` list the lookups like any other frame; the bad pixel mask
+additionally carries ``PROCBPM`` and gets the DRAGONS ``BPM``, ``CAL`` and
+``PROCESSED`` tags.
+
 Each subsection below maps one legacy chunk to its DRAGONS lookup.
 
 Bad Pixel Masks
@@ -897,22 +912,32 @@ Bad Pixel Masks
    :class: dragons-block
 
    Bad pixel masks are standalone FITS files under
-   ``maroonxdr/maroonx/lookups/BPM/``:
+   ``maroonxdr/maroonx/lookups/BPM/``, in the DRAGONS layout of a primary
+   header plus one ``SCI`` extension holding the mask:
 
    .. code-block:: text
 
-      BPM_[b|r]_0000.fits   # PrimaryHDU (4400, 4400) int64
+      BPM_[b|r]_0000.fits   # PrimaryHDU (header only) + SCI ImageHDU (4400, 4400) uint16
 
    .. code-block:: pycon
 
       >>> from astropy.io import fits
       >>> hdul = fits.open('maroonxdr/maroonx/lookups/BPM/BPM_b_0000.fits')
       >>> hdul.info()
-      Filename: BPM_b_0000.fits
+      Filename: maroonxdr/maroonx/lookups/BPM/BPM_b_0000.fits
       No.    Name      Ver    Type      Cards   Dimensions   Format
-        0  PRIMARY       1 PrimaryHDU       8   (4400, 4400)   int64
+        0  PRIMARY       1 PrimaryHDU      11   ()
+        1  SCI           1 ImageHDU        12   (4400, 4400)   int16 (rescales to uint16)
+
+   The sign convention is inverted with respect to the legacy map: the
+   legacy ``bad_pixel_map`` uses 1 for good pixels, while the lookup follows
+   the DRAGONS DQ convention where nonzero marks a bad pixel, so the lookup
+   is ``1 - bad_pixel_map``. The legacy ``valid`` mask is not ported.
 
    * **Registered in**: ``maroonxdr/maroonx/lookups/maskdb.py``
+   * **Code reference**: ``maroonx_utils.build_bpm_lookup``
+   * **Used by**: ``addDQ``, as the fallback when the calibration database
+     has no processed BPM for the frame
 
 
 Stripe Identification
@@ -960,9 +985,9 @@ Stripe Identification
       >>> from astropy.io import fits
       >>> hdul = fits.open('maroonxdr/maroonx/lookups/SID/SID_b.fits')
       >>> hdul.info()
-      Filename: SID_b.fits
+      Filename: maroonxdr/maroonx/lookups/SID/SID_b.fits
       No.    Name      Ver    Type      Cards   Dimensions   Format
-        0  PRIMARY       1 PrimaryHDU       9   ()
+        0  PRIMARY       1 PrimaryHDU      10   ()
         1  SID           1 BinTableHDU     15   170R x 3C   [I, I, I]
 
    Columns of the ``SID`` extension:
@@ -975,6 +1000,10 @@ Stripe Identification
    ``identify_stripes/positions`` attribute. 
    The ``find_stripes/`` params live as ``findStripes``
    defaults in ``parameters_maroonx_2D.py``.
+
+   * **Registered in**: ``maroonxdr/maroonx/lookups/siddb.py``
+   * **Code reference**: ``maroonx_utils.build_sid_lookup``
+   * **Used by**: ``identifyStripes``
 
 
 Reference Wavelengths
@@ -1036,23 +1065,30 @@ Products section above.
         >>> from astropy.io import fits
         >>> hdul = fits.open('maroonxdr/maroonx/lookups/WLS/WLSTAT_b.fits')
         >>> hdul.info()
-        Filename: WLSTAT_b.fits
+        Filename: maroonxdr/maroonx/lookups/WLS/WLSTAT_b.fits
         No.    Name      Ver    Type      Cards   Dimensions   Format
-          0  PRIMARY       1 PrimaryHDU       9   ()
+          0  PRIMARY       1 PrimaryHDU      10   ()
           1  FIBER_1       1 BinTableHDU     77   3954R x 34C   [D, D, D, D, ...]
           2  FIBER_2       1 BinTableHDU     77   3954R x 34C   [D, D, D, D, ...]
           3  FIBER_3       1 BinTableHDU     77   3954R x 34C   [D, D, D, D, ...]
           4  FIBER_4       1 BinTableHDU     77   3954R x 34C   [D, D, D, D, ...]
           5  FIBER_5       1 BinTableHDU     77   3954R x 34C   [D, D, D, D, ...]
 
-     Each ``FIBER_N`` has 34 columns named by echelle order number (``100``,
-     ``101``, ..., ``133``), each holding 3954 float64 wavelength values in nm.
+     Each ``FIBER_N`` has one column per echelle order, named by order
+     number: 34 columns (``91`` to ``124``) of 3954 float64 wavelength
+     values in nm for the blue arm, 28 columns (``67`` to ``94``) of 4036
+     values for the red arm.
 
    ``WLSTAT_[b|r].fits`` is the ready-to-use per-fiber static wavelength
    solution and is what ``staticWavelengthSolution()`` reads at runtime.
    ``REFWAVELENGTH_[b|r].fits`` holds the underlying peak model in case
    re-evaluation is ever needed.
 
-   * **Code reference**: ``utils/ref_wls_hdf2fits.py``
+   * **Registered in**: ``maroonxdr/maroonx/lookups/wavelengthdb.py``
+   * **Code reference**: ``maroonx_utils.build_statwls_lookup`` (``WLSTAT``)
+     and ``maroonx_utils.build_refwls_lookup`` (``REFWAVELENGTH``)
+   * **Used by**: ``staticWavelengthSolution`` (``WLSTAT``);
+     ``fitAndApplyEtalonWls`` and ``applyWavelengthSolution``
+     (``REFWAVELENGTH``, the ``PARAMETERS`` table)
 
 

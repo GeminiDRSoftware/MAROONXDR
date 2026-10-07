@@ -9,7 +9,6 @@ from maroonxdr.maroonx.maroonx_plots import plot_backgroundfit
 import numpy as np
 import pandas as pd
 
-from astrodata.provenance import add_provenance
 from astropy.io import fits
 from astropy.stats import SigmaClip, sigma_clipped_stats
 from astropy.table import Table, vstack
@@ -21,8 +20,7 @@ from gempy.gemini import gemini_tools as gt
 from matplotlib.backends.backend_pdf import PdfPages
 from photutils.background import Background2D, MedianBackground
 from recipe_system.utils.decorators import parameter_override
-from recipe_system.utils.md5 import md5sum
-from scipy.ndimage import gaussian_filter, measurements, median_filter
+from scipy.ndimage import gaussian_filter, median_filter
 
 from . import maroonx_utils, parameters_maroonx_2D
 from .lookups import timestamp_keywords as maroonx_stamps
@@ -42,14 +40,16 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
         self.timestamp_keys.update(maroonx_stamps.timestamp_keys)
 
     def addDQ(self, adinputs=None, **params):
-        # just edited for bpm lookup, can be removed when MX is caldb compliant
         """
         Add a DQ extension to the input AstroData objects.
 
-        The value of a pixel in the DQ extension will be the sum of the
-        following: (0=good, 1=bad pixel (found in bad pixel mask), 2=pixel is
-        in the non-linear regime, 4=pixel is saturated). This primitive will
-        trim the BPM to match the input AstroData object(s).
+        Wrapper around the core ``addDQ`` that resolves the static bad pixel
+        mask for MAROON-X. With the default ``static_bpm``, the calibration
+        database is queried first; for every frame without a processed BPM
+        there, the packaged lookup for the frame's arm is used. This fallback
+        is permanent: MAROON-X has no archive service, so the packaged lookup
+        stands in for the archive-served BPM. The core primitive then flags
+        the bad, non-linear and saturated pixels.
 
         Parameters
         ----------
@@ -57,13 +57,16 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
             Input AstroData objects with no DQ extension.
         suffix: str
             suffix to be added to output files
-        static_bpm: str
-            Name of bad pixel mask ("default" -> use default from look-up table)
-            If set to None, no static_bpm will be added.
+        static_bpm: str or None
+            Static bad pixel mask to apply. With "default", the calibration
+            database is queried and, if it has no processed BPM for the
+            frame, the packaged lookup for the frame's arm is used. With a
+            file name, that file is used as given. With None, no static bad
+            pixel mask is applied at all.
         user_bpm: str
             Name of the bad pixel mask created by the user from flats and
             darks.  It is an optional BPM that can be added to the static one.
-        illum_mask: bool
+        add_illum_mask: bool
             add illumination mask?
 
         Returns
@@ -71,191 +74,22 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
         adinputs : list of AstroData objects with a DQ extension added to them
         """
         log = self.log
-        log.debug(gt.log_message('primitive', self.myself(), 'starting'))
-        timestamp_key = self.timestamp_keys['addDQ']
-        sfx = params['suffix']
+        static_bpm = params.pop('static_bpm')
 
-        # Getting all the filenames first prevents reopening the same file
-        # for each science AD
-        static_bpm_list = params['static_bpm']
-        user_bpm_list = params['user_bpm']
+        if static_bpm == 'default':
+            files = self.caldb.get_processed_bpm(adinputs).files
+            # The core static_bpm field takes one file, and the mask differs
+            # per arm, so delegate one frame at a time
+            for ad, bpm in zip(adinputs, files):
+                if bpm is None:
+                    bpm = maroonx_utils.get_bpm_filename(ad)
+                    log.stdinfo(f'No processed BPM in the calibration database '
+                                f'for {ad.filename}, using the packaged '
+                                f'lookup {bpm}')
+                super().addDQ([ad], **params, static_bpm=bpm)
+            return adinputs
 
-        if static_bpm_list == 'default':
-            try:
-                static_bpm_list = self.caldb.get_processed_bpm(adinputs)
-            except:
-                static_bpm_list = None
-            if static_bpm_list is not None and not all(
-                [f is None for f in static_bpm_list.files]
-            ):
-                static_bpm_list = static_bpm_list.files
-            else:
-                # TODO once we fully migrate to caldb/server managed bpms, use 2nd line
-                # TODO also remove all() check in if above at that time
-                static_bpm_list = [
-                    maroonx_utils.get_bpm_filename(ad) for ad in adinputs
-                ]
-                # static_bpm_list = [None] * len(adinputs) # noqa
-
-        for ad, static, user in zip(
-            *gt.make_lists(adinputs, static_bpm_list, user_bpm_list, force_ad=True)
-        ):
-            if ad.phu.get(timestamp_key):
-                log.warning(
-                    'No changes will be made to %s, since it has '
-                    'already been processed by addDQ',
-                    ad.filename,
-                )
-                continue
-
-            if static is None:
-                # So it can be zipped with the AD
-                final_static = [None] * len(ad)
-            else:
-                log.stdinfo(f'Using {static.filename} as static BPM.\n')
-                final_static = gt.clip_auxiliary_data(
-                    ad, aux=static, aux_type='bpm', return_dtype=DQ.datatype
-                )
-
-            if user is None:
-                final_user = [None] * len(ad)
-            else:
-                log.stdinfo(f'Using {user.filename} as user BPM.\n')
-                final_user = gt.clip_auxiliary_data(
-                    ad, aux=user, aux_type='bpm', return_dtype=DQ.datatype
-                )
-
-            if static is None and user is None:
-                log.stdinfo(
-                    f'No BPMs found for {ad.filename} and none supplied by the user.\n'
-                )
-
-            for ext, static_ext, user_ext in zip(ad, final_static, final_user):
-                if ext.mask is not None:
-                    log.warning('A mask already exists in extension %s', ext.id)
-                    continue
-
-                non_linear_level = ext.non_linear_level()
-                saturation_level = ext.saturation_level()
-
-                # Need to create the array first for 3D raw F2 data, with 2D BPM
-                ext.mask = np.zeros_like(ext.data, dtype=DQ.datatype)
-                if static_ext is not None:
-                    ext.mask |= static_ext.data
-                if user_ext is not None:
-                    ext.mask |= user_ext.data
-
-                if saturation_level:
-                    log.fullinfo(
-                        f'Flagging saturated pixels in {ad.filename} extension '
-                        f'{ext.id} above level {saturation_level:.2f}'
-                    )
-                    ext.mask |= np.where(
-                        ext.data >= saturation_level, DQ.saturated, 0
-                    ).astype(DQ.datatype)
-
-                if non_linear_level:
-                    if saturation_level:
-                        if saturation_level > non_linear_level:
-                            log.fullinfo(
-                                f'Flagging non-linear pixels in {ad.filename} '
-                                f'extension {ext.id} above level {non_linear_level:.2f}'
-                            )
-                            ext.mask |= np.where(
-                                (ext.data >= non_linear_level)
-                                & (ext.data < saturation_level),
-                                DQ.non_linear,
-                                0,
-                            ).astype(DQ.datatype)
-                            # Readout modes of IR detectors can result in
-                            # saturated pixels having values below the
-                            # saturation level. Flag those. Assume we have an
-                            # IR detector here because both non-linear and
-                            # saturation levels are defined and nonlin<sat
-                            regions, nregions = measurements.label(
-                                ext.data < non_linear_level
-                            )
-                            # In all my tests, region 1 has been the majority
-                            # of the image; however, I cannot guarantee that
-                            # this is always the case and therefore we should
-                            # check the size of each region
-                            region_sizes = measurements.labeled_comprehension(
-                                ext.data,
-                                regions,
-                                np.arange(1, nregions + 1),
-                                len,
-                                int,
-                                0,
-                            )
-                            # First, assume all regions are saturated, and
-                            # remove any very large ones. This is much faster
-                            # than progressively adding each region to DQ
-                            hidden_saturation_array = np.where(
-                                regions > 0, 4, 0
-                            ).astype(DQ.datatype)
-                            for region in range(1, nregions + 1):
-                                # Limit of 10000 pixels for a hole is a bit arbitrary
-                                if region_sizes[region - 1] > 10000:
-                                    hidden_saturation_array[regions == region] = 0
-                            ext.mask |= hidden_saturation_array
-
-                        elif saturation_level < non_linear_level:
-                            log.warning(
-                                '%s extension %s has saturation level\
-                                        less than non-linear level',
-                                ad.filename,
-                                ext.id,
-                            )
-                        else:
-                            log.fullinfo(
-                                'Saturation and non-linear levels are the same for\
-                                         %s:%s. Only flagging saturated pixels',
-                                ad.filename,
-                                ext.id,
-                            )
-                    else:
-                        log.fullinfo(
-                            'Flagging non-linear pixels in %s:%s above level %s',
-                            ad.filename,
-                            ext.id,
-                            non_linear_level,
-                        )
-                        ext.mask |= np.where(
-                            ext.data >= non_linear_level, DQ.non_linear, 0
-                        ).astype(DQ.datatype)
-            if static and static.filename:
-                add_provenance(
-                    ad, static.filename, md5sum(static.path) or '', self.myself()
-                )
-            if user and user.filename:
-                add_provenance(
-                    ad, user.filename, md5sum(user.path) or '', self.myself()
-                )
-
-        # Handle latency if reqested
-        if params.get('latency', False):
-            try:
-                adinputs = self.addLatencyToDQ(
-                    adinputs, time=params['time'], non_linear=params['non_linear']
-                )
-            except AttributeError:
-                log.warning(
-                    'addLatencyToDQ() not defined in primitivesClass %s',
-                    self.__class__.__name__,
-                )
-
-        # Add the illumination mask if requested
-        if params['add_illum_mask']:
-            adinputs = self.addIllumMaskToDQ(
-                adinputs, **self._inherit_params(params, 'addIllumMaskToDQ')
-            )
-
-        # Timestamp and update filenames
-        for ad in adinputs:
-            gt.mark_history(ad, primname=self.myself(), keyword=timestamp_key)
-            ad.update_filename(suffix=sfx, strip=True)
-
-        return adinputs
+        return super().addDQ(adinputs, **params, static_bpm=static_bpm)
 
     def validateData(self, adinputs=None, **params):
         """
@@ -627,7 +461,7 @@ class MAROONX(CalibDBMAROONX, Gemini, CCD, NearIR):
             for osec_, asec_ in zip(osec, asec):
                 oslice = osec_.asslice()
                 aslice = asec_.asslice()
-                data[aslice] -= np.mean(data[oslice])  # TODO: use nanmean
+                data[aslice] -= np.mean(data[oslice], dtype=np.float64)  # TODO: use nanmean
 
             # Timestamp, and update filename
             gt.mark_history(ad, primname=self.myself(), keyword=timestamp_key)

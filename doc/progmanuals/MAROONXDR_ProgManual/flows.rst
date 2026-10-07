@@ -153,7 +153,7 @@ database and ``optimalExtraction`` produces per-fiber 1D spectra
 (a second, independent dark fetch happens here). The wavelength chain
 fits the etalon peaks of the simultaneous calibration fiber, attaches
 the static solution from the ``WLSTAT`` lookup, and applies the
-drift-corrected solution using the processed wavecal and the
+drift-corrected solution using the processed arc and the
 ``REFWAVELENGTH`` lookup. ``combineFibers`` adds the virtual sixth
 fiber from the three science fibers, and ``barycentricCorrection``
 computes the BERV values before the final ``_reduced`` product is

@@ -14,3 +14,4 @@ Recipes Reference
    maroonx_flat_recipes
    maroonx_wavecal_recipes
    maroonx_science_recipes
+   maroonx_common_recipes

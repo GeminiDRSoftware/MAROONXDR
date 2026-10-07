@@ -76,7 +76,7 @@ managed by ``caldb``::
     │   ├── processed_dark/              # Master darks (per exptime, per arm)
     │   ├── processed_dark_coeff/        # Dark scaling coefficients (per arm)
     │   ├── processed_flat/              # Master flats (per arm)
-    │   └── processed_wavecal/           # Dynamic etalon wavelength solutions
+    │   └── processed_arc/               # Dynamic etalon wavelength solutions
     └── reduce_*.log                     # Reduction log files
 
 .. note:: Calibration files produced by ``reduce`` are written twice: once
@@ -343,17 +343,17 @@ Run once per arm:
             @wavecal_${arm}.lis
     done
 
-Each call writes one ``*_wavecal.fits`` file into ``science_dir/`` and a
-copy under the ``processed_wavecal`` caltype in
-``calibrations/processed_wavecal/``. The output carries the
-``PROCESSED,WAVECAL`` tag set.
+Each call writes one ``*_arc.fits`` file into ``science_dir/`` and a
+copy under the ``processed_arc`` caltype in
+``calibrations/processed_arc/``. The output carries the
+``PROCESSED,ARC`` tag set.
 
 **Verify wavelength calibrations:**
 
 .. code-block:: bash
 
-    # List processed wavecal files
-    dataselect --adpkg maroonx_instruments --tags PROCESSED,WAVECAL *.fits
+    # List processed arc files
+    dataselect --adpkg maroonx_instruments --tags PROCESSED,ARC *.fits
 
 
 Step 6: Synthetic Darks
@@ -558,6 +558,41 @@ The output is a single ``<ARCHNAME>_reduced.fits`` per observation in
 ``N20250717M5299_reduced.fits``. This is the science-ready product.
 
 
+Exporting Calibration Products
+-------------------------------
+
+**Purpose**: bundle processed calibrations with the same recipe used for
+the science product.
+
+``exportReducedBundle`` works for any processed per-arm product: master
+darks (including dark coefficients and synthetic darks), master flats,
+and dynamic wavelength solutions. The output bundle is again named from
+the ``ARCHNAME``, with a suffix mirroring the input product type - for
+example ``<ARCHNAME>_dark.fits`` for a processed dark pair, or
+``<ARCHNAME>_darkCoefficients.fits`` for dark coefficients.
+
+Because the recipe pairs files by ``ARCHNAME`` and writes one bundle per
+observation, run it once per product type. Different products of the
+same observation (for example a master dark and its dark coefficients)
+must not be mixed in one call; otherwise only the first file per arm is
+kept and the rest are skipped with a warning. To export the master dark
+pairs of Step 2:
+
+.. code-block:: bash
+
+    # Select all processed dark pairs (both arms)
+    dataselect --adpkg maroonx_instruments --tags PROCESSED,DARK \
+        -o dark_bundle.lis *_dark.fits
+
+    # Combine BLUE + RED into one bundle per observation
+    reduce --adpkg maroonx_instruments --drpkg maroonxdr \
+        --recipe exportReducedBundle @dark_bundle.lis
+
+The glob ``*_dark.fits`` deliberately excludes ``*_darkCoefficients.fits``
+and ``*_synth_dark.fits``, which also carry the ``DARK`` tag - that is
+how a single product type is selected per run.
+
+
 Advanced CLI Usage
 ==================
 
@@ -624,19 +659,72 @@ syntax turns off a primitive's diagnostic PDF report, for example
 ``-p removeStrayLight:report=False`` (see
 :ref:`maroonxdr_user_pdf_reports`).
 
+.. _maroonx_caldb_manual:
+
 Managing the calibration database: ``caldb``
 ---------------------------------------------
 
 ``reduce`` registers processed calibrations with ``caldb`` automatically,
 so the linear walk-through above never needs to call ``caldb`` directly.
-For troubleshooting - "this run picked the wrong flat", "the wavecal from
-yesterday is shadowing today's" - ``caldb`` has a small set of commands:
+For troubleshooting (e.g. "this run picked the wrong flat"), ``caldb`` has a
+small set of commands:
 
 .. code-block:: bash
 
     caldb list                            # show every calibration registered
-    caldb add calibrations/processed_flat/<file>.fits
     caldb remove <file>.fits
+
+.. warning:: Do not use ``caldb add`` with MAROON-X files. Unlike
+   ``reduce`` and the other DRAGONS tools, ``caldb`` has no ``--adpkg``
+   option, so it opens the file without the MAROON-X AstroData class and
+   stores metadata that never matches a MAROON-X frame (the arm is
+   missing, and the ``DARK``, ``FLAT`` and ``ARC`` tags are absent).
+   The file shows up normally in ``caldb list``, but ``reduce`` reports
+   the calibration as not found.
+
+To register a calibration by hand, run the matching ``storeProcessed``
+primitive on the file with ``reduce``:
+
+.. code-block:: bash
+
+    reduce --adpkg maroonx_instruments --drpkg maroonxdr \
+        -r storeProcessedFlat <file>.fits
+
+Use ``storeProcessedDark`` for master and synthetic darks,
+``storeProcessedDarkCoeff`` for dark coefficients, ``storeProcessedFlat``
+for flats and ``storeProcessedArc`` for wavelength solutions. The
+primitive writes a copy of the file under ``calibrations/<caltype>/`` in
+the current directory and registers that copy.
+
+To register the file where it is, without writing a copy, do it from
+Python with the MAROON-X class imported. ``set_local_database()`` reads
+the same ``dragonsrc`` as the ``caldb`` command:
+
+.. code-block:: python
+
+    import maroonx_instruments
+    from recipe_system import cal_service
+
+    caldb = cal_service.set_local_database()
+    caldb.add_cal('<file>.fits')
+
+If a file was already added with ``caldb add``, ``caldb remove`` it
+first and register it again with either method.
+
+To check which calibrations ``reduce`` will pick for a given frame
+without running the reduction, query the database directly:
+
+.. code-block:: python
+
+    import astrodata
+    import maroonx_instruments
+    from recipe_system import cal_service
+
+    caldb = cal_service.set_local_database()
+    ad = astrodata.open('<science>.fits')
+    for caltype in ('processed_flat', 'processed_dark', 'processed_arc'):
+        print(caltype, caldb.get_calibrations([ad], caltype=caltype,
+                                              procmode='sq').files[0])
 
 For initial configuration and database initialisation, see
 :ref:`maroonx_caldb_setup`.

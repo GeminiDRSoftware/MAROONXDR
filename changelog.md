@@ -9,6 +9,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - ThAr (static) wavelength solutions
 
+## [0.5.0] - 2026-10-07
+
+This release has breaking changes. Existing calibration databases must be
+re-initialised and refilled, and scripts that use the `WAVECAL` tag, the
+`processed_wavecal` caltype or the `wavecal` parameter must be updated.
+
+### Added
+
+- Support for DRAGONS 4.2.2 (numpy 2, astropy 7.1 or later, pandas 2.3 or
+  later)
+- Lookup files (BPM, SID, WLSTAT, REFWAVELENGTH) can be built from the
+  legacy HDF5 files with the `build_*_lookup` functions in
+  `maroonx_utils.py`, and packaged for a release with the
+  `package_lookups` nox session
+- Tutorial section on managing the calibration database by hand
+- `plot_extracted_spectra` function in `maroonx_plots.py` for a quick view
+  of the extracted spectra of a reduced file, one offset line per order,
+  for a chosen fiber and extraction type. Intended for the [P] plot
+  in the Gemini Archive.
+
+### Changed
+
+- Wavelength calibration frames (etalon, ThAr, LFC) are tagged `ARC`, the
+  DRAGONS standard, instead of `WAVECAL`. Use `dataselect --tags ARC`
+- Processed wavelength solutions use the DRAGONS `processed_arc` caltype:
+  they are stored with `storeProcessedArc`, written as `*_arc.fits` under
+  `calibrations/processed_arc/`, and marked with the `PROCARC` keyword
+- `applyWavelengthSolution` parameter `wavecal` renamed to `arc`
+  (`-p applyWavelengthSolution:arc=<file>`)
+- `makeStaticWavecal` products use the `_static_arc` suffix
+- `ad.instrument()` returns the header value `MAROON-X`;
+  `ad.instrument(generic=True)` returns `MAROONX`. Calibration database
+  entries are stored under `MAROON-X`
+- `addDQ` falls back to the packaged BPM lookup when no static BPM is
+  given
+- Project metadata moved to the standard `[project]` table in
+  `pyproject.toml`
+- `exportReducedBundle` is now a shared recipe available for all frame
+  types: reduced science, processed darks (including dark coefficients
+  and synthetic darks), processed flats, and dynamic wavelength solutions
+
+### Fixed
+
+- `XNORM` column handling when loading the reference wavelength lookup
+- `devconda` nox session: conda channels are now passed to every install
+  step, the docs dependencies are included, and `pytest-dragons` is
+  installed
+
+### Removed
+
+- `WAVECAL` tag, `processed_wavecal` caltype and the `PRWAVECAL` keyword.
+  Wavelength solutions made with earlier versions are no longer recognised
+  as processed calibrations and must be made again
+- `getProcessedWavecal` and `storeProcessedWavecal` primitives, replaced
+  by the DRAGONS `getProcessedArc` and `storeProcessedArc`
+
 ## [0.4.1] - 2026-09-04
 
 ### Added
@@ -68,7 +124,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `makeProcessedFlatQA`)
 - nox-based development environment and task automation (`devenv`,
   `devconda`, test, docs and packaging sessions)
-- Documentation: Tutorial nad User Manual published on Read the Docs, Programmer
+- Documentation: Tutorial and User Manual published on Read the Docs, Programmer
   manual built locally, with recipe and primitive reference pages generated
   from the live docstrings
 - GitHub Actions testing workflow

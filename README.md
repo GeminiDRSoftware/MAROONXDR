@@ -34,7 +34,7 @@ Recipes available in `maroonxdr/maroonx/recipes/sq/`:
 | `recipes_ECHELLE_SPECT.makeSyntheticDark` | Synthetic dark matching a science exposure |
 | `recipes_FLAT_SPECT.makeProcessedFlat` | Master flat with stripe traces and 1D extractions |
 | `recipes_FLAT_SPECT.makeBlaze` | Blaze function for each fiber of a master flat |
-| `recipes_DYNAMIC_WAVECAL.makeDynamicWavecal` | Etalon wavelength solution used for drift correction (processed wavecal) |
+| `recipes_DYNAMIC_WAVECAL.makeDynamicWavecal` | Etalon wavelength solution used for drift correction (processed arc) |
 | `recipes_ECHELLE_SPECT.reduce` | Wavelength-calibrated, fiber-combined 1D spectra with barycentric correction |
 | `recipes_ECHELLE_SPECT.applyBarycentricCorrection` | Recomputed barycentric correction with target-specific parameters |
 | `recipes_ECHELLE_SPECT.exportReducedBundle` | Reduced red and blue arm spectra re-bundled into one file |
@@ -66,13 +66,14 @@ editable mode. A `conda` variant is available via `nox -s devconda`.
 The pipeline needs a set of static instrument reference files that are not
 tracked in git: bad pixel masks (BPM), stripe ID traces (SID), and static
 wavelength solutions (WLS). They are distributed with each release as
-`lookups_files.zip` on the GitHub releases page.
+`lookups_files_<version>.zip` on the GitHub releases page.
 
-After installing, extract the archive into the package lookup directory:
+After installing, extract the archive into the package lookup directory,
+substituting the release version in the filename:
 
 ```
 cd MAROONXDR
-unzip lookups_files.zip -d maroonxdr/maroonx/lookups/
+unzip lookups_files_<version>.zip -d maroonxdr/maroonx/lookups/
 ```
 
 This places the FITS files under `lookups/BPM/`, `lookups/SID/` and
