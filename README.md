@@ -66,13 +66,14 @@ editable mode. A `conda` variant is available via `nox -s devconda`.
 The pipeline needs a set of static instrument reference files that are not
 tracked in git: bad pixel masks (BPM), stripe ID traces (SID), and static
 wavelength solutions (WLS). They are distributed with each release as
-`lookups_files.zip` on the GitHub releases page.
+`lookups_files_<version>.zip` on the GitHub releases page.
 
-After installing, extract the archive into the package lookup directory:
+After installing, extract the archive into the package lookup directory,
+substituting the release version in the filename:
 
 ```
 cd MAROONXDR
-unzip lookups_files.zip -d maroonxdr/maroonx/lookups/
+unzip lookups_files_<version>.zip -d maroonxdr/maroonx/lookups/
 ```
 
 This places the FITS files under `lookups/BPM/`, `lookups/SID/` and

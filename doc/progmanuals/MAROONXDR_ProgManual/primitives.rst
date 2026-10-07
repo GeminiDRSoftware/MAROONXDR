@@ -139,7 +139,7 @@ figures written into the PDF reports, plus standalone diagnostics.
      - Returns 1 Figure showing the extracted spectra of one fiber, one line
        per echelle order with a constant vertical offset. Not called by any
        primitive; takes a reduced frame (filename or AstroData object) for
-       interactive inspection of box or optimal extraction results. Inteded
+       interactive inspection of box or optimal extraction results. Intended
        for the Archive [P] plot button.
 
 Disabling Reports

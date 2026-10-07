@@ -21,7 +21,6 @@ Primitives Reference
    primitive_addVAR
    primitive_checkND
    primitive_subtractOverscan
-   primitive_stackFramesMXCal
    primitive_stackDarks
    primitive_stackFlats
    primitive_findStripes

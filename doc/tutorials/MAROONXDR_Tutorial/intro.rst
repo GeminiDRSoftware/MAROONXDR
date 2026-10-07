@@ -45,14 +45,15 @@ First, clone the MAROON-X DRAGONS repository:
 The pipeline also needs a set of static instrument reference files that are
 not tracked in git: bad pixel masks (BPM), stripe ID traces (SID), and
 static wavelength solutions (WLS). They are distributed with each release
-as ``lookups_files.zip`` on the `GitHub releases page
+as ``lookups_files_<version>.zip`` on the `GitHub releases page
 <https://github.com/GeminiDRSoftware/MAROONXDR/releases>`_.
 
-Download the archive and extract it into the package lookup directory:
+Download the archive and extract it into the package lookup directory,
+substituting the release version in the filename:
 
 .. code-block:: bash
 
-    unzip lookups_files.zip -d maroonxdr/maroonx/lookups/
+    unzip lookups_files_<version>.zip -d maroonxdr/maroonx/lookups/
 
 This places the FITS files under ``lookups/BPM/``, ``lookups/SID/`` and
 ``lookups/WLS/``, where the pipeline expects them. The packages are
@@ -261,11 +262,12 @@ You should see ``(mx_dev)`` in your shell prompt, indicating the environment is 
 Building the Manuals Locally
 ============================
 
-Only this Tutorial is published to Read the Docs. The **User Manual** and
-**Programmer Manual** live in the repository under
+This Tutorial and the **User Manual** are published to Read the Docs; the
+**Programmer Manual** is distributed as a PDF with each release. The
+**User Manual** and **Programmer Manual** live in the repository under
 ``doc/usermanuals/MAROONXDR_UserManual/`` and
-``doc/progmanuals/MAROONXDR_ProgManual/`` and are built on demand with two
-``nox`` sessions.
+``doc/progmanuals/MAROONXDR_ProgManual/`` and can be built on demand with
+two ``nox`` sessions.
 
 With ``mx_dev`` activated:
 
